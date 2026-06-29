@@ -1,0 +1,886 @@
+{
+	"info": {
+		"_postman_id": "c9fd6ca1-f5b7-4348-bfea-67678f061bc4",
+		"name": "app_eKYC Web Hackathon",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "39505061"
+	},
+	"item": [
+		{
+			"name": "1. Web addFile front",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"",
+							"pm.globals.set(\"hash1\", jsonData.object.hash);"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Token-id",
+						"value": "{{token_id}}",
+						"type": "text"
+					},
+					{
+						"key": "Token-key",
+						"value": "{{token_key}}",
+						"type": "text"
+					},
+					{
+						"key": "mac-address",
+						"value": "WEB-001",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "{{authen}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": []
+						},
+						{
+							"key": "title",
+							"value": "ocr front",
+							"type": "text"
+						},
+						{
+							"key": "description",
+							"value": "ocr front old type ",
+							"type": "text"
+						},
+						{
+							"key": "type",
+							"value": "minio",
+							"type": "text",
+							"disabled": true
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_url}}/file-service/v1/addFile",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"file-service",
+						"v1",
+						"addFile"
+					]
+				},
+				"description": "Dùng để upload ảnh lên Server media và trả về chuỗi hash duy nhất của ảnh.\nChuỗi hash này là đầu vào cho các API OCR, type, compare"
+			},
+			"response": []
+		},
+		{
+			"name": "1. Web addFile Back",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"",
+							"pm.globals.set(\"hash2\", jsonData.object.hash);"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Token-id",
+						"value": "{{token_id}}",
+						"type": "text"
+					},
+					{
+						"key": "Token-key",
+						"value": "{{token_key}}",
+						"type": "text"
+					},
+					{
+						"key": "mac-address",
+						"value": "WEB-001",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "{{authen}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": []
+						},
+						{
+							"key": "title",
+							"value": "ocr front",
+							"type": "text"
+						},
+						{
+							"key": "description",
+							"value": "ocr front old type ",
+							"type": "text"
+						},
+						{
+							"key": "type",
+							"value": "minio",
+							"type": "text",
+							"disabled": true
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_url}}/file-service/v1/addFile",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"file-service",
+						"v1",
+						"addFile"
+					]
+				},
+				"description": "Dùng để upload ảnh lên Server media và trả về chuỗi hash duy nhất của ảnh.\nChuỗi hash này là đầu vào cho các API OCR, type, compare"
+			},
+			"response": []
+		},
+		{
+			"name": "2. Web hash face",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"",
+							"pm.globals.set(\"hash3\", jsonData.object.hash);"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Token-id",
+						"value": "{{token_id}}",
+						"type": "text"
+					},
+					{
+						"key": "Token-key",
+						"value": "{{token_key}}",
+						"type": "text"
+					},
+					{
+						"key": "mac-address",
+						"value": "WEB-001",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "{{authen}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": []
+						},
+						{
+							"key": "title",
+							"value": "face",
+							"type": "text"
+						},
+						{
+							"key": "description",
+							"value": "face old type",
+							"type": "text"
+						},
+						{
+							"key": "type",
+							"value": "minio",
+							"type": "text",
+							"disabled": true
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_url}}/file-service/v1/addFile",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"file-service",
+						"v1",
+						"addFile"
+					]
+				},
+				"description": "Dùng để upload ảnh lên Server media và trả về chuỗi hash duy nhất của ảnh.\nChuỗi hash này là đầu vào cho các API OCR, type, compare"
+			},
+			"response": []
+		},
+		{
+			"name": "[hash4]. Web hash face far",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"",
+							"pm.globals.set(\"hash4\", jsonData.object.hash);"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Token-id",
+						"value": "{{token_id}}",
+						"type": "text"
+					},
+					{
+						"key": "Token-key",
+						"value": "{{token_key}}",
+						"type": "text"
+					},
+					{
+						"key": "mac-address",
+						"value": "WEB-001",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "{{authen}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": []
+						},
+						{
+							"key": "title",
+							"value": "face",
+							"type": "text"
+						},
+						{
+							"key": "description",
+							"value": "face old type",
+							"type": "text"
+						},
+						{
+							"key": "type",
+							"value": "minio",
+							"type": "text",
+							"disabled": true
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_url}}/file-service/v1/addFile",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"file-service",
+						"v1",
+						"addFile"
+					]
+				},
+				"description": "Dùng để upload ảnh lên Server media và trả về chuỗi hash duy nhất của ảnh.\nChuỗi hash này là đầu vào cho các API OCR, type, compare"
+			},
+			"response": []
+		},
+		{
+			"name": "[hash5]. Web hash face near",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"",
+							"pm.globals.set(\"hash5\", jsonData.object.hash);"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Token-id",
+						"value": "{{token_id}}",
+						"type": "text"
+					},
+					{
+						"key": "Token-key",
+						"value": "{{token_key}}",
+						"type": "text"
+					},
+					{
+						"key": "mac-address",
+						"value": "WEB-001",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "{{authen}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": []
+						},
+						{
+							"key": "title",
+							"value": "face",
+							"type": "text"
+						},
+						{
+							"key": "description",
+							"value": "face old type",
+							"type": "text"
+						},
+						{
+							"key": "type",
+							"value": "minio",
+							"type": "text",
+							"disabled": true
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_url}}/file-service/v1/addFile",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"file-service",
+						"v1",
+						"addFile"
+					]
+				},
+				"description": "Dùng để upload ảnh lên Server media và trả về chuỗi hash duy nhất của ảnh.\nChuỗi hash này là đầu vào cho các API OCR, type, compare"
+			},
+			"response": []
+		},
+		{
+			"name": "6. Web Ocr",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "mac-address",
+						"value": "WEB-001",
+						"type": "text"
+					},
+					{
+						"key": "Token-id",
+						"value": "{{token_id}}",
+						"type": "text"
+					},
+					{
+						"key": "Token-key",
+						"value": "{{token_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "{{authen}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"img_front\": \"idg20250904-dd3ab14f-0642-e3dc-e053-6c1b9f0ab4b3/IDG01_bcd64caf-895d-11f0-9db8-ab9f2eb50c2a\",\r\n    \"step_id\": 0,\r\n    \"validate_postcode\": false,\r\n    \"crop_param\": \"0,0\",\r\n    \"img_back\": \"idg20250904-dd3ab14f-0642-e3dc-e053-6c1b9f0ab4b3/IDG01_c236f292-895d-11f0-9db8-1da9634ddd82\",\r\n    \"client_session\": \"IOS_iPhone16ProMax_ios18.6.2_Device_3.5.5_30D32F6D-0A9C-4588-BBE6-48BB60FF8759_1756437283_vn.goline.vgaia.app.vfs\",\r\n    \"token\": \"test\",\r\n    \"type\":7\r\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/ai/v1/web/ocr/id",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"ai",
+						"v1",
+						"web",
+						"ocr",
+						"id"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3.Web Liveness card front",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"The status is OK\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.object.liveness_msg).to.eql(\"Người thật\");",
+							"    pm.expect(jsonData.object.liveness).to.eql(\"success\");",
+							"",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"packages": {},
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "mac-address",
+						"value": "TEST1",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Token-id",
+						"value": "{{token_id}}",
+						"type": "text"
+					},
+					{
+						"key": "Token-key",
+						"value": "{{token_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "{{authen}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"img\": \"idg20250811-dd194880-1eab-5891-e053-63199f0adc35/IDG01_3664ecc3-768f-11f0-a083-411fd8823c42\",\r\n    \"client_session\": \"\"\r\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/ai/v1/web/card/liveness",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"ai",
+						"v1",
+						"web",
+						"card",
+						"liveness"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3.Web Liveness card back",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"The status is OK\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.object.liveness_msg).to.eql(\"Người thật\");",
+							"    pm.expect(jsonData.object.liveness).to.eql(\"success\");",
+							"",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "mac-address",
+						"value": "TEST1",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Token-id",
+						"value": "{{token_id}}",
+						"type": "text"
+					},
+					{
+						"key": "Token-key",
+						"value": "{{token_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "{{authen}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"img\": \"{{hash2}}\",\r\n    \"client_session\": \"test\",\r\n    \"token\": \"\",\r\n    \"crop_param\": \"0,0\"\r\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/ai/v1/web/card/liveness",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"ai",
+						"v1",
+						"web",
+						"card",
+						"liveness"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "8. Web Liveness face 3D",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"The status is OK\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.object.liveness_msg).to.eql(\"Người thật\");",
+							"    pm.expect(jsonData.object.liveness).to.eql(\"success\");",
+							"",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "mac-address",
+						"value": "HUY_TEST-001",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Token-id",
+						"value": "{{token_id}}",
+						"type": "text"
+					},
+					{
+						"key": "Token-key",
+						"value": "{{token_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "{{authen}}",
+						"type": "text"
+					},
+					{
+						"key": "",
+						"value": "",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"client_session\": \"WEB-SDK_Chrome-134_3.1.0.0_8b50cd5e-0ef5-4839-8cd3-24168002f65b_1744097409162\",\r\n    \"far_img\": \"{{hash4}}\",\r\n    \"near_img\": \"{{hash5}}\",\r\n    \"scan3d\": \"idg20250408-2a87d061-75da-7eb9-e063-63199f0a2bb8\\/IDG01_5387d9b2-144b-11f0-86ad-79cec7cce8e8\",\r\n    \"token\": \"\"\r\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/ai/v1/web/face/liveness-3d",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"ai",
+						"v1",
+						"web",
+						"face",
+						"liveness-3d"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "9.Web Mask_face",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"The status is OK\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.object.liveness_msg).to.eql(\"Người thật\");",
+							"    pm.expect(jsonData.object.liveness).to.eql(\"success\");",
+							"",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "mac-address",
+						"value": "HUY_TEST-001",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Token-id",
+						"value": "{{token_id}}",
+						"type": "text"
+					},
+					{
+						"key": "Token-key",
+						"value": "{{token_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "{{authen}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"img\": \"idg20230801-cf3841a5-5efc-3c3c-e053-63199f0a193e/IDG01_06b3dade-3093-11ee-a238-3180bb051e1b\",\r\n    \"face_bbox\": null,\r\n    \"face_lmark\": null,\r\n    \"client_session\": \"WEB-SDK_Chrome-96_2.1.4.4_5d84aa2f-dfa0-4dc1-ac7d-31299f1c9eee_1639120444989\"\r\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/ai/v1/web/face/mask",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"ai",
+						"v1",
+						"web",
+						"face",
+						"mask"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "7. Web Compare",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"The status is match\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.object.msg).to.eql(\"MATCH\");",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "mac-address",
+						"value": "HUY_TEST-001",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Token-id",
+						"value": "{{token_id}}",
+						"type": "text"
+					},
+					{
+						"key": "Token-key",
+						"value": "{{token_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "{{authen}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"img_front\": \"{{hash1}}\",\r\n    \"img_face\": \"{{hash3}}\",\r\n    \"client_session\": \"WEB-SDK_Netscape-5.0 (iPhone; CPU iPhone OS 16_5_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148--?_2.1.4.7_820fa1ae-33af-4d39-9995-7f99c36ff83c_1741713120303\",\r\n    \"token\": \"\"\r\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/ai/v1/web/face/compare",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"ai",
+						"v1",
+						"web",
+						"face",
+						"compare"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

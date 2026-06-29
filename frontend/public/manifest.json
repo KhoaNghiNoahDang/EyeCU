@@ -1,0 +1,16 @@
+{
+  "name": "EyeCU Ambient Clinical OS",
+  "short_name": "EyeCU",
+  "description": "Hệ điều hành nhận thức không gian (Ambient Intelligence)",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d1f2d",
+  "theme_color": "#88E8F2",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

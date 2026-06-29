@@ -1,5 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
+import { useAuth, type WorkMode } from "../lib/auth/auth-context";
 import {
   Activity,
   Plus,
@@ -53,6 +54,9 @@ import {
   Thermometer,
   TrendingUp,
   X,
+  Zap,
+  Users,
+  Camera,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -71,8 +75,7 @@ const CMO_IMG =
 const ACCENT = "#88E8F2";
 
 
-type ViewKey = "ambient" | "ambulance" | "records" | "voice" | "chatbot" | "patient";
-type Role = "ops" | "clinician" | "patient";
+type ViewKey = "ambient" | "ambulance" | "records" | "voice" | "chatbot" | "patient" | "ems" | "admin_dashboard";
 
 const navItems: { key: ViewKey; Icon: typeof Eye; label: string }[] = [
   { key: "ambient", Icon: Eye, label: "Giám sát Không gian" },
@@ -80,23 +83,35 @@ const navItems: { key: ViewKey; Icon: typeof Eye; label: string }[] = [
   { key: "records", Icon: ScanLine, label: "Hồ sơ Bệnh nhân" },
   { key: "voice", Icon: Mic, label: "Bệnh án Giọng nói" },
   { key: "chatbot", Icon: Bot, label: "Trợ lý AI Bệnh nhân" },
+  { key: "ems" as ViewKey, Icon: Siren, label: "Cấp cứu Ngoại viện" },
+  { key: "admin_dashboard" as ViewKey, Icon: Settings, label: "Quản trị Hệ thống" },
 ];
 
-const roleConfig: Record<Role, { label: string; views: ViewKey[]; defaultView: ViewKey }> = {
+const roleConfig: Record<WorkMode, { label: string; views: ViewKey[]; defaultView: ViewKey }> = {
+  admin: {
+    label: "Quản trị Hệ thống",
+    views: ["admin_dashboard"] as ViewKey[],
+    defaultView: "admin_dashboard" as ViewKey,
+  },
   ops: {
-    label: "1. Điều hành & Cấp cứu",
+    label: "Trực Cấp cứu",
     views: ["ambient", "ambulance"],
     defaultView: "ambient",
   },
   clinician: {
-    label: "2. Bác sĩ Lâm sàng",
+    label: "Khám Lâm sàng",
     views: ["voice", "records"],
     defaultView: "voice",
   },
   patient: {
-    label: "3. Bệnh nhân (Mobile)",
+    label: "Bệnh nhân (Mobile)",
     views: ["patient"],
     defaultView: "patient",
+  },
+  ems: {
+    label: "Cấp cứu Ngoại viện",
+    views: ["ems"] as ViewKey[],
+    defaultView: "ems" as ViewKey,
   },
 };
 
@@ -107,29 +122,40 @@ const viewTitles: Record<ViewKey, { title: string; subtitle: string }> = {
   voice: { title: "Bệnh án Giọng nói", subtitle: "SmartVoice · Tự điền EMR" },
   chatbot: { title: "Trợ lý AI Bệnh nhân", subtitle: "Diễn giải kết quả · Giọng nói" },
   patient: { title: "Cổng thông tin Bệnh nhân", subtitle: "Mobile Portal · EyeCU" },
+  ems: { title: "Cấp cứu Ngoại viện", subtitle: "Quét BN · Định vị GPS · Liên lạc Kíp trực" },
+  admin_dashboard: { title: "Quản trị Hệ thống", subtitle: "Tổng quan · Nhân sự · Thiết bị · API" },
 };
 
 function PatientRounds() {
-  const [activeRole, setActiveRole] = useState<Role>("ops");
+  const { user, workMode, isAuthenticated, logout } = useAuth();
+  const navigate = useNavigate();
+
+  // We must always call hooks at the top level
   const [activeView, setActiveView] = useState<ViewKey>("ambient");
   const [collapsed, setCollapsed] = useState(false);
   const [highlightedRoom, setHighlightedRoom] = useState<string | null>(null);
-  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
+
+  // Re-sync activeView if workMode changes
+  useEffect(() => {
+    if (workMode && roleConfig[workMode] && !roleConfig[workMode].views.includes(activeView)) {
+      setActiveView(roleConfig[workMode].defaultView);
+    }
+  }, [workMode, activeView]);
+
+  // Auth guard
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate({ to: "/login", replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
+  if (!isAuthenticated || !workMode || !user) {
+    return null; // Or a loading spinner
+  }
 
   const meta = viewTitles[activeView];
-  const visibleNav = navItems.filter((n) => roleConfig[activeRole].views.includes(n.key));
-
-  const switchRole = (r: Role) => {
-    setActiveRole(r);
-    setActiveView(roleConfig[r].defaultView);
-    setRoleMenuOpen(false);
-  };
-
-  const isPatientRole = activeRole === "patient";
-
-
-
-  return (
+  const visibleNav = navItems.filter((n) => roleConfig[workMode].views.includes(n.key));
+  const isPatientRole = workMode === "patient";  return (
     <div className="font-hanken text-slate-800 flex h-screen w-full overflow-hidden bg-white">
       {/* Side Nav — hidden in patient mobile mode */}
       {!isPatientRole && (
@@ -151,7 +177,7 @@ function PatientRounds() {
                   <div className="min-w-0">
                     <h1 className="text-base font-bold leading-tight text-slate-900 truncate">EyeCU</h1>
                     <p className="text-[11px] tracking-wider text-slate-500 font-geist uppercase">
-                      {activeRole === "ops" ? "Trung tâm Điều hành" : "Khoa Nội"}
+                      {roleConfig[workMode].label}
                     </p>
                   </div>
                 )}
@@ -210,22 +236,29 @@ function PatientRounds() {
           </ul>
           <div className={`mt-auto pt-4 border-t border-slate-200 ${collapsed ? "px-3" : "px-4"}`}>
             <ul className="space-y-1">
-              {[
-                { Icon: Cpu, l: "Trạng thái" },
-                { Icon: LogOut, l: "Đăng xuất" },
-              ].map(({ Icon, l }) => (
-                <li key={l}>
-                  <button
-                    title={collapsed ? l : undefined}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-50 font-geist text-[12px] uppercase tracking-wider ${
-                      collapsed ? "justify-center" : ""
-                    }`}
-                  >
-                    <Icon className="w-4 h-4 flex-shrink-0" />
-                    {!collapsed && l}
-                  </button>
-                </li>
-              ))}
+              <li key="Trạng thái">
+                <button
+                  title={collapsed ? "Trạng thái" : undefined}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-50 font-geist text-[12px] uppercase tracking-wider ${
+                    collapsed ? "justify-center" : ""
+                  }`}
+                >
+                  <Cpu className="w-4 h-4 flex-shrink-0" />
+                  {!collapsed && "Trạng thái"}
+                </button>
+              </li>
+              <li key="Đăng xuất">
+                <button
+                  onClick={() => logout()}
+                  title={collapsed ? "Đăng xuất" : undefined}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-50 font-geist text-[12px] uppercase tracking-wider ${
+                    collapsed ? "justify-center" : ""
+                  }`}
+                >
+                  <LogOut className="w-4 h-4 flex-shrink-0" />
+                  {!collapsed && "Đăng xuất"}
+                </button>
+              </li>
             </ul>
           </div>
         </nav>
@@ -235,7 +268,7 @@ function PatientRounds() {
       <main
         className={`flex-1 flex flex-col h-full overflow-hidden bg-white transition-all duration-300 ${
           isPatientRole ? "" : collapsed ? "md:ml-20" : "md:ml-64"
-        } ${!isPatientRole && activeView === "ambient" ? "md:mr-80" : ""}`}
+        }`}
       >
         {/* Top Nav */}
         <header className="flex justify-between items-center w-full px-6 md:px-10 h-16 sticky top-0 z-30 bg-white border-b border-slate-200">
@@ -253,36 +286,10 @@ function PatientRounds() {
             )}
           </div>
           <div className="flex items-center gap-3">
-            {/* Role switcher */}
-            <div className="relative">
-              <button
-                onClick={() => setRoleMenuOpen((o) => !o)}
-                className="flex items-center gap-2 bg-white border border-slate-200 hover:border-[#88E8F2] rounded-full px-3 py-1.5 text-[12px] font-geist uppercase tracking-wider text-slate-700 transition-colors"
-              >
-                <span className="text-slate-400 normal-case tracking-normal text-[11px]">Chế độ xem:</span>
-                <span className="text-slate-900 font-bold">{roleConfig[activeRole].label}</span>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${roleMenuOpen ? "rotate-180" : ""}`} />
-              </button>
-              {roleMenuOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden z-50">
-                  {(Object.keys(roleConfig) as Role[]).map((r) => {
-                    const active = r === activeRole;
-                    return (
-                      <button
-                        key={r}
-                        onClick={() => switchRole(r)}
-                        className={`w-full text-left px-4 py-3 text-sm flex items-center justify-between hover:bg-slate-50 transition-colors ${
-                          active ? "font-bold text-slate-900" : "text-slate-700"
-                        }`}
-                        style={active ? { backgroundColor: ACCENT } : undefined}
-                      >
-                        <span>{roleConfig[r].label}</span>
-                        {active && <CheckCircle2 className="w-4 h-4" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+            {/* Current user */}
+            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-full px-3 py-1.5 text-[12px] font-geist tracking-wider text-slate-700">
+              <span className="text-slate-400 normal-case tracking-normal text-[11px] uppercase">Ca hiện tại:</span>
+              <span className="text-slate-900 font-bold uppercase">{roleConfig[workMode].label}</span>
             </div>
             {!isPatientRole && (
               <>
@@ -304,8 +311,12 @@ function PatientRounds() {
                 </button>
               </>
             )}
-            <div className="w-8 h-8 rounded-full overflow-hidden border border-slate-200">
-              <img src={CMO_IMG} alt="Avatar" className="w-full h-full object-cover" />
+            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200">
+              {user.avatar ? (
+                <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <User className="w-4 h-4 text-slate-400" />
+              )}
             </div>
           </div>
         </header>
@@ -341,14 +352,12 @@ function PatientRounds() {
             {activeView === "voice" && <VoiceView />}
             {activeView === "chatbot" && <ChatbotView />}
             {activeView === "patient" && <PatientPortalView />}
+            {activeView === "ems" && <EmsView />}
+            {activeView === "admin_dashboard" && <AdminDashboardView />}
           </div>
         </div>
       </main>
 
-      {/* Right Aside — only on Ambient view (ops role) */}
-      {!isPatientRole && activeView === "ambient" && (
-        <AmbientAside onAlertClick={setHighlightedRoom} />
-      )}
     </div>
   );
 }
@@ -2242,73 +2251,138 @@ const CCCD_PATIENTS: Record<string, CccdPatient> = {
 };
 
 function RecordsView() {
-  const [mode, setMode] = useState<"scan" | "records">("scan");
+  const [step, setStep] = useState<"input" | "face_match" | "records">("input");
+  const [inputMethod, setInputMethod] = useState<"scan" | "manual">("scan");
   const [cccdInput, setCccdInput] = useState("");
+  const [nameInput, setNameInput] = useState("");
   const [scanning, setScanning] = useState(false);
   const [scanStep, setScanStep] = useState(0);
   const [foundPatient, setFoundPatient] = useState<CccdPatient | null>(null);
+  const [identityError, setIdentityError] = useState("");
   const [activeTab, setActiveTab] = useState<"info" | "history" | "meds" | "docs">("info");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleScan = (cccdNumber?: string) => {
+  // EKYC Face Match State
+  const [ekycStatus, setEkycStatus] = useState<"idle" | "scanning" | "success">("idle");
+
+  const handleIdentitySubmit = (cccdNumber?: string, overrideName?: string) => {
     const num = cccdNumber || cccdInput.replace(/\s/g, "");
     if (num.length < 9) return;
     setScanning(true);
     setScanStep(0);
+    setIdentityError("");
+    setFoundPatient(null);
     setCccdInput(num);
+    if (overrideName) setNameInput(overrideName);
 
-    // Simulate scanning steps
-    const t1 = setTimeout(() => setScanStep(1), 800);
-    const t2 = setTimeout(() => setScanStep(2), 1600);
-    const t3 = setTimeout(() => setScanStep(3), 2400);
-    const t4 = setTimeout(() => {
-      setScanStep(4);
+    // Simulate scanning/verifying identity steps
+    const t1 = setTimeout(() => setScanStep(1), 600);
+    const t2 = setTimeout(() => setScanStep(2), 1200);
+    const t3 = setTimeout(() => {
+      setScanStep(3);
       const patient = CCCD_PATIENTS[num] || null;
       setFoundPatient(patient);
       setScanning(false);
-      if (patient) {
-        setTimeout(() => setMode("records"), 600);
+      if (!patient) {
+        setIdentityError("Không tìm thấy hồ sơ bệnh nhân cho số CCCD này. Vui lòng kiểm tra lại hoặc chọn hồ sơ demo.");
+        return;
       }
-    }, 3200);
+      setTimeout(() => setStep("face_match"), 800);
+    }, 1800);
 
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   };
 
   const handleDemoScan = (cccd: string) => {
+    const p = CCCD_PATIENTS[cccd];
     setCccdInput(cccd);
-    handleScan(cccd);
+    setNameInput(p.name);
+    handleIdentitySubmit(cccd, p.name);
+  };
+
+  const startFaceMatch = () => {
+    if (!foundPatient) {
+      setStep("input");
+      setIdentityError("Cần định danh bệnh nhân trước khi xác thực eKYC.");
+      return;
+    }
+    setEkycStatus("scanning");
+    setTimeout(() => {
+      setEkycStatus("success");
+      // Move to records after success
+      setTimeout(() => setStep("records"), 1500);
+    }, 2500);
   };
 
   const handleBack = () => {
-    setMode("scan");
+    setStep("input");
     setScanStep(0);
     setScanning(false);
+    setEkycStatus("idle");
     setCccdInput("");
+    setNameInput("");
     setFoundPatient(null);
+    setIdentityError("");
     setActiveTab("info");
   };
 
-  if (mode === "records" && foundPatient) {
+  if (step === "records" && foundPatient) {
     return <CccdPatientProfile patient={foundPatient} onBack={handleBack} activeTab={activeTab} setActiveTab={setActiveTab} />;
   }
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* LEFT: CCCD Scanner */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium text-slate-900 flex items-center gap-2">
-            <CreditCard className="w-5 h-5" style={{ color: ACCENT }} />
-            Quét CCCD Bệnh nhân
-          </h3>
-          <span className="px-2 py-1 rounded text-[10px] font-geist uppercase tracking-wider text-slate-900" style={{ backgroundColor: ACCENT }}>
-            NFC · OCR · QR
-          </span>
+  if (step === "records" && !foundPatient) {
+    return (
+      <div className="max-w-3xl mx-auto w-full">
+        <div className="bg-white border border-red-200 rounded-xl p-6 shadow-sm text-center">
+          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-3">
+            <CircleAlert className="w-6 h-6 text-red-600" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-900 mb-2">Không tải được hồ sơ bệnh nhân</h3>
+          <p className="text-sm text-slate-500 mb-5">Phiên định danh không có bệnh nhân hợp lệ. Vui lòng quay lại và quét lại CCCD.</p>
+          <button
+            onClick={handleBack}
+            className="px-5 py-2.5 rounded-lg text-sm font-bold text-slate-900 hover:opacity-90 transition"
+            style={{ backgroundColor: ACCENT }}
+          >
+            Quét lại CCCD
+          </button>
         </div>
+      </div>
+    );
+  }
 
-        {/* Scanner area */}
-        <div className="flex-1 flex flex-col">
-          {/* CCCD visual card with real image */}
+  return (
+    <div className="max-w-3xl mx-auto w-full">
+      {/* STEP 1: IDENTITY INPUT */}
+      {step === "input" && (
+        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col animate-in fade-in zoom-in-95 duration-300">
+          <div className="text-center mb-6">
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Định danh Bệnh nhân</h3>
+            <p className="text-slate-500 text-sm">Vui lòng chọn phương thức cung cấp thông tin</p>
+          </div>
+
+          {/* Tabs for choosing method */}
+          <div className="flex p-1 bg-slate-100 rounded-lg mb-6 max-w-sm mx-auto">
+            <button
+              onClick={() => setInputMethod("scan")}
+              className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${inputMethod === "scan" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              Quét thẻ CCCD
+            </button>
+            <button
+              onClick={() => setInputMethod("manual")}
+              className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${inputMethod === "manual" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              Nhập thủ công
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <div className="flex flex-col gap-4">
+              {inputMethod === "scan" ? (
+                <div className="flex flex-col">
+                            {/* CCCD visual card with real image */}
           <div className="relative rounded-xl mb-4 overflow-hidden" style={{ aspectRatio: "86/54" }}>
             {/* Real CCCD image */}
             <img
@@ -2337,8 +2411,8 @@ function RecordsView() {
 
             {/* Status badge - top right */}
             <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 backdrop-blur-sm bg-black/50 px-2.5 py-1 rounded-full">
-              <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: scanning ? "#EF4444" : scanStep >= 4 && foundPatient ? "#22C55E" : "#64748B" }} />
-              <span className="text-[10px] text-white font-mono font-bold">{scanning ? "SCANNING" : scanStep >= 4 && foundPatient ? "VERIFIED" : "READY"}</span>
+              <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: scanning ? "#EF4444" : scanStep >= 3 && foundPatient ? "#22C55E" : "#64748B" }} />
+              <span className="text-[10px] text-white font-mono font-bold">{scanning ? "SCANNING" : scanStep >= 3 && foundPatient ? "VERIFIED" : "READY"}</span>
             </div>
 
             {/* CCCD Number overlay - bottom */}
@@ -2357,124 +2431,166 @@ function RecordsView() {
               </div>
             </div>
           </div>
-
-          {/* Input field */}
-          <div className="flex items-center gap-2 mb-4">
-            <div className="flex-1 relative">
-              <ScanLine className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                ref={inputRef}
-                type="text"
-                value={cccdInput}
-                onChange={(e) => setCccdInput(e.target.value.replace(/[^0-9]/g, ""))}
-                onKeyDown={(e) => e.key === "Enter" && handleScan()}
-                placeholder="Nhập hoặc quét số CCCD..."
-                maxLength={12}
-                className="w-full bg-white border-2 border-slate-200 rounded-lg pl-10 pr-4 py-3 text-sm font-mono tracking-wider outline-none focus:border-[#88E8F2] text-slate-800 placeholder:text-slate-400 transition-colors"
-                disabled={scanning}
-              />
-            </div>
-            <button
-              onClick={() => handleScan()}
-              disabled={scanning || cccdInput.length < 9}
-              className="px-5 py-3 rounded-lg text-sm font-bold text-slate-900 transition-all hover:opacity-90 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              style={{ backgroundColor: ACCENT }}
-            >
-              {scanning ? (
-                <><span className="w-4 h-4 border-2 border-t-transparent border-slate-900 rounded-full" style={{ animation: "mp-spin 0.8s linear infinite" }} />Đang quét...</>
+                  <button
+                    onClick={() => handleIdentitySubmit("001203001247", "NGUYỄN VĂN A")}
+                    disabled={scanning}
+                    className="mt-2 w-full py-3 rounded-lg text-sm font-bold text-slate-900 transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                    style={{ backgroundColor: ACCENT }}
+                  >
+                    {scanning ? <><span className="w-4 h-4 border-2 border-t-transparent border-slate-900 rounded-full animate-spin" /> Đang tra cứu...</> : "Bắt đầu Quét thẻ"}
+                  </button>
+                </div>
               ) : (
-                <><ScanLine className="w-4 h-4" />Quét</>
-              )}
-            </button>
-          </div>
-
-          {/* Scan progress steps */}
-          {scanStep > 0 && (
-            <div className="border border-slate-200 rounded-lg p-3 mb-4 space-y-2">
-              {[
-                "Đọc chip NFC / QR Code trên CCCD",
-                "Xác thực với Cơ sở dữ liệu Quốc gia về Dân cư",
-                "Truy xuất Hồ sơ Y tế Điện tử (EMR)",
-                "Đồng bộ Lịch sử Khám bệnh & Tiền sử bệnh",
-              ].map((label, idx) => {
-                const done = scanStep > idx;
-                const active = scanStep === idx;
-                return (
-                  <div key={idx} className="flex items-center gap-2">
-                    <div className={"w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold border-2 transition flex-shrink-0"}
-                      style={{
-                        backgroundColor: done ? "#22C55E" : active ? "#fff" : "#F1F5F9",
-                        borderColor: done ? "#22C55E" : active ? ACCENT : "#CBD5E1",
-                        color: done ? "#fff" : "#0F172A",
-                      }}>
-                      {done ? "✓" : idx + 1}
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Số CCCD</label>
+                    <div className="relative">
+                      <ScanLine className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        ref={inputRef}
+                        type="text"
+                        value={cccdInput}
+                        onChange={(e) => setCccdInput(e.target.value.replace(/[^0-9]/g, ""))}
+                        placeholder="Nhập 12 số CCCD"
+                        maxLength={12}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 text-sm font-mono focus:border-[#88E8F2] outline-none"
+                        disabled={scanning}
+                      />
                     </div>
-                    <span className={`text-[11px] ${done ? "text-emerald-600 font-bold" : active ? "text-slate-800 font-medium" : "text-slate-400"}`}>{label}</span>
-                    {active && <span className="w-3 h-3 border-2 border-t-transparent rounded-full ml-auto flex-shrink-0" style={{ borderColor: ACCENT, animation: "mp-spin 0.8s linear infinite" }} />}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Patient not found */}
-          {scanStep >= 4 && !foundPatient && !scanning && (
-            <div className="border-2 border-amber-300 bg-amber-50 rounded-lg p-4 text-center">
-              <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-              <p className="text-sm font-bold text-amber-800">Không tìm thấy hồ sơ bệnh nhân</p>
-              <p className="text-[11px] text-amber-600 mt-1">CCCD {cccdInput} chưa có trong hệ thống EMR</p>
-            </div>
-          )}
-
-          {/* Demo quick-scan buttons */}
-          <div className="mt-auto pt-3 border-t border-slate-200">
-            <p className="text-[10px] font-geist uppercase tracking-wider text-slate-500 mb-2">Demo · Quét nhanh mẫu</p>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(CCCD_PATIENTS).map(([cccd, p]) => (
-                <button
-                  key={cccd}
-                  onClick={() => handleDemoScan(cccd)}
-                  disabled={scanning}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white hover:border-[#88E8F2] transition-all text-left disabled:opacity-50 group"
-                >
-                  <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-[#88E8F2]/20 transition-colors">
-                    <User className="w-3.5 h-3.5 text-slate-600" />
                   </div>
                   <div>
-                    <p className="text-[11px] font-bold text-slate-900">{p.name}</p>
-                    <p className="text-[9px] text-slate-500 font-mono">{cccd}</p>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Họ và Tên</label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        value={nameInput}
+                        onChange={(e) => setNameInput(e.target.value)}
+                        placeholder="NGUYỄN VĂN A"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 text-sm uppercase focus:border-[#88E8F2] outline-none"
+                        disabled={scanning}
+                      />
+                    </div>
                   </div>
-                </button>
-              ))}
+                  <button
+                    onClick={() => handleIdentitySubmit()}
+                    disabled={scanning || cccdInput.length < 9 || nameInput.length < 3}
+                    className="mt-2 w-full py-3 rounded-lg text-sm font-bold text-slate-900 transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                    style={{ backgroundColor: ACCENT }}
+                  >
+                    {scanning ? <><span className="w-4 h-4 border-2 border-t-transparent border-slate-900 rounded-full animate-spin" /> Đang tra cứu...</> : "Tiếp tục Xác thực"}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Scan / Demo */}
+            <div className="flex flex-col border-t md:border-t-0 md:border-l border-slate-200 pt-6 md:pt-0 md:pl-6">
+              <p className="text-xs font-bold text-slate-700 mb-3 text-center md:text-left">Hoặc quét nhanh (Demo)</p>
+              <div className="flex flex-col gap-2">
+                {Object.entries(CCCD_PATIENTS).map(([cccd, p]) => (
+                  <button
+                    key={cccd}
+                    onClick={() => handleDemoScan(cccd)}
+                    disabled={scanning}
+                    className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-white hover:border-[#88E8F2] transition-all text-left disabled:opacity-50 group"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-[#88E8F2]/20">
+                      <CreditCard className="w-4 h-4 text-slate-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">{p.name}</p>
+                      <p className="text-[10px] text-slate-500 font-mono">{cccd}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* RIGHT: eKYC + OCR (existing) */}
-      <div className="flex flex-col gap-6">
-        {/* eKYC Panel */}
-        <EkycPanel />
+          {identityError && (
+            <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 flex items-start gap-3">
+              <CircleAlert className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+              <p className="text-sm font-medium text-red-700">{identityError}</p>
+            </div>
+          )}
 
-        {/* Scanned Document */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col h-[340px]">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-base font-medium text-slate-900 flex items-center gap-2">
-              <FileText className="w-4 h-4" style={{ color: ACCENT }} />
-              Tài liệu Y khoa
-            </h3>
-            <span className="px-2 py-1 rounded text-[10px] font-geist uppercase tracking-wider text-slate-900" style={{ backgroundColor: ACCENT }}>
-              AI OCR
-            </span>
+          {/* Progress Indicator */}
+          {scanStep > 0 && (
+            <div className="mt-6 border-t border-slate-100 pt-4 flex items-center justify-center gap-4">
+              {["Quét dữ liệu", "Kiểm tra DB", "Hoàn tất"].map((label, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${scanStep > idx ? 'bg-emerald-500 text-white' : scanStep === idx ? 'bg-slate-200 text-slate-800' : 'bg-slate-100 text-slate-400'}`}>
+                    {scanStep > idx ? "✓" : idx + 1}
+                  </div>
+                  <span className={`text-xs ${scanStep >= idx ? 'text-slate-800' : 'text-slate-400'}`}>{label}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* STEP 2: FACE MATCH */}
+      {step === "face_match" && (
+        <div className="bg-white border-2 rounded-xl p-6 shadow-sm flex flex-col animate-in slide-in-from-right-8 fade-in duration-300" style={{ borderColor: ekycStatus === "success" ? "#10b981" : ACCENT }}>
+          <div className="text-center mb-6">
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Xác thực Khuôn mặt (Face eKYC)</h3>
+            <p className="text-slate-500 text-sm">Vui lòng hướng camera về phía bệnh nhân {foundPatient?.name}</p>
           </div>
-          <div className="flex-1 bg-gradient-to-br from-amber-50 to-stone-100 border border-dashed border-slate-300 rounded-lg overflow-hidden relative">
-            <ScannedDocument />
-            <div className="absolute inset-x-0 h-1 z-20 pointer-events-none"
-              style={{ backgroundColor: ACCENT, boxShadow: `0 0 12px ${ACCENT}, 0 0 24px ${ACCENT}`, animation: "laser-scan 2.4s ease-in-out infinite" }} />
-            <style>{`@keyframes laser-scan { 0%, 100% { top: 0%; } 50% { top: calc(100% - 4px); } }`}</style>
+
+          <div className="flex items-center justify-center gap-6 mb-8">
+            <EkycFace label="Ảnh CCCD" sub={cccdInput} state={ekycStatus} />
+            <div className="flex-1 relative h-px max-w-[120px]">
+              <div
+                className="absolute inset-0 transition-all duration-500"
+                style={{
+                  backgroundColor: ekycStatus === "success" ? "#10b981" : ekycStatus === "scanning" ? ACCENT : "#e2e8f0",
+                  boxShadow: ekycStatus === "success" ? "0 0 8px #10b981" : ekycStatus === "scanning" ? `0 0 8px ${ACCENT}` : "none",
+                }}
+              />
+              {ekycStatus === "success" && (
+                <CheckCircle2 className="w-8 h-8 text-emerald-600 bg-white rounded-full absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 animate-in zoom-in duration-300" />
+              )}
+              {ekycStatus === "scanning" && (
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: `${ACCENT} transparent ${ACCENT} ${ACCENT}` }} />
+              )}
+            </div>
+            <EkycFace label="Live Camera" sub="Thực thể sống" live state={ekycStatus} />
+          </div>
+
+          {ekycStatus === "success" && (
+            <div className="mb-6 p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-center animate-in zoom-in-95 duration-300">
+              <p className="text-emerald-800 font-bold mb-1">Xác thực thành công!</p>
+              <p className="text-xs text-emerald-600">Độ khớp: 99.8% - Đang chuyển hướng đến hồ sơ bệnh án...</p>
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <button
+              onClick={handleBack}
+              disabled={ekycStatus !== "idle"}
+              className="px-6 py-3 rounded-lg text-sm font-bold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all disabled:opacity-50"
+            >
+              Quay lại
+            </button>
+            <button
+              onClick={startFaceMatch}
+              disabled={ekycStatus !== "idle"}
+              className="flex-1 py-3 rounded-lg text-sm font-bold text-slate-900 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed hover:opacity-90 active:scale-[0.98]"
+              style={{
+                backgroundColor: ekycStatus === "success" ? "#10b981" : ACCENT,
+                color: ekycStatus === "success" ? "white" : "#0f172a",
+                animation: ekycStatus === "scanning" ? "pulse 1.2s ease-in-out infinite" : undefined,
+              }}
+            >
+              {ekycStatus === "idle" && "Bắt đầu Xác thực eKYC"}
+              {ekycStatus === "scanning" && "Đang đối chiếu sinh trắc học..."}
+              {ekycStatus === "success" && "✓ Hoàn tất"}
+            </button>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -3342,7 +3458,7 @@ function AlertItem({
 /* ============== VIEW 6: PATIENT MOBILE PORTAL ============== */
 
 // Chat message type
-interface ChatMsg { from: "user"|"bot"; text: string; time: string; }
+interface ChatMsg { from: "user"|"bot"; text: string; time: string; isImage?: boolean; hasCard?: boolean; }
 
 const BOT_REPLIES: {keywords: string[]; reply: string}[] = [
   { keywords: ["đường huyết","glucose","đường máu","blood sugar"],  reply: "Chỉ số đường huyết 7.8 mmol/L của bác đang cao hơn ngưỡng an toàn (< 6.4 mmol/L) một chút ạ. Bác nên hạn chế tinh bột trắng và đồ ngọt. Cháu có thể đặt lịch tư vấn với BS. Văn Ngữ cho bác nhé?" },
@@ -3362,9 +3478,8 @@ function PatientPortalView() {
   const [sosCountdown, setSosCountdown] = useState<number | null>(null);
   const sosTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // SOS countdown logic
   const startSosCountdown = () => {
-    if (sos) return; // already sent
+    if (sos) return; 
     setSosCountdown(8);
   };
 
@@ -3379,25 +3494,19 @@ function PatientPortalView() {
   useEffect(() => {
     if (sosCountdown === null) return;
     if (sosCountdown <= 0) {
-      // Countdown finished — send SOS
       setSos(true);
       setSosCountdown(null);
-      if (sosTimerRef.current) {
-        clearInterval(sosTimerRef.current);
-        sosTimerRef.current = null;
-      }
+      if (sosTimerRef.current) clearInterval(sosTimerRef.current);
       return;
     }
     sosTimerRef.current = setInterval(() => {
       setSosCountdown(prev => (prev !== null ? prev - 1 : null));
     }, 1000);
     return () => {
-      if (sosTimerRef.current) {
-        clearInterval(sosTimerRef.current);
-        sosTimerRef.current = null;
-      }
+      if (sosTimerRef.current) clearInterval(sosTimerRef.current);
     };
   }, [sosCountdown]);
+
   const [messages, setMessages] = useState<ChatMsg[]>([
     { from:"bot", text:"Xin chào bác Nguyễn Văn A! Cháu là trợ lý AI EyeCU. Bác vừa có kết quả xét nghiệm sinh hóa mới. Bác muốn cháu giải thích chỉ số nào không ạ? 😊", time: getTimeNow() }
   ]);
@@ -3406,51 +3515,70 @@ function PatientPortalView() {
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({behavior:"smooth"}); }, [messages, botTyping]);
 
-  const tiles: { Icon: typeof Receipt; label: string; sub: string; color: string }[] = [
+  const tiles = [
     { Icon: Receipt,  label: "Phiếu khám bệnh",  sub: "Lượt khám hôm nay",  color: "#2563EB" },
     { Icon: Pill,     label: "Đơn thuốc điện tử", sub: "3 loại đang dùng",   color: "#7C3AED" },
     { Icon: Calendar, label: "Lịch tái khám",     sub: "15/06 · 9:00",       color: "#D97706" },
     { Icon: FileText, label: "Viện phí",           sub: "Đã thanh toán ✓",   color: "#16A34A" },
   ];
 
-  const labResults: { name: string; value: string; unit: string; ref: string; status: "ok"|"warn"|"high" }[] = [
-    { name:"Glucose",     value:"7.8", unit:"mmol/L", ref:"< 6.4",   status:"high" },
-    { name:"Cholesterol", value:"5.9", unit:"mmol/L", ref:"< 5.2",   status:"warn" },
-    { name:"Creatinine",  value:"92",  unit:"µmol/L", ref:"< 110",   status:"ok"   },
-    { name:"HbA1c",       value:"6.8", unit:"%",      ref:"< 6.5",   status:"warn" },
-  ];
+  const [labResults, setLabResults] = useState([
+    { name:"Glucose",     value:"7.8", unit:"mmol/L", ref:"< 6.4",   status:"high" as const },
+    { name:"Cholesterol", value:"5.9", unit:"mmol/L", ref:"< 5.2",   status:"warn" as const },
+    { name:"Creatinine",  value:"92",  unit:"µmol/L", ref:"< 110",   status:"ok" as const },
+    { name:"HbA1c",       value:"6.8", unit:"%",      ref:"< 6.5",   status:"warn" as const },
+  ]);
 
   const statusStyle = (s: "ok"|"warn"|"high") =>
     s==="high" ? {dot:"bg-red-500",  badge:"bg-red-50 text-red-700",   bar:"#EF4444", barPct:87} :
     s==="warn" ? {dot:"bg-amber-500",badge:"bg-amber-50 text-amber-700",bar:"#F59E0B", barPct:70} :
                  {dot:"bg-green-500",badge:"bg-green-50 text-green-700",bar:"#22C55E", barPct:40};
 
-  const sendMessage = () => {
-    const text = chatInput.trim(); if (!text) return;
-    const userMsg: ChatMsg = { from:"user", text, time:getTimeNow() };
-    setMessages(prev=>[...prev,userMsg]);
-    setChatInput("");
+  const sendMessage = (textStr?: string) => {
+    const text = textStr || chatInput.trim(); 
+    if (!text) return;
+    setMessages(prev=>[...prev, {from:"user", text, time:getTimeNow()}]);
+    if (!textStr) setChatInput("");
     setBotTyping(true);
     setTimeout(() => {
-      const lower = text.toLowerCase();
-      const match = BOT_REPLIES.find(r=>r.keywords.some(kw=>lower.includes(kw)));
-      const reply = match?.reply ?? "Cháu đã ghi nhận ý kiến của bác rồi ạ. Cháu sẽ báo ngay cho BS. Văn Ngữ và kíp điều dưỡng biết nhé! Bác có cần hỗ trợ thêm gì không ạ? 🙏";
-      setMessages(prev=>[...prev,{from:"bot",text:reply,time:getTimeNow()}]);
+      setMessages(prev=>[...prev,{from:"bot",text:"Cháu đã ghi nhận ý kiến của bác rồi ạ. Bác cần hỗ trợ thêm gì không?",time:getTimeNow()}]);
       setBotTyping(false);
     }, 1200);
+  };
+
+  const [isScanning, setIsScanning] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [highlightLab, setHighlightLab] = useState(false);
+
+  const handleCapture = () => {
+    setIsAnalyzing(true);
+    setTimeout(() => {
+      setIsAnalyzing(false);
+      setIsScanning(false);
+      
+      setHighlightLab(true);
+      setLabResults(prev => prev.map(lab => 
+        lab.name === "Glucose" ? { ...lab, value: "8.5", status: "high" } : lab
+      ));
+      
+      setBotTyping(true);
+      setTimeout(() => {
+        setBotTyping(false);
+        setMessages(prev => [...prev, { from: "bot", text: "Cháu vừa nhận và cập nhật được kết quả xét nghiệm mới. Chỉ số Glucose của bác đã tăng nhẹ lên 8.5 mmol/L. Bác chú ý hạn chế ăn tinh bột nhé ạ!", time: getTimeNow() }]);
+        setTimeout(() => setHighlightLab(false), 3000);
+      }, 1500);
+      
+    }, 2500);
   };
 
   return (
     <div className="flex justify-center py-4">
       <div className="w-full max-w-[400px] bg-white border border-slate-200 rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col relative" style={{height:"min(92vh,860px)"}}>
-        {/* Status bar */}
         <div className="bg-white px-6 py-1.5 flex justify-between items-center text-[10px] font-mono text-slate-700 z-20 flex-shrink-0">
           <span className="font-bold">9:41</span><span>● ● ● 100%</span>
         </div>
-        {/* Notch */}
         <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-24 h-6 bg-slate-900 rounded-full z-30"/>
 
-        {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto scrollbar-hide flex flex-col">
           {/* Greeting header */}
           <div className="px-5 pt-10 pb-4 bg-gradient-to-b from-[#EAFBFE] via-[#f0fdfb] to-white flex-shrink-0">
@@ -3466,7 +3594,7 @@ function PatientPortalView() {
             </div>
           </div>
 
-          {/* 2×2 tile menu */}
+          {/* 4 Tiles - Original Layout */}
           <div className="px-4 grid grid-cols-2 gap-2.5 flex-shrink-0">
             {tiles.map(({Icon,label,sub,color})=>(
               <button key={label} className="text-left p-3 border border-slate-100 rounded-2xl hover:border-[#88E8F2] hover:shadow-md active:scale-95 transition-all bg-white shadow-sm">
@@ -3479,8 +3607,25 @@ function PatientPortalView() {
             ))}
           </div>
 
+          {/* SCAN BANNER */}
+          <div className="mx-4 mt-4 flex-shrink-0">
+            <button 
+              onClick={() => setIsScanning(true)}
+              className="w-full flex items-center gap-3 p-3 rounded-2xl border border-[#88E8F2]/50 bg-gradient-to-r from-[#88E8F2]/10 to-blue-50 hover:to-blue-100 active:scale-[0.98] transition-all shadow-sm group"
+            >
+              <div className="w-10 h-10 rounded-full bg-[#88E8F2] flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                <Camera className="w-5 h-5 text-slate-900" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-bold text-slate-900">Quét phiếu xét nghiệm</p>
+                <p className="text-[10px] text-slate-500">AI tự động bóc tách và phân tích</p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-slate-400 ml-auto" />
+            </button>
+          </div>
+
           {/* Lab Results card */}
-          <div className="mx-4 mt-4 border border-slate-100 rounded-2xl overflow-hidden shadow-sm flex-shrink-0">
+          <div className={`mx-4 mt-4 border ${highlightLab ? 'border-[#88E8F2] shadow-[0_0_15px_rgba(136,232,242,0.5)]' : 'border-slate-100'} rounded-2xl overflow-hidden shadow-sm flex-shrink-0 transition-all duration-500`}>
             <div className="flex items-center gap-2 px-3 py-2.5" style={{background:"linear-gradient(90deg,#EAFBFE,#f0f9ff)"}}>
               <ScanLine className="w-3.5 h-3.5" style={{color:ACCENT}}/>
               <p className="text-[10px] font-bold text-slate-800 uppercase tracking-wider">Kết quả xét nghiệm · 07/06/2026</p>
@@ -3488,14 +3633,15 @@ function PatientPortalView() {
             <div className="px-3 py-2 space-y-2 bg-white">
               {labResults.map(lab=>{
                 const st=statusStyle(lab.status);
+                const isUpdating = highlightLab && lab.name === "Glucose";
                 return (
                   <div key={lab.name} className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${st.dot}`}/>
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isUpdating ? 'animate-ping bg-[#88E8F2]' : st.dot}`}/>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-0.5">
                         <span className="text-[11px] font-semibold text-slate-700">{lab.name}</span>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] font-bold text-slate-900">{lab.value} <span className="text-slate-400 font-normal">{lab.unit}</span></span>
+                          <span className={`text-[10px] font-bold ${isUpdating ? 'text-[#0ea5e9] scale-110' : 'text-slate-900'} transition-all`}>{lab.value} <span className="text-slate-400 font-normal">{lab.unit}</span></span>
                           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${st.badge}`}>{lab.status==="high"?"CAO":lab.status==="warn"?"CHÚ Ý":"OK"}</span>
                         </div>
                       </div>
@@ -3512,9 +3658,8 @@ function PatientPortalView() {
             </div>
           </div>
 
-          {/* Chatbot widget */}
-          <div className="mx-4 mt-3 border border-slate-100 rounded-2xl overflow-hidden shadow-sm flex-shrink-0">
-            {/* Bot header */}
+          {/* Chatbot widget - Original layout */}
+          <div className="mx-4 mt-4 border border-slate-100 rounded-2xl overflow-hidden shadow-sm flex-shrink-0 mb-4">
             <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 bg-white">
               <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{backgroundColor:ACCENT}}>
                 <Bot className="w-4 h-4 text-slate-900"/>
@@ -3524,12 +3669,11 @@ function PatientPortalView() {
                 <p className="text-[9px] text-green-600 font-bold uppercase tracking-wider flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block"/>Trực tuyến</p>
               </div>
             </div>
-            {/* Chat messages */}
-            <div className="bg-slate-50/50 px-3 py-2.5 space-y-2.5 max-h-52 overflow-y-auto scrollbar-hide">
+            <div className="bg-slate-50/50 px-3 py-2.5 space-y-2.5 max-h-48 overflow-y-auto scrollbar-hide">
               {messages.map((msg,i)=>(
                 <div key={i} className={`flex ${msg.from==="user"?"justify-end":"justify-start"}`}>
                   {msg.from==="bot"&&<div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mr-1.5 mt-0.5" style={{backgroundColor:ACCENT}}><Bot className="w-3 h-3 text-slate-900"/></div>}
-                  <div className={`max-w-[78%] rounded-2xl px-3 py-2 ${msg.from==="user"?"bg-slate-800 text-white rounded-br-sm":"bg-white border border-slate-100 text-slate-800 rounded-bl-sm shadow-sm"}`}>
+                  <div className={`max-w-[85%] rounded-2xl px-3 py-2 ${msg.from==="user"?"bg-slate-800 text-white rounded-br-sm":"bg-white border border-slate-100 text-slate-800 rounded-bl-sm shadow-sm"}`}>
                     <p className="text-[11px] leading-relaxed">{msg.text}</p>
                     <p className={`text-[9px] mt-1 ${msg.from==="user"?"text-slate-400":"text-slate-400"}`}>{msg.time}</p>
                   </div>
@@ -3540,19 +3684,17 @@ function PatientPortalView() {
                   <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mr-1.5 mt-0.5" style={{backgroundColor:ACCENT}}><Bot className="w-3 h-3 text-slate-900"/></div>
                   <div className="bg-white border border-slate-100 rounded-2xl rounded-bl-sm px-3 py-2 shadow-sm flex items-center gap-1">
                     {[0,1,2].map(i=><span key={i} className="w-1.5 h-1.5 rounded-full bg-slate-400" style={{animation:`bounce 1s infinite ${i*0.15}s`}}/>)}
-                    <style>{`@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-4px)}}`}</style>
                   </div>
                 </div>
               )}
               <div ref={chatEndRef}/>
             </div>
-            {/* Chat input */}
             <div className="flex items-center gap-2 px-3 py-2 border-t border-slate-100 bg-white">
               <input value={chatInput} onChange={e=>setChatInput(e.target.value)}
                 onKeyDown={e=>e.key==="Enter"&&sendMessage()}
                 placeholder="Hỏi trợ lý AI... (glucose, thuốc, lịch hẹn...)"
                 className="flex-1 bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 text-[11px] outline-none focus:border-[#88E8F2] text-slate-800 placeholder:text-slate-400"/>
-              <button onClick={sendMessage} className="w-8 h-8 rounded-full flex items-center justify-center transition active:scale-95 flex-shrink-0" style={{backgroundColor:ACCENT}}>
+              <button onClick={() => sendMessage()} className="w-8 h-8 rounded-full flex items-center justify-center transition active:scale-95 flex-shrink-0" style={{backgroundColor:ACCENT}}>
                 <Send className="w-3.5 h-3.5 text-slate-900"/>
               </button>
               <button onClick={()=>setListening(l=>!l)} className="w-8 h-8 rounded-full flex items-center justify-center relative active:scale-95 transition flex-shrink-0"
@@ -3563,52 +3705,533 @@ function PatientPortalView() {
             </div>
           </div>
 
-          <div className="h-3 flex-shrink-0"/>
-
           {/* SOS button */}
-          <div className="mt-auto px-4 pb-6 pt-3 bg-white/95 backdrop-blur border-t border-slate-100 flex-shrink-0">
+          <div className="mt-auto px-4 pb-6 pt-2 bg-white flex-shrink-0 border-t border-slate-100">
             {sosCountdown !== null && !sos ? (
-              /* ── Countdown state ── */
               <div className="flex flex-col items-center gap-3">
                 <div className="relative w-20 h-20 flex items-center justify-center">
-                  {/* Background circle */}
                   <svg className="absolute inset-0 w-20 h-20 -rotate-90" viewBox="0 0 80 80">
                     <circle cx="40" cy="40" r="36" fill="none" stroke="#FEE2E2" strokeWidth="6" />
-                    <circle cx="40" cy="40" r="36" fill="none" stroke="#EF4444" strokeWidth="6"
-                      strokeLinecap="round"
-                      strokeDasharray={`${2 * Math.PI * 36}`}
-                      strokeDashoffset={`${2 * Math.PI * 36 * (1 - sosCountdown / 8)}`}
-                      style={{ transition: "stroke-dashoffset 1s linear" }} />
+                    <circle cx="40" cy="40" r="36" fill="none" stroke="#EF4444" strokeWidth="6" strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 36}`} strokeDashoffset={`${2 * Math.PI * 36 * (1 - sosCountdown / 8)}`} style={{ transition: "stroke-dashoffset 1s linear" }} />
                   </svg>
                   <span className="text-3xl font-bold text-red-600 z-10 tabular-nums">{sosCountdown}</span>
                 </div>
-                <p className="text-sm font-semibold text-red-600 animate-pulse">Gửi SOS trong {sosCountdown}s...</p>
-                <button onClick={cancelSosCountdown}
-                  className="w-full py-3.5 rounded-2xl font-bold text-white bg-slate-700 hover:bg-slate-800 flex items-center justify-center gap-2 transition-all active:scale-95"
-                  style={{ boxShadow: "0 4px 15px rgba(51,65,85,0.3)" }}>
+                <button onClick={cancelSosCountdown} className="w-full py-3.5 rounded-2xl font-bold text-white bg-slate-700 hover:bg-slate-800 flex items-center justify-center gap-2 transition-all active:scale-95">
                   <X className="w-5 h-5" />
                   <span className="text-base tracking-wide">Hủy SOS</span>
                 </button>
-                <p className="text-[10px] text-center text-slate-400 font-geist">Bấm "Hủy" để dừng gửi tín hiệu</p>
               </div>
             ) : (
-              /* ── Default & Sent state ── */
-              <>
-                <button onClick={sos ? undefined : startSosCountdown}
-                  className={`w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 transition-all ${sos ? "bg-red-700 cursor-default" : "bg-red-600 hover:bg-red-700 active:scale-95"}`}
-                  style={{ boxShadow: sos ? "0 0 25px rgba(220,38,38,0.4)" : "0 0 15px rgba(239,68,68,0.5),0 10px 25px -10px rgba(220,38,38,0.6)", animation: sos ? "none" : "pulse 2s infinite" }}>
-                  <Siren className="w-5 h-5" />
-                  <span className="text-base tracking-wide">{sos ? "ĐÃ GỬI · Y tá đang đến..." : "SOS Khẩn Cấp"}</span>
-                  <Phone className="w-5 h-5" />
-                </button>
-                <p className="text-[10px] text-center text-slate-400 mt-2 font-geist">Tín hiệu gửi trực tiếp tới trạm điều dưỡng Khoa Nội</p>
-              </>
+              <button onClick={sos ? undefined : startSosCountdown} className={`w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 transition-all ${sos ? "bg-red-700 cursor-default" : "bg-red-600 hover:bg-red-700 active:scale-95"}`} style={{ boxShadow: sos ? "none" : "0 0 15px rgba(239,68,68,0.5)", animation: sos ? "none" : "pulse 2s infinite" }}>
+                <Siren className="w-5 h-5" />
+                <span className="text-base tracking-wide">{sos ? "ĐÃ GỬI · Y tá đang đến..." : "SOS Khẩn Cấp"}</span>
+              </button>
             )}
           </div>
         </div>
+
+        {/* Camera Modal */}
+        {isScanning && (
+          <div className="absolute inset-0 bg-slate-900 z-50 flex flex-col animate-in fade-in duration-200">
+            <div className="flex-1 relative overflow-hidden flex items-center justify-center">
+              <div className="absolute inset-6 border-2 border-dashed border-[#88E8F2] rounded-3xl flex items-center justify-center bg-slate-800/50 backdrop-blur-sm">
+                <p className="text-white text-sm font-medium opacity-70">Đưa giấy xét nghiệm vào khung</p>
+                {isAnalyzing && (
+                  <div className="absolute left-0 right-0 h-1 bg-[#88E8F2] shadow-[0_0_20px_#88E8F2] animate-scan" />
+                )}
+              </div>
+            </div>
+            <div className="h-40 bg-black flex items-center justify-around px-6 pb-8">
+              <button onClick={() => setIsScanning(false)} className="text-white font-medium px-4 py-2 opacity-80">Hủy</button>
+              <button 
+                onClick={handleCapture}
+                disabled={isAnalyzing}
+                className="w-20 h-20 rounded-full border-4 border-[#88E8F2] flex items-center justify-center p-1.5 active:scale-95 transition-transform"
+              >
+                <div className={`w-full h-full bg-white rounded-full ${isAnalyzing ? 'animate-pulse bg-[#88E8F2]' : ''}`} />
+              </button>
+              <div className="w-12" />
+            </div>
+            {isAnalyzing && (
+              <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-md flex flex-col items-center justify-center z-50">
+                <ScanLine className="w-20 h-20 text-[#88E8F2] animate-pulse mb-6" />
+                <h3 className="text-white font-bold text-xl tracking-tight">Đang phân tích tài liệu...</h3>
+                <p className="text-[#88E8F2] text-sm mt-2 font-mono uppercase tracking-widest">VNPT SmartReader AI</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      <style>{`
+        @keyframes scan { 0% { top: 0%; } 50% { top: 100%; } 100% { top: 0%; } }
+        .animate-scan { animation: scan 2s linear infinite; }
+      `}</style>
+    </div>
+  );
+}
+
+/* ============== VIEW: EMS — CẤP CỨU NGOẠI VIỆN ============== */
+
+const MOCK_EMS_PATIENT = {
+  name: "Trần Đức Minh",
+  cccd: "001090012345",
+  dob: "15/03/1962",
+  gender: "Nam",
+  bloodType: "O+",
+  allergies: ["Penicillin", "Aspirin"],
+  chronicConditions: ["Tiểu đường type 2", "Tăng huyết áp"],
+  emergencyContact: { name: "Trần Thị Lan", relation: "Vợ", phone: "0912-345-678" },
+};
+
+function EmsView() {
+  const [scanned, setScanned] = useState(false);
+  const [alertSent, setAlertSent] = useState(false);
+  const [selectedAlert, setSelectedAlert] = useState<string | null>(null);
+
+  const alertTypes = ["Nhồi máu cơ tim", "Đột quỵ", "Chấn thương nặng", "Ngộ độc"];
+
+  const handleSendAlert = (alertType: string) => {
+    setSelectedAlert(alertType);
+    setAlertSent(true);
+  };
+
+  return (
+    <div className="space-y-4 max-w-3xl mx-auto">
+      {/* ── 1. Patient Identification Panel ── */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
+            <CreditCard className="w-4 h-4 text-orange-600" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-slate-900">Nhận diện Bệnh nhân</h3>
+            <p className="text-[11px] text-slate-500 font-geist">Quét CCCD / FaceID trên xe cấp cứu</p>
+          </div>
+        </div>
+
+        {!scanned ? (
+          <button
+            onClick={() => setScanned(true)}
+            className="w-full py-4 rounded-xl border-2 border-dashed border-orange-300 bg-orange-50/50 hover:bg-orange-50 transition-all flex flex-col items-center justify-center gap-2 group"
+          >
+            <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <ScanLine className="w-8 h-8 text-orange-600" />
+            </div>
+            <span className="font-bold text-slate-900 text-sm">Quét CCCD gắn chip / FaceID</span>
+            <span className="text-xs text-slate-500">Chạm để bắt đầu nhận diện bệnh nhân</span>
+          </button>
+        ) : (
+          <div className="space-y-3 animate-fade-in">
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-50 border border-emerald-200">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span className="text-xs font-bold text-emerald-700">Nhận diện thành công · CCCD xác thực</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5">Họ và tên</p>
+                <p className="text-sm font-bold text-slate-900">{MOCK_EMS_PATIENT.name}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5">CCCD</p>
+                <p className="text-sm font-bold text-slate-900 font-mono">{MOCK_EMS_PATIENT.cccd}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5">Ngày sinh</p>
+                <p className="text-sm font-bold text-slate-900">{MOCK_EMS_PATIENT.dob}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5">Giới tính</p>
+                <p className="text-sm font-bold text-slate-900">{MOCK_EMS_PATIENT.gender}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-red-50 border border-red-100">
+                <p className="text-[10px] font-geist uppercase tracking-wider text-red-400 mb-0.5">Nhóm máu</p>
+                <p className="text-sm font-bold text-red-600">{MOCK_EMS_PATIENT.bloodType}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-100">
+                <p className="text-[10px] font-geist uppercase tracking-wider text-amber-500 mb-0.5">Dị ứng</p>
+                <p className="text-sm font-bold text-amber-700">{MOCK_EMS_PATIENT.allergies.join(", ")}</p>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+              <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-1">Bệnh nền</p>
+              <div className="flex flex-wrap gap-1.5">
+                {MOCK_EMS_PATIENT.chronicConditions.map((c) => (
+                  <span key={c} className="px-2 py-0.5 rounded-full bg-slate-200 text-[11px] font-bold text-slate-700">{c}</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-geist uppercase tracking-wider text-blue-400 mb-0.5">Người liên hệ khẩn cấp</p>
+                <p className="text-sm font-bold text-blue-900">{MOCK_EMS_PATIENT.emergencyContact.name} ({MOCK_EMS_PATIENT.emergencyContact.relation})</p>
+                <p className="text-xs text-blue-600 font-mono">{MOCK_EMS_PATIENT.emergencyContact.phone}</p>
+              </div>
+              <Phone className="w-5 h-5 text-blue-500" />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── 2. GPS Map Panel ── */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: ACCENT }}>
+            <MapPin className="w-4 h-4 text-slate-900" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-slate-900">Định vị GPS · Lộ trình</h3>
+            <p className="text-[11px] text-slate-500 font-geist">Theo dõi thời gian thực · ETA tự động cập nhật</p>
+          </div>
+        </div>
+
+        {/* Simulated map */}
+        <div className="relative w-full aspect-[2/1] rounded-xl bg-slate-800 overflow-hidden mb-4">
+          <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%)" }} />
+          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(#88E8F2 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
+          {/* Route line */}
+          <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 200">
+            <path d="M 50 150 Q 120 80 200 100 Q 280 120 350 50" fill="none" stroke={ACCENT} strokeWidth="3" strokeDasharray="8 4" opacity="0.8" />
+            <circle cx="50" cy="150" r="8" fill="#F97316" stroke="#FFF" strokeWidth="2" />
+            <circle cx="350" cy="50" r="8" fill="#22C55E" stroke="#FFF" strokeWidth="2" />
+            {/* Ambulance position */}
+            <circle cx="200" cy="100" r="6" fill={ACCENT} stroke="#FFF" strokeWidth="2">
+              <animate attributeName="r" values="6;9;6" dur="1.5s" repeatCount="indefinite" />
+            </circle>
+          </svg>
+          {/* Labels */}
+          <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm text-white text-[10px] font-geist px-2 py-1 rounded-md flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-orange-500" /> Vị trí hiện tại
+          </div>
+          <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white text-[10px] font-geist px-2 py-1 rounded-md flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" /> BV Bạch Mai
+          </div>
+        </div>
+
+        {/* ETA info */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="p-3 rounded-xl bg-orange-50 border border-orange-100 text-center">
+            <p className="text-[10px] font-geist uppercase tracking-wider text-orange-500 mb-0.5">ETA</p>
+            <p className="text-xl font-bold text-orange-600">8 phút</p>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-center">
+            <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5">Khoảng cách</p>
+            <p className="text-xl font-bold text-slate-900">4.2 km</p>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-center">
+            <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5">Đích đến</p>
+            <p className="text-sm font-bold text-slate-900 leading-tight">BV Bạch Mai</p>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="mt-4">
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-[10px] font-geist uppercase tracking-wider text-slate-400">Tiến trình di chuyển</span>
+            <span className="text-[10px] font-bold text-slate-900">52%</span>
+          </div>
+          <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+            <div className="h-full rounded-full transition-all" style={{ width: "52%", background: `linear-gradient(90deg, #F97316, ${ACCENT})` }} />
+          </div>
+        </div>
+      </div>
+
+      {/* ── 3. Communication Panel ── */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+            <Radio className="w-4 h-4 text-blue-600" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-slate-900">Liên lạc Khẩn cấp</h3>
+            <p className="text-[11px] text-slate-500 font-geist">Kết nối trực tiếp · VoIP mã hóa</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button className="flex items-center gap-3 p-4 rounded-xl border-2 border-slate-100 hover:border-[#88E8F2] hover:bg-[#88E8F2]/5 transition-all group text-left">
+            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0">
+              <Phone className="w-6 h-6 text-emerald-600" />
+            </div>
+            <div>
+              <span className="font-bold text-slate-900 text-sm block">📞 Gọi Người thân</span>
+              <span className="text-xs text-slate-500">Liên hệ người thân bệnh nhân</span>
+            </div>
+          </button>
+
+          <button className="flex items-center gap-3 p-4 rounded-xl border-2 border-slate-100 hover:border-[#88E8F2] hover:bg-[#88E8F2]/5 transition-all group text-left">
+            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0">
+              <Radio className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <span className="font-bold text-slate-900 text-sm block">📡 Liên lạc Kíp trực BV</span>
+              <span className="text-xs text-slate-500">Kết nối trực tiếp phòng Cấp cứu</span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* ── 4. Pre-Alert Panel ── */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
+            <Siren className="w-4 h-4 text-red-600" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-slate-900">Cảnh báo Trước (Pre-Alert)</h3>
+            <p className="text-[11px] text-slate-500 font-geist">Gửi thông báo sớm cho Kíp trực Bệnh viện</p>
+          </div>
+        </div>
+
+        {alertSent ? (
+          <div className="flex flex-col items-center gap-3 py-4 animate-fade-in">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center">
+              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+            </div>
+            <div className="text-center">
+              <p className="font-bold text-slate-900">Đã gửi cảnh báo trước tới BV</p>
+              <p className="text-sm text-slate-500 mt-1">Loại: <span className="font-bold text-red-600">{selectedAlert}</span></p>
+              <p className="text-xs text-slate-400 mt-2">Kíp trực BV Bạch Mai đã nhận thông báo và đang chuẩn bị</p>
+            </div>
+            <button
+              onClick={() => { setAlertSent(false); setSelectedAlert(null); }}
+              className="mt-2 px-4 py-2 rounded-lg border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 transition"
+            >
+              Gửi cảnh báo khác
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs text-slate-500">Chọn loại tình huống:</p>
+            <div className="grid grid-cols-2 gap-2">
+              {alertTypes.map((type) => (
+                <button
+                  key={type}
+                  onClick={() => handleSendAlert(type)}
+                  className="p-3 rounded-xl border-2 border-slate-100 hover:border-red-300 hover:bg-red-50 transition-all text-left group"
+                >
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-400 group-hover:text-red-600 transition-colors flex-shrink-0" />
+                    <span className="text-sm font-bold text-slate-900">{type}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-slate-400 font-geist text-center mt-2">Cảnh báo sẽ được gửi tới Phòng Cấp cứu BV Bạch Mai</p>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
+/* ============== VIEW: ADMIN DASHBOARD ============== */
 
+function AdminDashboardView() {
+  return (
+    <div className="space-y-6 pb-20">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Panel 1: Tổng quan Hệ thống */}
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+          <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <Activity className="w-5 h-5 text-[#0A9BAD]" /> Tổng quan Hệ thống
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+              <p className="text-[10px] text-slate-500 font-geist uppercase tracking-wider mb-1">Uptime</p>
+              <p className="text-xl font-bold text-[#0A9BAD]">99.99%</p>
+            </div>
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+              <p className="text-[10px] text-slate-500 font-geist uppercase tracking-wider mb-1">Active Users</p>
+              <p className="text-xl font-bold text-slate-900">124</p>
+            </div>
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+              <p className="text-[10px] text-slate-500 font-geist uppercase tracking-wider mb-1">Cảnh báo h.nay</p>
+              <p className="text-xl font-bold text-red-500">12</p>
+            </div>
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+              <p className="text-[10px] text-slate-500 font-geist uppercase tracking-wider mb-1">Băng thông</p>
+              <p className="text-xl font-bold text-slate-900">4.2 TB</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Panel 5: API VNPT Monitor */}
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+          <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <Zap className="w-5 h-5 text-[#0A9BAD]" /> API VNPT Monitor
+          </h3>
+          <div className="space-y-4">
+            {[
+              { label: "VNPT eKYC", usage: 4500, limit: 5000, percent: 90 },
+              { label: "SmartVoice", usage: 1200, limit: 10000, percent: 12 },
+              { label: "SmartCA", usage: 850, limit: 2000, percent: 42.5 },
+            ].map(api => (
+              <div key={api.label}>
+                <div className="flex justify-between text-sm mb-1.5">
+                  <span className="font-bold text-slate-700">{api.label}</span>
+                  <span className="text-slate-500 text-[11px] font-geist tracking-wider">{api.usage} / {api.limit} req</span>
+                </div>
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full rounded-full transition-all" 
+                    style={{ width: `${api.percent}%`, backgroundColor: api.percent > 80 ? '#EF4444' : '#0A9BAD' }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Panel 3: Quản lý Thiết bị */}
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+          <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <Cpu className="w-5 h-5 text-[#0A9BAD]" /> Quản lý Thiết bị
+          </h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50">
+              <div className="flex items-center gap-3">
+                <Video className="w-5 h-5 text-slate-400" />
+                <div>
+                  <p className="text-sm font-bold text-slate-900">Camera AI</p>
+                  <p className="text-[11px] text-slate-500">38 thiết bị</p>
+                </div>
+              </div>
+              <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full">36 Online</span>
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50">
+              <div className="flex items-center gap-3">
+                <Ambulance className="w-5 h-5 text-slate-400" />
+                <div>
+                  <p className="text-sm font-bold text-slate-900">Xe Cấp cứu</p>
+                  <p className="text-[11px] text-slate-500">12 thiết bị</p>
+                </div>
+              </div>
+              <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full">12 Online</span>
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50">
+              <div className="flex items-center gap-3">
+                <Phone className="w-5 h-5 text-slate-400" />
+                <div>
+                  <p className="text-sm font-bold text-slate-900">Tablet Điều dưỡng</p>
+                  <p className="text-[11px] text-slate-500">45 thiết bị</p>
+                </div>
+              </div>
+              <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-[10px] font-bold rounded-full">42 Online</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Panel 2: Quản lý Nhân sự */}
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-bold text-slate-900 flex items-center gap-2">
+              <Users className="w-5 h-5 text-[#0A9BAD]" /> Quản lý Nhân sự
+            </h3>
+            <button className="text-[11px] font-bold tracking-wider uppercase font-geist text-[#0A9BAD] hover:underline">Xem tất cả</button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-[10px] text-slate-500 font-geist uppercase tracking-wider bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="px-4 py-3 rounded-tl-lg">Nhân viên</th>
+                  <th className="px-4 py-3">Chức vụ</th>
+                  <th className="px-4 py-3">Khoa</th>
+                  <th className="px-4 py-3 rounded-tr-lg">Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { name: "BS. Nguyễn Văn A", role: "Trưởng khoa", dept: "Cấp cứu", status: "Đang trực" },
+                  { name: "ĐD. Trần Thị B", role: "Điều dưỡng trưởng", dept: "Cấp cứu", status: "Đang trực" },
+                  { name: "BS. Lê Văn C", role: "Bác sĩ", dept: "Tim mạch", status: "Nghỉ" },
+                  { name: "BS. Phạm Thị D", role: "Bác sĩ", dept: "Nội tiết", status: "Đang trực" },
+                ].map((s, i) => (
+                  <tr key={i} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                    <td className="px-4 py-3 font-bold text-slate-900">{s.name}</td>
+                    <td className="px-4 py-3 text-slate-600 text-[13px]">{s.role}</td>
+                    <td className="px-4 py-3 text-slate-600 text-[13px]">{s.dept}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${s.status === 'Đang trực' ? 'bg-[#88E8F2] text-[#0d1f2d]' : 'bg-slate-100 text-slate-600'}`}>
+                        {s.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Panel 4: Quản lý Khoa phòng */}
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-bold text-slate-900 flex items-center gap-2">
+              <Bed className="w-5 h-5 text-[#0A9BAD]" /> Quản lý Khoa phòng
+            </h3>
+            <button className="text-[11px] font-bold tracking-wider uppercase font-geist text-[#0A9BAD] hover:underline flex items-center gap-1">
+              <Plus className="w-3 h-3" /> Thêm khoa
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { name: "Khoa Cấp cứu", beds: 20, occ: 18, color: "#DC2626" },
+              { name: "Khoa Tim mạch", beds: 40, occ: 35, color: "#7C3AED" },
+              { name: "Khoa Thần kinh", beds: 30, occ: 20, color: "#1E40AF" },
+              { name: "Khoa Nội", beds: 50, occ: 48, color: "#2563EB" },
+              { name: "Khoa Nhi", beds: 40, occ: 25, color: "#DB2777" },
+              { name: "Khoa Phụ sản", beds: 35, occ: 15, color: "#E11D48" },
+            ].map(d => (
+              <div key={d.name} className="flex items-center justify-between p-3 rounded-lg border border-slate-100 hover:border-[#88E8F2] transition-colors cursor-pointer group">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-8 rounded-full transition-transform group-hover:scale-y-110" style={{ backgroundColor: d.color }} />
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">{d.name}</p>
+                    <p className="text-[11px] text-slate-500 font-geist tracking-wider">{d.occ}/{d.beds} giường</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Panel 6: Nhật ký Hoạt động */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-bold text-slate-900 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-[#0A9BAD]" /> Nhật ký Hoạt động
+          </h3>
+          <button className="text-[11px] font-bold tracking-wider uppercase font-geist text-[#0A9BAD] hover:underline flex items-center gap-1">
+            <Filter className="w-3 h-3" /> Lọc nhật ký
+          </button>
+        </div>
+        <div className="space-y-0 relative before:absolute before:inset-y-0 before:left-[17px] before:w-px before:bg-slate-200 ml-1">
+          {[
+            { time: "10:45:21", user: "Admin", action: "Cập nhật hệ thống camera khu Cấp cứu", icon: Settings },
+            { time: "10:30:05", user: "BS. Nguyễn Văn A", action: "Đăng nhập hệ thống (FaceID)", icon: UserCheck },
+            { time: "10:15:42", user: "Hệ thống", action: "Phát hiện ngã tại phòng CC01 (Đã xử lý)", icon: AlertTriangle, alert: true },
+            { time: "09:50:11", user: "Admin", action: "Thêm thiết bị Tablet mới (ID: TAB-045)", icon: Plus },
+          ].map((log, i) => {
+            const Icon = log.icon;
+            return (
+              <div key={i} className="flex gap-4 relative py-3 group">
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 z-10 border-4 border-white transition-transform group-hover:scale-110 ${log.alert ? 'bg-red-100' : 'bg-slate-50'}`}>
+                  <Icon className={`w-4 h-4 ${log.alert ? 'text-red-500' : 'text-[#0A9BAD]'}`} />
+                </div>
+                <div>
+                  <p className="text-[13px] font-bold text-slate-900">{log.action}</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5 font-geist tracking-wider">{log.time} · {log.user}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}

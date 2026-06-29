@@ -1,0 +1,471 @@
+{
+	"info": {
+		"_postman_id": "bef9692a-ef61-41ae-8ed6-b5953607c7ee",
+		"name": "API tích hợp vnFace",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "31649892"
+	},
+	"item": [
+		{
+			"name": "external",
+			"item": [
+				{
+					"name": "1. Lấy thông tin lịch sử checkin.",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt-super-admin}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Token-Channel",
+								"value": "{{Token-Channel}}"
+							}
+						],
+						"url": {
+							"raw": "{{external-prefix-uri}}/his-checkin/list-filter?maxSize=1000&startDate=30/09/2025 00:00:00&endDate=30/09/2025 23:59:59&page=1&filterMode=2",
+							"host": [
+								"{{external-prefix-uri}}"
+							],
+							"path": [
+								"his-checkin",
+								"list-filter"
+							],
+							"query": [
+								{
+									"key": "userCodes",
+									"value": "DMA,NHA",
+									"disabled": true
+								},
+								{
+									"key": "maxSize",
+									"value": "1000"
+								},
+								{
+									"key": "startDate",
+									"value": "30/09/2025 00:00:00"
+								},
+								{
+									"key": "endDate",
+									"value": "30/09/2025 23:59:59"
+								},
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "filterMode",
+									"value": "2"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "3. Xóa danh sách nhân viên.",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt-super-admin}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Token-Channel",
+								"value": "{{Token-Channel}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userCodes\": [\"11\"]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{external-prefix-uri}}/account/list",
+							"host": [
+								"{{external-prefix-uri}}"
+							],
+							"path": [
+								"account",
+								"list"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "4. Lấy danh sách nhân viên.",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt-super-admin}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Token-Channel",
+								"value": "{{Token-Channel}}"
+							}
+						],
+						"url": {
+							"raw": "{{external-prefix-uri}}/account/list?maxSize=20&page=1",
+							"host": [
+								"{{external-prefix-uri}}"
+							],
+							"path": [
+								"account",
+								"list"
+							],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "01/04/2021",
+									"disabled": true
+								},
+								{
+									"key": "endDate",
+									"value": "08/05/2021",
+									"disabled": true
+								},
+								{
+									"key": "maxSize",
+									"value": "20"
+								},
+								{
+									"key": "page",
+									"value": "1"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "5. Gửi thông báo cho nhân viên thông qua kênh telegram, zalo, …",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt-super-admin}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Token-Channel",
+								"value": "{{Token-Channel}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userCodes\": [\n       \"123\"\n    ],\n    \"channels\": [\n        \"telegram\"\n    ],\n    \"content\": \"test\"\n}"
+						},
+						"url": {
+							"raw": "{{external-prefix-uri}}/notify/account",
+							"host": [
+								"{{external-prefix-uri}}"
+							],
+							"path": [
+								"notify",
+								"account"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "8. Tạo mới nhân viên.",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt-super-admin}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Token-Channel",
+								"value": "{{Token-Channel}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "userCode",
+									"value": "22",
+									"type": "text"
+								},
+								{
+									"key": "fullName",
+									"value": "test 1",
+									"type": "text"
+								},
+								{
+									"key": "email",
+									"value": "hoangphuong@test.xyz",
+									"type": "text"
+								},
+								{
+									"key": "gender",
+									"value": "FEMALE",
+									"type": "text"
+								},
+								{
+									"key": "phoneNumber",
+									"value": "0351234567",
+									"type": "text"
+								},
+								{
+									"key": "imageFile",
+									"type": "file",
+									"src": "/home/robert/Pictures/FACE_fc0055ad-05d4-11ee-b15e-435bfb9185fd.jpg"
+								},
+								{
+									"key": "groupCodes",
+									"value": "360",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "Abc@123456",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{external-prefix-uri}}/account",
+							"host": [
+								"{{external-prefix-uri}}"
+							],
+							"path": [
+								"account"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "9. Cập nhật nhân viên.",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt-super-admin}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Token-Channel",
+								"value": "{{Token-Channel}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "userCode",
+									"value": "11",
+									"type": "text"
+								},
+								{
+									"key": "fullName",
+									"value": "test 235",
+									"type": "text"
+								},
+								{
+									"key": "email",
+									"value": "hoangphuong@test.xyz",
+									"type": "text"
+								},
+								{
+									"key": "gender",
+									"value": "",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "phoneNumber",
+									"value": "",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "imageFile",
+									"type": "file",
+									"src": "/home/robert/Pictures/FACE_a57deacb-38a3-11ec-bdba-776ee8011ea9.jpg",
+									"disabled": true
+								},
+								{
+									"key": "newUserCode",
+									"value": "238",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "groupCodes",
+									"value": "361",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "groupCodes",
+									"value": "461",
+									"type": "text",
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "{{external-prefix-uri}}/account/update",
+							"host": [
+								"{{external-prefix-uri}}"
+							],
+							"path": [
+								"account",
+								"update"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "14. Lấy thông tin chi tiết của nhân viên.",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt-super-admin}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Token-Channel",
+								"value": ""
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{external-prefix-uri}}/account/:userCode",
+							"host": [
+								"{{external-prefix-uri}}"
+							],
+							"path": [
+								"account",
+								":userCode"
+							],
+							"variable": [
+								{
+									"key": "userCode",
+									"value": "123"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "external-prefix-uri",
+			"value": "https://api-vnface.vnpt.vn/checkin-service/external"
+		},
+		{
+			"key": "Token-Channel",
+			"value": ""
+		},
+		{
+			"key": "jwt-super-admin",
+			"value": ""
+		}
+	]
+}

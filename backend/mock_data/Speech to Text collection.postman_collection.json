@@ -1,0 +1,225 @@
+{
+	"info": {
+		"_postman_id": "735b668d-11ef-4a9c-bcfd-6e20d66959a3",
+		"name": "Speech to Text collection",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "31001623"
+	},
+	"item": [
+		{
+			"name": "gRPC-Recognize",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Token-id",
+						"value": "{{token_id}}"
+					},
+					{
+						"key": "Token-key",
+						"value": "{{token_key}}"
+					},
+					{
+						"key": "Authorization",
+						"value": "{{access_token}}"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "audioFile",
+							"type": "file",
+							"src": []
+						},
+						{
+							"key": "clientSession",
+							"value": "",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_url}}/stt-service/v1/grpc/standard",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"stt-service",
+						"v1",
+						"grpc",
+						"standard"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Async file dài",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "token-id",
+						"value": "{{token_id}}"
+					},
+					{
+						"key": "token-key",
+						"value": "{{token_key}}"
+					},
+					{
+						"key": "Authorization",
+						"value": "{{access_token}}"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "audioFile",
+							"type": "file",
+							"src": []
+						},
+						{
+							"key": "clientSession",
+							"value": "clientSession11221311209",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_url}}/stt-service/v1/grpc/async/standard",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"stt-service",
+						"v1",
+						"grpc",
+						"async",
+						"standard"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Tóm tắt dòng thời gian",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "token-id",
+						"value": "{{token_id}}"
+					},
+					{
+						"key": "token-key",
+						"value": "{{token_key}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "{{access_token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"text\": \"Xin chào, tôi là Trợ lý AI xử lý giọng nói\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/eval-emotion-service/v1/conversation/summary",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"eval-emotion-service",
+						"v1",
+						"conversation",
+						"summary"
+					]
+				},
+				"description": "Generated from cURL: curl --location 'https://explorer.idg.vnpt.vn/eval-emotion-service/v1/conversation/summary' \\\r\n\r\n--header 'token-id: ${token\\_id}' \\\r\n\r\n--header 'token-key: ${token\\_key}' \\\r\n\r\n--header 'Content-Type: application/json' \\\r\n\r\n--header 'Authorization: Bearer ${access\\_token}' \\\r\n\r\n--data '{\r\n\r\n    \"text\": \"có lúc nào cũng sóng gió lý do là chị chọn vô cho mình năm mươi tỷ mà nếu mình lỗ thêm ba mươi tỷ thì chẳng sao...\"\r\n\r\n}'\r\n"
+			},
+			"response": []
+		},
+		{
+			"name": "Tóm tắt cuộc họp",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "token-id",
+						"value": "{{token_id}}"
+					},
+					{
+						"key": "token-key",
+						"value": "{{token_key}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "multipart/form-data"
+					},
+					{
+						"key": "Authorization",
+						"value": "{{access_token}}"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "text",
+							"value": "",
+							"type": "text"
+						},
+						{
+							"key": "file",
+							"type": "file",
+							"src": []
+						},
+						{
+							"key": "link",
+							"value": "",
+							"type": "text"
+						},
+						{
+							"key": "maxNumSpeakers",
+							"value": "2",
+							"type": "text"
+						},
+						{
+							"key": "languageCode",
+							"value": "vi-VN",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_url}}/eval-emotion-service/v1/conversation/summary-meeting",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"eval-emotion-service",
+						"v1",
+						"conversation",
+						"summary-meeting"
+					]
+				},
+				"description": "Generated from cURL: curl --location 'https://explorer.idg.vnpt.vn/eval-emotion-service/v1/conversation/summary' \\\r\n\r\n--header 'token-id: ${token\\_id}' \\\r\n\r\n--header 'token-key: ${token\\_key}' \\\r\n\r\n--header 'Content-Type: application/json' \\\r\n\r\n--header 'Authorization: Bearer ${access\\_token}' \\\r\n\r\n--data '{\r\n\r\n    \"text\": \"có lúc nào cũng sóng gió lý do là chị chọn vô cho mình năm mươi tỷ mà nếu mình lỗ thêm ba mươi tỷ thì chẳng sao...\"\r\n\r\n}'\r\n"
+			},
+			"response": []
+		}
+	]
+}
