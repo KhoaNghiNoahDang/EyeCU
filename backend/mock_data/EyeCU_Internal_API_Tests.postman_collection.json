@@ -1,0 +1,161 @@
+{
+  "info": {
+    "_postman_id": "08fbdc84-d3c8-4147-83b6-075f0e741afe",
+    "name": "EyeCU_Internal_API_Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "56273424",
+    "_collection_link": "https://go.postman.co/collection/56273424-08fbdc84-d3c8-4147-83b6-075f0e741afe?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "1. Đăng nhập FaceID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Đăng nhập thành công - Status 200\", function () {\r",
+              "    pm.response.to.have.status(200);\r",
+              "});\r",
+              "\r",
+              "var jsonData = pm.response.json();\r",
+              "if (jsonData.access_token) {\r",
+              "    pm.environment.set(\"jwt_token\", jsonData.access_token);\r",
+              "    console.log(\"Đã lưu token tự động thành công!\");\r",
+              "}"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"far_img_hash\": \"mock_face_hash_front_1\",\r\n  \"near_img_hash\": \"mock_face_hash_live_1\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/auth/face-login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "face-login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2. Quét tài liệu y tế",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Bộ lọc an toàn: Chặn thành công giấy tờ photo đen trắng\", function () {\r",
+              "    pm.response.to.have.status(400);\r",
+              "    var jsonData = pm.response.json();\r",
+              "    pm.expect(jsonData.detail).to.include(\"Phát hiện bản chụp từ giấy photo đen trắng\");\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{jwt_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"doc_hash\": \"mock_cccd_photo_black_white_9\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/records/scan-document",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "records",
+            "scan-document"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3. Kiểm tra phân quyền Admin",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Bảo mật RBAC tốt: Bác sĩ không có quyền gọi API Admin\", function () {\r",
+              "    pm.expect(pm.response.code).to.equal(403);\r",
+              "    var jsonData = pm.response.json();\r",
+              "    pm.expect(jsonData.detail).to.include(\"Không có quyền truy cập\");\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{jwt_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/admin/dashboard",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "admin",
+            "dashboard"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

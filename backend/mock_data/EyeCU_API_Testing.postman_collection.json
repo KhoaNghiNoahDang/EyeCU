@@ -1,0 +1,1089 @@
+{
+	"info": {
+		"_postman_id": "b3e0c034-7128-4447-aa72-a08bc7ee077a",
+		"name": "EyeCU API Testing",
+		"description": "Automated API verification suite for EyeCU - Ambient Clinical OS. Tests authentication, role-based access control, real-time GPS synchronization, eKYC integration, voice EMR, and patient dashboard actions.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Authentication",
+			"item": [
+				{
+					"name": "Admin Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Token is returned with role admin\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property(\"access_token\");",
+									"    pm.expect(jsonData.role).to.eql(\"admin\");",
+									"    pm.environment.set(\"admin_token\", jsonData.access_token);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "username",
+									"value": "000000000001",
+									"description": "CCCD của Admin",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "admin",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Clinician Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Token is returned with role clinician\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property(\"access_token\");",
+									"    pm.expect(jsonData.role).to.eql(\"clinician\");",
+									"    pm.environment.set(\"clinician_token\", jsonData.access_token);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "username",
+									"value": "000000000002",
+									"description": "CCCD của Clinician",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "clinician",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "EMS Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Token is returned with role ems\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property(\"access_token\");",
+									"    pm.expect(jsonData.role).to.eql(\"ems\");",
+									"    pm.environment.set(\"ems_token\", jsonData.access_token);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "username",
+									"value": "000000000004",
+									"description": "CCCD của EMS Staff",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "ems",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Patient Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Token and Patient ID obtained\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property(\"access_token\");",
+									"    pm.environment.set(\"patient_token\", jsonData.access_token);",
+									"    ",
+									"    // Decode JWT in sandbox to extract patient UUID",
+									"    var token = jsonData.access_token;",
+									"    var base64Url = token.split('.')[1];",
+									"    var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');",
+									"    var jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {",
+									"        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);",
+									"    }).join(''));",
+									"    var payload = JSON.parse(jsonPayload);",
+									"    pm.environment.set(\"patient_id\", payload.sub);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "username",
+									"value": "012345678901",
+									"description": "CCCD của Bệnh nhân mẫu",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "patient",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login eKYC",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"cccd_base64\": \"data:image/jpeg;base64,...\",\n    \"face_base64\": \"data:image/jpeg;base64,...\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login/ekyc",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login",
+								"ekyc"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "2. Admin Dashboard",
+			"item": [
+				{
+					"name": "Staff Status",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Verify online staff count elements exist\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property(\"clinicians_online\");",
+									"    pm.expect(jsonData).to.have.property(\"details\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{admin_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/staff-status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"staff-status"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "System Stats",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Check system bandwidth and user count\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.active_users).to.be.a('number');",
+									"    pm.expect(jsonData.bandwidth).to.eql(\"4.2 TB\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{admin_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/stats",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"stats"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "3. Ambulance",
+			"item": [
+				{
+					"name": "Ambulance LPR Sim",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"LPR plate check\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.plate).to.eql(\"51A-999.11\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/ambulance/lpr?img_url=https://i.ibb.co/ambulance.jpg",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"ambulance",
+								"lpr"
+							],
+							"query": [
+								{
+									"key": "img_url",
+									"value": "https://i.ibb.co/ambulance.jpg"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "4. AI Ambient Camera",
+			"item": [
+				{
+					"name": "Trigger Incident Alert",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Incident created successfully\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql(\"success\");",
+									"    pm.expect(jsonData).to.have.property(\"incident_id\");",
+									"    pm.environment.set(\"incident_id\", jsonData.incident_id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"room_code\": \"P.101\",\n    \"severity\": \"Khẩn\",\n    \"description\": \"Bệnh nhân ngã nghiêng khỏi thành giường (UR Fall Detection)\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/ambient/incident",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"ambient",
+								"incident"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "5. EMS & ER Ops",
+			"item": [
+				{
+					"name": "LPR Barrier Webhook Trigger",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Auto-open barrier check\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql(\"success\");",
+									"    pm.expect(jsonData).to.have.property(\"ambulance_id\");",
+									"    pm.environment.set(\"ambulance_id\", jsonData.ambulance_id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/ems/lpr-webhook?plate_number=51A-999.11",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"ems",
+								"lpr-webhook"
+							],
+							"query": [
+								{
+									"key": "plate_number",
+									"value": "51A-999.11"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Fast-Track Synchronization",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Patient data synchronized to ER console\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql(\"synced\");",
+									"    pm.expect(jsonData.data.cccd).to.eql(\"012345678901\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ems_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/ems/fast-track?cccd=012345678901&ambulance_id={{ambulance_id}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"ems",
+								"fast-track"
+							],
+							"query": [
+								{
+									"key": "cccd",
+									"value": "012345678901"
+								},
+								{
+									"key": "ambulance_id",
+									"value": "{{ambulance_id}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Ambulance Pre-Alert Notification",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Alert broadcast verification\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql(\"alert_sent\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ems_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/ems/pre-alert?ambulance_id={{ambulance_id}}&condition=Nhồi máu cơ tim&eta_minutes=10",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"ems",
+								"pre-alert"
+							],
+							"query": [
+								{
+									"key": "ambulance_id",
+									"value": "{{ambulance_id}}"
+								},
+								{
+									"key": "condition",
+									"value": "Nhồi máu cơ tim"
+								},
+								{
+									"key": "eta_minutes",
+									"value": "10"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Ambulance Active Dashboard",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Ambulance driver and status are valid\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.ambulance.plate).to.eql(\"51A-999.11\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ems_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/ems/{{ambulance_id}}/dashboard",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"ems",
+								"{{ambulance_id}}",
+								"dashboard"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "6. Patient Portal",
+			"item": [
+				{
+					"name": "Verify BHXH fast-track",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"BHXH information matches patient profile\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql(\"success\");",
+									"    pm.expect(jsonData.sync_steps.bhxh).to.eql(\"Thành công\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ems_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/patient/verify-bhxh?cccd=012345678901",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"patient",
+								"verify-bhxh"
+							],
+							"query": [
+								{
+									"key": "cccd",
+									"value": "012345678901"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admit Walk-in Patient",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Walk-in ticket created\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql(\"success\");",
+									"    pm.expect(jsonData).to.have.property(\"ticket_id\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{admin_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Trần Thị B (Walk-in)\",\n    \"cccd\": \"098765432101\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/patient/admit-walkin",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"patient",
+								"admit-walkin"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Trigger SOS Panic Button",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"SOS status sent back successfully\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql(\"SOS_SENT\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{patient_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/patient/sos",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"patient",
+								"sos"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Patient SmartBot Conversation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"SmartBot response received\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property(\"reply\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{patient_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"message\": \"Tôi bị ho khan và sốt cao từ tối qua, tôi nên đăng ký khám khoa nào?\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/patient/chat",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"patient",
+								"chat"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "7. Medical Records OCR",
+			"item": [
+				{
+					"name": "Get Patient Info and History",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Validate demographic content\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.demographics.name).to.eql(\"Nguyễn Văn A\");",
+									"    pm.expect(jsonData.history).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{clinician_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/records/{{patient_id}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"records",
+								"{{patient_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Extract Old Prescription (OCR)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Check eKYC OCR extracted output\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property(\"statusCode\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{clinician_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"description": "Ảnh đơn thuốc hoặc CCCD đã che mờ PII",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/records/ocr",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"records",
+								"ocr"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "8. Voice EMR SOAPE",
+			"item": [
+				{
+					"name": "Process Voice EMR Audio",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"EMR transcription has raw text and summary\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property(\"raw_text\");",
+									"    pm.expect(jsonData).to.have.property(\"summary\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{clinician_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "audio",
+									"description": "File âm thanh webm ghi âm bác sĩ khám",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "patient_id",
+									"value": "{{patient_id}}",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/voice/emr",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"voice",
+								"emr"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

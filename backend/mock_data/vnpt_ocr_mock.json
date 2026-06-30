@@ -2,14 +2,12 @@
   "statusCode": 200,
   "message": "Thành công",
   "object": {
-    "id": "001095001234",
-    "name": "NGUYỄN VAN A",
-    "birth_day": "15/08/1958",
+    "id": "012649254825",
+    "name": "NGUYỄN VĂN MƯỜI",
+    "birth_day": "21/01/1970",
     "gender": "Nam",
     "nationality": "Việt Nam",
-    "recent_location": "Đống Đa, Hà Nội",
-    "expire_warning": "no",
-    "back_expire_warning": "no",
+    "recent_location": "142/8 Nguyễn Văn Cừ, An Khánh, Ninh Kiều, Cần Thơ",
     "checking_result_front": {
       "check_photocopied_result": "0"
     }
