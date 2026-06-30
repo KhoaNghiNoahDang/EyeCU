@@ -89,11 +89,13 @@ function LoginPage() {
                 Hệ thống y tế thế hệ mới
               </div>
               <h2 className="text-4xl font-bold leading-snug text-slate-900">
-                Nhận thức.<br />
+                Nhận thức.
+                <br />
                 <span style={{ color: "#0A9BAD" }}>Tức thì.</span>
               </h2>
               <p className="text-slate-500 text-sm max-w-xs leading-relaxed">
-                Hệ sinh thái AI Camera + IoT + Voice EMR giúp kíp cấp cứu phản ứng nhanh hơn bao giờ hết.
+                Hệ sinh thái AI Camera + IoT + Voice EMR giúp kíp cấp cứu phản ứng nhanh hơn bao giờ
+                hết.
               </p>
             </div>
 
@@ -138,7 +140,10 @@ function LoginPage() {
                     className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: "rgba(10,155,173,0.12)" }}
                   >
-                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "#0A9BAD" }} />
+                    <div
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ backgroundColor: "#0A9BAD" }}
+                    />
                   </div>
                   <span className="text-xs text-slate-500 font-geist">{label}</span>
                 </div>
@@ -160,7 +165,9 @@ function LoginPage() {
               <Activity className="w-8 h-8 text-white" strokeWidth={2.5} />
             </div>
             <h1 className="text-2xl font-bold text-slate-900">EyeCU</h1>
-            <p className="text-xs text-slate-400 mt-1 font-geist uppercase tracking-wider">Ambient Clinical OS</p>
+            <p className="text-xs text-slate-400 mt-1 font-geist uppercase tracking-wider">
+              Ambient Clinical OS
+            </p>
           </div>
 
           <div className="space-y-1">
@@ -171,7 +178,10 @@ function LoginPage() {
           {/* Tabs */}
           <div
             className="flex p-1 rounded-2xl gap-1"
-            style={{ backgroundColor: "rgba(255,255,255,0.8)", border: "1px solid rgba(10,155,173,0.15)" }}
+            style={{
+              backgroundColor: "rgba(255,255,255,0.8)",
+              border: "1px solid rgba(10,155,173,0.15)",
+            }}
           >
             {(
               [
@@ -231,7 +241,6 @@ function LoginPage() {
   );
 }
 
-
 /* ─── Shared: Section header ─── */
 function SectionTitle({
   icon: Icon,
@@ -258,7 +267,9 @@ function SectionTitle({
 
 /* ─── STAFF FLOW ─── */
 function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode) => void }) {
-  const [step, setStep] = useState<"choose" | "scan" | "manual" | "identify" | "pick_shift">("choose");
+  const [step, setStep] = useState<"choose" | "scan" | "manual" | "identify" | "pick_shift">(
+    "choose",
+  );
   const [identifiedUser, setIdentifiedUser] = useState<AuthUser | null>(null);
   const [employeeId, setEmployeeId] = useState("");
   const [password, setPassword] = useState("");
@@ -284,7 +295,11 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
   if (step === "choose") {
     return (
       <div className="space-y-3 animate-in fade-in duration-300">
-        <SectionTitle icon={Stethoscope} title="Đăng nhập Nhân viên" subtitle="Chọn phương thức xác thực" />
+        <SectionTitle
+          icon={Stethoscope}
+          title="Đăng nhập Nhân viên"
+          subtitle="Chọn phương thức xác thực"
+        />
         {[
           {
             id: "scan" as const,
@@ -325,7 +340,10 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
               <div className="font-bold text-slate-900 text-sm">{title}</div>
               <div className="text-xs text-slate-400 mt-0.5">{sub}</div>
             </div>
-            <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" style={{ color: `${ACCENT_DARK}80` }} />
+            <ChevronRight
+              className="w-4 h-4 transition-transform group-hover:translate-x-0.5"
+              style={{ color: `${ACCENT_DARK}80` }}
+            />
           </button>
         ))}
       </div>
@@ -359,7 +377,9 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
         </div>
         <div>
           <p className="font-bold text-slate-900">Đang nhận diện khuôn mặt</p>
-          <p className="text-xs text-slate-400 mt-1">Vui lòng đưa khuôn mặt vào giữa khung hình...</p>
+          <p className="text-xs text-slate-400 mt-1">
+            Vui lòng đưa khuôn mặt vào giữa khung hình...
+          </p>
         </div>
         <button
           onClick={() => setStep("choose")}
@@ -375,8 +395,12 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
   if (step === "manual") {
     return (
       <div className="flex flex-col text-center space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
-        <SectionTitle icon={Keyboard} title="Đăng nhập Thủ công" subtitle="Sử dụng Mã Nhân viên và Mật khẩu" />
-        
+        <SectionTitle
+          icon={Keyboard}
+          title="Đăng nhập Thủ công"
+          subtitle="Sử dụng Mã Nhân viên và Mật khẩu"
+        />
+
         <form onSubmit={handleManualLogin} className="w-full flex flex-col gap-4 text-left">
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">Mã Nhân viên</label>
@@ -414,10 +438,17 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
             className="mt-2 w-full py-2.5 rounded-lg text-sm font-bold text-slate-900 transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
             style={{ backgroundColor: ACCENT }}
           >
-            {isAuthenticating ? <><span className="w-4 h-4 border-2 border-t-transparent border-slate-900 rounded-full animate-spin" /> Đang đăng nhập...</> : "Đăng nhập"}
+            {isAuthenticating ? (
+              <>
+                <span className="w-4 h-4 border-2 border-t-transparent border-slate-900 rounded-full animate-spin" />{" "}
+                Đang đăng nhập...
+              </>
+            ) : (
+              "Đăng nhập"
+            )}
           </button>
         </form>
-        
+
         <button
           onClick={() => setStep("choose")}
           className="flex items-center justify-center gap-1.5 text-xs text-slate-400 hover:text-slate-700 transition-colors mt-2"
@@ -432,7 +463,11 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
   if (step === "identify") {
     return (
       <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-        <SectionTitle icon={ShieldCheck} title="Xác thực thành công" subtitle="Chọn tài khoản của bạn để tiếp tục" />
+        <SectionTitle
+          icon={ShieldCheck}
+          title="Xác thực thành công"
+          subtitle="Chọn tài khoản của bạn để tiếp tục"
+        />
         <div className="space-y-2">
           {MOCK_STAFF.map((staff) => (
             <button
@@ -462,7 +497,11 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
                   style={{ borderColor: `${ACCENT}40`, backgroundColor: `${ACCENT}15` }}
                 >
                   {staff.avatar ? (
-                    <img src={staff.avatar} alt={staff.name} className="w-full h-full object-cover" />
+                    <img
+                      src={staff.avatar}
+                      alt={staff.name}
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <UserCircle2 className="w-5 h-5" style={{ color: ACCENT_DARK }} />
@@ -476,7 +515,10 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
                   <div className="text-xs text-slate-400">{staff.department}</div>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" style={{ color: ACCENT_DARK }} />
+              <ChevronRight
+                className="w-4 h-4 transition-transform group-hover:translate-x-0.5"
+                style={{ color: ACCENT_DARK }}
+              />
             </button>
           ))}
         </div>
@@ -487,8 +529,18 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
   /* STEP 3 — Pick shift */
   const shifts: { mode: WorkMode; icon: typeof Eye; label: string; sub: string }[] = [
     { mode: "ops", icon: Eye, label: "Trực Cấp cứu", sub: "Camera AI · Điều phối xe · Báo động" },
-    { mode: "clinician", icon: Stethoscope, label: "Khám Lâm sàng", sub: "Voice EMR · Hồ sơ bệnh án · Ký số" },
-    { mode: "ems", icon: Siren, label: "Cấp cứu Ngoại viện", sub: "Quét BN trên xe · GPS · Liên lạc BV" },
+    {
+      mode: "clinician",
+      icon: Stethoscope,
+      label: "Khám Lâm sàng",
+      sub: "Voice EMR · Hồ sơ bệnh án · Ký số",
+    },
+    {
+      mode: "ems",
+      icon: Siren,
+      label: "Cấp cứu Ngoại viện",
+      sub: "Quét BN trên xe · GPS · Liên lạc BV",
+    },
   ];
 
   return (
@@ -497,11 +549,21 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
         className="flex items-center gap-3 p-3 rounded-xl"
         style={{ backgroundColor: `${ACCENT}12`, border: `1px solid ${ACCENT}30` }}
       >
-        <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2" style={{ borderColor: ACCENT }}>
+        <div
+          className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2"
+          style={{ borderColor: ACCENT }}
+        >
           {identifiedUser?.avatar ? (
-            <img src={identifiedUser.avatar} alt={identifiedUser.name} className="w-full h-full object-cover" />
+            <img
+              src={identifiedUser.avatar}
+              alt={identifiedUser.name}
+              className="w-full h-full object-cover"
+            />
           ) : (
-            <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: `${ACCENT}20` }}>
+            <div
+              className="w-full h-full flex items-center justify-center"
+              style={{ backgroundColor: `${ACCENT}20` }}
+            >
               <UserCircle2 className="w-5 h-5" style={{ color: ACCENT_DARK }} />
             </div>
           )}
@@ -543,11 +605,16 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
                 <Icon className="w-5 h-5" style={{ color: ACCENT_DARK }} />
               </div>
               <div>
-                <p className="text-sm font-bold text-slate-900 group-hover:text-[#0A9BAD] transition-colors">{label}</p>
+                <p className="text-sm font-bold text-slate-900 group-hover:text-[#0A9BAD] transition-colors">
+                  {label}
+                </p>
                 <p className="text-[10px] text-slate-500 font-geist tracking-wider mt-0.5">{sub}</p>
               </div>
             </div>
-            <ArrowLeft className="w-4 h-4 rotate-180 transition-transform group-hover:translate-x-1" style={{ color: ACCENT_DARK }} />
+            <ArrowLeft
+              className="w-4 h-4 rotate-180 transition-transform group-hover:translate-x-1"
+              style={{ color: ACCENT_DARK }}
+            />
           </button>
         ))}
       </div>
@@ -563,7 +630,11 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser) => void }) {
   if (method === "choose") {
     return (
       <div className="space-y-3">
-        <SectionTitle icon={ShieldCheck} title="Đăng nhập Bệnh nhân" subtitle="Chọn phương thức xác thực" />
+        <SectionTitle
+          icon={ShieldCheck}
+          title="Đăng nhập Bệnh nhân"
+          subtitle="Chọn phương thức xác thực"
+        />
         {[
           {
             id: "scan" as const,
@@ -604,7 +675,10 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser) => void }) {
               <div className="font-bold text-slate-900 text-sm">{title}</div>
               <div className="text-xs text-slate-400 mt-0.5">{sub}</div>
             </div>
-            <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" style={{ color: `${ACCENT_DARK}80` }} />
+            <ChevronRight
+              className="w-4 h-4 transition-transform group-hover:translate-x-0.5"
+              style={{ color: `${ACCENT_DARK}80` }}
+            />
           </button>
         ))}
       </div>
@@ -614,13 +688,20 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser) => void }) {
   if (method === "scan") {
     return (
       <div className="flex flex-col items-center text-center space-y-5">
-        <SectionTitle icon={CreditCard} title="Quét CCCD gắn chip" subtitle="Đưa thẻ lại gần thiết bị đọc NFC" />
+        <SectionTitle
+          icon={CreditCard}
+          title="Quét CCCD gắn chip"
+          subtitle="Đưa thẻ lại gần thiết bị đọc NFC"
+        />
         <div
           className="w-56 h-36 rounded-2xl relative flex items-center justify-center overflow-hidden"
           style={{ backgroundColor: `${ACCENT}10`, border: `2px dashed ${ACCENT}50` }}
         >
           <CreditCard className="w-10 h-10 opacity-30" style={{ color: ACCENT_DARK }} />
-          <div className="absolute inset-0 animate-pulse rounded-2xl" style={{ backgroundColor: `${ACCENT}08` }} />
+          <div
+            className="absolute inset-0 animate-pulse rounded-2xl"
+            style={{ backgroundColor: `${ACCENT}08` }}
+          />
           <div
             className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] font-geist uppercase tracking-wider"
             style={{ color: ACCENT_DARK }}
@@ -629,7 +710,9 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser) => void }) {
           </div>
         </div>
         <button
-          onClick={() => onLogin({ id: "p1", name: "Nguyễn Văn A", type: "patient", cccd: "001203001247" })}
+          onClick={() =>
+            onLogin({ id: "p1", name: "Nguyễn Văn A", type: "patient", cccd: "001203001247" })
+          }
           className="w-full py-2.5 rounded-xl font-bold text-sm transition-all text-slate-900"
           style={{ backgroundColor: ACCENT }}
         >
@@ -647,11 +730,27 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser) => void }) {
 
   return (
     <div className="space-y-4">
-      <SectionTitle icon={Keyboard} title="Nhập thông tin" subtitle="Điền số CCCD và số điện thoại" />
+      <SectionTitle
+        icon={Keyboard}
+        title="Nhập thông tin"
+        subtitle="Điền số CCCD và số điện thoại"
+      />
       <div className="space-y-3">
         {[
-          { label: "Số CCCD", type: "text", value: cccd, onChange: (v: string) => setCccd(v), placeholder: "001203001247" },
-          { label: "Số điện thoại", type: "tel", value: "", onChange: () => {}, placeholder: "Số đã đăng ký tại bệnh viện" },
+          {
+            label: "Số CCCD",
+            type: "text",
+            value: cccd,
+            onChange: (v: string) => setCccd(v),
+            placeholder: "001203001247",
+          },
+          {
+            label: "Số điện thoại",
+            type: "tel",
+            value: "",
+            onChange: () => {},
+            placeholder: "Số đã đăng ký tại bệnh viện",
+          },
         ].map(({ label, type, value, onChange, placeholder }) => (
           <div key={label}>
             <label className="block text-xs font-bold text-slate-500 mb-1.5 font-geist uppercase tracking-wider">
@@ -677,7 +776,9 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser) => void }) {
         ))}
       </div>
       <button
-        onClick={() => { if (cccd) onLogin({ id: "px", name: "Bệnh nhân", type: "patient", cccd }); }}
+        onClick={() => {
+          if (cccd) onLogin({ id: "px", name: "Bệnh nhân", type: "patient", cccd });
+        }}
         disabled={!cccd}
         className="w-full py-2.5 rounded-xl font-bold text-sm transition-all text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed"
         style={{ backgroundColor: ACCENT }}
@@ -701,11 +802,27 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser) => void }) {
 
   return (
     <div className="space-y-4">
-      <SectionTitle icon={Settings} title="Đăng nhập Quản trị" subtitle="Dành cho Quản trị viên hệ thống" />
+      <SectionTitle
+        icon={Settings}
+        title="Đăng nhập Quản trị"
+        subtitle="Dành cho Quản trị viên hệ thống"
+      />
       <div className="space-y-3">
         {[
-          { label: "Mã Nhân viên", type: "text", value: username, onChange: setUsername, placeholder: "Nhập mã nhân viên..." },
-          { label: "Mật khẩu", type: "password", value: password, onChange: setPassword, placeholder: "Nhập mật khẩu..." },
+          {
+            label: "Mã Nhân viên",
+            type: "text",
+            value: username,
+            onChange: setUsername,
+            placeholder: "Nhập mã nhân viên...",
+          },
+          {
+            label: "Mật khẩu",
+            type: "password",
+            value: password,
+            onChange: setPassword,
+            placeholder: "Nhập mật khẩu...",
+          },
         ].map(({ label, type, value, onChange, placeholder }) => (
           <div key={label}>
             <label className="block text-xs font-bold text-slate-500 mb-1.5 font-geist uppercase tracking-wider">
@@ -733,7 +850,13 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser) => void }) {
       <button
         onClick={() => {
           if (username && password) {
-            onLogin({ id: "a1", name: "Quản trị viên", type: "staff", title: "Admin", department: "IT" });
+            onLogin({
+              id: "a1",
+              name: "Quản trị viên",
+              type: "staff",
+              title: "Admin",
+              department: "IT",
+            });
           }
         }}
         disabled={!username || !password}
