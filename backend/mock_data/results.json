@@ -1,0 +1,28 @@
+{
+  "status": "Scanned Success",
+  "document_type": "Phiếu kết quả xét nghiệm hóa sinh máu",
+  "timestamp": "2026-06-30T17:00:00Z",
+  "lab_results": [
+    {
+      "name": "Glucose",
+      "value": "4.88",
+      "unit": "mmol/L",
+      "ref": "3.9 - 5.6",
+      "status": "normal"
+    },
+    {
+      "name": "Creatinine",
+      "value": "68.6",
+      "unit": "μmol/l",
+      "ref": "58 - 96",
+      "status": "normal"
+    },
+    {
+      "name": "Ure",
+      "value": "3.3667",
+      "unit": "mmol/L",
+      "ref": "2.8 - 7.2",
+      "status": "normal"
+    }
+  ]
+}

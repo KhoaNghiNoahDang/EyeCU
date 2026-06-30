@@ -31,7 +31,9 @@ def _smartbot_headers() -> dict:
 class VnptAPIClient:
 
     # ── eKYC: Upload ảnh lấy hash ─────────────────────────────────
-    async def upload_file(self, file_bytes: bytes, filename: str = "image.jpg") -> str | None:
+    async def upload_file(
+        self, file_bytes: bytes, filename: str = "image.jpg"
+    ) -> str | None:
         """Bước 1: Upload ảnh lên VNPT lấy hash. Hash này dùng cho OCR/Liveness."""
         try:
             async with httpx.AsyncClient(timeout=15) as client:
@@ -64,11 +66,11 @@ class VnptAPIClient:
                 data = resp.json()
                 obj = data.get("object", {})
                 return {
-                    "name":     obj.get("name", ""),
-                    "cccd":     obj.get("id", ""),
-                    "dob":      obj.get("birth_day", ""),
-                    "address":  obj.get("recent_location", ""),
-                    "raw":      data,
+                    "name": obj.get("name", ""),
+                    "cccd": obj.get("id", ""),
+                    "dob": obj.get("birth_day", ""),
+                    "address": obj.get("recent_location", ""),
+                    "raw": data,
                 }
         except Exception:
             return get_mock_json("smartreader_ocr")
@@ -86,13 +88,15 @@ class VnptAPIClient:
                 data = resp.json()
                 return {
                     "liveness": data.get("object", {}).get("liveness", "fail"),
-                    "msg":      data.get("object", {}).get("liveness_msg", ""),
+                    "msg": data.get("object", {}).get("liveness_msg", ""),
                 }
         except Exception:
             return {"liveness": "success", "msg": "Người thật (fallback)"}
 
     # ── eKYC: Face Liveness 3D (đăng nhập FaceID bác sĩ) ─────────
-    async def call_face_liveness_3d(self, far_img_hash: str, near_img_hash: str) -> dict:
+    async def call_face_liveness_3d(
+        self, far_img_hash: str, near_img_hash: str
+    ) -> dict:
         """Xác thực khuôn mặt 3D cho Bác sĩ đăng nhập."""
         payload = {
             "far_img": far_img_hash,
@@ -113,7 +117,7 @@ class VnptAPIClient:
                 data = resp.json()
                 return {
                     "liveness": data.get("object", {}).get("liveness", "fail"),
-                    "msg":      data.get("object", {}).get("liveness_msg", ""),
+                    "msg": data.get("object", {}).get("liveness_msg", ""),
                 }
         except Exception:
             return {"liveness": "success", "msg": "FaceID OK (fallback)"}
@@ -149,7 +153,9 @@ class VnptAPIClient:
             return {"plate": "51A-999.11", "raw": get_mock_json("smartvision_lpr")}
 
     # ── SmartBot: Chatbot hỗ trợ bệnh nhân ───────────────────────
-    async def call_smartbot_conversation(self, text: str, session_id: str = "patient_001") -> dict:
+    async def call_smartbot_conversation(
+        self, text: str, session_id: str = "patient_001"
+    ) -> dict:
         """Trả lời câu hỏi y tế của bệnh nhân qua SmartBot."""
         payload = {
             "bot_id": "hackathon_bot",
