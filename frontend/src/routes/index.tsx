@@ -2,6 +2,11 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import { useAuth, type WorkMode } from "../lib/auth/auth-context";
 import {
+  DEMO_PATIENT_CLINICAL,
+  formatRecordDate,
+  formatVnd,
+} from "../lib/patient/clinical-data";
+import {
   Activity,
   Plus,
   Eye,
@@ -49,6 +54,7 @@ import {
   Clock,
   Shield,
   User,
+  Download,
   Clipboard,
   Droplets,
   Thermometer,
@@ -136,6 +142,11 @@ const viewTitles: Record<ViewKey, { title: string; subtitle: string }> = {
   admin_dashboard: { title: "Quản trị Hệ thống", subtitle: "Tổng quan · Nhân sự · Thiết bị · API" },
 };
 
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+};
+
 function PatientRounds() {
   const { user, workMode, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
@@ -144,6 +155,11 @@ function PatientRounds() {
   const [activeView, setActiveView] = useState<ViewKey>("ambient");
   const [collapsed, setCollapsed] = useState(false);
   const [highlightedRoom, setHighlightedRoom] = useState<string | null>(null);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstallEligible, setIsInstallEligible] = useState(false);
+  const [showIosInstallHint, setShowIosInstallHint] = useState(false);
 
   // Re-sync activeView if workMode changes
   useEffect(() => {
@@ -152,12 +168,59 @@ function PatientRounds() {
     }
   }, [workMode, activeView]);
 
+  useEffect(() => {
+    const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      ("standalone" in window.navigator && Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone));
+    setShowIosInstallHint(isIos && !isStandalone);
+
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPromptEvent(event as BeforeInstallPromptEvent);
+      setIsInstallEligible(true);
+    };
+
+    const handleInstalled = () => {
+      setInstallPromptEvent(null);
+      setIsInstallEligible(false);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", handleInstalled);
+    };
+  }, []);
+
   // Auth guard
   useEffect(() => {
     if (!isAuthenticated) {
       navigate({ to: "/login", replace: true });
     }
   }, [isAuthenticated, navigate]);
+
+  const handleInstallApp = async () => {
+    if (!installPromptEvent) return;
+    await installPromptEvent.prompt();
+    const choice = await installPromptEvent.userChoice;
+    if (choice.outcome === "accepted") {
+      setInstallPromptEvent(null);
+      setIsInstallEligible(false);
+    }
+    setProfileMenuOpen(false);
+  };
+
+  const requestLogout = () => {
+    setLogoutConfirmOpen(true);
+    setProfileMenuOpen(false);
+  };
+
+  const confirmLogout = () => {
+    logout();
+    setLogoutConfirmOpen(false);
+  };
 
   if (!isAuthenticated || !workMode || !user) {
     return null; // Or a loading spinner
@@ -167,7 +230,7 @@ function PatientRounds() {
   const visibleNav = navItems.filter((n) => roleConfig[workMode].views.includes(n.key));
   const isPatientRole = workMode === "patient";
   return (
-    <div className="font-hanken text-slate-800 flex h-screen w-full overflow-hidden bg-white">
+    <div className="font-hanken text-slate-800 flex min-h-dvh w-full overflow-x-hidden bg-white">
       {/* Side Nav — hidden in patient mobile mode */}
       {!isPatientRole && (
         <nav
@@ -262,7 +325,7 @@ function PatientRounds() {
               </li>
               <li key="Đăng xuất">
                 <button
-                  onClick={() => logout()}
+                  onClick={requestLogout}
                   title={collapsed ? "Đăng xuất" : undefined}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-50 font-geist text-[12px] uppercase tracking-wider ${
                     collapsed ? "justify-center" : ""
@@ -279,84 +342,169 @@ function PatientRounds() {
 
       {/* Main */}
       <main
-        className={`flex-1 flex flex-col h-full overflow-hidden bg-white transition-all duration-300 ${
+        className={`flex-1 flex min-h-dvh min-w-0 flex-col overflow-hidden bg-white transition-all duration-300 ${
           isPatientRole ? "" : collapsed ? "md:ml-20" : "md:ml-64"
         }`}
       >
-        {/* Top Nav */}
-        <header className="flex justify-between items-center w-full px-6 md:px-10 h-16 sticky top-0 z-30 bg-white border-b border-slate-200">
-          <div className="flex items-center gap-4">
-            <span className="text-xl font-bold md:hidden text-slate-900">EyeCU</span>
-            {!isPatientRole && (
-              <div className="hidden md:flex items-center bg-white border border-slate-200 rounded-full px-3 py-1">
-                <Search className="w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Tìm mã bệnh nhân..."
-                  className="bg-transparent border-none outline-none text-sm w-48 ml-2 placeholder:text-slate-400 text-slate-800"
-                />
+        {/* Top Nav — staff / clinician */}
+        <header
+          className={`${isPatientRole ? "hidden" : "flex"} sticky top-0 z-30 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 pt-safe pb-2 md:px-6 md:py-2.5 md:pt-0`}
+        >
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2 md:hidden">
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-lg"
+                style={{ backgroundColor: ACCENT }}
+              >
+                <Activity className="h-4 w-4 text-slate-900" strokeWidth={2.3} />
               </div>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            {/* Current user */}
-            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-full px-3 py-1.5 text-[12px] font-geist tracking-wider text-slate-700">
-              <span className="text-slate-400 normal-case tracking-normal text-[11px] uppercase">
-                Ca hiện tại:
-              </span>
-              <span className="text-slate-900 font-bold uppercase">
-                {roleConfig[workMode].label}
-              </span>
+              <span className="text-sm font-bold text-slate-900">EyeCU</span>
             </div>
-            {!isPatientRole && (
-              <>
-                <button className="text-slate-600 hover:bg-slate-50 p-2 rounded-full transition-colors">
-                  <Bell className="w-5 h-5" />
-                </button>
-                <button className="text-slate-600 hover:bg-slate-50 p-2 rounded-full hidden sm:block transition-colors">
-                  <Settings className="w-5 h-5" />
-                </button>
-                <button className="text-slate-600 hover:bg-slate-50 p-2 rounded-full hidden sm:block transition-colors">
-                  <HelpCircle className="w-5 h-5" />
-                </button>
-                <button
-                  className="text-slate-900 text-[12px] font-geist uppercase tracking-wider px-4 py-2 rounded-full transition-colors flex items-center gap-2 hover:opacity-90"
-                  style={{ backgroundColor: ACCENT }}
-                >
-                  <AlertTriangle className="w-4 h-4" />
-                  Khẩn cấp
-                </button>
-              </>
-            )}
-            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200">
-              {user.avatar ? (
-                <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
-              ) : (
-                <User className="w-4 h-4 text-slate-400" />
+            <div className="hidden md:flex items-center rounded-full border border-slate-200 bg-slate-50/80 px-3 py-1.5">
+              <Search className="h-3.5 w-3.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Tìm mã bệnh nhân..."
+                className="ml-2 w-44 border-none bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
+              />
+            </div>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1.5">
+            <span className="hidden max-w-[7.5rem] truncate rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 sm:inline">
+              {roleConfig[workMode].label}
+            </span>
+            <button
+              type="button"
+              className="rounded-full p-1.5 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-800"
+              aria-label="Thông báo"
+            >
+              <Bell className="h-4 w-4" />
+            </button>
+
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setProfileMenuOpen((open) => !open)}
+                className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border-2 border-slate-200 bg-slate-100 transition-colors hover:border-[#88E8F2] active:scale-95"
+                aria-label="Hồ sơ và cài đặt"
+                aria-expanded={profileMenuOpen}
+              >
+                {user.avatar ? (
+                  <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
+                ) : (
+                  <User className="h-4 w-4 text-slate-500" />
+                )}
+              </button>
+
+              {profileMenuOpen && (
+                <div className="absolute right-0 top-[calc(100%+0.5rem)] z-40 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+                  <div className="border-b border-slate-100 px-3 py-2.5">
+                    <p className="truncate text-sm font-semibold text-slate-900">
+                      {user.title ? `${user.title} ` : ""}
+                      {user.name}
+                    </p>
+                    <p className="truncate text-[11px] text-slate-500">{roleConfig[workMode].label}</p>
+                  </div>
+                  <div className="p-1">
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      <User className="h-4 w-4 text-slate-400" />
+                      Hồ sơ
+                    </button>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      <Settings className="h-4 w-4 text-slate-400" />
+                      Cài đặt
+                    </button>
+                    {isInstallEligible && (
+                      <button
+                        type="button"
+                        onClick={() => void handleInstallApp()}
+                        className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                      >
+                        <Download className="h-4 w-4 text-slate-400" />
+                        Cài ứng dụng
+                      </button>
+                    )}
+                    {!isInstallEligible && showIosInstallHint && (
+                      <p className="px-2.5 py-2 text-[10px] leading-relaxed text-slate-500">
+                        iOS: Safari → Chia sẻ → Thêm vào Màn hình chính
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={requestLogout}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Đăng xuất
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           </div>
         </header>
 
+        {!isPatientRole && (
+          <div className="sticky top-[calc(4rem+env(safe-area-inset-top))] z-20 border-b border-slate-200 bg-white px-3 py-2 md:top-16 md:hidden">
+            <div className="scrollbar-hide flex gap-2 overflow-x-auto">
+              {visibleNav.map(({ Icon, label, key }) => {
+                const active = activeView === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setActiveView(key)}
+                    className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                      active
+                        ? "border-transparent text-slate-900"
+                        : "border-slate-200 bg-white text-slate-600 active:bg-slate-50"
+                    }`}
+                    style={active ? { backgroundColor: ACCENT } : undefined}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    <span className="whitespace-nowrap">{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Canvas */}
-        <div className="flex-1 overflow-y-auto scrollbar-hide p-4 md:p-6 bg-white">
-          <div className="max-w-7xl mx-auto space-y-4">
+        <div
+          className={
+            isPatientRole
+              ? "flex-1 min-h-0 overflow-y-auto bg-slate-50 p-0"
+              : "flex-1 overflow-y-auto scrollbar-hide p-4 md:p-6 bg-white"
+          }
+        >
+          <div
+            className={
+              isPatientRole ? "min-h-full max-w-none mx-0 space-y-0" : "max-w-7xl mx-auto space-y-4"
+            }
+          >
             {!isPatientRole && (
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
+              <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="text-3xl font-light tracking-tight text-slate-900">
+                  <h2 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl md:font-light">
                     {meta.title}
                   </h2>
-                  <p className="text-sm text-slate-500 mt-1">{meta.subtitle}</p>
+                  <p className="mt-1 text-sm text-slate-500">{meta.subtitle}</p>
                 </div>
-                <div className="mt-4 md:mt-0 flex gap-2">
+                <div className="flex gap-2 md:mt-0">
                   {[
                     { Icon: Filter, l: "Lọc" },
                     { Icon: MapIcon, l: "Bản đồ" },
                   ].map(({ Icon, l }) => (
                     <button
                       key={l}
-                      className="bg-white border border-slate-200 px-4 py-2 rounded-lg text-[12px] font-geist uppercase tracking-wider flex items-center gap-2 text-slate-700 hover:border-[#88E8F2] transition-colors"
+                      className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition-colors hover:border-[#88E8F2] md:px-4 md:text-[12px] md:font-geist md:uppercase md:tracking-wider"
                     >
                       <Icon className="w-4 h-4" />
                       {l}
@@ -376,12 +524,70 @@ function PatientRounds() {
             {activeView === "records" && <RecordsView />}
             {activeView === "voice" && <VoiceView />}
             {activeView === "chatbot" && <ChatbotView />}
-            {activeView === "patient" && <PatientPortalView />}
+            {activeView === "patient" && (
+              <PatientPortalView
+                isInstallEligible={isInstallEligible}
+                showIosInstallHint={showIosInstallHint}
+                onInstallApp={handleInstallApp}
+                onRequestLogout={requestLogout}
+              />
+            )}
             {activeView === "ems" && <EmsView />}
             {activeView === "admin_dashboard" && <AdminDashboardView />}
           </div>
         </div>
       </main>
+
+      <LogoutConfirmModal
+        open={logoutConfirmOpen}
+        onCancel={() => setLogoutConfirmOpen(false)}
+        onConfirm={confirmLogout}
+      />
+    </div>
+  );
+}
+
+function LogoutConfirmModal({
+  open,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 px-4 backdrop-blur-sm">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="logout-title"
+        className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl"
+      >
+        <h3 id="logout-title" className="text-base font-bold text-slate-900">
+          Bạn có muốn đăng xuất không?
+        </h3>
+        <p className="mt-1.5 text-sm text-slate-500">
+          Phiên làm việc trên thiết bị này sẽ kết thúc. Bạn cần đăng nhập lại để tiếp tục.
+        </p>
+        <div className="mt-5 flex gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+          >
+            Ở lại
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+          >
+            Đăng xuất
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -3721,17 +3927,17 @@ function RecordsView() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto w-full">
+    <div className="mx-auto w-full max-w-3xl">
       {/* STEP 1: IDENTITY INPUT */}
       {step === "input" && (
-        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col animate-in fade-in zoom-in-95 duration-300">
-          <div className="text-center mb-6">
+        <div className="animate-in fade-in zoom-in-95 flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm duration-300 sm:p-6">
+          <div className="mb-5 text-center sm:mb-6">
             <h3 className="text-xl font-bold text-slate-900 mb-2">Định danh Bệnh nhân</h3>
             <p className="text-slate-500 text-sm">Vui lòng chọn phương thức cung cấp thông tin</p>
           </div>
 
           {/* Tabs for choosing method */}
-          <div className="flex p-1 bg-slate-100 rounded-lg mb-6 max-w-sm mx-auto">
+          <div className="mx-auto mb-5 flex w-full max-w-sm rounded-lg bg-slate-100 p-1 sm:mb-6">
             <button
               onClick={() => setInputMethod("scan")}
               className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${inputMethod === "scan" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
@@ -3746,7 +3952,7 @@ function RecordsView() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-6">
             <div className="flex flex-col gap-4">
               {inputMethod === "scan" ? (
                 <div className="flex flex-col">
@@ -3854,7 +4060,7 @@ function RecordsView() {
                   <button
                     onClick={() => handleIdentitySubmit("001203001247", "NGUYỄN VĂN A")}
                     disabled={scanning}
-                    className="mt-2 w-full py-3 rounded-lg text-sm font-bold text-slate-900 transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold text-slate-900 transition-all hover:opacity-90 disabled:opacity-50 sm:py-3"
                     style={{ backgroundColor: ACCENT }}
                   >
                     {scanning ? (
@@ -3880,7 +4086,7 @@ function RecordsView() {
                         onChange={(e) => setCccdInput(e.target.value.replace(/[^0-9]/g, ""))}
                         placeholder="Nhập 12 số CCCD"
                         maxLength={12}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 text-sm font-mono focus:border-[#88E8F2] outline-none"
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm font-mono outline-none focus:border-[#88E8F2]"
                         disabled={scanning}
                       />
                     </div>
@@ -3894,7 +4100,7 @@ function RecordsView() {
                         value={nameInput}
                         onChange={(e) => setNameInput(e.target.value)}
                         placeholder="NGUYỄN VĂN A"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 text-sm uppercase focus:border-[#88E8F2] outline-none"
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm uppercase outline-none focus:border-[#88E8F2]"
                         disabled={scanning}
                       />
                     </div>
@@ -3902,7 +4108,7 @@ function RecordsView() {
                   <button
                     onClick={() => handleIdentitySubmit()}
                     disabled={scanning || cccdInput.length < 9 || nameInput.length < 3}
-                    className="mt-2 w-full py-3 rounded-lg text-sm font-bold text-slate-900 transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold text-slate-900 transition-all hover:opacity-90 disabled:opacity-50 sm:py-3"
                     style={{ backgroundColor: ACCENT }}
                   >
                     {scanning ? (
@@ -3919,7 +4125,7 @@ function RecordsView() {
             </div>
 
             {/* Scan / Demo */}
-            <div className="flex flex-col border-t md:border-t-0 md:border-l border-slate-200 pt-6 md:pt-0 md:pl-6">
+            <div className="flex flex-col border-t border-slate-200 pt-5 md:border-l md:border-t-0 md:pt-0 md:pl-6">
               <p className="text-xs font-bold text-slate-700 mb-3 text-center md:text-left">
                 Hoặc quét nhanh (Demo)
               </p>
@@ -3929,13 +4135,13 @@ function RecordsView() {
                     key={cccd}
                     onClick={() => handleDemoScan(cccd)}
                     disabled={scanning}
-                    className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-white hover:border-[#88E8F2] transition-all text-left disabled:opacity-50 group"
+                    className="group flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 text-left transition-all hover:border-[#88E8F2] disabled:opacity-50"
                   >
                     <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-[#88E8F2]/20">
                       <CreditCard className="w-4 h-4 text-slate-600" />
                     </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-900">{p.name}</p>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-slate-900">{p.name}</p>
                       <p className="text-[10px] text-slate-500 font-mono">{cccd}</p>
                     </div>
                   </button>
@@ -3953,7 +4159,7 @@ function RecordsView() {
 
           {/* Progress Indicator */}
           {scanStep > 0 && (
-            <div className="mt-6 border-t border-slate-100 pt-4 flex items-center justify-center gap-4">
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3 border-t border-slate-100 pt-4 sm:gap-4">
               {["Quét dữ liệu", "Kiểm tra DB", "Hoàn tất"].map((label, idx) => (
                 <div key={idx} className="flex items-center gap-2">
                   <div
@@ -3976,7 +4182,7 @@ function RecordsView() {
       {/* STEP 2: FACE MATCH */}
       {step === "face_match" && (
         <div
-          className="bg-white border-2 rounded-xl p-6 shadow-sm flex flex-col animate-in slide-in-from-right-8 fade-in duration-300"
+          className="animate-in slide-in-from-right-8 fade-in flex flex-col rounded-xl border-2 bg-white p-4 shadow-sm duration-300 sm:p-6"
           style={{ borderColor: ekycStatus === "success" ? "#10b981" : ACCENT }}
         >
           <div className="text-center mb-6">
@@ -3988,9 +4194,9 @@ function RecordsView() {
             </p>
           </div>
 
-          <div className="flex items-center justify-center gap-6 mb-8">
+          <div className="mb-8 flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-6">
             <EkycFace label="Ảnh CCCD" sub={cccdInput} state={ekycStatus} />
-            <div className="flex-1 relative h-px max-w-[120px]">
+            <div className="relative h-12 w-px sm:h-px sm:max-w-[120px] sm:flex-1">
               <div
                 className="absolute inset-0 transition-all duration-500"
                 style={{
@@ -4869,13 +5075,13 @@ function VoiceView() {
   const L = transcript.length;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
       {/* LEFT: Recording + transcript */}
-      <div className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col h-[620px]">
-        <div className="flex justify-between items-center mb-3">
+      <div className="flex min-h-[520px] flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6 lg:h-[620px]">
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-lg font-medium text-slate-900">Ghi âm Lâm sàng</h3>
           <span
-            className="px-2 py-1 rounded text-[10px] font-geist uppercase tracking-wider text-slate-900 flex items-center gap-1"
+            className="flex w-fit items-center gap-1 rounded px-2 py-1 text-[10px] uppercase tracking-wider text-slate-900 font-geist"
             style={{ backgroundColor: recording ? ACCENT : "#F1F5F9" }}
           >
             {recording && <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />}
@@ -4886,11 +5092,11 @@ function VoiceView() {
         <div className="flex flex-col items-center justify-center py-2">
           <Waveform active={recording} />
           <div
-            className="mt-3 px-3 py-1.5 rounded-full flex items-center gap-2 border-2"
+            className="mt-3 flex max-w-full items-center gap-2 rounded-full border-2 px-3 py-1.5"
             style={{ borderColor: ACCENT, backgroundColor: "#EAFBFE" }}
           >
             <BadgeCheck className="w-4 h-4" style={{ color: "#0891B2" }} />
-            <span className="text-[11px] font-bold text-slate-900 font-geist uppercase tracking-wider">
+            <span className="text-[10px] font-bold uppercase tracking-wide text-slate-900 font-geist sm:text-[11px] sm:tracking-wider">
               AI Voice NLU · Tiếng Việt
             </span>
           </div>
@@ -4899,7 +5105,7 @@ function VoiceView() {
           </p>
           <button
             onClick={() => setRecording((r) => !r)}
-            className="mt-3 px-6 py-2.5 rounded-full font-medium text-slate-900 hover:opacity-90 flex items-center gap-2 transition"
+            className="mt-3 flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-slate-900 transition hover:opacity-90 sm:px-6"
             style={{ backgroundColor: ACCENT }}
           >
             {recording ? <StopCircle className="w-4 h-4" /> : <Play className="w-4 h-4" />}
@@ -4922,10 +5128,10 @@ function VoiceView() {
       </div>
 
       {/* RIGHT: SOAPE Form */}
-      <div className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col h-[620px]">
-        <div className="flex justify-between items-center mb-3">
+      <div className="flex min-h-[520px] flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6 lg:h-[620px]">
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-lg font-medium text-slate-900">EMR · Mẫu SOAPE</h3>
-          <span className="text-[10px] font-geist uppercase tracking-wider text-slate-500 flex items-center gap-1">
+          <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-slate-500 font-geist">
             <Cpu className="w-3 h-3" style={{ color: ACCENT }} /> AI Parser · Trực tiếp
           </span>
         </div>
@@ -4957,7 +5163,7 @@ function VoiceView() {
           />
         </div>
         <button
-          className="mt-4 py-2.5 rounded-lg text-sm font-bold text-slate-900 hover:opacity-90 transition"
+          className="mt-4 rounded-lg py-2.5 text-sm font-bold text-slate-900 transition hover:opacity-90"
           style={{ backgroundColor: ACCENT }}
         >
           Xác nhận và Ký số
@@ -4970,16 +5176,16 @@ function VoiceView() {
 function Waveform({ active }: { active: boolean }) {
   const bars = 40;
   return (
-    <div className="relative w-full h-40 flex items-center justify-center">
+    <div className="relative flex h-32 w-full items-center justify-center sm:h-40">
       <div
-        className="absolute w-40 h-40 rounded-full opacity-30 animate-ping"
+        className="absolute h-28 w-28 animate-ping rounded-full opacity-30 sm:h-40 sm:w-40"
         style={{ backgroundColor: ACCENT, animationDuration: "2s" }}
       />
       <div
-        className="absolute w-28 h-28 rounded-full"
+        className="absolute h-20 w-20 rounded-full sm:h-28 sm:w-28"
         style={{ backgroundColor: ACCENT, opacity: 0.25 }}
       />
-      <div className="relative flex items-center gap-1 h-32 z-10">
+      <div className="relative z-10 flex h-24 items-center gap-0.5 sm:h-32 sm:gap-1">
         {Array.from({ length: bars }).map((_, i) => {
           const h = active ? 20 + Math.abs(Math.sin((i / bars) * Math.PI * 4)) * 80 : 6;
           return (
@@ -5263,7 +5469,236 @@ function getTimeNow() {
   return new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 }
 
-function PatientPortalView() {
+type PatientServiceKey = "record" | "prescription" | "followup" | "fees";
+
+function PatientClinicalSheet({
+  active,
+  onClose,
+}: {
+  active: PatientServiceKey | null;
+  onClose: () => void;
+}) {
+  if (!active) return null;
+
+  const data = DEMO_PATIENT_CLINICAL;
+  const record = data.latestRecord;
+
+  const titles: Record<PatientServiceKey, string> = {
+    record: "Phiếu khám bệnh",
+    prescription: "Đơn thuốc điện tử",
+    followup: "Lịch tái khám",
+    fees: "Viện phí",
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+      <button
+        type="button"
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]"
+        onClick={onClose}
+        aria-label="Đóng"
+      />
+      <div className="relative flex max-h-[85dvh] w-full max-w-[400px] flex-col overflow-hidden rounded-t-[1.75rem] border border-slate-200 bg-white shadow-2xl sm:rounded-[1.75rem]">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
+          <div>
+            <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400">
+              clinical_records · medications
+            </p>
+            <h3 className="text-lg font-bold text-slate-900">{titles[active]}</h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          {active === "record" && (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-4">
+                <div className="mb-3 flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-[10px] font-geist uppercase tracking-wider text-blue-600">
+                      EMR #{record.id.slice(-8).toUpperCase()}
+                    </p>
+                    <p className="text-sm font-bold text-slate-900">{record.department}</p>
+                  </div>
+                  {record.is_signed && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">
+                      <BadgeCheck className="h-3 w-3" />
+                      SmartCA
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-xl bg-white/80 p-2.5">
+                    <p className="text-slate-400">Ngày khám</p>
+                    <p className="font-semibold text-slate-900">{formatRecordDate(record.created_at)}</p>
+                  </div>
+                  <div className="rounded-xl bg-white/80 p-2.5">
+                    <p className="text-slate-400">Bác sĩ</p>
+                    <p className="font-semibold text-slate-900">{record.doctor_name}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="rounded-xl border border-slate-100 p-3">
+                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Triệu chứng
+                  </p>
+                  <p className="text-sm leading-relaxed text-slate-700">{record.symptoms}</p>
+                </div>
+                <div className="rounded-xl border border-slate-100 p-3">
+                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Chẩn đoán
+                  </p>
+                  <p className="text-sm font-semibold text-slate-900">{record.diagnosis}</p>
+                </div>
+                {record.notes && (
+                  <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3">
+                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                      Ghi chú
+                    </p>
+                    <p className="text-sm text-amber-900">{record.notes}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {active === "prescription" && (
+            <div className="space-y-3">
+              <div className="rounded-xl border border-violet-100 bg-violet-50/60 p-3">
+                <p className="text-[10px] font-geist uppercase tracking-wider text-violet-600">
+                  record_id · {record.id}
+                </p>
+                <p className="mt-1 text-sm text-slate-600">
+                  {data.medications.length} loại thuốc · Kê ngày {formatRecordDate(record.created_at)}
+                </p>
+              </div>
+              {data.medications.map((med) => (
+                <div
+                  key={med.id}
+                  className="flex gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm"
+                >
+                  <div
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                    style={{ backgroundColor: "#7C3AED18" }}
+                  >
+                    <Pill className="h-5 w-5 text-violet-600" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-slate-900">{med.medicine_name}</p>
+                    <p className="mt-0.5 text-sm text-slate-600">{med.dosage}</p>
+                    {med.instructions && (
+                      <p className="mt-1.5 text-xs leading-relaxed text-slate-500">{med.instructions}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {active === "followup" && (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-amber-600" />
+                  <p className="text-sm font-bold text-slate-900">Lịch hẹn tái khám</p>
+                </div>
+                <p className="text-2xl font-bold text-amber-700">
+                  {data.followUp.date}
+                  <span className="ml-2 text-base font-semibold text-slate-600">
+                    · {data.followUp.time}
+                  </span>
+                </p>
+                <p className="mt-2 text-sm text-slate-700">{data.followUp.department}</p>
+              </div>
+              <div className="rounded-xl border border-slate-100 p-3">
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Từ clinical_records.notes
+                </p>
+                <p className="text-sm leading-relaxed text-slate-700">{data.followUp.note}</p>
+              </div>
+              <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
+                <Clock className="h-4 w-4 shrink-0 text-slate-400" />
+                BHYT: {data.bhxh_code ?? "—"} · Bệnh nhân: {data.patientName}
+              </div>
+            </div>
+          )}
+
+          {active === "fees" && (
+            <div className="space-y-4">
+              <div
+                className={`rounded-2xl border p-4 ${
+                  data.fees.status === "paid"
+                    ? "border-emerald-200 bg-emerald-50/70"
+                    : "border-amber-200 bg-amber-50/70"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-bold text-slate-900">Tổng viện phí lượt khám</p>
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${
+                      data.fees.status === "paid"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-amber-100 text-amber-700"
+                    }`}
+                  >
+                    {data.fees.status === "paid" ? "Đã thanh toán" : "Chưa thanh toán"}
+                  </span>
+                </div>
+                <p className="mt-2 text-2xl font-bold text-slate-900">{formatVnd(data.fees.total)}</p>
+                {data.fees.paid_at && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    Thanh toán lúc{" "}
+                    {new Date(data.fees.paid_at).toLocaleString("vi-VN", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                {data.fees.items.map((item) => (
+                  <div
+                    key={item.name}
+                    className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2.5"
+                  >
+                    <span className="text-sm text-slate-700">{item.name}</span>
+                    <span className="text-sm font-semibold text-slate-900">{formatVnd(item.amount)}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-slate-400">
+                Liên kết record_id: {data.fees.record_id}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PatientPortalView({
+  isInstallEligible,
+  showIosInstallHint,
+  onInstallApp,
+  onRequestLogout,
+}: {
+  isInstallEligible: boolean;
+  showIosInstallHint: boolean;
+  onInstallApp: () => void | Promise<void>;
+  onRequestLogout: () => void;
+}) {
+  const { user } = useAuth();
+  const [patientMenuOpen, setPatientMenuOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [listening, setListening] = useState(false);
   const [sos, setSos] = useState(false);
@@ -5313,11 +5748,49 @@ function PatientPortalView() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, botTyping]);
 
-  const tiles = [
-    { Icon: Receipt, label: "Phiếu khám bệnh", sub: "Lượt khám hôm nay", color: "#2563EB" },
-    { Icon: Pill, label: "Đơn thuốc điện tử", sub: "3 loại đang dùng", color: "#7C3AED" },
-    { Icon: Calendar, label: "Lịch tái khám", sub: "15/06 · 9:00", color: "#D97706" },
-    { Icon: FileText, label: "Viện phí", sub: "Đã thanh toán ✓", color: "#16A34A" },
+  const clinical = DEMO_PATIENT_CLINICAL;
+  const [activeService, setActiveService] = useState<PatientServiceKey | null>(null);
+
+  const tiles: {
+    key: PatientServiceKey;
+    Icon: typeof Receipt;
+    label: string;
+    sub: string;
+    color: string;
+    badge?: string;
+  }[] = [
+    {
+      key: "record",
+      Icon: Receipt,
+      label: "Phiếu khám bệnh",
+      sub: `${formatRecordDate(clinical.latestRecord.created_at)} · ${clinical.latestRecord.doctor_name}`,
+      color: "#2563EB",
+      badge: clinical.latestRecord.is_signed ? "Ký số" : undefined,
+    },
+    {
+      key: "prescription",
+      Icon: Pill,
+      label: "Đơn thuốc điện tử",
+      sub: `${clinical.medications.length} loại · record_id`,
+      color: "#7C3AED",
+    },
+    {
+      key: "followup",
+      Icon: Calendar,
+      label: "Lịch tái khám",
+      sub: `${clinical.followUp.date} · ${clinical.followUp.time}`,
+      color: "#D97706",
+    },
+    {
+      key: "fees",
+      Icon: FileText,
+      label: "Viện phí",
+      sub:
+        clinical.fees.status === "paid"
+          ? `${formatVnd(clinical.fees.total)} · Đã TT ✓`
+          : `${formatVnd(clinical.fees.total)} · Chưa TT`,
+      color: "#16A34A",
+    },
   ];
 
   const [labResults, setLabResults] = useState([
@@ -5356,12 +5829,55 @@ function PatientPortalView() {
   const [isScanning, setIsScanning] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [highlightLab, setHighlightLab] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleCapture = () => {
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  };
+
+  const startCamera = async () => {
+    setCameraError(null);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError("Thiết bị không hỗ trợ camera trực tiếp. Vui lòng chọn ảnh từ thư viện.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+    } catch {
+      setCameraError("Không mở được camera. Hãy cấp quyền hoặc chọn ảnh từ thư viện.");
+    }
+  };
+
+  useEffect(() => {
+    if (!isScanning) {
+      stopCamera();
+      return;
+    }
+    void startCamera();
+    return () => stopCamera();
+  }, [isScanning]);
+
+  const runLabAnalysis = (_imageDataUrl?: string) => {
     setIsAnalyzing(true);
     setTimeout(() => {
       setIsAnalyzing(false);
       setIsScanning(false);
+      stopCamera();
 
       setHighlightLab(true);
       setLabResults((prev) =>
@@ -5386,21 +5902,143 @@ function PatientPortalView() {
     }, 2500);
   };
 
-  return (
-    <div className="flex justify-center py-4">
-      <div
-        className="w-full max-w-[400px] bg-white border border-slate-200 rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col relative"
-        style={{ height: "min(92vh,860px)" }}
-      >
-        <div className="bg-white px-6 py-1.5 flex justify-between items-center text-[10px] font-mono text-slate-700 z-20 flex-shrink-0">
-          <span className="font-bold">9:41</span>
-          <span>● ● ● 100%</span>
-        </div>
-        <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-24 h-6 bg-slate-900 rounded-full z-30" />
+  const handleCapture = () => {
+    const video = videoRef.current;
+    if (video && video.videoWidth > 0) {
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(video, 0, 0);
+        const imageDataUrl = canvas.toDataURL("image/jpeg", 0.9);
+        // Frontend chụp ảnh; backend sẽ nhận imageDataUrl để OCR/AI phân tích sau này.
+        runLabAnalysis(imageDataUrl);
+        return;
+      }
+    }
+    runLabAnalysis();
+  };
 
-        <div className="flex-1 overflow-y-auto scrollbar-hide flex flex-col">
+  const handleFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        runLabAnalysis(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+    event.target.value = "";
+  };
+
+  return (
+    <div className="flex h-full min-h-0 justify-center bg-slate-50 sm:items-center sm:px-4 sm:py-4">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFileSelected}
+      />
+      <div className="relative flex h-full min-h-0 w-full max-w-none flex-col overflow-hidden bg-white shadow-none sm:h-[min(92dvh,860px)] sm:max-w-[400px] sm:rounded-[2rem] sm:border sm:border-slate-200 sm:shadow-2xl">
+        {/* Patient app bar — safe area for notch / Dynamic Island / punch-hole */}
+        <div className="sticky top-0 z-30 shrink-0 border-b border-slate-100 bg-white pt-safe px-safe pb-2">
+          <div className="relative flex items-center justify-between">
+            <button
+              onClick={() => setPatientMenuOpen((open) => !open)}
+              className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 shadow-sm transition-colors active:bg-slate-50"
+              aria-label="Mở menu EyeCU"
+              aria-expanded={patientMenuOpen}
+            >
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-full"
+                style={{ backgroundColor: `${ACCENT}55` }}
+              >
+                <Activity className="h-4 w-4 text-slate-900" strokeWidth={2.3} />
+              </div>
+              <div className="text-left">
+                <span className="block text-sm font-bold leading-tight text-slate-900">EyeCU</span>
+                <span className="block text-[10px] uppercase tracking-wider text-slate-500">
+                  Bệnh nhân
+                </span>
+              </div>
+              <ChevronDown
+                className={`h-4 w-4 text-slate-400 transition-transform ${patientMenuOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              Cổng BN
+            </span>
+          </div>
+
+          {patientMenuOpen && (
+            <div className="absolute left-4 right-4 top-[calc(100%+0.25rem)] z-40 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+              <div className="border-b border-slate-100 bg-slate-50/70 px-4 py-3">
+                <p className="text-sm font-bold text-slate-900">{user?.name ?? "Bệnh nhân"}</p>
+                <p className="mt-0.5 text-[11px] uppercase tracking-wider text-slate-500">
+                  Cổng thông tin bệnh nhân
+                </p>
+              </div>
+              <div className="space-y-1 p-2">
+                {isInstallEligible && (
+                  <button
+                    onClick={() => {
+                      setPatientMenuOpen(false);
+                      void onInstallApp();
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium text-slate-800 transition-colors hover:bg-slate-50"
+                  >
+                    <span
+                      className="flex h-9 w-9 items-center justify-center rounded-full"
+                      style={{ backgroundColor: `${ACCENT}40` }}
+                    >
+                      <Download className="h-4 w-4 text-slate-900" />
+                    </span>
+                    <span>
+                      <span className="block font-semibold">Cài ứng dụng</span>
+                      <span className="block text-[11px] text-slate-500">
+                        Thêm EyeCU ra màn hình chính
+                      </span>
+                    </span>
+                  </button>
+                )}
+                {!isInstallEligible && showIosInstallHint && (
+                  <div className="rounded-xl bg-slate-50 px-3 py-3 text-left">
+                    <p className="text-sm font-semibold text-slate-800">Cài lên màn hình chính</p>
+                    <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+                      Trên iPhone/iPad: Safari → Chia sẻ →{" "}
+                      <span className="font-semibold text-slate-700">Thêm vào Màn hình chính</span>.
+                    </p>
+                  </div>
+                )}
+                <button
+                  onClick={() => {
+                    setPatientMenuOpen(false);
+                    onRequestLogout();
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium text-slate-800 transition-colors hover:bg-slate-50"
+                >
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-red-50">
+                    <LogOut className="h-4 w-4 text-red-600" />
+                  </span>
+                  <span>
+                    <span className="block font-semibold">Đăng xuất</span>
+                    <span className="block text-[11px] text-slate-500">
+                      Rời phiên bệnh nhân trên thiết bị này
+                    </span>
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain scrollbar-hide">
           {/* Greeting header */}
-          <div className="px-5 pt-10 pb-4 bg-gradient-to-b from-[#EAFBFE] via-[#f0fdfb] to-white flex-shrink-0">
+          <div className="flex-shrink-0 bg-gradient-to-b from-[#EAFBFE] via-[#f0fdfb] to-white px-5 pb-4 pt-4 sm:pt-6">
             <div className="flex items-center gap-3">
               <div
                 className="w-10 h-10 rounded-full flex-shrink-0 overflow-hidden"
@@ -5411,11 +6049,11 @@ function PatientPortalView() {
                   <ellipse cx="20" cy="34" rx="12" ry="10" fill="#E2E8F0" />
                 </svg>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-[10px] font-geist uppercase tracking-wider text-slate-500">
                   EyeCU · Khoa Nội
                 </p>
-                <h2 className="text-lg font-bold text-slate-900 leading-tight">
+                <h2 className="text-lg font-bold text-slate-900 leading-tight break-words">
                   Xin chào bác Nguyễn Văn A
                 </h2>
                 <p className="text-[11px] text-slate-500">Hôm nay bác cảm thấy thế nào ạ?</p>
@@ -5423,24 +6061,33 @@ function PatientPortalView() {
             </div>
           </div>
 
-          {/* 4 Tiles - Original Layout */}
-          <div className="px-4 grid grid-cols-2 gap-2.5 flex-shrink-0">
-            {tiles.map(({ Icon, label, sub, color }) => (
+          {/* 4 dịch vụ bệnh nhân — clinical_records · medications */}
+          <div className="grid flex-shrink-0 grid-cols-2 gap-2.5 px-4">
+            {tiles.map(({ key, Icon, label, sub, color, badge }) => (
               <button
-                key={label}
-                className="text-left p-3 border border-slate-100 rounded-2xl hover:border-[#88E8F2] hover:shadow-md active:scale-95 transition-all bg-white shadow-sm"
+                key={key}
+                type="button"
+                onClick={() => setActiveService(key)}
+                className="group relative min-w-0 rounded-2xl border border-slate-100 bg-white p-3 text-left shadow-sm transition-all hover:border-[#88E8F2] hover:shadow-md active:scale-95"
               >
+                {badge && (
+                  <span className="absolute right-2 top-2 rounded-full bg-blue-50 px-1.5 py-0.5 text-[8px] font-bold uppercase text-blue-600">
+                    {badge}
+                  </span>
+                )}
                 <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center mb-2.5"
+                  className="mb-2.5 flex h-9 w-9 items-center justify-center rounded-xl transition-transform group-hover:scale-105"
                   style={{ backgroundColor: color + "18" }}
                 >
-                  <Icon className="w-5 h-5" style={{ color }} />
+                  <Icon className="h-5 w-5" style={{ color }} />
                 </div>
-                <p className="text-sm font-bold text-slate-900 leading-tight">{label}</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">{sub}</p>
+                <p className="break-words text-sm font-bold leading-tight text-slate-900">{label}</p>
+                <p className="mt-0.5 break-words text-[10px] leading-snug text-slate-400">{sub}</p>
               </button>
             ))}
           </div>
+
+          <PatientClinicalSheet active={activeService} onClose={() => setActiveService(null)} />
 
           {/* SCAN BANNER */}
           <div className="mx-4 mt-4 flex-shrink-0">
@@ -5451,7 +6098,7 @@ function PatientPortalView() {
               <div className="w-10 h-10 rounded-full bg-[#88E8F2] flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform">
                 <Camera className="w-5 h-5 text-slate-900" />
               </div>
-              <div className="text-left">
+              <div className="min-w-0 text-left [&_p]:break-words [&_p]:leading-snug">
                 <p className="text-sm font-bold text-slate-900">Quét phiếu xét nghiệm</p>
                 <p className="text-[10px] text-slate-500">AI tự động bóc tách và phân tích</p>
               </div>
@@ -5482,9 +6129,9 @@ function PatientPortalView() {
                       className={`w-2 h-2 rounded-full flex-shrink-0 ${isUpdating ? "animate-ping bg-[#88E8F2]" : st.dot}`}
                     />
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-0.5">
+                      <div className="mb-0.5 flex items-start justify-between gap-2">
                         <span className="text-[11px] font-semibold text-slate-700">{lab.name}</span>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex shrink-0 items-center gap-1.5">
                           <span
                             className={`text-[10px] font-bold ${isUpdating ? "text-[#0ea5e9] scale-110" : "text-slate-900"} transition-all`}
                           >
@@ -5517,7 +6164,7 @@ function PatientPortalView() {
           </div>
 
           {/* Chatbot widget - Original layout */}
-          <div className="mx-4 mt-4 border border-slate-100 rounded-2xl overflow-hidden shadow-sm flex-shrink-0 mb-4">
+          <div className="mx-4 mt-4 mb-4 flex-shrink-0 overflow-hidden rounded-2xl border border-slate-100 shadow-sm">
             <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 bg-white">
               <div
                 className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
@@ -5586,7 +6233,7 @@ function PatientPortalView() {
                 onChange={(e) => setChatInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && sendMessage()}
                 placeholder="Hỏi trợ lý AI... (glucose, thuốc, lịch hẹn...)"
-                className="flex-1 bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 text-[11px] outline-none focus:border-[#88E8F2] text-slate-800 placeholder:text-slate-400"
+                className="min-w-0 flex-1 bg-slate-50 border border-slate-200 rounded-full px-3 py-2 text-[11px] outline-none focus:border-[#88E8F2] text-slate-800 placeholder:text-slate-400"
               />
               <button
                 onClick={() => sendMessage()}
@@ -5612,7 +6259,7 @@ function PatientPortalView() {
           </div>
 
           {/* SOS button */}
-          <div className="mt-auto px-4 pb-6 pt-2 bg-white flex-shrink-0 border-t border-slate-100">
+          <div className="sticky bottom-0 mt-auto flex-shrink-0 border-t border-slate-100 bg-white px-4 pb-safe pt-2">
             {sosCountdown !== null && !sos ? (
               <div className="flex flex-col items-center gap-3">
                 <div className="relative w-20 h-20 flex items-center justify-center">
@@ -5661,12 +6308,32 @@ function PatientPortalView() {
           </div>
         </div>
 
-        {/* Camera Modal */}
+        {/* Camera Modal — preview thật từ frontend; OCR/AI xử lý ở backend sau khi upload ảnh */}
         {isScanning && (
-          <div className="absolute inset-0 bg-slate-900 z-50 flex flex-col animate-in fade-in duration-200">
-            <div className="flex-1 relative overflow-hidden flex items-center justify-center">
-              <div className="absolute inset-6 border-2 border-dashed border-[#88E8F2] rounded-3xl flex items-center justify-center bg-slate-800/50 backdrop-blur-sm">
-                <p className="text-white text-sm font-medium opacity-70">
+          <div className="absolute inset-0 z-50 flex flex-col bg-slate-900 animate-in fade-in duration-200 pt-safe pb-safe">
+            <div className="relative flex flex-1 items-center justify-center overflow-hidden">
+              <video
+                ref={videoRef}
+                playsInline
+                muted
+                autoPlay
+                className={`absolute inset-0 h-full w-full object-cover ${cameraError ? "hidden" : ""}`}
+              />
+              {cameraError && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 text-center">
+                  <Camera className="h-12 w-12 text-[#88E8F2]" />
+                  <p className="text-sm leading-relaxed text-white/90">{cameraError}</p>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="rounded-full px-5 py-2.5 text-sm font-semibold text-slate-900"
+                    style={{ backgroundColor: ACCENT }}
+                  >
+                    Chọn ảnh từ thư viện
+                  </button>
+                </div>
+              )}
+              <div className="pointer-events-none absolute inset-6 flex items-center justify-center rounded-3xl border-2 border-dashed border-[#88E8F2] bg-slate-800/30 backdrop-blur-sm">
+                <p className="px-4 text-center text-sm font-medium text-white opacity-90">
                   Đưa giấy xét nghiệm vào khung
                 </p>
                 {isAnalyzing && (
@@ -5674,31 +6341,39 @@ function PatientPortalView() {
                 )}
               </div>
             </div>
-            <div className="h-40 bg-black flex items-center justify-around px-6 pb-8">
+            <div className="flex h-36 shrink-0 items-center justify-around bg-black px-6">
               <button
-                onClick={() => setIsScanning(false)}
-                className="text-white font-medium px-4 py-2 opacity-80"
+                onClick={() => {
+                  setIsScanning(false);
+                  stopCamera();
+                }}
+                className="px-4 py-2 font-medium text-white opacity-80"
               >
                 Hủy
               </button>
               <button
                 onClick={handleCapture}
                 disabled={isAnalyzing}
-                className="w-20 h-20 rounded-full border-4 border-[#88E8F2] flex items-center justify-center p-1.5 active:scale-95 transition-transform"
+                className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-[#88E8F2] p-1.5 transition-transform active:scale-95 disabled:opacity-60"
               >
                 <div
-                  className={`w-full h-full bg-white rounded-full ${isAnalyzing ? "animate-pulse bg-[#88E8F2]" : ""}`}
+                  className={`h-full w-full rounded-full bg-white ${isAnalyzing ? "animate-pulse bg-[#88E8F2]" : ""}`}
                 />
               </button>
-              <div className="w-12" />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="rounded-full bg-white/10 px-3 py-2 text-[11px] font-semibold text-white"
+              >
+                Thư viện
+              </button>
             </div>
             {isAnalyzing && (
-              <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-md flex flex-col items-center justify-center z-50">
-                <ScanLine className="w-20 h-20 text-[#88E8F2] animate-pulse mb-6" />
-                <h3 className="text-white font-bold text-xl tracking-tight">
+              <div className="absolute inset-0 z-[60] flex flex-col items-center justify-center bg-slate-900/90 backdrop-blur-md">
+                <ScanLine className="mb-6 h-20 w-20 animate-pulse text-[#88E8F2]" />
+                <h3 className="text-xl font-bold tracking-tight text-white">
                   Đang phân tích tài liệu...
                 </h3>
-                <p className="text-[#88E8F2] text-sm mt-2 font-mono uppercase tracking-widest">
+                <p className="mt-2 font-mono text-sm uppercase tracking-widest text-[#88E8F2]">
                   VNPT SmartReader AI
                 </p>
               </div>
