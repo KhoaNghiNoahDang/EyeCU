@@ -1,0 +1,19 @@
+{
+  "statusCode": 200,
+  "message": "Thành công",
+  "object": {
+    "id": "001095001234",
+    "name": "NGUYỄN VAN A",
+    "birth_day": "15/08/1958",
+    "gender": "Nam",
+    "nationality": "Việt Nam",
+    "recent_location": "Đống Đa, Hà Nội",
+    "expire_warning": "no",
+    "back_expire_warning": "no",
+    "checking_result_front": {
+      "check_photocopied_result": "0"
+    }
+  },
+  "Tampering": {},
+  "general_warning": []
+}
