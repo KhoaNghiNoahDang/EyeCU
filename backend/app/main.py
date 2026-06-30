@@ -1,11 +1,20 @@
+import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.db.database import engine, Base
 from app.api import auth, admin, ambulance, ambient, ems, patient, records, voice
+from app.api.ambulance import background_db_updater
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="EyeCU Ambient Clinical OS", version="1.0.0")
+
+
+# Dang ky Background Task: chay ngam khi server khoi dong
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(background_db_updater())
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,6 +33,7 @@ app.include_router(ems.router, prefix="/api/ems", tags=["EMS & ER Ops"])
 app.include_router(patient.router, prefix="/api/patient", tags=["Patient Portal"])
 app.include_router(records.router, prefix="/api/records", tags=["Medical Records OCR"])
 app.include_router(voice.router, prefix="/api/voice", tags=["Voice EMR"])
+
 
 @app.get("/")
 def read_root():

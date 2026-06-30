@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, type WorkMode } from "../lib/auth/auth-context";
+import { useEyeCUSocket } from "../hooks/useEyeCUSocket";
 import {
   Activity,
   Plus,
@@ -2988,6 +2989,23 @@ function AmbulanceView() {
     setTimeout(() => setToast(""), 4000);
   };
 
+  // Ket noi WebSocket de nhan cap nhat GPS va su kien cong vien theo thoi gian thuc
+  const WS_URL = (import.meta.env.VITE_WS_URL ?? "ws://localhost:8000") + "/api/ambient/ws/live";
+  const handleSocketMessage = useCallback((msg: { type: string; data?: Record<string, unknown> }) => {
+    if (msg.type === "GPS_UPDATE" && msg.data) {
+      const { ambulance_id, lat, lng } = msg.data as { ambulance_id: string; lat: number; lng: number };
+      setAmbulances(prev =>
+        prev.map(a => a.id === ambulance_id ? { ...a, lat, lng } : a)
+      );
+    }
+    if (msg.type === "GATE_ARRIVED" && msg.data) {
+      const { plate } = msg.data as { plate: string };
+      showToast(`Xe ${plate} da den cong - Barrier tu dong mo`);
+    }
+  }, [showToast]);
+
+  useEyeCUSocket({ url: WS_URL, onMessage: handleSocketMessage });
+
   const handleSelectMap = (id: string) => {
     const found = ambulances.find((a) => a.id === id);
     if (!found) return;
@@ -5731,13 +5749,34 @@ function EmsView() {
   const [scanned, setScanned] = useState(false);
   const [alertSent, setAlertSent] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState<string | null>(null);
+  // Trang thai dong bo ho so tu BV phan hoi ve qua WebSocket
+  const [syncStatus, setSyncStatus] = useState<"idle" | "synced">("idle");
+  const [hospitalAck, setHospitalAck] = useState(false);
 
-  const alertTypes = ["Nhồi máu cơ tim", "Đột quỵ", "Chấn thương nặng", "Ngộ độc"];
+  const alertTypes = ["Nhoi mau co tim", "Dot quy", "Chan thuong nang", "Ngo doc"];
 
+  // Ket noi WebSocket de nhan phan hoi tu BV sau khi gui Pre-Alert hoac Fast-Track
+  const WS_URL = (import.meta.env.VITE_WS_URL ?? "ws://localhost:8000") + "/api/ambient/ws/live";
+  const handleSocketMessage = useCallback((msg: { type: string; data?: Record<string, unknown> }) => {
+    if (msg.type === "FAST_TRACK_SYNC") setSyncStatus("synced");
+    if (msg.type === "PRE_ALERT") setHospitalAck(true);
+  }, []);
+
+  const { send } = useEyeCUSocket({ url: WS_URL, onMessage: handleSocketMessage });
+
+  // Gui Pre-Alert: thu WebSocket truoc, neu chet thi HTTP Fallback tu dong
   const handleSendAlert = (alertType: string) => {
     setSelectedAlert(alertType);
     setAlertSent(true);
+    send(
+      { type: "PRE_ALERT", data: { condition: alertType, ambulance_id: "current", eta_minutes: 10 } },
+      {
+        endpoint: "/api/ems/pre-alert",
+        body: { ambulance_id: "current", condition: alertType, eta_minutes: 10 },
+      }
+    );
   };
+
 
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
