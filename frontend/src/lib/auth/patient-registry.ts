@@ -35,9 +35,8 @@ function saveAll(patients: RegisteredPatient[]) {
 export function findPatientByCccdAndPhone(cccd: string, phone: string): RegisteredPatient | null {
   const normalizedPhone = normalizePhone(phone);
   return (
-    loadAll().find(
-      (p) => p.cccd === cccd.trim() && normalizePhone(p.phone) === normalizedPhone,
-    ) ?? null
+    loadAll().find((p) => p.cccd === cccd.trim() && normalizePhone(p.phone) === normalizedPhone) ??
+    null
   );
 }
 

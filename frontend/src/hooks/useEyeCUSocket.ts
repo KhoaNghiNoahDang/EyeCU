@@ -120,14 +120,9 @@ export function useEyeCUSocket({
 
       if (reconnect && retriesRef.current < maxRetries) {
         // Exponential Backoff: 2^n * 1000ms, toi da MAX_BACKOFF_MS
-        const delay = Math.min(
-          1000 * Math.pow(2, retriesRef.current),
-          MAX_BACKOFF_MS
-        );
+        const delay = Math.min(1000 * Math.pow(2, retriesRef.current), MAX_BACKOFF_MS);
         retriesRef.current += 1;
-        console.log(
-          `[EyeCU WS] Ket noi lai lan ${retriesRef.current} sau ${delay / 1000}s...`
-        );
+        console.log(`[EyeCU WS] Ket noi lai lan ${retriesRef.current} sau ${delay / 1000}s...`);
         reconnectTimerRef.current = setTimeout(connect, delay);
       }
     };
@@ -164,10 +159,7 @@ export function useEyeCUSocket({
    * @param fallback Neu socket chet, goi endpoint nao? (tuy chon)
    */
   const send = useCallback(
-    async (
-      data: Record<string, unknown>,
-      fallback?: FallbackPayload
-    ): Promise<void> => {
+    async (data: Record<string, unknown>, fallback?: FallbackPayload): Promise<void> => {
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify(data));
         return;
@@ -177,8 +169,7 @@ export function useEyeCUSocket({
       if (fallback) {
         console.warn("[EyeCU WS] Socket chet, chuyen sang HTTP Fallback:", fallback.endpoint);
         try {
-          const API_URL =
-            import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+          const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
           const res = await fetch(`${API_URL}${fallback.endpoint}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -196,7 +187,7 @@ export function useEyeCUSocket({
         console.warn("[EyeCU WS] Socket chet va khong co fallback duoc cau hinh.");
       }
     },
-    []
+    [],
   );
 
   return { send };

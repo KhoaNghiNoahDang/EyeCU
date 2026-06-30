@@ -2,11 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, type WorkMode } from "../lib/auth/auth-context";
 import { useEyeCUSocket } from "../hooks/useEyeCUSocket";
-import {
-  DEMO_PATIENT_CLINICAL,
-  formatRecordDate,
-  formatVnd,
-} from "../lib/patient/clinical-data";
+import { DEMO_PATIENT_CLINICAL, formatRecordDate, formatVnd } from "../lib/patient/clinical-data";
 import {
   Activity,
   Plus,
@@ -158,7 +154,9 @@ function PatientRounds() {
   const [highlightedRoom, setHighlightedRoom] = useState<string | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
-  const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
+  const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(
+    null,
+  );
   const [isInstallEligible, setIsInstallEligible] = useState(false);
   const [showIosInstallHint, setShowIosInstallHint] = useState(false);
 
@@ -173,7 +171,8 @@ function PatientRounds() {
     const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
     const isStandalone =
       window.matchMedia("(display-mode: standalone)").matches ||
-      ("standalone" in window.navigator && Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone));
+      ("standalone" in window.navigator &&
+        Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone));
     setShowIosInstallHint(isIos && !isStandalone);
 
     const handleBeforeInstallPrompt = (event: Event) => {
@@ -405,7 +404,9 @@ function PatientRounds() {
                       {user.title ? `${user.title} ` : ""}
                       {user.name}
                     </p>
-                    <p className="truncate text-[11px] text-slate-500">{roleConfig[workMode].label}</p>
+                    <p className="truncate text-[11px] text-slate-500">
+                      {roleConfig[workMode].label}
+                    </p>
                   </div>
                   <div className="p-1">
                     <button
@@ -738,7 +739,7 @@ function AmbientView({
           <div className="flex items-center gap-2">
             {alertCount > 0 && (
               <span className="px-2 py-1 rounded-lg text-[10px] font-bold text-white bg-red-500 flex items-center gap-1 animate-pulse">
-                 {alertCount} Cảnh báo
+                {alertCount} Cảnh báo
               </span>
             )}
             <span
@@ -3197,18 +3198,23 @@ function AmbulanceView() {
 
   // Ket noi WebSocket de nhan cap nhat GPS va su kien cong vien theo thoi gian thuc
   const WS_URL = (import.meta.env.VITE_WS_URL ?? "ws://localhost:8000") + "/api/ambient/ws/live";
-  const handleSocketMessage = useCallback((msg: { type: string; data?: Record<string, unknown> }) => {
-    if (msg.type === "GPS_UPDATE" && msg.data) {
-      const { ambulance_id, lat, lng } = msg.data as { ambulance_id: string; lat: number; lng: number };
-      setAmbulances(prev =>
-        prev.map(a => a.id === ambulance_id ? { ...a, lat, lng } : a)
-      );
-    }
-    if (msg.type === "GATE_ARRIVED" && msg.data) {
-      const { plate } = msg.data as { plate: string };
-      showToast(`Xe ${plate} da den cong - Barrier tu dong mo`);
-    }
-  }, [showToast]);
+  const handleSocketMessage = useCallback(
+    (msg: { type: string; data?: Record<string, unknown> }) => {
+      if (msg.type === "GPS_UPDATE" && msg.data) {
+        const { ambulance_id, lat, lng } = msg.data as {
+          ambulance_id: string;
+          lat: number;
+          lng: number;
+        };
+        setAmbulances((prev) => prev.map((a) => (a.id === ambulance_id ? { ...a, lat, lng } : a)));
+      }
+      if (msg.type === "GATE_ARRIVED" && msg.data) {
+        const { plate } = msg.data as { plate: string };
+        showToast(`Xe ${plate} da den cong - Barrier tu dong mo`);
+      }
+    },
+    [showToast],
+  );
 
   useEyeCUSocket({ url: WS_URL, onMessage: handleSocketMessage });
 
@@ -3342,7 +3348,7 @@ function AmbulanceView() {
                 })}
             </div>
             <div className="absolute bottom-2 left-2 z-[400] bg-white/90 text-[9px] text-slate-500 px-2 py-0.5 rounded shadow">
-               OpenStreetMap · BV Bạch Mai, Hà Nội
+              OpenStreetMap · BV Bạch Mai, Hà Nội
             </div>
           </div>
 
@@ -4326,7 +4332,7 @@ function CccdPatientProfile({
           </div>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-red-700">
-               CẢNH BÁO DỊ ỨNG THUỐC
+              CẢNH BÁO DỊ ỨNG THUỐC
             </p>
             <p className="text-sm font-black text-red-700">{patient.allergies.join(" · ")}</p>
           </div>
@@ -5554,7 +5560,9 @@ function PatientClinicalSheet({
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="rounded-xl bg-white/80 p-2.5">
                     <p className="text-slate-400">Ngày khám</p>
-                    <p className="font-semibold text-slate-900">{formatRecordDate(record.created_at)}</p>
+                    <p className="font-semibold text-slate-900">
+                      {formatRecordDate(record.created_at)}
+                    </p>
                   </div>
                   <div className="rounded-xl bg-white/80 p-2.5">
                     <p className="text-slate-400">Bác sĩ</p>
@@ -5594,7 +5602,8 @@ function PatientClinicalSheet({
                   record_id · {record.id}
                 </p>
                 <p className="mt-1 text-sm text-slate-600">
-                  {data.medications.length} loại thuốc · Kê ngày {formatRecordDate(record.created_at)}
+                  {data.medications.length} loại thuốc · Kê ngày{" "}
+                  {formatRecordDate(record.created_at)}
                 </p>
               </div>
               {data.medications.map((med) => (
@@ -5612,7 +5621,9 @@ function PatientClinicalSheet({
                     <p className="font-bold text-slate-900">{med.medicine_name}</p>
                     <p className="mt-0.5 text-sm text-slate-600">{med.dosage}</p>
                     {med.instructions && (
-                      <p className="mt-1.5 text-xs leading-relaxed text-slate-500">{med.instructions}</p>
+                      <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                        {med.instructions}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -5669,7 +5680,9 @@ function PatientClinicalSheet({
                     {data.fees.status === "paid" ? "Đã thanh toán" : "Chưa thanh toán"}
                   </span>
                 </div>
-                <p className="mt-2 text-2xl font-bold text-slate-900">{formatVnd(data.fees.total)}</p>
+                <p className="mt-2 text-2xl font-bold text-slate-900">
+                  {formatVnd(data.fees.total)}
+                </p>
                 {data.fees.paid_at && (
                   <p className="mt-1 text-xs text-slate-500">
                     Thanh toán lúc{" "}
@@ -5689,7 +5702,9 @@ function PatientClinicalSheet({
                     className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2.5"
                   >
                     <span className="text-sm text-slate-700">{item.name}</span>
-                    <span className="text-sm font-semibold text-slate-900">{formatVnd(item.amount)}</span>
+                    <span className="text-sm font-semibold text-slate-900">
+                      {formatVnd(item.amount)}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -6099,7 +6114,9 @@ function PatientPortalView({
                 >
                   <Icon className="h-5 w-5" style={{ color }} />
                 </div>
-                <p className="break-words text-sm font-bold leading-tight text-slate-900">{label}</p>
+                <p className="break-words text-sm font-bold leading-tight text-slate-900">
+                  {label}
+                </p>
                 <p className="mt-0.5 break-words text-[10px] leading-snug text-slate-400">{sub}</p>
               </button>
             ))}
@@ -6432,10 +6449,13 @@ function EmsView() {
 
   // Ket noi WebSocket de nhan phan hoi tu BV sau khi gui Pre-Alert hoac Fast-Track
   const WS_URL = (import.meta.env.VITE_WS_URL ?? "ws://localhost:8000") + "/api/ambient/ws/live";
-  const handleSocketMessage = useCallback((msg: { type: string; data?: Record<string, unknown> }) => {
-    if (msg.type === "FAST_TRACK_SYNC") setSyncStatus("synced");
-    if (msg.type === "PRE_ALERT") setHospitalAck(true);
-  }, []);
+  const handleSocketMessage = useCallback(
+    (msg: { type: string; data?: Record<string, unknown> }) => {
+      if (msg.type === "FAST_TRACK_SYNC") setSyncStatus("synced");
+      if (msg.type === "PRE_ALERT") setHospitalAck(true);
+    },
+    [],
+  );
 
   const { send } = useEyeCUSocket({ url: WS_URL, onMessage: handleSocketMessage });
 
@@ -6444,14 +6464,16 @@ function EmsView() {
     setSelectedAlert(alertType);
     setAlertSent(true);
     send(
-      { type: "PRE_ALERT", data: { condition: alertType, ambulance_id: "current", eta_minutes: 10 } },
+      {
+        type: "PRE_ALERT",
+        data: { condition: alertType, ambulance_id: "current", eta_minutes: 10 },
+      },
       {
         endpoint: "/api/ems/pre-alert",
         body: { ambulance_id: "current", condition: alertType, eta_minutes: 10 },
-      }
+      },
     );
   };
-
 
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
@@ -6690,9 +6712,7 @@ function EmsView() {
               <Radio className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <span className="font-bold text-slate-900 text-sm block">
-                 Liên lạc Kíp trực BV
-              </span>
+              <span className="font-bold text-slate-900 text-sm block">Liên lạc Kíp trực BV</span>
               <span className="text-xs text-slate-500">Kết nối trực tiếp phòng Cấp cứu</span>
             </div>
           </button>

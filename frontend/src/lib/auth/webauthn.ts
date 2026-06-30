@@ -53,12 +53,7 @@ export async function isPlatformAuthenticatorAvailable(): Promise<boolean> {
   }
 }
 
-export type WebAuthnErrorCode =
-  | "not_supported"
-  | "not_secure"
-  | "cancelled"
-  | "failed"
-  | "unknown";
+export type WebAuthnErrorCode = "not_supported" | "not_secure" | "cancelled" | "failed" | "unknown";
 
 export class WebAuthnError extends Error {
   code: WebAuthnErrorCode;
@@ -73,10 +68,7 @@ function mapWebAuthnError(err: unknown): WebAuthnError {
   if (err instanceof WebAuthnError) return err;
   if (err instanceof DOMException) {
     if (err.name === "NotAllowedError") {
-      return new WebAuthnError(
-        "cancelled",
-        "Bạn đã hủy xác thực sinh trắc. Vui lòng thử lại.",
-      );
+      return new WebAuthnError("cancelled", "Bạn đã hủy xác thực sinh trắc. Vui lòng thử lại.");
     }
     if (err.name === "SecurityError") {
       return new WebAuthnError(

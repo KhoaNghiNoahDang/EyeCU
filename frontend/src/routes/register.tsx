@@ -1,12 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import {
-  Activity,
-  ArrowLeft,
-  CheckCircle2,
-  QrCode,
-  UserPlus,
-} from "lucide-react";
+import { Activity, ArrowLeft, CheckCircle2, QrCode, UserPlus } from "lucide-react";
 import { FaceIdCapture } from "../components/auth/FaceIdCapture";
 import { WebAuthnFaceStep } from "../components/auth/WebAuthnFaceStep";
 import { useAuth } from "../lib/auth/auth-context";
@@ -32,9 +26,9 @@ function RegisterPage() {
   const [step, setStep] = useState<Step>("form");
   const [formError, setFormError] = useState<string | null>(null);
   const [faceUrl, setFaceUrl] = useState<string | null>(null);
-  const [registeredPatient, setRegisteredPatient] = useState<ReturnType<typeof registerPatient> | null>(
-    null,
-  );
+  const [registeredPatient, setRegisteredPatient] = useState<ReturnType<
+    typeof registerPatient
+  > | null>(null);
 
   const [name, setName] = useState("");
   const [cccd, setCccd] = useState("");
@@ -158,7 +152,12 @@ function RegisterPage() {
                 {[
                   { label: "Họ và tên", value: name, set: setName, placeholder: "Nguyễn Văn A" },
                   { label: "Số CCCD", value: cccd, set: setCccd, placeholder: "001203001247" },
-                  { label: "Số điện thoại", value: phone, set: setPhone, placeholder: "0912 345 678" },
+                  {
+                    label: "Số điện thoại",
+                    value: phone,
+                    set: setPhone,
+                    placeholder: "0912 345 678",
+                  },
                   {
                     label: "Mã thẻ BHYT (tuỳ chọn)",
                     value: bhxh,
@@ -209,10 +208,7 @@ function RegisterPage() {
                     Lưu vào avatar_url · dùng so khớp VNPT Face
                   </p>
                 </div>
-                <FaceIdCapture
-                  capturedUrl={faceUrl}
-                  onCapture={(url) => setFaceUrl(url || null)}
-                />
+                <FaceIdCapture capturedUrl={faceUrl} onCapture={(url) => setFaceUrl(url || null)} />
                 <button
                   type="button"
                   onClick={() => setStep("webauthn")}

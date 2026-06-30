@@ -39,8 +39,7 @@ export function WebAuthnFaceStep({
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  const defaultTitle =
-    mode === "register" ? "Đăng ký sinh trắc Face ID" : "Xác thực Face ID eKYC";
+  const defaultTitle = mode === "register" ? "Đăng ký sinh trắc Face ID" : "Xác thực Face ID eKYC";
   const defaultSubtitle =
     mode === "register"
       ? "WebAuthn · Face ID iOS · Sinh trắc Android"
@@ -127,9 +126,7 @@ export function WebAuthnFaceStep({
               ? "Đang chờ Face ID / sinh trắc..."
               : "Sẵn sàng xác thực"}
         </p>
-        {!done && !loading && (
-          <p className="text-xs text-slate-400">{getWebAuthnHint()}</p>
-        )}
+        {!done && !loading && <p className="text-xs text-slate-400">{getWebAuthnHint()}</p>}
       </div>
 
       {error && (
@@ -144,7 +141,11 @@ export function WebAuthnFaceStep({
           className="w-full rounded-xl py-2.5 text-sm font-bold text-slate-900 disabled:opacity-50"
           style={{ backgroundColor: ACCENT }}
         >
-          {loading ? "Đang xử lý..." : mode === "register" ? "Bật Face ID · Đăng ký" : "Quét Face ID · Đăng nhập"}
+          {loading
+            ? "Đang xử lý..."
+            : mode === "register"
+              ? "Bật Face ID · Đăng ký"
+              : "Quét Face ID · Đăng nhập"}
         </button>
       )}
 
