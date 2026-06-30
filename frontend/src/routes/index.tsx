@@ -532,7 +532,7 @@ function AmbientView({
           <div className="flex items-center gap-2">
             {alertCount > 0 && (
               <span className="px-2 py-1 rounded-lg text-[10px] font-bold text-white bg-red-500 flex items-center gap-1 animate-pulse">
-                ⚠ {alertCount} Cảnh báo
+                 {alertCount} Cảnh báo
               </span>
             )}
             <span
@@ -1052,7 +1052,7 @@ function PrivacyCameraFeed() {
             color: isCritical ? "#DC2626" : "#16A34A",
           }}
         >
-          {isCritical ? "⚠ FUSION ALERT" : "✓ Privacy Shield"}
+          {isCritical ? " FUSION ALERT" : "✓ Privacy Shield"}
         </span>
       </div>
 
@@ -1184,7 +1184,7 @@ function PrivacyCameraFeed() {
             <span
               className={`font-bold uppercase px-2 py-0.5 rounded ${isCritical ? "bg-red-600 text-white" : "text-slate-400"}`}
             >
-              {isCritical ? "HỢP NHẤT CẢM BIẾN ⚡" : "Đang giám sát"}
+              {isCritical ? "HỢP NHẤT CẢM BIẾN " : "Đang giám sát"}
             </span>
           </div>
 
@@ -1721,7 +1721,7 @@ const DEPARTMENTS: Department[] = [
     id: "er",
     name: "Cấp cứu (ER)",
     shortName: "Cấp cứu",
-    icon: "🚨",
+    icon: "",
     color: "#DC2626",
     bgColor: "#FEF2F2",
     beds: 4,
@@ -1735,7 +1735,7 @@ const DEPARTMENTS: Department[] = [
     id: "cardio",
     name: "Tim mạch",
     shortName: "Tim mạch",
-    icon: "🫀",
+    icon: "",
     color: "#7C3AED",
     bgColor: "#F5F3FF",
     beds: 2,
@@ -1749,7 +1749,7 @@ const DEPARTMENTS: Department[] = [
     id: "neuro",
     name: "Phẫu thuật Thần kinh",
     shortName: "TK",
-    icon: "🧠",
+    icon: "",
     color: "#1E40AF",
     bgColor: "#EFF6FF",
     beds: 2,
@@ -1763,7 +1763,7 @@ const DEPARTMENTS: Department[] = [
     id: "thorax",
     name: "Lồng ngực & Mạch máu",
     shortName: "Lồng ngực",
-    icon: "🫁",
+    icon: "",
     color: "#0E7490",
     bgColor: "#ECFEFF",
     beds: 3,
@@ -1777,7 +1777,7 @@ const DEPARTMENTS: Department[] = [
     id: "ortho",
     name: "Chấn thương CX & Cột sống",
     shortName: "Chấn thương",
-    icon: "🦴",
+    icon: "",
     color: "#D97706",
     bgColor: "#FFFBEB",
     beds: 5,
@@ -1791,7 +1791,7 @@ const DEPARTMENTS: Department[] = [
     id: "surgery",
     name: "Ngoại tổng hợp",
     shortName: "Ngoại TH",
-    icon: "🏥",
+    icon: "",
     color: "#16A34A",
     bgColor: "#F0FDF4",
     beds: 8,
@@ -1805,7 +1805,7 @@ const DEPARTMENTS: Department[] = [
     id: "internal",
     name: "Khoa Nội",
     shortName: "Nội",
-    icon: "💊",
+    icon: "",
     color: "#2563EB",
     bgColor: "#EFF6FF",
     beds: 15,
@@ -1819,7 +1819,7 @@ const DEPARTMENTS: Department[] = [
     id: "endo",
     name: "Nội tiết - Đái tháo đường",
     shortName: "Nội tiết",
-    icon: "🧪",
+    icon: "",
     color: "#CA8A04",
     bgColor: "#FEFCE8",
     beds: 3,
@@ -1833,7 +1833,7 @@ const DEPARTMENTS: Department[] = [
     id: "bone",
     name: "Cơ Xương Khớp",
     shortName: "CXK",
-    icon: "🦷",
+    icon: "",
     color: "#92400E",
     bgColor: "#FFF7ED",
     beds: 4,
@@ -1847,7 +1847,7 @@ const DEPARTMENTS: Department[] = [
     id: "renal",
     name: "Thận - Tiết niệu",
     shortName: "Thận-TN",
-    icon: "🫘",
+    icon: "",
     color: "#0891B2",
     bgColor: "#ECFEFF",
     beds: 4,
@@ -1861,7 +1861,7 @@ const DEPARTMENTS: Department[] = [
     id: "pedi",
     name: "Khoa Nhi",
     shortName: "Nhi",
-    icon: "👶",
+    icon: "",
     color: "#DB2777",
     bgColor: "#FFF0F6",
     beds: 10,
@@ -1875,7 +1875,7 @@ const DEPARTMENTS: Department[] = [
     id: "obgyn",
     name: "Khoa Phụ sản",
     shortName: "Phụ sản",
-    icon: "🤰",
+    icon: "",
     color: "#E11D48",
     bgColor: "#FFF1F2",
     beds: 8,
@@ -1889,7 +1889,7 @@ const DEPARTMENTS: Department[] = [
     id: "anest",
     name: "Gây mê hồi sức",
     shortName: "Gây mê",
-    icon: "💉",
+    icon: "",
     color: "#475569",
     bgColor: "#F8FAFC",
     beds: 2,
@@ -1903,7 +1903,7 @@ const DEPARTMENTS: Department[] = [
     id: "plastic",
     name: "Phẫu thuật Tạo hình thẩm mỹ",
     shortName: "Tạo hình",
-    icon: "🎨",
+    icon: "",
     color: "#9333EA",
     bgColor: "#FAF5FF",
     beds: 3,
@@ -1917,7 +1917,7 @@ const DEPARTMENTS: Department[] = [
     id: "lab",
     name: "Xét nghiệm & CĐHA",
     shortName: "XN & CĐHA",
-    icon: "🔬",
+    icon: "",
     color: "#64748B",
     bgColor: "#F8FAFC",
     beds: 0,
@@ -3032,7 +3032,7 @@ function AmbulanceView() {
   };
   const handleNotify = () => showToast("✓ Đã gửi OTT cho kíp trực · Phản hồi trong 30s");
   const handleBook = () => showToast("✓ Đã đặt giường khẩn · Phòng đang chuẩn bị");
-  const handleCall = (dept: Department) => showToast(`📞 Đang gọi ${dept.doctor}...`);
+  const handleCall = (dept: Department) => showToast(` Đang gọi ${dept.doctor}...`);
 
   const visibleAmbs = filter === "all" ? ambulances : ambulances.filter((a) => a.status === filter);
   const selectedAmb = ambulances.find((a) => a.id === selectedId) ?? null;
@@ -3136,7 +3136,7 @@ function AmbulanceView() {
                 })}
             </div>
             <div className="absolute bottom-2 left-2 z-[400] bg-white/90 text-[9px] text-slate-500 px-2 py-0.5 rounded shadow">
-              © OpenStreetMap · BV Bạch Mai, Hà Nội
+               OpenStreetMap · BV Bạch Mai, Hà Nội
             </div>
           </div>
 
@@ -3177,7 +3177,7 @@ function AmbulanceView() {
 
             {/* Kíp trực ER Chỉ định */}
             <div className="p-2.5 border-b border-slate-100">
-              <ErStaffCard onCall={(name) => showToast(`📞 Đang gọi nội bộ ${name}...`)} />
+              <ErStaffCard onCall={(name) => showToast(` Đang gọi nội bộ ${name}...`)} />
             </div>
 
             {/* Hạ tầng Phòng Cấp cứu 01 */}
@@ -4120,7 +4120,7 @@ function CccdPatientProfile({
           </div>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-red-700">
-              ⚠ CẢNH BÁO DỊ ỨNG THUỐC
+               CẢNH BÁO DỊ ỨNG THUỐC
             </p>
             <p className="text-sm font-black text-red-700">{patient.allergies.join(" · ")}</p>
           </div>
@@ -5320,7 +5320,7 @@ function PatientPortalView() {
   const [messages, setMessages] = useState<ChatMsg[]>([
     {
       from: "bot",
-      text: "Xin chào bác Nguyễn Văn A! Cháu là trợ lý AI EyeCU. Bác vừa có kết quả xét nghiệm sinh hóa mới. Bác muốn cháu giải thích chỉ số nào không ạ? 😊",
+      text: "Xin chào bác Nguyễn Văn A! Cháu là trợ lý AI EyeCU. Bác vừa có kết quả xét nghiệm sinh hóa mới. Bác muốn cháu giải thích chỉ số nào không ạ? ",
       time: getTimeNow(),
     },
   ]);
@@ -6005,7 +6005,7 @@ function EmsView() {
               <Phone className="w-6 h-6 text-emerald-600" />
             </div>
             <div>
-              <span className="font-bold text-slate-900 text-sm block">📞 Gọi Người thân</span>
+              <span className="font-bold text-slate-900 text-sm block"> Gọi Người thân</span>
               <span className="text-xs text-slate-500">Liên hệ người thân bệnh nhân</span>
             </div>
           </button>
@@ -6016,7 +6016,7 @@ function EmsView() {
             </div>
             <div>
               <span className="font-bold text-slate-900 text-sm block">
-                📡 Liên lạc Kíp trực BV
+                 Liên lạc Kíp trực BV
               </span>
               <span className="text-xs text-slate-500">Kết nối trực tiếp phòng Cấp cứu</span>
             </div>

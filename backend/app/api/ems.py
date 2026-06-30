@@ -13,9 +13,7 @@ router = APIRouter()
 @router.post("/lpr-webhook")
 async def handle_lpr_webhook(plate_number: str, db: Session = Depends(get_db)):
     ambulance = (
-        db.query(Ambulance)
-        .filter(Ambulance.plate_number == plate_number)
-        .first()
+        db.query(Ambulance).filter(Ambulance.plate_number == plate_number).first()
     )
 
     if ambulance:
@@ -38,7 +36,11 @@ async def handle_lpr_webhook(plate_number: str, db: Session = Depends(get_db)):
                 },
             }
         )
-        return {"status": "success", "message": "Barrier triggered", "ambulance_id": str(ambulance.id)}
+        return {
+            "status": "success",
+            "message": "Barrier triggered",
+            "ambulance_id": str(ambulance.id),
+        }
 
     return {"status": "ignored", "message": "Unauthorized plate"}
 

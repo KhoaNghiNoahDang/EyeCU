@@ -171,7 +171,7 @@ function LoginPage() {
           </div>
 
           <div className="space-y-1">
-            <h2 className="text-2xl font-bold text-slate-900">Chào mừng trở lại 👋</h2>
+            <h2 className="text-2xl font-bold text-slate-900">Chào mừng trở lại </h2>
             <p className="text-sm text-slate-500">Chọn phương thức đăng nhập phù hợp với bạn</p>
           </div>
 

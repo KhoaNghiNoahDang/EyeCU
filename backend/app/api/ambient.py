@@ -96,13 +96,17 @@ async def push_camera_alert(room_code: str, severity: str):
         }
     )
 
+
 class IncidentPayload(BaseModel):
     room_code: str
     severity: str
     description: str
 
+
 @router.post("/incident")
-async def receive_incident_alert(payload: IncidentPayload, db: Session = Depends(get_db)):
+async def receive_incident_alert(
+    payload: IncidentPayload, db: Session = Depends(get_db)
+):
     """
     Webhook / API cho cac thiet bi AI Camera ben ngoai goi vao de kich hoat bao dong (Fall Alert).
     1. Ghi log vao database (bang incidents)
@@ -112,7 +116,7 @@ async def receive_incident_alert(payload: IncidentPayload, db: Session = Depends
         room_code=payload.room_code,
         severity=payload.severity,
         description=payload.description,
-        status="pending"
+        status="pending",
     )
     db.add(incident)
     db.commit()
@@ -128,28 +132,37 @@ async def receive_incident_alert(payload: IncidentPayload, db: Session = Depends
                 "severity": incident.severity,
                 "description": incident.description,
                 "title": "CẢNH BÁO AI CAMERA",
-            }
+            },
         }
     )
 
-    return {"status": "success", "message": "Alert processed and broadcasted", "incident_id": str(incident.id)}
+    return {
+        "status": "success",
+        "message": "Alert processed and broadcasted",
+        "incident_id": str(incident.id),
+    }
+
 
 # ==========================================
 # GIAI PHAP THROTTLING / BATCH UPDATE LOG
 # ==========================================
 system_log_buffer = []
 
+
 def enqueue_system_log(log_type: str, description: str, device_id=None):
     """
-    Day log vao buffer thay vi ghi DB ngay lap tuc. 
+    Day log vao buffer thay vi ghi DB ngay lap tuc.
     Giai quyet bai toan Throttling khi co qua nhieu request (VD: OCR, eKYC)
     """
-    system_log_buffer.append({
-        "log_type": log_type,
-        "description": description,
-        "device_id": device_id,
-        "timestamp": time.time()
-    })
+    system_log_buffer.append(
+        {
+            "log_type": log_type,
+            "description": description,
+            "device_id": device_id,
+            "timestamp": time.time(),
+        }
+    )
+
 
 async def background_log_flusher():
     """
@@ -161,18 +174,19 @@ async def background_log_flusher():
         await asyncio.sleep(10)
         if not system_log_buffer:
             continue
-            
+
         logs_to_process = system_log_buffer
         system_log_buffer = []
-        
+
         with Session(engine) as db:
             try:
                 db_logs = [
                     SystemLog(
                         log_type=item["log_type"],
                         description=item["description"],
-                        device_id=item["device_id"]
-                    ) for item in logs_to_process
+                        device_id=item["device_id"],
+                    )
+                    for item in logs_to_process
                 ]
                 db.add_all(db_logs)
                 db.commit()

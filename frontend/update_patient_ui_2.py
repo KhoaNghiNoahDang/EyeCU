@@ -5,7 +5,7 @@ with open('src/routes/index.tsx', 'r', encoding='utf-8') as f:
 
 new_patient_view = '''function PatientPortalView() {
   const [messages, setMessages] = useState<ChatMsg[]>([
-    { from:"bot", text:"Chào bác A! Hôm nay bác thấy trong người thế nào? Bác có thể bấm nút Mic để nói chuyện với cháu, hoặc chụp Phiếu Khám / Xét nghiệm để cháu cập nhật sổ nhé! 😊", time: getTimeNow() }
+    { from:"bot", text:"Chào bác A! Hôm nay bác thấy trong người thế nào? Bác có thể bấm nút Mic để nói chuyện với cháu, hoặc chụp Phiếu Khám / Xét nghiệm để cháu cập nhật sổ nhé! ", time: getTimeNow() }
   ]);
   const [botTyping, setBotTyping] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -24,7 +24,7 @@ new_patient_view = '''function PatientPortalView() {
         setBotTyping(true);
         setTimeout(() => {
           setBotTyping(false);
-          setMessages(prev => [...prev, { from: "bot", text: "Dạ thưa bác, đường huyết 8.5 là hơi cao. Bác nên hạn chế cơm trắng, có thể chuyển sang gạo lứt và ăn nhiều rau xanh trước bữa ăn nhé! 🥦", time: getTimeNow() }]);
+          setMessages(prev => [...prev, { from: "bot", text: "Dạ thưa bác, đường huyết 8.5 là hơi cao. Bác nên hạn chế cơm trắng, có thể chuyển sang gạo lứt và ăn nhiều rau xanh trước bữa ăn nhé! ", time: getTimeNow() }]);
         }, 1500);
       }, 3000);
     }
