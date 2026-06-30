@@ -20,7 +20,7 @@
   },
   "timestamp": "2026-06-30T15:45:00Z",
   "mock_files": {
-    "video_source": "fall_sample.mp4",
-    "audio_source": "impact_sound.wav"
+    "video_source": "fall_sample_01.mp4",
+    "audio_source": "sound_02.wav"
   }
 }
