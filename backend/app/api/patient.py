@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from app.db.database import get_db
-<<<<<<< Updated upstream
 from app.db.models import (
     Patient,
     Staff,
@@ -15,9 +14,6 @@ from app.db.models import (
     HospitalFeeItem,
     Department,
 )
-=======
-from app.db.models import User, PatientsQueue, ClinicalRecord, Medication, FollowUp, HospitalFee, HospitalFeeItem, Department
->>>>>>> Stashed changes
 from app.core.security import require_roles, get_current_user
 from app.api.ambient import ambient_manager
 from app.services.vnpt_api import vnpt_client
@@ -25,7 +21,6 @@ from app.services.vnpt_api import vnpt_client
 router = APIRouter()
 
 
-<<<<<<< Updated upstream
 @router.get("/lookup")
 def lookup_patient(cccd: str, phone: str, db: Session = Depends(get_db)):
     from fastapi import HTTPException
@@ -48,14 +43,9 @@ def lookup_patient(cccd: str, phone: str, db: Session = Depends(get_db)):
         "cccd": patient.cccd,
         "name": patient.name,
         "phone": patient.phone,
-        "bhxh_code": patient.bhxh_code,
-        "avatar_url": patient.avatar_url,
-        "qr_token": patient.qr_token,
     }
 
 
-=======
->>>>>>> Stashed changes
 class WalkinSchema(BaseModel):
     name: str
     cccd: str
@@ -64,25 +54,16 @@ class WalkinSchema(BaseModel):
 class ChatRequest(BaseModel):
     message: str
 
-<<<<<<< Updated upstream
 
 class EkycCccdRequest(BaseModel):
     image_base64: str
 
 
-=======
-class EkycCccdRequest(BaseModel):
-    image_base64: str
-
->>>>>>> Stashed changes
 class EkycFaceRequest(BaseModel):
     far_image_base64: str
     near_image_base64: str
 
-<<<<<<< Updated upstream
 
-=======
->>>>>>> Stashed changes
 class PatientRegistration(BaseModel):
     cccd: str
     name: str
@@ -111,11 +92,7 @@ def verify_bhxh_fast_track(cccd: str, db: Session = Depends(get_db)):
 
 @router.post("/admit-walkin", dependencies=[Depends(require_roles(["ops", "admin"]))])
 def admit_walkin(data: WalkinSchema, db: Session = Depends(get_db)):
-<<<<<<< Updated upstream
     existing = db.query(Patient).filter(Patient.cccd == data.cccd).first()
-=======
-    existing = db.query(User).filter(User.cccd == data.cccd).first()
->>>>>>> Stashed changes
     if existing:
         return {
             "status": "success",
@@ -128,20 +105,13 @@ def admit_walkin(data: WalkinSchema, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_patient)
 
-<<<<<<< Updated upstream
     ticket = PatientsQueue(patient_id=new_patient.id, status="waiting")
-=======
-    ticket = PatientsQueue(
-        patient_id=new_patient.id, status="waiting"
-    )
->>>>>>> Stashed changes
     db.add(ticket)
     db.commit()
     return {"status": "success", "ticket_id": str(ticket.id)}
 
 
 @router.post("/sos", dependencies=[Depends(require_roles(["patient"]))])
-<<<<<<< Updated upstream
 async def trigger_patient_sos(user: Patient = Depends(get_current_user)):
     await ambient_manager.broadcast(
         {
@@ -150,14 +120,6 @@ async def trigger_patient_sos(user: Patient = Depends(get_current_user)):
             "title": f"BÁO ĐỘNG ĐỎ — SOS TỪ BỆNH NHÂN {user.name}",
         }
     )
-=======
-async def trigger_patient_sos(user: User = Depends(get_current_user)):
-    await ambient_manager.broadcast({
-        "type": "CAMERA_EVENT",
-        "severity": "critical",
-        "title": f"BÁO ĐỘNG ĐỎ — SOS TỪ BỆNH NHÂN {user.name}"
-    })
->>>>>>> Stashed changes
     return {"status": "SOS_SENT"}
 
 
@@ -175,15 +137,11 @@ async def patient_chatbot(data: ChatRequest):
 
     return {"reply": reply, "raw_data": bot_response}
 
-<<<<<<< Updated upstream
 
-=======
->>>>>>> Stashed changes
 @router.post("/ekyc/cccd")
 async def extract_cccd_info(data: EkycCccdRequest):
     # Decode base64
     import base64
-<<<<<<< Updated upstream
 
     try:
         # data.image_base64 usually comes as 'data:image/jpeg;base64,xxxx'
@@ -192,11 +150,6 @@ async def extract_cccd_info(data: EkycCccdRequest):
             if "," in data.image_base64
             else data.image_base64
         )
-=======
-    try:
-        # data.image_base64 usually comes as 'data:image/jpeg;base64,xxxx'
-        b64_str = data.image_base64.split(",")[1] if "," in data.image_base64 else data.image_base64
->>>>>>> Stashed changes
         file_bytes = base64.b64decode(b64_str)
         hash_str = await vnpt_client.upload_file(file_bytes, "cccd.jpg")
         if not hash_str:
@@ -206,7 +159,6 @@ async def extract_cccd_info(data: EkycCccdRequest):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-<<<<<<< Updated upstream
 
 @router.post("/ekyc/face")
 async def verify_face(data: EkycFaceRequest):
@@ -231,30 +183,10 @@ async def verify_face(data: EkycFaceRequest):
 
         # Gọi API 2D Liveness nhanh
         result = await vnpt_client.call_face_liveness_2d(face_hash)
-=======
-@router.post("/ekyc/face")
-async def verify_face(data: EkycFaceRequest):
-    import base64
-    try:
-        far_str = data.far_image_base64.split(",")[1] if "," in data.far_image_base64 else data.far_image_base64
-        near_str = data.near_image_base64.split(",")[1] if "," in data.near_image_base64 else data.near_image_base64
-        
-        far_bytes = base64.b64decode(far_str)
-        near_bytes = base64.b64decode(near_str)
-        
-        far_hash = await vnpt_client.upload_file(far_bytes, "far.jpg")
-        near_hash = await vnpt_client.upload_file(near_bytes, "near.jpg")
-        
-        if not far_hash or not near_hash:
-            return {"status": "error", "message": "Lỗi upload ảnh khuôn mặt"}
-            
-        result = await vnpt_client.call_face_liveness_3d(far_hash, near_hash)
->>>>>>> Stashed changes
         return {"status": "success", "data": result}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-<<<<<<< Updated upstream
 
 @router.post("/register")
 def register_patient(data: PatientRegistration, db: Session = Depends(get_db)):
@@ -280,41 +212,15 @@ def register_patient(data: PatientRegistration, db: Session = Depends(get_db)):
         avatar_url=data.avatar_url,
         cccd_front_url=data.cccd_front_url,
         cccd_back_url=data.cccd_back_url,
-=======
-@router.post("/register")
-def register_patient(data: PatientRegistration, db: Session = Depends(get_db)):
-    existing = db.query(User).filter(User.cccd == data.cccd).first()
-    if existing:
-        return {"status": "error", "message": "Số CCCD đã được đăng ký"}
-        
-    import uuid
-    qr_token_str = uuid.uuid4().hex[:16]
-    
-    new_patient = User(
-        role="patient",
-        cccd=data.cccd,
-        name=data.name,
-        phone=data.phone,
-        bhxh_code=data.bhxh_code,
-        avatar_url=data.avatar_url,
-        qr_token=qr_token_str,
-        emergency_contact_name=data.emergency_contact_name,
-        emergency_contact_phone=data.emergency_contact_phone
->>>>>>> Stashed changes
     )
     db.add(new_patient)
     db.commit()
     db.refresh(new_patient)
-<<<<<<< Updated upstream
     return {
         "status": "success",
         "patient_id": str(new_patient.id),
         "qr_token": qr_token_str,
     }
-=======
-    return {"status": "success", "patient_id": str(new_patient.id), "qr_token": qr_token_str}
-
->>>>>>> Stashed changes
 
 
 @router.get(
@@ -322,11 +228,7 @@ def register_patient(data: PatientRegistration, db: Session = Depends(get_db)):
     dependencies=[Depends(require_roles(["patient"]))],
 )
 def get_my_profile(
-<<<<<<< Updated upstream
     user: Patient = Depends(get_current_user),
-=======
-    user: User = Depends(get_current_user),
->>>>>>> Stashed changes
 ):
     return {
         "id": str(user.id),
@@ -344,11 +246,7 @@ def get_my_profile(
     dependencies=[Depends(require_roles(["patient"]))],
 )
 def get_my_records(
-<<<<<<< Updated upstream
     user: Patient = Depends(get_current_user),
-=======
-    user: User = Depends(get_current_user),
->>>>>>> Stashed changes
     db: Session = Depends(get_db),
 ):
     records = (
@@ -375,11 +273,7 @@ def get_my_records(
     dependencies=[Depends(require_roles(["patient"]))],
 )
 def get_my_medications(
-<<<<<<< Updated upstream
     user: Patient = Depends(get_current_user),
-=======
-    user: User = Depends(get_current_user),
->>>>>>> Stashed changes
     db: Session = Depends(get_db),
 ):
     records = (
@@ -409,7 +303,6 @@ def get_my_medications(
             }
             for m in medications
         ],
-<<<<<<< Updated upstream
     }
 
 
@@ -501,80 +394,4 @@ def get_patient_clinical_bundle(
             if fee
             else None
         ),
-=======
->>>>>>> Stashed changes
     }
-
-@router.get(
-    "/clinical-bundle",
-    dependencies=[Depends(require_roles(["patient"]))],
-)
-def get_patient_clinical_bundle(
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    latest_record = (
-        db.query(ClinicalRecord)
-        .filter(ClinicalRecord.patient_id == user.id)
-        .order_by(ClinicalRecord.created_at.desc())
-        .first()
-    )
-
-    if not latest_record:
-        return {"status": "no_records"}
-
-    doctor = db.query(User).filter(User.id == latest_record.doctor_id).first()
-    doctor_name = doctor.name if doctor else "Bác sĩ"
-    dept = db.query(Department).filter(Department.id == doctor.department_id).first() if doctor else None
-    department_name = dept.name if dept else "Khoa Khám Bệnh"
-
-    medications = db.query(Medication).filter(Medication.record_id == latest_record.id).all()
-    followup = db.query(FollowUp).filter(FollowUp.record_id == latest_record.id).first()
-    fee = db.query(HospitalFee).filter(HospitalFee.record_id == latest_record.id).first()
-    fee_items = []
-    if fee:
-        fee_items = db.query(HospitalFeeItem).filter(HospitalFeeItem.fee_id == fee.id).all()
-
-    return {
-        "patientId": str(user.id),
-        "patientName": user.name,
-        "cccd": user.cccd,
-        "bhxh_code": user.bhxh_code,
-        "latestRecord": {
-            "id": str(latest_record.id),
-            "patient_id": str(latest_record.patient_id),
-            "doctor_id": str(latest_record.doctor_id),
-            "symptoms": latest_record.symptoms,
-            "diagnosis": latest_record.diagnosis,
-            "notes": latest_record.notes,
-            "created_at": latest_record.created_at.isoformat(),
-            "is_signed": latest_record.is_signed,
-            "doctor_name": doctor_name,
-            "department": department_name,
-        },
-        "medications": [
-            {
-                "id": str(m.id),
-                "record_id": str(m.record_id),
-                "medicine_name": m.medicine_name,
-                "dosage": m.dosage,
-                "instructions": m.instructions,
-            } for m in medications
-        ],
-        "followUp": {
-            "date": followup.date if followup else "",
-            "time": followup.time if followup else "",
-            "department": followup.department if followup else "",
-            "note": followup.note if followup else ""
-        } if followup else None,
-        "fees": {
-            "record_id": str(fee.record_id) if fee else "",
-            "items": [
-                {"name": i.name, "amount": i.amount} for i in fee_items
-            ],
-            "total": fee.total if fee else 0,
-            "status": fee.status if fee else "pending",
-            "paid_at": fee.paid_at.isoformat() if fee and fee.paid_at else None
-        } if fee else None
-    }
-
