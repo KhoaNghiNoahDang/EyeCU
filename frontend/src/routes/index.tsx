@@ -6531,22 +6531,65 @@ function EmsView() {
   // Ket noi WebSocket de nhan phan hoi tu BV sau khi gui Pre-Alert hoac Fast-Track
   const WS_URL = (import.meta.env.VITE_WS_URL ?? "ws://localhost:8000") + "/api/ambient/ws/live";
   const [gpsState, setGpsState] = useState<{ lat: number; lng: number } | null>(null);
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const watchIdRef = useRef<number | null>(null);
 
   const handleSocketMessage = useCallback(
     (msg: { type: string; data?: Record<string, unknown> }) => {
       if (msg.type === "FAST_TRACK_SYNC") setSyncStatus("synced");
       if (msg.type === "PRE_ALERT") setHospitalAck(true);
-      if (msg.type === "GPS_UPDATE" && msg.data) {
+      // Nhan update tu xe khac (hoac chinh minh neu bi vong lap, nhung local gpsState da update roi)
+      if (msg.type === "GPS_UPDATE" && msg.data && !isBroadcasting) {
         setGpsState({
           lat: Number(msg.data.lat),
           lng: Number(msg.data.lng),
         });
       }
     },
-    [],
+    [isBroadcasting],
   );
 
   const { send } = useEyeCUSocket({ url: WS_URL, onMessage: handleSocketMessage });
+
+  const toggleGpsBroadcast = () => {
+    if (isBroadcasting) {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      setIsBroadcasting(false);
+    } else {
+      if (!navigator.geolocation) {
+        alert("Trình duyệt không hỗ trợ định vị GPS.");
+        return;
+      }
+      setIsBroadcasting(true);
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          setGpsState({ lat: latitude, lng: longitude });
+          send({
+            type: "GPS_UPDATE",
+            data: { ambulance_id: "current", lat: latitude, lng: longitude },
+          });
+        },
+        (err) => {
+          console.error("Lỗi GPS:", err);
+          alert("Lỗi GPS: Vui lòng cho phép quyền truy cập vị trí.");
+          setIsBroadcasting(false);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 }
+      );
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+    };
+  }, []);
 
   // Gui Pre-Alert: thu WebSocket truoc, neu chet thi HTTP Fallback tu dong
   const handleSendAlert = (alertType: string) => {
@@ -6568,38 +6611,67 @@ function EmsView() {
   let etaMins = 8;
   let distanceKm = 4.2;
   let progress = 52;
-  let ambX = 200;
-  let ambY = 100;
+  
+  // Bounding box cho OpenStreetMap (quanh BV Bạch Mai khoảng 3-4km)
+  const MIN_LNG = 105.8000;
+  const MAX_LNG = 105.8800;
+  const MIN_LAT = 20.9700;
+  const MAX_LAT = 21.0300;
+  const bbox = `${MIN_LNG},${MIN_LAT},${MAX_LNG},${MAX_LAT}`;
+  const src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=21.0011,105.8418`;
+  
+  let ambTop = "50%";
+  let ambLeft = "50%";
 
   if (gpsState) {
     // Giả định Toạ độ Đích (Bạch Mai)
-    const DEST_LAT = 21.000;
-    const DEST_LNG = 105.840;
+    const DEST_LAT = 21.0011;
+    const DEST_LNG = 105.8418;
     // Euclidian distance approx (1 độ ~ 111km)
     const distDeg = Math.sqrt(Math.pow(gpsState.lat - DEST_LAT, 2) + Math.pow(gpsState.lng - DEST_LNG, 2));
     distanceKm = Number((distDeg * 111).toFixed(1));
     etaMins = Math.max(1, Math.round((distanceKm / 40) * 60)); // giả định 40km/h
     progress = Math.min(100, Math.max(0, 100 - (distanceKm / 10) * 100)); // giả định quãng đường tối đa là 10km
 
-    // Interpolate toạ độ SVG (route từ X=50 -> X=350)
-    ambX = 50 + (progress / 100) * 300;
-    ambY = 150 - (progress / 100) * 100; // Curve đơn giản
+    // Map to percentage for the bbox
+    let leftPerc = ((gpsState.lng - MIN_LNG) / (MAX_LNG - MIN_LNG)) * 100;
+    let topPerc = 100 - ((gpsState.lat - MIN_LAT) / (MAX_LAT - MIN_LAT)) * 100;
+    
+    // Giới hạn trong khung map
+    leftPerc = Math.max(2, Math.min(98, leftPerc));
+    topPerc = Math.max(2, Math.min(98, topPerc));
+    
+    ambLeft = `${leftPerc}%`;
+    ambTop = `${topPerc}%`;
   }
 
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
       {/* ── 1. Patient Identification Panel ── */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
-            <CreditCard className="w-4 h-4 text-orange-600" />
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
+              <CreditCard className="w-4 h-4 text-orange-600" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">Nhận diện Bệnh nhân</h3>
+              <p className="text-[11px] text-slate-500 font-geist">
+                Quét CCCD / FaceID trên xe cấp cứu
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-base font-bold text-slate-900">Nhận diện Bệnh nhân</h3>
-            <p className="text-[11px] text-slate-500 font-geist">
-              Quét CCCD / FaceID trên xe cấp cứu
-            </p>
-          </div>
+          <button
+            onClick={toggleGpsBroadcast}
+            className={`px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all flex items-center gap-2 ${
+              isBroadcasting
+                ? "bg-red-500 text-white hover:bg-red-600 animate-pulse"
+                : "bg-cyan-500 text-white hover:bg-cyan-600"
+            }`}
+          >
+            <MapPin className="w-4 h-4" />
+            {isBroadcasting ? "DỪNG TRUYỀN GPS" : "BẬT TRUYỀN GPS"}
+          </button>
         </div>
 
         {!scanned ? (
@@ -6717,53 +6789,40 @@ function EmsView() {
           </div>
         </div>
 
-        {/* Dynamic map */}
-        <div className="relative w-full aspect-[2/1] rounded-xl bg-[#111827] overflow-hidden mb-4">
-          <div
-            className="absolute inset-0"
-            style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%)" }}
+        {/* OpenStreetMap */}
+        <div className="relative w-full h-[240px] rounded-xl bg-[#e5e5e5] overflow-hidden mb-4 border border-slate-200">
+          <iframe
+            title="OpenStreetMap"
+            width="100%"
+            height="100%"
+            frameBorder="0"
+            scrolling="no"
+            src={src}
+            className="opacity-90"
+            style={{ pointerEvents: "none" }} // disable interactions for clean display
           />
-          <div
-            className="absolute inset-0 opacity-10"
-            style={{
-              backgroundImage: "radial-gradient(#88E8F2 1px, transparent 1px)",
-              backgroundSize: "24px 24px",
-            }}
-          />
-          {/* Route line */}
-          <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 200">
-            <path
-              d="M 50 150 Q 120 80 200 100 Q 280 120 350 50"
-              fill="none"
-              stroke="#5eead4"
-              strokeWidth="4"
-              strokeDasharray="8 6"
-              opacity="0.8"
-            />
-            {/* Start point */}
-            <circle cx="50" cy="150" r="8" fill="#F97316" stroke="#FFF" strokeWidth="2.5" />
-            {/* End point */}
-            <circle cx="350" cy="50" r="8" fill="#22C55E" stroke="#FFF" strokeWidth="2.5" />
-            
-            {/* Ambulance position (Dynamic) */}
-            <g
-              transform={`translate(${ambX}, ${ambY})`}
-              style={{ transition: "transform 0.8s cubic-bezier(0.4,0,0.2,1)" }}
+
+          {/* Ambulance position (Dynamic dot over iframe) */}
+          {gpsState && (
+            <div
+              className="absolute z-10"
+              style={{
+                top: ambTop,
+                left: ambLeft,
+                transform: "translate(-50%, -50%)",
+                transition: "all 1s ease-out",
+              }}
             >
-              <circle cx="0" cy="0" r="14" fill="#67e8f9" opacity="0.3">
-                <animate attributeName="r" values="12;20;12" dur="2s" repeatCount="indefinite" />
-                <animate attributeName="opacity" values="0.4;0;0.4" dur="2s" repeatCount="indefinite" />
-              </circle>
-              <circle cx="0" cy="0" r="8" fill="#67e8f9" stroke="#FFF" strokeWidth="2.5" />
-            </g>
-          </svg>
+              <div className="relative flex items-center justify-center w-8 h-8">
+                <span className="absolute w-full h-full bg-[#f97316] rounded-full opacity-40 animate-ping" />
+                <div className="relative w-4 h-4 bg-[#f97316] border-2 border-white rounded-full shadow-lg" />
+              </div>
+            </div>
+          )}
 
           {/* Labels */}
-          <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm border border-white/10 text-white text-[10px] font-geist px-2 py-1 rounded-full flex items-center gap-1.5 shadow">
-            <span className="w-2 h-2 rounded-full bg-orange-500" /> Vị trí xuất phát
-          </div>
-          <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm border border-white/10 text-white text-[10px] font-geist px-2 py-1 rounded-full flex items-center gap-1.5 shadow">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" /> BV Bạch Mai
+          <div className="absolute top-2 right-2 z-10 bg-white/90 backdrop-blur-sm border border-slate-200 text-slate-700 text-[9px] font-bold px-2 py-1 rounded shadow-sm">
+            OpenStreetMap · BV Bạch Mai
           </div>
         </div>
 
