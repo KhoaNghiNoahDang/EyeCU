@@ -5307,22 +5307,68 @@ const TRANSCRIPT_FULL =
   "Bệnh nhân nam sáu mươi hai tuổi, vào viện vì đau ngực và khó thở. Khám lâm sàng huyết áp một trăm bốn mươi trên chín mươi, mạch chín mươi lăm. Chẩn đoán theo dõi tăng huyết áp độ hai kèm đau thắt ngực. Y lệnh Amlodipin năm miligam uống một viên mỗi sáng, theo dõi nhịp tim trong bốn mươi tám giờ.";
 
 function VoiceView() {
-  const [recording, setRecording] = useState(true);
+  const [recording, setRecording] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [soapeData, setSoapeData] = useState<any>(null);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  useEffect(() => {
-    if (!recording) return;
-    setTranscript("");
-    let i = 0;
-    const id = setInterval(() => {
-      i += 2;
-      setTranscript(TRANSCRIPT_FULL.slice(0, i));
-      if (i >= TRANSCRIPT_FULL.length) clearInterval(id);
-    }, 50);
-    return () => clearInterval(id);
-  }, [recording]);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
-  const L = transcript.length;
+  const startRecording = async () => {
+    try {
+      setErrorMsg("");
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { channelCount: 1, sampleRate: 16000 },
+      });
+      const recorder = new MediaRecorder(stream);
+      chunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        setIsProcessing(true);
+        const audioBlob = new Blob(chunksRef.current, { type: "audio/wav" });
+        const formData = new FormData();
+        formData.append("audio", audioBlob, "record.wav");
+        formData.append("patient_id", "P-123");
+
+        try {
+          const res = await fetchApi("/voice/emr", {
+            method: "POST",
+            body: formData,
+          });
+          if (res.success) {
+            setTranscript(res.transcript);
+            setSoapeData(res.soape);
+          } else {
+            setErrorMsg(res.message || "Lỗi khi xử lý giọng nói");
+          }
+        } catch (err: any) {
+          setErrorMsg(err.message || "Lỗi kết nối máy chủ");
+        } finally {
+          setIsProcessing(false);
+        }
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setRecording(true);
+    } catch (err) {
+      setErrorMsg("Không thể truy cập Microphone. Vui lòng cấp quyền.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && recording) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
+      setRecording(false);
+    }
+  };
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
@@ -5331,15 +5377,15 @@ function VoiceView() {
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-lg font-medium text-slate-900">Ghi âm Lâm sàng</h3>
           <span
-            className="flex w-fit items-center gap-1 rounded px-2 py-1 text-[10px] uppercase tracking-wider text-slate-900 font-geist"
+            className="flex w-fit items-center gap-1 rounded px-2 py-1 text-[10px] uppercase tracking-wider text-slate-900 font-geist transition-colors duration-300"
             style={{ backgroundColor: recording ? ACCENT : "#F1F5F9" }}
           >
             {recording && <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />}
-            {recording ? "Đang ghi" : "Tạm dừng"}
+            {recording ? "Đang ghi" : "Sẵn sàng"}
           </span>
         </div>
 
-        <div className="flex flex-col items-center justify-center py-2">
+        <div className="flex flex-col items-center justify-center py-2 relative">
           <Waveform active={recording} />
           <div
             className="mt-3 flex max-w-full items-center gap-2 rounded-full border-2 px-3 py-1.5"
@@ -5353,27 +5399,47 @@ function VoiceView() {
           <p className="mt-2 text-[11px] font-geist uppercase tracking-wider text-slate-500">
             BS. Văn Ngữ · Phòng 103
           </p>
-          <button
-            onClick={() => setRecording((r) => !r)}
-            className="mt-3 flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-slate-900 transition hover:opacity-90 sm:px-6"
-            style={{ backgroundColor: ACCENT }}
-          >
-            {recording ? <StopCircle className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-            {recording ? "Dừng ghi" : "Bắt đầu lại"}
-          </button>
+          
+          {!recording ? (
+             <button
+              onClick={startRecording}
+              disabled={isProcessing}
+              className="mt-3 flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-slate-900 transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed sm:px-6"
+              style={{ backgroundColor: ACCENT }}
+            >
+              <Play className="w-4 h-4" /> Bắt đầu thu
+            </button>
+          ) : (
+            <button
+              onClick={stopRecording}
+              className="mt-3 flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90 animate-pulse sm:px-6"
+              style={{ backgroundColor: "#ef4444" }}
+            >
+              <StopCircle className="w-4 h-4" /> Dừng & Xử lý
+            </button>
+          )}
         </div>
+        
+        {errorMsg && (
+          <div className="mt-2 bg-red-50 text-red-600 p-2 rounded-md text-xs font-medium text-center">
+            {errorMsg}
+          </div>
+        )}
 
         <div className="mt-3 border-t border-slate-200 pt-3 flex-1 overflow-auto scrollbar-hide">
           <p className="text-[10px] font-geist uppercase tracking-wider text-slate-500 mb-1">
             Phiên âm thô (raw speech)
           </p>
-          <p className="text-sm text-slate-800 italic leading-relaxed">
-            "{transcript}
-            {recording && L < TRANSCRIPT_FULL.length && (
-              <span className="inline-block w-0.5 h-4 bg-slate-800 ml-0.5 animate-pulse align-middle" />
-            )}
-            "
-          </p>
+          {isProcessing ? (
+             <div className="flex items-center text-slate-400 space-x-2 mt-4">
+               <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" />
+               <span className="text-sm">Đang gửi VNPT SmartVoice xử lý...</span>
+             </div>
+          ) : (
+             <p className="text-sm text-slate-800 italic leading-relaxed whitespace-pre-wrap">
+               {transcript || "Chưa có dữ liệu..."}
+             </p>
+          )}
         </div>
       </div>
 
@@ -5388,33 +5454,39 @@ function VoiceView() {
         <div className="space-y-3 flex-1 overflow-auto scrollbar-hide">
           <EMRField
             label="Lý do vào viện (S — Subjective)"
-            value="Đau ngực, khó thở"
-            filled={L > 60}
+            value={soapeData?.subjective}
+            filled={!!soapeData}
+            isProcessing={isProcessing}
           />
           <EMRField
             label="Khám lâm sàng (O — Objective)"
-            value="HA: 140/90 mmHg · Mạch: 95 lần/phút"
-            filled={L > 140}
+            value={soapeData?.objective}
+            filled={!!soapeData}
+            isProcessing={isProcessing}
           />
           <EMRField
             label="Chẩn đoán (A — Assessment)"
-            value="TD: Tăng huyết áp độ 2 / Đau thắt ngực"
-            filled={L > 210}
+            value={soapeData?.assessment}
+            filled={!!soapeData}
+            isProcessing={isProcessing}
           />
           <EMRField
             label="Xử trí / Y lệnh (P — Plan)"
-            value="Amlodipin 5mg · 1 viên/sáng · TD nhịp tim 48h"
-            filled={L > 280}
+            value={soapeData?.plan}
+            filled={!!soapeData}
+            isProcessing={isProcessing}
           />
           <EMRField
             label="Đánh giá lại (E — Evaluation)"
-            value="Tái khám sau 7 ngày"
-            filled={L >= TRANSCRIPT_FULL.length}
+            value={soapeData?.evaluation}
+            filled={!!soapeData}
+            isProcessing={isProcessing}
           />
         </div>
         <button
-          className="mt-4 rounded-lg py-2.5 text-sm font-bold text-slate-900 transition hover:opacity-90"
+          className="mt-4 rounded-lg py-2.5 text-sm font-bold text-slate-900 transition hover:opacity-90 disabled:opacity-50"
           style={{ backgroundColor: ACCENT }}
+          disabled={!soapeData || isProcessing}
         >
           Xác nhận và Ký số
         </button>
@@ -5458,16 +5530,22 @@ function Waveform({ active }: { active: boolean }) {
   );
 }
 
-function EMRField({ label, value, filled }: { label: string; value: string; filled: boolean }) {
+function EMRField({ label, value, filled, isProcessing }: { label: string; value?: string; filled: boolean; isProcessing?: boolean }) {
   return (
     <div
       className="border border-slate-200 rounded-lg p-3 transition-colors"
       style={filled ? { borderColor: ACCENT } : undefined}
     >
       <p className="text-[10px] font-geist uppercase tracking-wider text-slate-500">{label}</p>
-      <p className={`text-sm mt-1 ${filled ? "text-slate-900 font-medium" : "text-slate-300"}`}>
-        {filled ? value : "— đang chờ —"}
-      </p>
+      {isProcessing ? (
+        <div className="animate-pulse flex space-x-2 mt-2">
+          <div className="h-4 w-3/4 bg-slate-200 rounded"></div>
+        </div>
+      ) : (
+        <p className={`text-sm mt-1 ${filled ? "text-slate-900 font-medium whitespace-pre-wrap" : "text-slate-300"}`}>
+          {filled ? value : "— đang chờ —"}
+        </p>
+      )}
     </div>
   );
 }
