@@ -1,5 +1,8 @@
 import re
 import json
+import subprocess
+import tempfile
+import os
 from fastapi import APIRouter, Depends, UploadFile, File, Form
 from app.core.security import require_roles
 from app.services.vnpt_api import vnpt_client
@@ -15,8 +18,35 @@ async def process_voice_emr(
 ):
     audio_bytes = await audio.read()
 
-    # 1. Speech To Text qua VNPT SmartVoice
-    stt_result = await vnpt_client.call_smartvoice_stt(audio_bytes, audio.filename)
+    # Convert audio to 16kHz Mono WAV using ffmpeg
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as tmp_in:
+        tmp_in.write(audio_bytes)
+        tmp_in_path = tmp_in.name
+
+    tmp_out_path = tmp_in_path + ".wav"
+
+    try:
+        subprocess.run(
+            ["ffmpeg", "-y", "-i", tmp_in_path, "-ac", "1", "-ar", "16000", tmp_out_path],
+            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
+        with open(tmp_out_path, "rb") as f:
+            wav_bytes = f.read()
+    except Exception as e:
+        # Fallback to original bytes if ffmpeg fails
+        wav_bytes = audio_bytes
+    finally:
+        if os.path.exists(tmp_in_path):
+            os.remove(tmp_in_path)
+        if os.path.exists(tmp_out_path):
+            os.remove(tmp_out_path)
+
+    # 1. Speech To Text qua VNPT SmartVoice (Always send standard WAV)
+    stt_result = await vnpt_client.call_smartvoice_stt(
+        wav_bytes, 
+        filename="record.wav", 
+        content_type="audio/wav"
+    )
     transcript = stt_result.get("transcript", "")
 
     if not transcript:
