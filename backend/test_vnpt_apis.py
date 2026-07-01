@@ -4,7 +4,7 @@ import requests
 from dotenv import load_dotenv
 
 sys.stdout.reconfigure(encoding='utf-8')
-load_dotenv('.env')
+load_dotenv()
 
 print("=== BẮT ĐẦU KIỂM THỬ LẠI KẾT NỐI 6 API VNPT ===")
 
@@ -16,10 +16,10 @@ def safe_req(method, url, **kwargs):
     api_name = kwargs.pop("api_name", "API")
     try:
         res = requests.request(method, url, timeout=10, **kwargs)
-        if res.status_code in [200, 400, 401, 403, 404, 500]:
+        if res.status_code in [200, 201]:
             print_result(api_name, True, f"HTTP {res.status_code}: {res.text[:80]}")
         else:
-            print_result(api_name, False, f"HTTP {res.status_code}")
+            print_result(api_name, False, f"HTTP {res.status_code}: {res.text[:80]}")
     except Exception as e:
         print_result(api_name, False, str(e))
 
@@ -33,7 +33,8 @@ def test_smartreader():
     }
     # Upload 1 ảnh chuẩn
     files = {"file": ("test.jpg", b"\xff\xd8\xff\xdb\x00\x43\x00\x01" + b"\x00"*10, "image/jpeg")}
-    safe_req("POST", url, headers=headers, files=files, api_name="SmartReader(upload)")
+    data = {"title": "test.jpg", "description": "test upload"}
+    safe_req("POST", url, headers=headers, files=files, data=data, api_name="SmartReader(upload)")
 
 # 2. eKYC (IDG API)
 def test_ekyc():
@@ -44,7 +45,8 @@ def test_ekyc():
         "Token-key": os.getenv("VNPT_EKYC_TOKEN_KEY")
     }
     files = {"file": ("test.jpg", b"\xff\xd8\xff\xdb\x00\x43\x00\x01" + b"\x00"*10, "image/jpeg")}
-    safe_req("POST", url, headers=headers, files=files, api_name="eKYC(upload)")
+    data = {"title": "test.jpg", "description": "test upload"}
+    safe_req("POST", url, headers=headers, files=files, data=data, api_name="eKYC(upload)")
 
 # 3. SmartVision (IDG API)
 def test_smartvision():
@@ -55,7 +57,8 @@ def test_smartvision():
         "Token-key": os.getenv("VNPT_SMARTVISION_TOKEN_KEY")
     }
     files = {"file": ("test.jpg", b"\xff\xd8\xff\xdb\x00\x43\x00\x01" + b"\x00"*10, "image/jpeg")}
-    safe_req("POST", url, headers=headers, files=files, api_name="SmartVision(upload)")
+    data = {"title": "test.jpg", "description": "test upload"}
+    safe_req("POST", url, headers=headers, files=files, data=data, api_name="SmartVision(upload)")
 
 # 4. SmartBot
 def test_smartbot():
@@ -86,14 +89,18 @@ def test_smartvoice():
         "Token-key": os.getenv("VNPT_SMARTVOICE_TOKEN_KEY"),
         "Content-Type": "application/json"
     }
-    safe_req("POST", url, headers=headers, json={"audio": "dummy"}, api_name="SmartVoice")
+    files = {"audioFile": ("audio.wav", b"RIFF\x24\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80\x3e\x00\x00\x00\x7d\x00\x00\x02\x00\x10\x00data\x00\x00\x00\x00", "audio/wav")}
+    data = {"clientSession": "test-session"}
+    safe_req("POST", url, headers=headers, files=files, data=data, api_name="SmartVoice")
 
 # 6. VNFace
 def test_vnface():
     token = os.getenv("VNPT_VNFACE_ACCESS_TOKEN")
+    channel = os.getenv("VNPT_VNFACE_TOKEN_CHANNEL")
     url = "https://api-vnface.vnpt.vn/checkin-service/external/account/list?maxSize=2&page=1"
     headers = {
         "Authorization": f"Bearer {token}" if "Bearer" not in str(token) else token,
+        "Token-Channel": channel if channel else "",
         "Content-Type": "application/json"
     }
     safe_req("GET", url, headers=headers, api_name="VNFace")

@@ -25,6 +25,7 @@ app.include_router(patient.router, prefix="/api/patient", tags=["Patient Portal"
 app.include_router(records.router, prefix="/api/records", tags=["Medical Records OCR"])
 app.include_router(voice.router, prefix="/api/voice", tags=["Voice EMR"])
 
+
 @app.get("/")
 def read_root():
     return {"message": "Welcome to EyeCU API"}

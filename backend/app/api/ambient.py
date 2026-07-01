@@ -2,6 +2,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 router = APIRouter()
 
+
 class AmbientManager:
     def __init__(self):
         self.active_connections: list[WebSocket] = []
@@ -17,7 +18,9 @@ class AmbientManager:
         for connection in self.active_connections:
             await connection.send_json(message)
 
+
 ambient_manager = AmbientManager()
+
 
 @router.websocket("/ws/live")
 async def websocket_ambient_endpoint(websocket: WebSocket):
@@ -31,10 +34,13 @@ async def websocket_ambient_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         ambient_manager.disconnect(websocket)
 
+
 async def push_camera_alert(room_code: str, severity: str):
-    await ambient_manager.broadcast({
-        "type": "CAMERA_EVENT",
-        "severity": severity, # "critical", "urgent", "stable"
-        "room": room_code,
-        "title": "CẢNH BÁO AI CAMERA"
-    })
+    await ambient_manager.broadcast(
+        {
+            "type": "CAMERA_EVENT",
+            "severity": severity,  # "critical", "urgent", "stable"
+            "room": room_code,
+            "title": "CẢNH BÁO AI CAMERA",
+        }
+    )

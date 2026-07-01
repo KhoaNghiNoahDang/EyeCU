@@ -1,6 +1,9 @@
 import httpx
 from app.core.config import settings
 from app.services.dataset_reader import get_mock_json
+import base64
+
+VNPT_TIMEOUT = 15
 
 
 def _ekyc_headers() -> dict:
@@ -28,13 +31,31 @@ def _smartbot_headers() -> dict:
     }
 
 
+def _smartvoice_headers() -> dict:
+    return {
+        "Token-id": settings.VNPT_SMARTVOICE_TOKEN_ID,
+        "Token-key": settings.VNPT_SMARTVOICE_TOKEN_KEY,
+        "Content-Type": "application/json",
+    }
+
+
+def _smartreader_headers() -> dict:
+    return {
+        "Token-id": settings.VNPT_SMARTREADER_TOKEN_ID,
+        "Token-key": settings.VNPT_SMARTREADER_TOKEN_KEY,
+        "Content-Type": "application/json",
+    }
+
+
 class VnptAPIClient:
 
     # ── eKYC: Upload ảnh lấy hash ─────────────────────────────────
-    async def upload_file(self, file_bytes: bytes, filename: str = "image.jpg") -> str | None:
+    async def upload_file(
+        self, file_bytes: bytes, filename: str = "image.jpg"
+    ) -> str | None:
         """Bước 1: Upload ảnh lên VNPT lấy hash. Hash này dùng cho OCR/Liveness."""
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
                 resp = await client.post(
                     "https://api.idg.vnpt.vn/file-service/v1/addFile",
                     headers={
@@ -55,7 +76,7 @@ class VnptAPIClient:
         """Bóc tách thông tin từ ảnh CCCD (mặt trước + sau)."""
         payload = {"img_front": hash_string, "step_id": 0, "type": 7}
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
                 resp = await client.post(
                     "https://api.idg.vnpt.vn/ai/v1/web/ocr/id",
                     json=payload,
@@ -64,11 +85,11 @@ class VnptAPIClient:
                 data = resp.json()
                 obj = data.get("object", {})
                 return {
-                    "name":     obj.get("name", ""),
-                    "cccd":     obj.get("id", ""),
-                    "dob":      obj.get("birth_day", ""),
-                    "address":  obj.get("recent_location", ""),
-                    "raw":      data,
+                    "name": obj.get("name", ""),
+                    "cccd": obj.get("id", ""),
+                    "dob": obj.get("birth_day", ""),
+                    "address": obj.get("recent_location", ""),
+                    "raw": data,
                 }
         except Exception:
             return get_mock_json("smartreader_ocr")
@@ -77,7 +98,7 @@ class VnptAPIClient:
     async def call_card_liveness(self, img_hash: str) -> dict:
         """Kiểm tra thẻ CCCD thật hay in photocopy."""
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
                 resp = await client.post(
                     "https://api.idg.vnpt.vn/ai/v1/web/card/liveness",
                     json={"img": img_hash, "client_session": "eyecu-001"},
@@ -86,13 +107,15 @@ class VnptAPIClient:
                 data = resp.json()
                 return {
                     "liveness": data.get("object", {}).get("liveness", "fail"),
-                    "msg":      data.get("object", {}).get("liveness_msg", ""),
+                    "msg": data.get("object", {}).get("liveness_msg", ""),
                 }
         except Exception:
             return {"liveness": "success", "msg": "Người thật (fallback)"}
 
     # ── eKYC: Face Liveness 3D (đăng nhập FaceID bác sĩ) ─────────
-    async def call_face_liveness_3d(self, far_img_hash: str, near_img_hash: str) -> dict:
+    async def call_face_liveness_3d(
+        self, far_img_hash: str, near_img_hash: str
+    ) -> dict:
         """Xác thực khuôn mặt 3D cho Bác sĩ đăng nhập."""
         payload = {
             "far_img": far_img_hash,
@@ -101,7 +124,7 @@ class VnptAPIClient:
             "token": "",
         }
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
                 resp = await client.post(
                     "https://api.idg.vnpt.vn/ai/v1/web/face/liveness-3d",
                     json=payload,
@@ -113,7 +136,7 @@ class VnptAPIClient:
                 data = resp.json()
                 return {
                     "liveness": data.get("object", {}).get("liveness", "fail"),
-                    "msg":      data.get("object", {}).get("liveness_msg", ""),
+                    "msg": data.get("object", {}).get("liveness_msg", ""),
                 }
         except Exception:
             return {"liveness": "success", "msg": "FaceID OK (fallback)"}
@@ -122,7 +145,7 @@ class VnptAPIClient:
     async def call_smartvision_detect_people(self, img_url: str) -> dict:
         """Phát hiện người ngã từ Camera AI."""
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
                 resp = await client.post(
                     "https://api.idg.vnpt.vn/data-service/v1/smartvision/detect-people",
                     json={"data": img_url},
@@ -136,7 +159,7 @@ class VnptAPIClient:
     async def call_smartvision_detect_vehicle(self, img_url: str) -> dict:
         """Đọc biển số xe cấp cứu vào cổng."""
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
                 resp = await client.post(
                     "https://api.idg.vnpt.vn/data-service/v1/smartvision/detect-vehicle",
                     json={"data": img_url},
@@ -149,7 +172,9 @@ class VnptAPIClient:
             return {"plate": "51A-999.11", "raw": get_mock_json("smartvision_lpr")}
 
     # ── SmartBot: Chatbot hỗ trợ bệnh nhân ───────────────────────
-    async def call_smartbot_conversation(self, text: str, session_id: str = "patient_001") -> dict:
+    async def call_smartbot_conversation(
+        self, text: str, session_id: str = "patient_001"
+    ) -> dict:
         """Trả lời câu hỏi y tế của bệnh nhân qua SmartBot."""
         payload = {
             "bot_id": "hackathon_bot",
@@ -160,7 +185,7 @@ class VnptAPIClient:
             "metadata": {"button_variables": []},
         }
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
                 resp = await client.post(
                     "https://assistant-stream.vnpt.vn/v1/conversation",
                     json=payload,
@@ -172,6 +197,70 @@ class VnptAPIClient:
                 return {"reply": reply_text, "raw": data}
         except Exception:
             return {"reply": "Tôi đã ghi nhận. Vui lòng chờ bác sĩ xử lý.", "raw": {}}
+
+        # ── SmartVoice: Speech To Text ───────────────────────────────
+
+    async def call_smartvoice_stt(
+        self, audio_bytes: bytes, filename: str = "audio.wav"
+    ) -> dict:
+        """Chuyển file âm thanh thành văn bản."""
+        try:
+            async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
+                resp = await client.post(
+                    "https://api.idg.vnpt.vn/stt-service/v1/grpc/standard",
+                    headers=_smartvoice_headers(),
+                    files={
+                        "file": (
+                            filename,
+                            audio_bytes,
+                            "audio/wav",
+                        )
+                    },
+                )
+                data = resp.json()
+                return {
+                    "transcript": data.get("transcript", ""),
+                    "raw": data,
+                }
+        except Exception:
+            return {
+                "transcript": "",
+                "raw": {},
+            }  # ── SmartReader: OCR tài liệu
+
+        # ── SmartReader: OCR tài liệu ───────────────────────────────
+
+    async def call_smartreader_ocr(
+        self,
+        file_bytes: bytes,
+        filename: str = "document.pdf",
+    ) -> dict:
+        """Đọc văn bản từ PDF hoặc ảnh."""
+
+        try:
+            async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
+
+                resp = await client.post(
+                    "https://api.idg.vnpt.vn/file-service/v1/addFile",
+                    headers=_smartreader_headers(),
+                    files={
+                        "file": (
+                            filename,
+                            file_bytes,
+                            "application/pdf",
+                        )
+                    },
+                )
+
+                data = resp.json()
+
+                return {
+                    "text": data.get("text", ""),
+                    "raw": data,
+                }
+
+        except Exception:
+            return get_mock_json("smartreader_ocr")
 
 
 vnpt_client = VnptAPIClient()
