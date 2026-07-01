@@ -1,12 +1,14 @@
 import os
 import sys
 import requests
+import json
+import uuid
 from dotenv import load_dotenv
 
 sys.stdout.reconfigure(encoding='utf-8')
 load_dotenv(override=True)
 
-print("=== BẮT ĐẦU KIỂM THỬ LẠI KẾT NỐI 6 API VNPT ===")
+print("=== BẮT ĐẦU KIỂM THỬ KẾT NỐI 6 API VNPT ===")
 
 def print_result(api_name, success, detail):
     status = " THÀNH CÔNG" if success else " THẤT BẠI"
@@ -76,7 +78,6 @@ def test_smartbot():
     safe_req("POST", url, headers=headers, json=payload, api_name="SmartBot")
 
 def test_smartvoice():
-    import uuid
     url = "https://api.idg.vnpt.vn/stt-service/v1/grpc/standard"
     
     token = os.getenv("VNPT_SMARTVOICE_ACCESS_TOKEN")
@@ -91,11 +92,9 @@ def test_smartvoice():
         "Token-key": os.getenv("VNPT_SMARTVOICE_TOKEN_KEY"),
     }
     
-    # Upload 1 file âm thanh giả 0s chuẩn WAV
     dummy_wav = b"RIFF\x24\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80\x3e\x00\x00\x00\x7d\x00\x00\x02\x00\x10\x00data\x00\x00\x00\x00"
     files = {"audioFile": ("audio.wav", dummy_wav, "audio/wav")}
     
-    # Cần truyền clientSession (VD: uuid ngẫu nhiên) để không bị lỗi IDG-00000006
     data = {"clientSession": str(uuid.uuid4())}
     
     safe_req("POST", url, headers=headers, files=files, data=data, api_name="SmartVoice(STT)")
@@ -111,10 +110,14 @@ def test_vnface():
     }
     safe_req("GET", url, headers=headers, api_name="VNFace")
 
-test_smartreader()
-test_ekyc()
-test_smartvision()
-test_smartbot()
-test_smartvoice()
-test_vnface()
-print("===============================================")
+def main():
+    test_smartreader()
+    test_ekyc()
+    test_smartvision()
+    test_smartbot()
+    test_smartvoice()
+    test_vnface()
+    print("===============================================")
+
+if __name__ == "__main__":
+    main()
