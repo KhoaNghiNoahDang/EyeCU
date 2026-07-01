@@ -968,27 +968,46 @@ function CameraCard({
 }
 
 function CameraFeed({ cam }: { cam: Camera }) {
+  const [streamFrame, setStreamFrame] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleStream = (e: any) => {
+      // cam.room could be "101", "102", "103"
+      if (e.detail.room === cam.room || e.detail.room === `P.${cam.room}`) {
+        setStreamFrame(e.detail.image);
+      }
+    };
+    window.addEventListener("camera-stream", handleStream);
+    return () => window.removeEventListener("camera-stream", handleStream);
+  }, [cam.room]);
+
   return (
     <div className="absolute inset-0">
-      <div
-        className="absolute inset-0"
-        style={{
-          background: "linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%)",
-        }}
-      />
-      <div
-        className="absolute inset-0 opacity-20"
-        style={{
-          backgroundImage:
-            "repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 3px)",
-        }}
-      />
-      {/* Faux room geometry */}
-      <svg viewBox="0 0 200 120" className="absolute inset-0 w-full h-full opacity-30">
-        <path d="M0 80 L60 50 L140 50 L200 80 L200 120 L0 120 Z" fill="#334155" />
-        <rect x="70" y="60" width="60" height="30" fill="#475569" opacity="0.6" />
-        <line x1="0" y1="80" x2="200" y2="80" stroke="#64748B" strokeWidth="0.5" />
-      </svg>
+      {streamFrame ? (
+        <img src={streamFrame} alt="Live Stream" className="absolute inset-0 w-full h-full object-cover transition-opacity duration-150" />
+      ) : (
+        <>
+          <div
+            className="absolute inset-0"
+            style={{
+              background: "linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%)",
+            }}
+          />
+          <div
+            className="absolute inset-0 opacity-20"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 3px)",
+            }}
+          />
+          {/* Faux room geometry */}
+          <svg viewBox="0 0 200 120" className="absolute inset-0 w-full h-full opacity-30">
+            <path d="M0 80 L60 50 L140 50 L200 80 L200 120 L0 120 Z" fill="#334155" />
+            <rect x="70" y="60" width="60" height="30" fill="#475569" opacity="0.6" />
+            <line x1="0" y1="80" x2="200" y2="80" stroke="#64748B" strokeWidth="0.5" />
+          </svg>
+        </>
+      )}
       {/* Timestamp */}
       <div className="absolute bottom-7 right-2 text-[9px] font-mono text-white/50">
         {cam.room === "103" ? "14:32:07" : "14:32:0" + ((parseInt(cam.room) % 10) + 1)}
@@ -1203,6 +1222,18 @@ function PrivacyCameraFeed() {
   const [transitioning, setTransitioning] = useState(false);
   const [flashText, setFlashText] = useState(false);
   const [timestamp, setTimestamp] = useState("14:32:07");
+  const [streamFrame, setStreamFrame] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleStream = (e: any) => {
+      // Usually "103" or "P.103"
+      if (e.detail.room === "103" || e.detail.room === "P.103") {
+        setStreamFrame(e.detail.image);
+      }
+    };
+    window.addEventListener("camera-stream", handleStream);
+    return () => window.removeEventListener("camera-stream", handleStream);
+  }, []);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -1276,24 +1307,32 @@ function PrivacyCameraFeed() {
                 : `0 0 16px ${ACCENT}20`,
             }}
           >
-            {/* Scanlines */}
-            <div
-              className="absolute inset-0 pointer-events-none z-0"
-              style={{
-                backgroundImage:
-                  "repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 3px)",
-              }}
-            />
-            {/* Room bg */}
-            <div
-              className="absolute inset-0 z-0"
-              style={{ background: "radial-gradient(ellipse at center, #0d2030 0%, #060e16 100%)" }}
-            />
-            <svg viewBox="0 0 320 180" className="absolute inset-0 w-full h-full opacity-15 z-0">
-              <path d="M0 120 L80 70 L240 70 L320 120 L320 180 L0 180 Z" fill="#1e3a4a" />
-              <rect x="110" y="80" width="100" height="50" fill="#1a2f3d" rx="2" />
-              <line x1="0" y1="120" x2="320" y2="120" stroke="#334155" strokeWidth="1" />
-            </svg>
+            {/* Background elements */}
+            {!streamFrame && (
+              <>
+                <div
+                  className="absolute inset-0 pointer-events-none z-0"
+                  style={{
+                    backgroundImage:
+                      "repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 3px)",
+                  }}
+                />
+                <div
+                  className="absolute inset-0 z-0"
+                  style={{ background: "radial-gradient(ellipse at center, #0d2030 0%, #060e16 100%)" }}
+                />
+                <svg viewBox="0 0 320 180" className="absolute inset-0 w-full h-full opacity-15 z-0">
+                  <path d="M0 120 L80 70 L240 70 L320 120 L320 180 L0 180 Z" fill="#1e3a4a" />
+                  <rect x="110" y="80" width="100" height="50" fill="#1a2f3d" rx="2" />
+                  <line x1="0" y1="120" x2="320" y2="120" stroke="#334155" strokeWidth="1" />
+                </svg>
+              </>
+            )}
+            
+            {/* Live Stream Image */}
+            {streamFrame && (
+              <img src={streamFrame} alt="Live Privacy Stream" className="absolute inset-0 w-full h-full object-cover z-10 transition-opacity duration-150" />
+            )}
 
             {/* Top-left badge */}
             <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-full px-2.5 py-1">
@@ -3190,6 +3229,7 @@ function AmbulanceView() {
   const [lprPlate, setLprPlate] = useState("29A-213.07");
   const [toast, setToast] = useState("");
   const [panelMode, setPanelMode] = useState<"dept" | "vehicle">("dept");
+  const [fallAlert, setFallAlert] = useState<{ room: string; imageUrl: string; time: string } | null>(null);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -3198,23 +3238,36 @@ function AmbulanceView() {
 
   // Ket noi WebSocket de nhan cap nhat GPS va su kien cong vien theo thoi gian thuc
   const WS_URL = (import.meta.env.VITE_WS_URL ?? "ws://localhost:8000") + "/api/ambient/ws/live";
-  const handleSocketMessage = useCallback(
-    (msg: { type: string; data?: Record<string, unknown> }) => {
-      if (msg.type === "GPS_UPDATE" && msg.data) {
-        const { ambulance_id, lat, lng } = msg.data as {
-          ambulance_id: string;
-          lat: number;
-          lng: number;
-        };
-        setAmbulances((prev) => prev.map((a) => (a.id === ambulance_id ? { ...a, lat, lng } : a)));
-      }
-      if (msg.type === "GATE_ARRIVED" && msg.data) {
-        const { plate } = msg.data as { plate: string };
-        showToast(`Xe ${plate} da den cong - Barrier tu dong mo`);
-      }
-    },
-    [showToast],
-  );
+  const handleSocketMessage = useCallback((msg: { type: string; data?: Record<string, unknown>; room_id?: string; blurred_image_base64?: string }) => {
+    if (msg.type === "GPS_UPDATE" && msg.data) {
+      const { ambulance_id, lat, lng } = msg.data as { ambulance_id: string; lat: number; lng: number };
+      setAmbulances(prev =>
+        prev.map(a => a.id === ambulance_id ? { ...a, lat, lng } : a)
+      );
+    }
+    if (msg.type === "GATE_ARRIVED" && msg.data) {
+      const { plate } = msg.data as { plate: string };
+      showToast(`Xe ${plate} da den cong - Barrier tu dong mo`);
+    }
+    if (msg.type === "CAMERA_STREAM") {
+      window.dispatchEvent(
+        new CustomEvent("camera-stream", {
+          detail: { room: msg.room_id, image: (msg as any).image_base64 },
+        })
+      );
+    }
+    if (msg.type === "FALL_DETECTED") {
+      setFallAlert({
+        room: msg.room_id || "Unknown",
+        imageUrl: msg.blurred_image_base64 || "",
+        time: new Date().toLocaleTimeString(),
+      });
+      // Play alert sound if possible
+      try {
+        new Audio("/alert.mp3").play().catch(() => {});
+      } catch (e) {}
+    }
+  }, [showToast]);
 
   useEyeCUSocket({ url: WS_URL, onMessage: handleSocketMessage });
 
@@ -3256,6 +3309,22 @@ function AmbulanceView() {
         <div className="fixed top-6 right-6 z-[999] bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-fade-in">
           <CheckCircle2 className="w-5 h-5 text-emerald-400" />
           <span className="text-sm font-medium">{toast}</span>
+        </div>
+      )}
+
+      {fallAlert && (
+        <div className="fixed top-20 right-6 z-[999] bg-red-950 text-white p-5 rounded-2xl shadow-2xl flex flex-col gap-3 animate-fade-in border border-red-500 max-w-sm">
+          <div className="flex items-center justify-between">
+             <div className="flex items-center gap-2">
+                <AlertTriangle className="w-6 h-6 text-red-500 animate-pulse" />
+                <h3 className="font-bold text-red-400">PHÁT HIỆN TÉ NGÃ</h3>
+             </div>
+             <button onClick={() => setFallAlert(null)} className="text-gray-400 hover:text-white">✕</button>
+          </div>
+          <p className="text-sm">Camera AI phát hiện sự cố ngã tại phòng <span className="font-bold text-red-300">{fallAlert.room}</span> lúc {fallAlert.time}</p>
+          {fallAlert.imageUrl && (
+            <img src={fallAlert.imageUrl} alt="Blurred Body" className="w-full rounded border border-red-900 mt-2" />
+          )}
         </div>
       )}
 

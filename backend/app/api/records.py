@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.db.models import User, MedicalRecord
+from app.db.models import User, ClinicalRecord
 from app.core.security import require_roles
 from app.services.dataset_reader import get_mock_json
 from app.services.vnpt_api import vnpt_client
@@ -13,12 +13,12 @@ router = APIRouter()
 def get_patient_info(patient_id: str, db: Session = Depends(get_db)):
     patient = db.query(User).filter(User.id == patient_id).first()
     records = (
-        db.query(MedicalRecord).filter(MedicalRecord.patient_id == patient_id).all()
+        db.query(ClinicalRecord).filter(ClinicalRecord.patient_id == patient_id).all()
     )
 
     return {
         "demographics": {"name": patient.name, "cccd": patient.cccd} if patient else {},
-        "history": [{"date": r.created_at, "soape": r.soape_note} for r in records],
+        "history": [{"date": r.created_at, "notes": r.notes} for r in records],
     }
 
 

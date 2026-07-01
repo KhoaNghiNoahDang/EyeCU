@@ -92,12 +92,26 @@ ambient_manager = AmbientManager()
 >>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5
 
 @router.websocket("/ws/live")
-async def websocket_ambient_endpoint(websocket: WebSocket):
+async def websocket_ambient_endpoint(
+    websocket: WebSocket, db: Session = Depends(get_db)
+):
     await ambient_manager.connect(websocket)
     try:
         while True:
             # Cho nhan event tu AI worker hoac PWA
             data = await websocket.receive_json()
+
+            # Them logic luu DB neu la FALL_DETECTED
+            if data.get("type") == "FALL_DETECTED":
+                incident = Incident(
+                    room_code=data.get("room_id", "Unknown"),
+                    severity=data.get("severity", "critical"),
+                    description=data.get("description", "AI Camera: Phat hien te nga"),
+                    status="pending",
+                )
+                db.add(incident)
+                db.commit()
+
             # Broadcast lai cho cac dashboard
             await ambient_manager.broadcast(data)
     except WebSocketDisconnect:
