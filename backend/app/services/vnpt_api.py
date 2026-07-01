@@ -204,28 +204,38 @@ class VnptAPIClient:
         self, audio_bytes: bytes, filename: str = "audio.wav"
     ) -> dict:
         """Chuyển file âm thanh thành văn bản."""
+        import uuid
         try:
-            async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
+            async with httpx.AsyncClient(timeout=60.0) as client:
                 resp = await client.post(
                     "https://api.idg.vnpt.vn/stt-service/v1/grpc/standard",
                     headers=_smartvoice_headers(),
-                    files={
-                        "file": (
-                            filename,
-                            audio_bytes,
-                            "audio/wav",
-                        )
-                    },
+                    files={"audioFile": (filename, audio_bytes, "audio/wav")},
+                    data={"clientSession": str(uuid.uuid4())}
                 )
                 data = resp.json()
+                
+                # Bóc tách transcript từ STT
+                results = data.get("object", {}).get("results", [])
+                transcript = ""
+                for res in results:
+                    # Tùy theo cấu trúc trả về thực tế của VNPT, 
+                    # thường là 'transcript' hoặc 'text' hoặc 'sentence'
+                    if "transcript" in res:
+                        transcript += str(res.get("transcript", "")) + " "
+                    elif "text" in res:
+                        transcript += str(res.get("text", "")) + " "
+                    elif "sentence" in res:
+                        transcript += str(res.get("sentence", "")) + " "
+                        
                 return {
-                    "transcript": data.get("transcript", ""),
+                    "transcript": transcript.strip(),
                     "raw": data,
                 }
-        except Exception:
+        except Exception as e:
             return {
                 "transcript": "",
-                "raw": {},
+                "raw": {"error": str(e)},
             }  # ── SmartReader: OCR tài liệu
 
         # ── SmartReader: OCR tài liệu ───────────────────────────────
