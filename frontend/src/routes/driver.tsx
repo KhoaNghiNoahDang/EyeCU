@@ -176,7 +176,7 @@ function DriverPage() {
             <RadioTower className="w-5 h-5" style={{ color: "#22d3ee" }} />
           </div>
           <div>
-            <p className="font-black text-white text-base tracking-tight">EyeCU · Tài Xế</p>
+            <p className="font-black text-white text-base tracking-tight">EyeCU · Xe Cấp cứu</p>
             <p className="text-xs" style={{ color: "rgba(148,163,184,0.8)" }}>Hệ thống định vị xe cấp cứu</p>
           </div>
         </div>
