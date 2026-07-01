@@ -170,7 +170,8 @@ export function useEyeCUSocket({
       if (fallback) {
         console.warn("[EyeCU WS] Socket chet, chuyen sang HTTP Fallback:", fallback.endpoint);
         try {
-          const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+          const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
+          const API_URL = import.meta.env.VITE_API_URL ?? `http://${host}:8000`;
           const res = await fetch(`${API_URL}${fallback.endpoint}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },

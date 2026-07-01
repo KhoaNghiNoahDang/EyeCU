@@ -3247,7 +3247,8 @@ function AmbulanceView() {
   };
 
   // Ket noi WebSocket de nhan cap nhat GPS va su kien cong vien theo thoi gian thuc
-  const WS_URL = (import.meta.env.VITE_WS_URL ?? "ws://localhost:8000") + "/api/ambient/ws/live";
+  const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
+  const WS_URL = (import.meta.env.VITE_WS_URL ?? `ws://${host}:8000`) + "/api/ambient/ws/live";
   const handleSocketMessage = useCallback((msg: { type: string; data?: Record<string, unknown>; room_id?: string; blurred_image_base64?: string }) => {
     if (msg.type === "GPS_UPDATE" && msg.data) {
       const { ambulance_id, lat, lng } = msg.data as {
