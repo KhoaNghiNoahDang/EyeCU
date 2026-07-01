@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, type WorkMode } from "../lib/auth/auth-context";
 import { useEyeCUSocket } from "../hooks/useEyeCUSocket";
 import { DEMO_PATIENT_CLINICAL, formatRecordDate, formatVnd } from "../lib/patient/clinical-data";
+import { gpsToSvg } from "./driver";
 import {
   Activity,
   Plus,
@@ -2653,7 +2654,10 @@ function AmbulanceMap({
               key={amb.id}
               transform={`translate(${amb.mapX},${amb.mapY})`}
               onClick={() => onSelect(amb.id)}
-              style={{ cursor: "pointer" }}
+              style={{
+                cursor: "pointer",
+                transition: "transform 0.8s cubic-bezier(0.4,0,0.2,1)",
+              }}
             >
               {amb.status === "critical" && (
                 <circle r="22" fill="none" stroke="#EF4444" strokeOpacity="0.45">
@@ -3240,9 +3244,17 @@ function AmbulanceView() {
   const WS_URL = (import.meta.env.VITE_WS_URL ?? "ws://localhost:8000") + "/api/ambient/ws/live";
   const handleSocketMessage = useCallback((msg: { type: string; data?: Record<string, unknown>; room_id?: string; blurred_image_base64?: string }) => {
     if (msg.type === "GPS_UPDATE" && msg.data) {
-      const { ambulance_id, lat, lng } = msg.data as { ambulance_id: string; lat: number; lng: number };
+      const { ambulance_id, lat, lng, mapX, mapY } = msg.data as {
+        ambulance_id: string; lat: number; lng: number;
+        mapX?: number; mapY?: number;
+      };
+      // Uu tien dung mapX/mapY da duoc tinh san tu trang /driver.
+      // Neu khong co (GUI simulator gui len), tu tinh lai bang gpsToSvg.
+      const coords = (mapX !== undefined && mapY !== undefined)
+        ? { mapX, mapY }
+        : gpsToSvg(lat, lng);
       setAmbulances(prev =>
-        prev.map(a => a.id === ambulance_id ? { ...a, lat, lng } : a)
+        prev.map(a => a.id === ambulance_id ? { ...a, ...coords } : a)
       );
     }
     if (msg.type === "GATE_ARRIVED" && msg.data) {
