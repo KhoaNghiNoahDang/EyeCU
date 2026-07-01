@@ -6534,8 +6534,14 @@ function EmsView() {
         },
         (err) => {
           console.error("Lỗi GPS:", err);
-          alert("Lỗi GPS: Vui lòng cho phép quyền truy cập vị trí trên trình duyệt (Nếu test bằng điện thoại, phải dùng HTTPs hoặc Localhost IP).");
-          setIsBroadcasting(false);
+          if (err.code === 1) {
+            alert("Lỗi GPS: Bạn đã từ chối hoặc trình duyệt không có quyền truy cập vị trí.");
+            setIsBroadcasting(false);
+          } else if (err.code === 2) {
+            console.warn("GPS: Tạm thời không tìm thấy vị trí.");
+          } else if (err.code === 3) {
+            console.warn("GPS: Quá thời gian lấy vị trí (Timeout), đang thử lại...");
+          }
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 }
       );
@@ -6607,40 +6613,6 @@ function EmsView() {
   const mapCenterLat = gpsState?.lat ?? 21.0011;
   const mapCenterLng = gpsState?.lng ?? 105.8418;
 
-  const toggleGpsBroadcast = () => {
-    if (isBroadcasting) {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
-      setIsBroadcasting(false);
-      realStartRef.current = null; // Reset
-    } else {
-      if (!navigator.geolocation) {
-        alert("Trình duyệt không hỗ trợ định vị GPS.");
-        return;
-      }
-      setIsBroadcasting(true);
-      
-      watchIdRef.current = navigator.geolocation.watchPosition(
-        (pos) => {
-          const { latitude, longitude } = pos.coords;
-          
-          setGpsState({ lat: latitude, lng: longitude });
-          send({
-            type: "GPS_UPDATE",
-            data: { ambulance_id: "current", lat: latitude, lng: longitude },
-          });
-        },
-        (err) => {
-          console.error("Lỗi GPS:", err);
-          alert("Lỗi GPS: Vui lòng cho phép quyền truy cập vị trí trên trình duyệt (Nếu test bằng điện thoại, phải dùng HTTPs hoặc Localhost IP).");
-          setIsBroadcasting(false);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 }
-      );
-    }
-  };
 
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
