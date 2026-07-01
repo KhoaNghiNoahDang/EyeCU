@@ -444,10 +444,10 @@ function RegisterPage() {
                           method: "POST",
                           body: { far_image_base64: faceUrl, near_image_base64: faceUrl },
                         });
-                        if (res.status === "success" && res.data?.liveness !== "fail") {
+                        if (res.status === "success") {
                           handleFaceMatchConfirm();
                         } else {
-                          setFormError("Xác thực khuôn mặt thất bại hoặc ảnh không đạt.");
+                          setFormError(res.message || "Xác thực khuôn mặt thất bại.");
                           setFaceUrl(null);
                         }
                       } catch (e) {
@@ -463,7 +463,7 @@ function RegisterPage() {
                   className="w-full rounded-xl py-2.5 text-sm font-bold text-slate-900 disabled:opacity-50"
                   style={{ backgroundColor: ACCENT }}
                 >
-                  {extracting ? "Đang xác thực 3D Liveness..." : "Tiếp tục · Tạo tài khoản"}
+                  {extracting ? "Đang xác thực Liveness..." : "Tiếp tục · Tạo tài khoản"}
                 </button>
                 <button
                   type="button"

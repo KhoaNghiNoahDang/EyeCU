@@ -70,12 +70,27 @@ export function FaceIdCapture({ onCapture, capturedUrl }: FaceIdCaptureProps) {
     const video = videoRef.current;
     if (!video || !ready) return;
     const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    
+    // Scale down to max 640px to prevent 413 Payload Too Large on mobile
+    const MAX_DIM = 640;
+    let width = video.videoWidth;
+    let height = video.videoHeight;
+    if (width > MAX_DIM || height > MAX_DIM) {
+      if (width > height) {
+        height = Math.floor(height * (MAX_DIM / width));
+        width = MAX_DIM;
+      } else {
+        width = Math.floor(width * (MAX_DIM / height));
+        height = MAX_DIM;
+      }
+    }
+    
+    canvas.width = width;
+    canvas.height = height;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.drawImage(video, 0, 0);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+    ctx.drawImage(video, 0, 0, width, height);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.7); // compress more
     stopCamera();
     onCapture(dataUrl);
   };
