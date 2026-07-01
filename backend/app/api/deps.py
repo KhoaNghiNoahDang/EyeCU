@@ -1,62 +1,45 @@
-from datetime import datetime, timedelta
-from typing import Any, Union, List
+# File: app/api/deps.py
+#
+# Đây là file "Bảo vệ đứng cửa" của toàn bộ hệ thống.
+# Mọi API cần xác thực hoặc phân quyền đều import từ đây.
+#
+# Có 2 loại "Bảo vệ":
+#   1. get_current_user      → Trả về User object (query DB) — dùng khi cần thông tin chi tiết
+#   2. get_current_token_data → Trả về TokenData (KHÔNG query DB) — nhanh, dùng để kiểm tra quyền
+#
+# Cách dùng phân quyền:
+#   - require_roles(["doctor", "admin"]) → Cú pháp ngắn, dependencies=[...]
+#   - RoleChecker(["doctor"])            → Cú pháp class, dùng khi cần lấy user_id trong hàm
 
-from jose import jwt, JWTError
+from typing import List
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
+from jose import JWTError, jwt
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.database import get_db
 from app.db.models import User
 
 # ─────────────────────────────────────────────
-# OAuth2 scheme — FastAPI tự đọc "Bearer <token>" từ Header
+# FastAPI tự đọc "Bearer <token>" từ Header của mỗi Request
 # ─────────────────────────────────────────────
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
 
 # ─────────────────────────────────────────────
-# Schema dữ liệu nằm bên trong JWT Token
+# Schema: Dữ liệu được giải mã ra từ JWT Token
 # ─────────────────────────────────────────────
 class TokenData(BaseModel):
-    user_id: str
-    role: str
+    user_id: str  # "sub" trong JWT — là UUID của User trong DB
+    role: str     # "role" trong JWT — ví dụ: "patient", "doctor", "admin"
 
 
 # ─────────────────────────────────────────────
-# Tạo JWT Token — GẮN ROLE VÀO PAYLOAD
-# ─────────────────────────────────────────────
-def create_access_token(
-    subject: Union[str, Any], role: str, expires_delta: timedelta = None
-) -> str:
-    """
-    Tạo JWT Token chứa user_id (sub) và role.
-    Token này được Frontend lưu và gửi lên mỗi request.
-    """
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(
-            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
-        )
-
-    to_encode = {
-        "exp": expire,
-        "sub": str(subject),  # ID người dùng (UUID từ DB)
-        "role": role,          # QUAN TRỌNG: Quyền gắn vào Token (patient, doctor, admin...)
-    }
-
-    encoded_jwt = jwt.encode(
-        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
-    )
-    return encoded_jwt
-
-
-# ─────────────────────────────────────────────
-# Hàm 1: Giải mã Token → trả về TokenData (KHÔNG query DB)
-# Dùng khi chỉ cần kiểm tra quyền nhanh
+# HÀM NỀN 1: Giải mã Token → TokenData (KHÔNG query DB)
+# Dùng nội bộ bởi require_roles() và RoleChecker
 # ─────────────────────────────────────────────
 async def get_current_token_data(
     token: str = Depends(oauth2_scheme),
@@ -64,6 +47,7 @@ async def get_current_token_data(
     """
     Giải mã JWT và trả về TokenData (user_id + role).
     Không truy vấn database — nhanh và nhẹ.
+    Phù hợp cho kiểm tra quyền thuần túy.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -84,15 +68,16 @@ async def get_current_token_data(
 
 
 # ─────────────────────────────────────────────
-# Hàm 2: Giải mã Token → trả về User object từ DB
-# Dùng khi cần thông tin đầy đủ của người dùng
+# HÀM NỀN 2: Giải mã Token → User object đầy đủ (CÓ query DB)
+# Dùng khi API cần thông tin chi tiết như user.name, user.phone...
 # ─────────────────────────────────────────────
 def get_current_user(
-    db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme),
 ) -> User:
     """
     Giải mã JWT và truy vấn DB để lấy User object đầy đủ.
-    Dùng khi API cần truy cập thông tin chi tiết của người dùng.
+    Dùng khi handler cần truy cập các trường thông tin của người dùng.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -116,18 +101,25 @@ def get_current_user(
 
 
 # ─────────────────────────────────────────────
-# PHÂN QUYỀN RBAC — Cách 1: Hàm require_roles()
-# Cú pháp: dependencies=[Depends(require_roles(["doctor", "admin"]))]
+# PHÂN QUYỀN — Cách 1: Hàm require_roles()
+#
+# Cú pháp dùng:
+#   @router.get("/endpoint", dependencies=[Depends(require_roles(["doctor"]))])
+#
+# Ưu điểm: Ngắn gọn, không cần thêm tham số vào hàm handler
 # ─────────────────────────────────────────────
 def require_roles(allowed_roles: List[str]):
     """
     Dependency kiểm tra role từ JWT (không cần query DB).
-    Dùng cho hầu hết các API thông thường.
 
     Ví dụ:
-        @router.get("/report", dependencies=[Depends(require_roles(["doctor", "admin"]))])
+        @router.get("/map", dependencies=[Depends(require_roles(["doctor", "nurse", "admin"]))])
+        async def view_ambulance_map():
+            return {"msg": "Bản đồ xe cứu thương"}
     """
-    async def role_checker(token_data: TokenData = Depends(get_current_token_data)):
+    async def role_checker(
+        token_data: TokenData = Depends(get_current_token_data),
+    ):
         if token_data.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -139,21 +131,25 @@ def require_roles(allowed_roles: List[str]):
 
 
 # ─────────────────────────────────────────────
-# PHÂN QUYỀN RBAC — Cách 2: Class RoleChecker
-# Cú pháp: Depends(RoleChecker(["doctor"]))
-# Dùng khi muốn lấy current_user trong hàm xử lý
+# PHÂN QUYỀN — Cách 2: Class RoleChecker
+#
+# Cú pháp dùng:
+#   allow_doctor = RoleChecker(["doctor", "admin"])
+#   async def handler(current_user: TokenData = Depends(allow_doctor)):
+#
+# Ưu điểm: Lấy được thông tin user_id và role bên trong hàm handler
 # ─────────────────────────────────────────────
 class RoleChecker:
     """
     Class-based dependency cho RBAC.
-    Dùng khi cần truy cập thông tin token_data bên trong hàm xử lý.
+    Dùng khi handler cần truy cập user_id hoặc role của người đang gọi API.
 
     Ví dụ:
         allow_doctor = RoleChecker(["doctor", "admin"])
 
         @router.post("/prescribe")
-        async def prescribe(current_user: TokenData = Depends(allow_doctor)):
-            return {"msg": f"Bác sĩ {current_user.user_id} đã kê đơn"}
+        async def prescribe_medicine(current_user: TokenData = Depends(allow_doctor)):
+            return {"msg": f"Bác sĩ {current_user.user_id} đã kê đơn thành công"}
     """
 
     def __init__(self, allowed_roles: List[str]):
@@ -168,3 +164,26 @@ class RoleChecker:
                 detail=f"Cấm truy cập. API này chỉ dành cho: {', '.join(self.allowed_roles)}",
             )
         return token_data
+
+
+# ─────────────────────────────────────────────
+# CÁC ROLE CHECKER ĐỊNH SẴN (dùng ngay không cần khởi tạo lại)
+#
+# Import và dùng trực tiếp:
+#   from app.api.deps import allow_patient, allow_medical_staff, allow_admin
+# ─────────────────────────────────────────────
+
+# Ai cũng vào được (đã đăng nhập)
+allow_all_roles = RoleChecker(["patient", "doctor", "nurse", "ems", "ops", "admin"])
+
+# Nhân viên y tế (không bao gồm bệnh nhân)
+allow_medical_staff = RoleChecker(["doctor", "nurse", "ems", "ops", "admin"])
+
+# Chỉ bệnh nhân
+allow_patient = RoleChecker(["patient"])
+
+# Chỉ bác sĩ và admin (kê đơn, chẩn đoán)
+allow_doctor = RoleChecker(["doctor", "admin"])
+
+# Quyền cao nhất
+allow_admin = RoleChecker(["admin"])

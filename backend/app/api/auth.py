@@ -32,7 +32,7 @@ def login(
     user.is_online = True
     db.commit()
 
-    access_token = create_access_token(subject=user.id)
+    access_token = create_access_token(subject=user.id, role=user.role)
     return {"access_token": access_token, "token_type": "bearer", "role": user.role}
 
 
@@ -48,7 +48,7 @@ def login_ekyc(data: EkycLogin, db: Session = Depends(get_db)):
 
     user.is_online = True
     db.commit()
-    access_token = create_access_token(subject=user.id)
+    access_token = create_access_token(subject=user.id, role=user.role)
     return {
         "access_token": access_token,
         "token_type": "bearer",
