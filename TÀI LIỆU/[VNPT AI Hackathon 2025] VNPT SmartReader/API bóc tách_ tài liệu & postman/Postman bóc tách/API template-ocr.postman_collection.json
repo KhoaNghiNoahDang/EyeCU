@@ -1,0 +1,75 @@
+{
+	"info": {
+		"_postman_id": "83d14c2b-3ec5-4de8-b547-6ac9dfc4482a",
+		"name": "template/ocr",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "21139148"
+	},
+	"item": [
+		{
+			"name": "template/ocr Copy 2",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": ""
+					},
+					{
+						"key": "Token-id",
+						"value": ""
+					},
+					{
+						"key": "Token-key",
+						"value": ""
+					},
+					{
+						"key": "mac-address",
+						"value": "mac-address"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"token\": \"8928skjhfa89298jahga1771vbvb\",\r\n    \"client_session\": \"00-14-22-01-23-45-1548211589291\",\r\n    \"file_type\": \"pdf\",\r\n    \"file_hash\": \"{{hash_1}}\",\r\n    \"template_id\": \"3397142F9A5378F1E0630B1EA50A60D3\"\r\n   // \"details\": true\r\n}"
+				},
+				"url": {
+					"raw": "https://api.idg.vnpt.vn/rpa-service/aidigdoc/template/ocr",
+					"protocol": "https",
+					"host": [
+						"api",
+						"idg",
+						"vnpt",
+						"vn"
+					],
+					"path": [
+						"rpa-service",
+						"aidigdoc",
+						"template",
+						"ocr"
+					]
+				},
+				"description": "OCR trên dev\r\n- Tốc độ chậm hơn nhiều so với trên production."
+			},
+			"response": []
+		}
+	]
+}

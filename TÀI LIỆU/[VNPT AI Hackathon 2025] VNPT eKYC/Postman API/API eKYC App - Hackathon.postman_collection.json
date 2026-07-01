@@ -1,0 +1,1051 @@
+{
+	"info": {
+		"_postman_id": "452c1dea-2c16-42f0-b5f5-fb6e7fc2696d",
+		"name": "Bộ API eKYC tổng hợp App - Hackathon",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "39505061"
+	},
+	"item": [
+		{
+			"name": "API lấy access token bảo mật dựa vào tài khoản",
+			"item": [
+				{
+					"name": "API lấy access token",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"\",\n    \"password\": \"\",\n    \"client_id\": \"clientapp\",\n    \"grant_type\": \"password\",\n    \"client_secret\": \"password\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.idg.vnpt.vn/auth/oauth/token",
+							"protocol": "https",
+							"host": [
+								"api",
+								"idg",
+								"vnpt",
+								"vn"
+							],
+							"path": [
+								"auth",
+								"oauth",
+								"token"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Các API eKYC",
+			"item": [
+				{
+					"name": "[Hash1] CMT_front",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"",
+									"pm.globals.set(\"hash1\", jsonData.hash);",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "{{authen}}",
+								"type": "text"
+							},
+							{
+								"key": "Token-id",
+								"value": "{{token_id}}",
+								"type": "text"
+							},
+							{
+								"key": "Token-key",
+								"value": "{{token_key}}",
+								"type": "text"
+							},
+							{
+								"key": "mac-address",
+								"value": "HUY_TEST-001",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "title",
+									"value": "ocr front",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "ocr front old type ",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "https://api.idg.vnpt.vn/file-service/addFile",
+							"protocol": "https",
+							"host": [
+								"api",
+								"idg",
+								"vnpt",
+								"vn"
+							],
+							"path": [
+								"file-service",
+								"addFile"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "[Hash2] CMT_back",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"",
+									"pm.globals.set(\"hash2\", jsonData.hash);",
+									"",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "{{authen}}",
+								"type": "text"
+							},
+							{
+								"key": "Token-id",
+								"value": "{{token_id}}",
+								"type": "text"
+							},
+							{
+								"key": "Token-key",
+								"value": "{{token_key}}",
+								"type": "text"
+							},
+							{
+								"key": "mac-address",
+								"value": "HUY_TEST-001",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "title",
+									"value": "ocr back",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "ocr back old type ",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "https://api.idg.vnpt.vn/file-service/addFile",
+							"protocol": "https",
+							"host": [
+								"api",
+								"idg",
+								"vnpt",
+								"vn"
+							],
+							"path": [
+								"file-service",
+								"addFile"
+							]
+						},
+						"description": "Dùng để upload ảnh lên Server media và trả về chuỗi hash duy nhất của ảnh.\nChuỗi hash này là đầu vào cho các API OCR, type, compare"
+					},
+					"response": []
+				},
+				{
+					"name": "[Hash3] face",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.globals.set(\"hash3\", jsonData.hash);",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "mac-address",
+								"value": "WEB-001",
+								"type": "text"
+							},
+							{
+								"key": "Token-key",
+								"value": "{{token_key}}",
+								"type": "text"
+							},
+							{
+								"key": "Token-id",
+								"value": "{{token_id}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "{{authen}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "title",
+									"value": "face",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "face old type",
+									"type": "text"
+								},
+								{
+									"key": "type",
+									"value": "minio",
+									"type": "text",
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "https://api.idg.vnpt.vn/file-service/addFile",
+							"protocol": "https",
+							"host": [
+								"api",
+								"idg",
+								"vnpt",
+								"vn"
+							],
+							"path": [
+								"file-service",
+								"addFile"
+							]
+						},
+						"description": "Dùng để upload ảnh lên Server media và trả về chuỗi hash duy nhất của ảnh.\nChuỗi hash này là đầu vào cho các API OCR, type, compare"
+					},
+					"response": []
+				},
+				{
+					"name": "[Hash4] face near",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.globals.set(\"hash4\", jsonData.hash);",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "mac-address",
+								"value": "WEB-001",
+								"type": "text"
+							},
+							{
+								"key": "Token-key",
+								"value": "{{token_key}}",
+								"type": "text"
+							},
+							{
+								"key": "Token-id",
+								"value": "{{token_id}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "{{authen}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "title",
+									"value": "face",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "face old type",
+									"type": "text"
+								},
+								{
+									"key": "type",
+									"value": "minio",
+									"type": "text",
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "https://api.idg.vnpt.vn/file-service/addFile",
+							"protocol": "https",
+							"host": [
+								"api",
+								"idg",
+								"vnpt",
+								"vn"
+							],
+							"path": [
+								"file-service",
+								"addFile"
+							]
+						},
+						"description": "Dùng để upload ảnh lên Server media và trả về chuỗi hash duy nhất của ảnh.\nChuỗi hash này là đầu vào cho các API OCR, type, compare"
+					},
+					"response": []
+				},
+				{
+					"name": "[Hash5] face far",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.globals.set(\"hash5\", jsonData.hash);",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Token-id",
+								"value": "{{token_id}}",
+								"type": "text"
+							},
+							{
+								"key": "Token-key",
+								"value": "{{token_key}}",
+								"type": "text"
+							},
+							{
+								"key": "mac-address",
+								"value": "WEB-001",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "{{authen}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "title",
+									"value": "face",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "face old type",
+									"type": "text"
+								},
+								{
+									"key": "type",
+									"value": "minio",
+									"type": "text",
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "https://api.idg.vnpt.vn/file-service/addFile",
+							"protocol": "https",
+							"host": [
+								"api",
+								"idg",
+								"vnpt",
+								"vn"
+							],
+							"path": [
+								"file-service",
+								"addFile"
+							]
+						},
+						"description": "Dùng để upload ảnh lên Server media và trả về chuỗi hash duy nhất của ảnh.\nChuỗi hash này là đầu vào cho các API OCR, type, compare"
+					},
+					"response": []
+				},
+				{
+					"name": "6. Ocr App",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"//{\r",
+									" //   \"img_front\": \"{{hash1}}\",\r",
+									"   // \"img_back\": \"{{hash2}}\",\r",
+									"    //\"crop_param\": \"0.18,0.42\",\r",
+									"    //\"validate_postcode\": false,\r",
+									"    //\"client_session\": \"ANDROID_SM-A730F_28_Device_2.5.7.6_38136960e0ff642c_1651392124121\",\r",
+									"    //\"token\": \"\"\r",
+									"//}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"packages": {},
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{authen}}",
+								"type": "text"
+							},
+							{
+								"key": "Token-id",
+								"value": "{{token_id}}",
+								"type": "text"
+							},
+							{
+								"key": "Token-key",
+								"value": "{{token_key}}",
+								"type": "text"
+							},
+							{
+								"key": "mac-address",
+								"value": "HUY_TEST-001",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Access-Control-Allow-Credentials",
+								"value": "true",
+								"type": "text"
+							},
+							{
+								"key": "Access-Control-Allow-Origin",
+								"value": "https://thanhtung.com",
+								"type": "text"
+							},
+							{
+								"key": "Access-Control-Expose-Headers",
+								"value": "*",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"img_front\": \"{{hash1}}\",\r\n    \"step_id\": 0,\r\n    \"validate_postcode\": true,\r\n    \"crop_param\": \"0.22,0.1\",\r\n    \"img_back\": \"{{hash2}}\",\r\n    \"client_session\": \"IOS_iPhoneXSMax_ios16.6_Device_6.8.0_A0685D4F-16B0-447A-8318-D0F3962A1F2F_1692110951_com.vetc.customer\",\r\n    \"token\": \"\"\r\n}"
+						},
+						"url": {
+							"raw": "https://api.idg.vnpt.vn/ai/v1/ocr/id",
+							"protocol": "https",
+							"host": [
+								"api",
+								"idg",
+								"vnpt",
+								"vn"
+							],
+							"path": [
+								"ai",
+								"v1",
+								"ocr",
+								"id"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "1. Liveness card",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"The status is OK\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.object.liveness_msg).to.eql(\"Người thật\");",
+									"    pm.expect(jsonData.object.liveness).to.eql(\"success\");",
+									"",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "mac-address",
+								"value": "HUY_TEST-001",
+								"type": "text"
+							},
+							{
+								"key": "Token-key",
+								"value": "{{token_key}}",
+								"type": "text"
+							},
+							{
+								"key": "Token-id",
+								"value": "{{token_id}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "{{authen}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{   \r\n    \"token\": \"\", \r\n\t\"client_session\": \"85f3aa22-0259-40e9-8e3c-d6cf081fc00e-1562904153896\",\r\n\"crop_param\": \"0,0\",\r\n    \"img\": \"{{hash2}}\"\r\n}"
+						},
+						"url": {
+							"raw": "https://api.idg.vnpt.vn/ai/v1/card/liveness",
+							"protocol": "https",
+							"host": [
+								"api",
+								"idg",
+								"vnpt",
+								"vn"
+							],
+							"path": [
+								"ai",
+								"v1",
+								"card",
+								"liveness"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "2. Liveness face",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"The status is OK\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.object.liveness_msg).to.eql(\"Người thật\");",
+									"    pm.expect(jsonData.object.liveness).to.eql(\"success\");",
+									"",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{authen}}",
+								"type": "text"
+							},
+							{
+								"key": "Token-id",
+								"value": "{{token_id}}",
+								"type": "text"
+							},
+							{
+								"key": "Token-key",
+								"value": "{{token_key}}",
+								"type": "text"
+							},
+							{
+								"key": "mac-address",
+								"value": "HUY_TEST-001",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"img\": \"{{hash3}}\",\r\n   \"token\": \"\",\r\n    \"client_session\": \"85f3aa22-0259-40e9-8e3c-d6cf081fc00e-1562904153896\"\r\n}"
+						},
+						"url": {
+							"raw": "https://api.idg.vnpt.vn/ai/v1/face/liveness",
+							"protocol": "https",
+							"host": [
+								"api",
+								"idg",
+								"vnpt",
+								"vn"
+							],
+							"path": [
+								"ai",
+								"v1",
+								"face",
+								"liveness"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "3. Liveness face 3D",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"The status is OK\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.object.liveness_msg).to.eql(\"Người thật\");",
+									"    pm.expect(jsonData.object.liveness).to.eql(\"success\");",
+									"",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "mac-address",
+								"value": "HUY_TEST-001",
+								"type": "text"
+							},
+							{
+								"key": "Token-key",
+								"value": "{{token_key}}",
+								"type": "text"
+							},
+							{
+								"key": "Token-id",
+								"value": "{{token_id}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "{{authen}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"scan3d\": \"idg20230324-f766d152-33dd-5955-e053-63199f0aaf10\\/IDG01_e3e772ee-c9f5-11ed-a899-e5f76f3a42d8\",\r\n  \"token\": \"\",\r\n  \"client_session\": \"ANDROID_SM-A135F_33_Device_3.2.7_ff514514868b396f_1679629288374_com.vnptit.innovation.sample\",\r\n  \"step_id\": 0,\r\n  \"far_img\": \"{{hash5}}\",\r\n  \"near_img\": \"{{hash4}}\"\r\n}"
+						},
+						"url": {
+							"raw": "https://api.idg.vnpt.vn/ai/v1/face/liveness-3d",
+							"protocol": "https",
+							"host": [
+								"api",
+								"idg",
+								"vnpt",
+								"vn"
+							],
+							"path": [
+								"ai",
+								"v1",
+								"face",
+								"liveness-3d"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "4. Mask face",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"The status is OK\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.object.liveness_msg).to.eql(\"Người thật\");",
+									"    pm.expect(jsonData.object.liveness).to.eql(\"success\");",
+									"",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{authen}}",
+								"type": "text"
+							},
+							{
+								"key": "Token-id",
+								"value": "{{token_id}}",
+								"type": "text"
+							},
+							{
+								"key": "Token-key",
+								"value": "{{token_key}}",
+								"type": "text"
+							},
+							{
+								"key": "mac-address",
+								"value": "HUY_TEST-001",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"client_session\" : \"\",\r\n  \"img\" : \"{{hash3}}\",\r\n  \"landmark\" : null,\r\n  \"bbox\" : null,\r\n   \"step_id\" : 0\r\n}\r\n\r\n\r\n\r\n\r\n"
+						},
+						"url": {
+							"raw": "https://api.idg.vnpt.vn/ai/v1/face/mask",
+							"protocol": "https",
+							"host": [
+								"api",
+								"idg",
+								"vnpt",
+								"vn"
+							],
+							"path": [
+								"ai",
+								"v1",
+								"face",
+								"mask"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "5. Compare",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"The status is match\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.object.msg).to.eql(\"MATCH\");",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "mac-address",
+								"value": "HUY_TEST-001",
+								"type": "text"
+							},
+							{
+								"key": "Token-key",
+								"value": "{{token_key}}",
+								"type": "text"
+							},
+							{
+								"key": "Token-id",
+								"value": "{{token_id}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "{{authen}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"img_front\": \"{{hash1}}\",\r\n    \"img_face\": \"{{hash3}}\",\r\n    \"client_session\": \"IOS_iphone6plus_ios13_Device_1.3.6_CC332797-E3E5-475F-8546-C9C4AA348837_1581429032\",\r\n    \"token\": \"\"\r\n}"
+						},
+						"url": {
+							"raw": "https://api.idg.vnpt.vn/ai/v1/face/compare",
+							"protocol": "https",
+							"host": [
+								"api",
+								"idg",
+								"vnpt",
+								"vn"
+							],
+							"path": [
+								"ai",
+								"v1",
+								"face",
+								"compare"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "9. Compare_general",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"The status is match\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.object.msg).to.eql(\"MATCH\");",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{authen}}",
+								"type": "text"
+							},
+							{
+								"key": "Token-id",
+								"value": "{{token_id}}",
+								"type": "text"
+							},
+							{
+								"key": "Token-key",
+								"value": "{{token_key}}",
+								"type": "text"
+							},
+							{
+								"key": "mac-address",
+								"value": "HUY_TEST-001",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"img_face1\": \"idg20231009/IDG01_119ce3bd-6677-11ee-bf94-51f97f9e2886\",\r\n    \"img_face2\": \"idg20231009/IDG01_119ce3bd-6677-11ee-bf94-51f97f9e2886\",\r\n    \"client_session\": \"test\",\r\n    \"thres_level\": \"easy\",\r\n    \"token\": \"\"\r\n}\r\n  \r\n//img_front = img_face1 (ảnh trong chip)\r\n//img_face = img_face2 (ảnh far oval)"
+						},
+						"url": {
+							"raw": "https://api.idg.vnpt.vn/ai/v1/face/compare-general",
+							"protocol": "https",
+							"host": [
+								"api",
+								"idg",
+								"vnpt",
+								"vn"
+							],
+							"path": [
+								"ai",
+								"v1",
+								"face",
+								"compare-general"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							""
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							""
+						]
+					}
+				}
+			]
+		}
+	]
+}

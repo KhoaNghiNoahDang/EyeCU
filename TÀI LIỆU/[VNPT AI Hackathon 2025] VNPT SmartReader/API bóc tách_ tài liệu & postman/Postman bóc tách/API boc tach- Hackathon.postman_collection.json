@@ -1,0 +1,743 @@
+{
+	"info": {
+		"_postman_id": "484b78a6-a1d7-4ae1-928b-0f15368ef472",
+		"name": "API boc tach- Hackathon",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "21139148"
+	},
+	"item": [
+		{
+			"name": "API upload file",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"var jsonData = JSON.parse(responseBody);\r",
+							"pm.globals.set(\"hash_1\", jsonData.object.hash);\r",
+							"pm.globals.set(\"type\", jsonData.object.fileType);\r",
+							"//postman.setNextRequest(\"ocr/van-ban-hanh-chinh\")"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Token-id",
+						"value": ""
+					},
+					{
+						"key": "Token-key",
+						"value": ""
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "mac-address",
+						"value": "EGOV-DIGDOC-WEB-API"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": []
+						},
+						{
+							"key": "title",
+							"value": "Hashing document",
+							"type": "text"
+						},
+						{
+							"key": "description",
+							"value": "Hashing document",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "https://api.idg.vnpt.vn/file-service/v1/addFile",
+					"protocol": "https",
+					"host": [
+						"api",
+						"idg",
+						"vnpt",
+						"vn"
+					],
+					"path": [
+						"file-service",
+						"v1",
+						"addFile"
+					]
+				},
+				"description": "Dùng để upload ảnh lên Server media và trả về chuỗi hash duy nhất của ảnh.\nChuỗi hash này là đầu vào cho các API OCR, type, compare"
+			},
+			"response": [
+				{
+					"name": "Hashing Copy",
+					"originalRequest": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Token-id",
+								"value": "{{token_id}}",
+								"type": "text"
+							},
+							{
+								"key": "Token-key",
+								"value": "{{token_key}}",
+								"type": "text"
+							},
+							{
+								"key": "mac-address",
+								"value": "EGOV-DIGDOC-WEB-API",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "{{Access_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/Users/Nen/Desktop/File test cvvb 2107/139.pdf"
+								},
+								{
+									"key": "title",
+									"value": "Hashing document",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "Hashing document",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "https://{{host}}/file-service/v1/addFile",
+							"protocol": "https",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"file-service",
+								"v1",
+								"addFile"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Date",
+							"value": "Fri, 21 Jul 2023 07:51:46 GMT"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json;charset=UTF-8"
+						},
+						{
+							"key": "Content-Length",
+							"value": "336"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "X-Content-Type-Options",
+							"value": "nosniff"
+						},
+						{
+							"key": "X-Content-Type-Options",
+							"value": "nosniff"
+						},
+						{
+							"key": "X-XSS-Protection",
+							"value": "1; mode=block"
+						},
+						{
+							"key": "Cache-Control",
+							"value": "no-cache, no-store, max-age=0, must-revalidate"
+						},
+						{
+							"key": "Pragma",
+							"value": "no-cache"
+						},
+						{
+							"key": "Expires",
+							"value": "0"
+						},
+						{
+							"key": "X-Frame-Options",
+							"value": "DENY"
+						},
+						{
+							"key": "Strict-Transport-Security",
+							"value": "max-age=15724800; includeSubDomains"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"message\": \"IDG-00000000\",\n    \"object\": {\n        \"fileName\": \"123\",\n        \"tokenId\": \"e2bc85f1-8ab9-e318-e053-4604a80a739a\",\n        \"description\": \"Hashing document\",\n        \"storageType\": \"IDG01\",\n        \"title\": \"Hashing document\",\n        \"uploadedDate\": \"7/21/23 2:51 PM\",\n        \"hash\": \"idg20230721-e2bc8662-b0de-e4aa-e053-4604a80a9f89/IDG01_70c05122-279b-11ee-9a07-59a5a5ee2ad6\",\n        \"fileType\": \"pdf\"\n    }\n}"
+				}
+			]
+		},
+		{
+			"name": "ocr/giay-khai-sinh",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "",
+						"type": "text"
+					},
+					{
+						"key": "Token-id",
+						"value": "",
+						"type": "text"
+					},
+					{
+						"key": "Token-key",
+						"value": "",
+						"type": "text"
+					},
+					{
+						"key": "mac-address",
+						"value": "mac-address",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"file_hash\": \"idg20251201-e30bddce-2ab2-7bb2-e053-62199f0a0076/IDG01_d5c8540d-ceba-11f0-b76e-9b93768e8b75\",\r\n    \"file_type\": \"pdf\",\r\n    \"token\": \"8928skjhfa89298jahga1771vbvb\",\r\n    \"client_session\": \"00-14-22-01-23-45-1548211589291\",\r\n    \"details\": true\r\n}"
+				},
+				"url": {
+					"raw": "https://api.idg.vnpt.vn/rpa-service/aidigdoc/v1/ocr/giay-khai-sinh",
+					"protocol": "https",
+					"host": [
+						"api",
+						"idg",
+						"vnpt",
+						"vn"
+					],
+					"path": [
+						"rpa-service",
+						"aidigdoc",
+						"v1",
+						"ocr",
+						"giay-khai-sinh"
+					]
+				},
+				"description": "OCR trên dev\r\n- Tốc độ chậm hơn nhiều so với trên production."
+			},
+			"response": []
+		},
+		{
+			"name": "ocr/giay dang ky ket hon",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"function compareObjects(expected, actual) {\r",
+							"    for (let key in expected) {\r",
+							"        if (expected.hasOwnProperty(key)) {\r",
+							"            pm.test(`Check ${key}`, function () {\r",
+							"                pm.expect(actual[key]).to.eql(expected[key]);\r",
+							"            });\r",
+							"        }\r",
+							"    }\r",
+							"}\r",
+							"\r",
+							"const jsonData = pm.response.json().object;\r",
+							"expectedData = {\r",
+							"        \"tinh_tp\": \"THÀNH PHỐ HỒ CHÍ MINH\",\r",
+							"        \"so_van_ban\": \"223/UBND-XNTTHN\",\r",
+							"        \"ngay_ban_hanh_van_ban\": \"ngày 06 tháng 06 năm 2024\",\r",
+							"        \"ten_van_ban\": \"GIẤY XÁC NHẬN TÌNH TRẠNG HÔN NHÂN\",\r",
+							"        \"ten_co_quan_thuc_hien\": \"ỦY BAN NHÂN DÂN PHƯỜNG 02\",\r",
+							"        \"ten_can_bo_phe_duyet\": \"Chung Minh Lâm, là công chức tư pháp hộ tịch\",\r",
+							"        \"ten_cong_dan\": \"TRẦN NGỌC CẨM TÚ\",\r",
+							"        \"ngay_thang_nam_sinh\": \"21/04/1996\",\r",
+							"        \"gioi_tinh\": \"Nữ\",\r",
+							"        \"dan_toc\": \"Kinh\",\r",
+							"        \"quoc_tich\": \"Việt Nam\",\r",
+							"        \"so_giay_to_tuy_than\": \"089196000166\",\r",
+							"        \"noi_cu_tru\": \"42 đường 329 Minh Phụng, phường 02, quận 11, thành Phố Hồ Chí Minh\",\r",
+							"        \"tinh_trang_hon_nhan\": \"Hiện tại chưa đăng ký kết hôn với ai\",\r",
+							"        \"muc_dich_su_dung_vb\": \"Bổ túc hồ sơ xin Visa định cư. Không có giá trị sử dụng để đăng ký kết hôn\",\r",
+							"        \"nguoi_ky_xac_nhan\": \"Đổng Thị Mây\",\r",
+							"        \"quan_huyen_so_nganh\": \"QUẬN 11\",\r",
+							"        \"phuong_xa\": \"UBND PHƯỜNG 02\",\r",
+							"        \"noi_cap_giay_to_tuy_than\": \"Cục CS QLHC về trật tự xã hội\",\r",
+							"        \"ngay_cap_giay_to_tuy_than\": \"23/01/2022\",\r",
+							"        \"warnings\": [],\r",
+							"        \"warning_messages\": [],\r",
+							"        \"num_of_pages\": 1\r",
+							"    \r",
+							"}\r",
+							"// pm.test('Check body', function () {\r",
+							"//      var responseBody = pm.response.json();\r",
+							"//      pm.expect(responseBody.object).to.have.property('TINH_TP');\r",
+							"//      pm.expect(responseBody.object).to.have.property('SO_VAN_BAN');\r",
+							"//      pm.expect(responseBody.object).to.have.property('NGAY_BAN_HANH_VAN_BAN');\r",
+							"//      pm.expect(responseBody.object).to.have.property('TEN_VAN_BAN');\r",
+							"//      pm.expect(responseBody.object).to.have.property('TEN_CO_QUAN_THUC_HIEN');\r",
+							"//      pm.expect(responseBody.object).to.have.property('TEN_CAN_BO_PHE_DUYET');\r",
+							"//      pm.expect(responseBody.object).to.have.property('TEN_CONG_DAN');\r",
+							"//      pm.expect(responseBody.object).to.have.property('NGAY_THANG_NAM_SINH');\r",
+							"//      pm.expect(responseBody.object).to.have.property('GIOI_TINH');\r",
+							"//      pm.expect(responseBody.object).to.have.property('DAN_TOC');\r",
+							"//      pm.expect(responseBody.object).to.have.property('QUOC_TICH');\r",
+							"//      pm.expect(responseBody.object).to.have.property('SO_GIAY_TO_TUY_THAN');\r",
+							"//      pm.expect(responseBody.object).to.have.property('NOI_CU_TRU');\r",
+							"//      pm.expect(responseBody.object).to.have.property('TINH_TRANG_HON_NHAN');\r",
+							"//      pm.expect(responseBody.object).to.have.property('MUC_DICH_SU_DUNG_VB');\r",
+							"//      pm.expect(responseBody.object).to.have.property('NGUOI_KY_XAC_NHAN');\r",
+							"//      pm.expect(responseBody.object).to.have.property('QUAN_HUYEN_SO_NGANH');\r",
+							"//      pm.expect(responseBody.object).to.have.property('PHUONG_XA');\r",
+							"//      pm.expect(responseBody.object).to.have.property('NOI_CAP_GIAY_TO_TUY_THAN');\r",
+							"//      pm.expect(responseBody.object).to.have.property('NGAY_CAP_GIAY_TO_TUY_THAN');\r",
+							"//      pm.expect(responseBody.object).to.have.property('num_of_pages');\r",
+							"// });    \r",
+							"compareObjects(expectedData, jsonData)"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "",
+						"type": "text"
+					},
+					{
+						"key": "Token-id",
+						"value": "",
+						"type": "text"
+					},
+					{
+						"key": "Token-key",
+						"value": "",
+						"type": "text"
+					},
+					{
+						"key": "mac-address",
+						"value": "mac-address",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"file_hash\": \"idg20251201-e30bddce-2ab2-7bb2-e053-62199f0a0076/IDG01_58dacb98-cebd-11f0-b513-9f68725df08b\",\r\n    \"file_type\": \"pdf\",\r\n    \"token\": \"8928skjhfa89298jahga1771vbvb\",\r\n    \"client_session\": \"00-14-22-01-23-45-1548211589291\",\r\n    \"details\": true\r\n}"
+				},
+				"url": {
+					"raw": "https://api.idg.vnpt.vn/rpa-service/aidigdoc/v1/ocr/giay-dang-ky-ket-hon",
+					"protocol": "https",
+					"host": [
+						"api",
+						"idg",
+						"vnpt",
+						"vn"
+					],
+					"path": [
+						"rpa-service",
+						"aidigdoc",
+						"v1",
+						"ocr",
+						"giay-dang-ky-ket-hon"
+					]
+				},
+				"description": "OCR trên dev\r\n- Tốc độ chậm hơn nhiều so với trên production."
+			},
+			"response": []
+		},
+		{
+			"name": "ocr/dang-ky-ho-kinh-doanh",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "",
+						"type": "text"
+					},
+					{
+						"key": "Token-id",
+						"value": "",
+						"type": "text"
+					},
+					{
+						"key": "Token-key",
+						"value": "",
+						"type": "text"
+					},
+					{
+						"key": "mac-address",
+						"value": "mac-address",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"file_hash\": \"\",\r\n    \"file_type\": \"\",\r\n    \"token\": \"8928skjhfa89298jahga1771vbvb\",\r\n    \"client_session\": \"00-14-22-01-23-45-1548211589291\",\r\n    \"details\": false\r\n}"
+				},
+				"url": {
+					"raw": "https://api.idg.vnpt.vn/rpa-service/aidigdoc/v1/ocr/dang-ky-ho-kinh-doanh",
+					"protocol": "https",
+					"host": [
+						"api",
+						"idg",
+						"vnpt",
+						"vn"
+					],
+					"path": [
+						"rpa-service",
+						"aidigdoc",
+						"v1",
+						"ocr",
+						"dang-ky-ho-kinh-doanh"
+					]
+				},
+				"description": "OCR trên dev\r\n- Tốc độ chậm hơn nhiều so với trên production."
+			},
+			"response": []
+		},
+		{
+			"name": "ocr/van-ban-hanh-chinh",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": ""
+					},
+					{
+						"key": "Token-id",
+						"value": ""
+					},
+					{
+						"key": "Token-key",
+						"value": ""
+					},
+					{
+						"key": "mac-address",
+						"value": "mac-address"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"file_hash\": \"\",\r\n    \"file_type\": \"\",\r\n    \"token\": \"8928skjhfa89298jahga1771vbvb\",\r\n    \"client_session\": \"00-14-22-01-23-45-1548211589291\",\r\n    \"details\": true\r\n}"
+				},
+				"url": {
+					"raw": "https://api.idg.vnpt.vn/rpa-service/aidigdoc/v2/ocr/van-ban-hanh-chinh",
+					"protocol": "https",
+					"host": [
+						"api",
+						"idg",
+						"vnpt",
+						"vn"
+					],
+					"path": [
+						"rpa-service",
+						"aidigdoc",
+						"v2",
+						"ocr",
+						"van-ban-hanh-chinh"
+					]
+				},
+				"description": "OCR trên dev\r\n- Tốc độ chậm hơn nhiều so với trên production."
+			},
+			"response": []
+		},
+		{
+			"name": "ocr/hoa-don-gtgt",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "",
+						"type": "text"
+					},
+					{
+						"key": "Token-id",
+						"value": "",
+						"type": "text"
+					},
+					{
+						"key": "Token-key",
+						"value": "",
+						"type": "text"
+					},
+					{
+						"key": "mac-address",
+						"value": "mac-address",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"file_hash\": \"\",\r\n    \"file_type\": \"\",\r\n    \"token\": \"8928skjhfa89298jahga1771vbvb\",\r\n    \"client_session\": \"00-14-22-01-23-45-1548211589291\",\r\n    \"details\": false\r\n}"
+				},
+				"url": {
+					"raw": "https://api.idg.vnpt.vn/rpa-service/aidigdoc/v1/ocr/hoa-don-gtgt",
+					"protocol": "https",
+					"host": [
+						"api",
+						"idg",
+						"vnpt",
+						"vn"
+					],
+					"path": [
+						"rpa-service",
+						"aidigdoc",
+						"v1",
+						"ocr",
+						"hoa-don-gtgt"
+					]
+				},
+				"description": "OCR trên dev\r\n- Tốc độ chậm hơn nhiều so với trên production."
+			},
+			"response": []
+		},
+		{
+			"name": "ocr/dang-ky-kinh-doanh",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "",
+						"type": "text"
+					},
+					{
+						"key": "Token-id",
+						"value": "",
+						"type": "text"
+					},
+					{
+						"key": "Token-key",
+						"value": "",
+						"type": "text"
+					},
+					{
+						"key": "mac-address",
+						"value": "mac-address",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"page_hashes\": [\"idg20250917-e30bddce-2ab2-7bb2-e053-62199f0a0076/IDG01_52b9a028-937c-11f0-8f77-e33877dbef57\"],\r\n    \"token\": \"8928skjhfa89298jahga1771vbvb\",\r\n    \"client_session\": \"00-14-22-01-23-45-1548211589291\",\r\n    \"file_type\": \"images\",\r\n    \"details\": false\r\n}"
+				},
+				"url": {
+					"raw": "https://api.idg.vnpt.vn/rpa-service/aidigdoc/v1/ocr/dang-ky-kinh-doanh",
+					"protocol": "https",
+					"host": [
+						"api",
+						"idg",
+						"vnpt",
+						"vn"
+					],
+					"path": [
+						"rpa-service",
+						"aidigdoc",
+						"v1",
+						"ocr",
+						"dang-ky-kinh-doanh"
+					]
+				},
+				"description": "OCR trên dev\r\n- Tốc độ chậm hơn nhiều so với trên production."
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "token",
+			"value": ""
+		}
+	]
+}

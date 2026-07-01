@@ -1,0 +1,142 @@
+{
+	"info": {
+		"_postman_id": "2c984b10-5a83-44c8-b6df-4f17434c379b",
+		"name": "Text_To_Speech (General) collection",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "31001623"
+	},
+	"item": [
+		{
+			"name": "text-to-speech v1",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "{{access_token}}",
+						"type": "text"
+					},
+					{
+						"key": "Token-id",
+						"value": "{{token_id}}",
+						"type": "text"
+					},
+					{
+						"key": "Token-key",
+						"value": "{{token_key}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"text\" : \"\",\r\n  \"text_split\" : false,\r\n  \"model\" : \"news\",\r\n  \"speed\": \"1\",\r\n  \"region\" : \"female_north\"\r\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/tts-service/v1/standard",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"tts-service",
+						"v1",
+						"standard"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/text-to-speech/check-status",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "{{access_token}}",
+						"type": "text"
+					},
+					{
+						"key": "Token-id",
+						"value": "{{token_id}}",
+						"type": "text"
+					},
+					{
+						"key": "Token-key",
+						"value": "{{token_key}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"text_id\" : \"9020664b8819419fbc598edfb4e8eefc\"\r\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/tts-service/v1/check-status",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"tts-service",
+						"v1",
+						"check-status"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/text-to-speech v2",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "{{access_token}}",
+						"type": "text"
+					},
+					{
+						"key": "Token-id",
+						"value": "{{token_id}}",
+						"type": "text"
+					},
+					{
+						"key": "Token-key",
+						"value": "{{token_key}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"text\" : \"\",\r\n  \"text_split\" : false,\r\n  \"model\" : \"news\",\r\n  \"speed\": \"1\",\r\n  \"region\" : \"female_north\"\r\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/tts-service/v2/standard",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"tts-service",
+						"v2",
+						"standard"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
