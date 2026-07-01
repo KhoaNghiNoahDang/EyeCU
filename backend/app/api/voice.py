@@ -40,11 +40,15 @@ async def _extract_soape_with_gemini(transcript: str) -> dict:
     if not api_key:
         return fallback
     
-    prompt = f"""Bạn là trợ lý y khoa. Đọc đoạn ghi chú lâm sàng sau (có thể là hội thoại tự do, không theo mẫu cố định) và trích xuất thành JSON với 5 trường SOAPE.
+    prompt = f"""Bạn là một bác sĩ chuyên khoa. Đọc đoạn ghi chú lâm sàng sau (có thể là hội thoại tự do, không theo mẫu cố định) và trích xuất thành JSON với 5 trường SOAPE.
 
-Quy tắc:
+Quy tắc chuẩn hoá:
+- CHUẨN HOÁ TỪ NGỮ: 
+  + Huyết áp đọc là "X trên Y" phải chuyển thành định dạng chuẩn "X/Y mmHg" (VD: "115 trên 75" -> "115/75 mmHg").
+  + Các đơn vị đo lường đọc bằng chữ phải chuyển thành ký hiệu chuẩn: "mililit" -> "ml", "muy mol" -> "µmol/L", "mi li gam" -> "mg", "gam" -> "g", "độ" -> "°C", "lần một phút" -> "lần/phút", v.v.
+  + Viết hoa chữ cái đầu của mỗi câu.
 - subjective: Lý do vào viện, triệu chứng bệnh nhân mô tả, tiền sử.
-- objective: Kết quả thăm khám, chỉ số sinh tồn, kết quả xét nghiệm/cận lâm sàng.
+- objective: Kết quả thăm khám, chỉ số sinh tồn (đã chuẩn hoá), kết quả xét nghiệm/cận lâm sàng.
 - assessment: Chẩn đoán hoặc nhận định lâm sàng của bác sĩ.
 - plan: Y lệnh, thuốc, thủ thuật, kế hoạch điều trị.
 - evaluation: Đánh giá lại, hẹn tái khám (nếu có, nếu không có thì ghi "Chưa có thông tin").
