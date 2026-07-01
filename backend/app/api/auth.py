@@ -52,6 +52,8 @@ def login_ekyc(data: EkycLogin, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found from eKYC")
 
+    user.is_online = True
+    db.commit()
     access_token = create_access_token(subject=user.id, role=user.role)
     return {
         "access_token": access_token,

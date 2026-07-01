@@ -8,7 +8,6 @@ from app.services.vnpt_api import vnpt_client
 
 router = APIRouter()
 
-
 @router.get("/{patient_id}", dependencies=[Depends(require_roles(["doctor", "clinician", "admin"]))])
 def get_patient_info(patient_id: str, db: Session = Depends(get_db)):
     patient = db.query(User).filter(User.id == patient_id).first()

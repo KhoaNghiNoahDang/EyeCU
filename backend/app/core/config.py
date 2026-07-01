@@ -30,6 +30,27 @@ class Settings(BaseSettings):
 
     # VNPT vnFace
     VNPT_VNFACE_ACCESS_TOKEN: str = ""
+    VNPT_VNFACE_TOKEN_CHANNEL: str = ""
+
+    # VNPT SmartVoice
+    VNPT_SMARTVOICE_TOKEN_ID: str = ""
+    VNPT_SMARTVOICE_TOKEN_KEY: str = ""
+    VNPT_SMARTVOICE_ACCESS_TOKEN: str = ""
+
+    # VNPT SmartReader
+    VNPT_SMARTREADER_TOKEN_ID: str = ""
+    VNPT_SMARTREADER_TOKEN_KEY: str = ""
+    VNPT_SMARTREADER_ACCESS_TOKEN: str = ""
+
+    # VNPT SmartVoice
+    VNPT_SMARTVOICE_TOKEN_ID: str = ""
+    VNPT_SMARTVOICE_TOKEN_KEY: str = ""
+    VNPT_SMARTVOICE_ACCESS_TOKEN: str = ""
+
+    # VNPT SmartReader
+    VNPT_SMARTREADER_TOKEN_ID: str = ""
+    VNPT_SMARTREADER_TOKEN_KEY: str = ""
+    VNPT_SMARTREADER_ACCESS_TOKEN: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -37,5 +58,5 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=True
     )
-    
+
 settings = Settings()

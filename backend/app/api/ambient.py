@@ -10,7 +10,15 @@ import time
 router = APIRouter()
 
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+class AmbientManager:
+=======
 class ConnectionManager:
+>>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5
+=======
+class ConnectionManager:
+>>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5
     def __init__(self):
         # Danh sach cac ket noi WebSocket dang mo
         self.active_connections: List[WebSocket] = []
@@ -71,15 +79,39 @@ class ConnectionManager:
 
 # Khoi tao Global Manager - dung chung cho ca he thong
 ambient_manager = ConnectionManager()
+<<<<<<< HEAD
 
+<<<<<<< HEAD
+
+ambient_manager = AmbientManager()
+=======
+>>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5
+
+=======
+
+>>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5
 
 @router.websocket("/ws/live")
-async def websocket_ambient_endpoint(websocket: WebSocket):
+async def websocket_ambient_endpoint(
+    websocket: WebSocket, db: Session = Depends(get_db)
+):
     await ambient_manager.connect(websocket)
     try:
         while True:
             # Cho nhan event tu AI worker hoac PWA
             data = await websocket.receive_json()
+
+            # Them logic luu DB neu la FALL_DETECTED
+            if data.get("type") == "FALL_DETECTED":
+                incident = Incident(
+                    room_code=data.get("room_id", "Unknown"),
+                    severity=data.get("severity", "critical"),
+                    description=data.get("description", "AI Camera: Phat hien te nga"),
+                    status="pending",
+                )
+                db.add(incident)
+                db.commit()
+
             # Broadcast lai cho cac dashboard
             await ambient_manager.broadcast(data)
     except WebSocketDisconnect:
@@ -92,6 +124,14 @@ async def push_camera_alert(room_code: str, severity: str):
             "type": "CAMERA_EVENT",
             "severity": severity,  # "critical", "urgent", "stable"
             "room": room_code,
+<<<<<<< HEAD
+<<<<<<< HEAD
+            "title": "CẢNH BÁO AI CAMERA",
+        }
+    )
+=======
+=======
+>>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5
             "title": "CANH BAO AI CAMERA",
         }
     )
@@ -194,3 +234,7 @@ async def background_log_flusher():
             except Exception as e:
                 db.rollback()
                 print(f"[Ambient] Error flushing logs: {e}")
+<<<<<<< HEAD
+>>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5
+=======
+>>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5
