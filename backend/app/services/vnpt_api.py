@@ -204,16 +204,16 @@ class VnptAPIClient:
         # ── SmartVoice: Speech To Text ───────────────────────────────
 
     async def call_smartvoice_stt(
-        self, audio_bytes: bytes, filename: str = "audio.wav"
+        self, audio_bytes: bytes, filename: str = "audio.wav", content_type: str = "audio/wav"
     ) -> dict:
         """Chuyển file âm thanh thành văn bản."""
         import uuid
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:
                 resp = await client.post(
-                    "https://api.idg.vnpt.vn/stt-service/v1/grpc/standard",
+                    "https://api.idg.vnpt.vn/stt-service/v3/standard",
                     headers=_smartvoice_headers(),
-                    files={"audioFile": (filename, audio_bytes, "audio/wav")},
+                    files={"audioFile": (filename, audio_bytes, content_type)},
                     data={"clientSession": str(uuid.uuid4())}
                 )
                 data = resp.json()
