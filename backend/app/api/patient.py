@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-
+# Patient
 from app.db.database import get_db
 from app.db.models import (
     Patient,
