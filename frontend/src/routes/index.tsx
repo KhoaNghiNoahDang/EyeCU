@@ -5310,63 +5310,97 @@ function VoiceView() {
   const [recording, setRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [liveTranscript, setLiveTranscript] = useState("");
   const [soapeData, setSoapeData] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  const recognitionRef = useRef<any>(null);
+  const finalTranscriptRef = useRef<string>("");
 
   const startRecording = async () => {
     try {
       setErrorMsg("");
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { channelCount: 1, sampleRate: 16000 },
-      });
-      const recorder = new MediaRecorder(stream);
-      chunksRef.current = [];
+      setLiveTranscript("");
+      setTranscript("");
+      setSoapeData(null);
+      finalTranscriptRef.current = "";
 
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
+      const SpeechRecognition =
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-      recorder.onstop = async () => {
-        setIsProcessing(true);
-        const audioBlob = new Blob(chunksRef.current, { type: "audio/wav" });
-        const formData = new FormData();
-        formData.append("audio", audioBlob, "record.wav");
-        formData.append("patient_id", "P-123");
+      if (!SpeechRecognition) {
+        setErrorMsg("Trình duyệt không hỗ trợ nhận dạng giọng nói. Vui lòng dùng Google Chrome.");
+        return;
+      }
 
-        try {
-          const res = await fetchApi("/voice/emr", {
-            method: "POST",
-            body: formData,
-          });
-          if (res.success) {
-            setTranscript(res.transcript);
-            setSoapeData(res.soape);
+      const recognition = new SpeechRecognition();
+      recognition.lang = "vi-VN";
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onresult = (event: any) => {
+        let interim = "";
+        let final = "";
+        for (let i = 0; i < event.results.length; i++) {
+          const result = event.results[i];
+          if (result.isFinal) {
+            final += result[0].transcript + " ";
           } else {
-            setErrorMsg(res.message || "Lỗi khi xử lý giọng nói");
+            interim += result[0].transcript;
           }
-        } catch (err: any) {
-          setErrorMsg(err.message || "Lỗi kết nối máy chủ");
-        } finally {
-          setIsProcessing(false);
         }
+        finalTranscriptRef.current = final;
+        setLiveTranscript(final + interim);
       };
 
-      mediaRecorderRef.current = recorder;
-      recorder.start();
+      recognition.onerror = (event: any) => {
+        if (event.error === "not-allowed") {
+          setErrorMsg("Bạn cần cấp quyền microphone cho trình duyệt.");
+        } else {
+          setErrorMsg(`Lỗi nhận dạng: ${event.error}`);
+        }
+        setRecording(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
       setRecording(true);
     } catch (err) {
-      setErrorMsg("Không thể truy cập Microphone. Vui lòng cấp quyền.");
+      setErrorMsg("Không thể khởi động nhận dạng giọng nói. Vui lòng dùng Chrome.");
     }
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && recording) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
-      setRecording(false);
+  const stopRecording = async () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    setRecording(false);
+
+    const finalText = finalTranscriptRef.current.trim() || liveTranscript.trim();
+    if (!finalText) {
+      setErrorMsg("Không nhận được văn bản. Hãy thử nói to và rõ hơn.");
+      return;
+    }
+
+    setTranscript(finalText);
+    setIsProcessing(true);
+
+    try {
+      const res = await fetchApi("/voice/soape", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript: finalText, patient_id: "P-123" }),
+      });
+      if (res.success) {
+        setSoapeData(res.soape);
+      } else {
+        setErrorMsg(res.message || "Lỗi khi phân tích SOAPE");
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Lỗi kết nối máy chủ");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -5433,11 +5467,11 @@ function VoiceView() {
           {isProcessing ? (
              <div className="flex items-center text-slate-400 space-x-2 mt-4">
                <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" />
-               <span className="text-sm">Đang gửi VNPT SmartVoice xử lý...</span>
+               <span className="text-sm">Đang phân tích SOAPE qua AI...</span>
              </div>
           ) : (
              <p className="text-sm text-slate-800 italic leading-relaxed whitespace-pre-wrap">
-               {transcript || "Chưa có dữ liệu..."}
+               {recording ? (liveTranscript || "Đang lắng nghe...") : (transcript || "Chưa có dữ liệu...")}
              </p>
           )}
         </div>
