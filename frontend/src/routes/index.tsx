@@ -6559,6 +6559,7 @@ function EmsView() {
   const [gpsState, setGpsState] = useState<{ lat: number; lng: number } | null>(null);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const watchIdRef = useRef<number | null>(null);
+  const realStartRef = useRef<{lat: number, lng: number} | null>(null);
 
   const handleSocketMessage = useCallback(
     (msg: { type: string; data?: Record<string, unknown> }) => {
@@ -6584,25 +6585,46 @@ function EmsView() {
         watchIdRef.current = null;
       }
       setIsBroadcasting(false);
+      realStartRef.current = null; // Reset
     } else {
       if (!navigator.geolocation) {
         alert("Trình duyệt không hỗ trợ định vị GPS.");
         return;
       }
       setIsBroadcasting(true);
+      
+      // Vị trí xuất phát giả lập ở Hà Nội (góc dưới bên trái của Bounding Box)
+      const FAKE_START_LAT = 20.9850;
+      const FAKE_START_LNG = 105.8150;
+      const FAKE_SCALE = 100; // Phóng đại bước đi: Đi 1 mét thực tế = 100 mét trên bản đồ
+
       watchIdRef.current = navigator.geolocation.watchPosition(
         (pos) => {
           const { latitude, longitude } = pos.coords;
-          setGpsState({ lat: latitude, lng: longitude });
+          
+          if (!realStartRef.current) {
+            realStartRef.current = { lat: latitude, lng: longitude };
+          }
+          
+          // Tính chênh lệch độ lệch thực tế (delta)
+          const deltaLat = latitude - realStartRef.current.lat;
+          const deltaLng = longitude - realStartRef.current.lng;
+          
+          // Phóng đại chênh lệch và cộng vào vị trí xuất phát giả lập
+          const fakeLat = FAKE_START_LAT + (deltaLat * FAKE_SCALE);
+          const fakeLng = FAKE_START_LNG + (deltaLng * FAKE_SCALE);
+
+          setGpsState({ lat: fakeLat, lng: fakeLng });
           send({
             type: "GPS_UPDATE",
-            data: { ambulance_id: "current", lat: latitude, lng: longitude },
+            data: { ambulance_id: "current", lat: fakeLat, lng: fakeLng },
           });
         },
         (err) => {
           console.error("Lỗi GPS:", err);
-          alert("Lỗi GPS: Vui lòng cho phép quyền truy cập vị trí.");
+          alert("Lỗi GPS: Vui lòng cho phép quyền truy cập vị trí trên trình duyệt (Nếu test bằng điện thoại, phải dùng HTTPs hoặc Localhost IP).");
           setIsBroadcasting(false);
+          realStartRef.current = null;
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 }
       );
