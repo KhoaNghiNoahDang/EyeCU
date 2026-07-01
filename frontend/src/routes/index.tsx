@@ -6083,7 +6083,7 @@ function PatientPortalView({
   const [messages, setMessages] = useState<ChatMsg[]>([
     {
       from: "bot",
-      text: "Xin chào bạn Nguyễn Văn A! Mình là trợ lý AI EyeCU. Bạn vừa có kết quả xét nghiệm sinh hóa mới. Bạn muốn mình giải thích chỉ số nào không ạ? ",
+      text: `Xin chào bạn ${user?.name || "Bệnh nhân"}! Mình là trợ lý AI EyeCU. Bạn vừa có kết quả xét nghiệm sinh hóa mới. Bạn muốn mình giải thích chỉ số nào không ạ?`,
       time: getTimeNow(),
     },
   ]);
@@ -6402,7 +6402,7 @@ function PatientPortalView({
                   EyeCU
                 </p>
                 <h2 className="text-lg font-bold text-slate-900 leading-tight break-words">
-                  Xin chào bạn Nguyễn Văn A
+                  Xin chào bạn {user?.name || "Bệnh nhân"}
                 </h2>
                 <p className="text-[11px] text-slate-500">Hôm nay bạn cảm thấy thế nào ạ?</p>
               </div>
