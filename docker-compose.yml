@@ -21,7 +21,7 @@ services:
     build: ./frontend
     container_name: eyecu_frontend
     ports:
-      - "8080:8080"
+      - "5173:5173"
     volumes:
       - ./frontend:/app
       - /app/node_modules        # Giữ node_modules trong container, không mount từ host

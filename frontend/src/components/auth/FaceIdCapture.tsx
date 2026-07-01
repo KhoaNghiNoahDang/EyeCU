@@ -39,8 +39,8 @@ export function FaceIdCapture({ onCapture, capturedUrl }: FaceIdCaptureProps) {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: "user" },
-            width: { ideal: 640 },
-            height: { ideal: 480 },
+            width: { ideal: 320 },
+            height: { ideal: 240 },
           },
           audio: false,
         });
@@ -92,9 +92,10 @@ export function FaceIdCapture({ onCapture, capturedUrl }: FaceIdCaptureProps) {
           <>
             <video
               ref={videoRef}
+              autoPlay
               playsInline
               muted
-              className="h-full w-full scale-x-[-1] object-cover"
+              className="h-full w-full object-cover"
             />
             <div className="pointer-events-none absolute inset-4 rounded-[40%] border-2 border-dashed border-white/70" />
             <div

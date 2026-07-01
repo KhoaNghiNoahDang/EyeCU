@@ -9,6 +9,36 @@ import time
 
 router = APIRouter()
 
+@router.get("/devices")
+def get_devices(db: Session = Depends(get_db)):
+    from app.db.models import Device
+    devices = db.query(Device).all()
+    result = []
+    for d in devices:
+        result.append({
+            "id": str(d.id),
+            "name": d.name,
+            "type": d.device_type,
+            "location": d.location,
+            "status": d.status
+        })
+    return result
+
+@router.get("/incidents")
+def get_incidents(db: Session = Depends(get_db)):
+    incidents = db.query(Incident).order_by(Incident.created_at.desc()).limit(10).all()
+    result = []
+    for inc in incidents:
+        result.append({
+            "id": str(inc.id),
+            "room": inc.room_code,
+            "severity": inc.severity,
+            "description": inc.description,
+            "status": inc.status,
+            "time": inc.created_at.isoformat()
+        })
+    return result
+
 
 class ConnectionManager:
     def __init__(self):

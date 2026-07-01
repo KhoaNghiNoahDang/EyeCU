@@ -12,6 +12,21 @@ router = APIRouter()
 # Dictionary luu tru tam toa do xe: { ambulance_id: {lat, lng} }
 ambulance_cache = {}
 
+@router.get("/")
+def get_ambulances(db: Session = Depends(get_db)):
+    ambulances = db.query(Ambulance).all()
+    result = []
+    for amb in ambulances:
+        result.append({
+            "id": str(amb.id),
+            "plate": amb.plate_number,
+            "status": amb.status,
+            "driver": amb.driver_name,
+            "lat": amb.last_lat,
+            "lng": amb.last_lng
+        })
+    return result
+
 
 class ConnectionManager:
     def __init__(self):

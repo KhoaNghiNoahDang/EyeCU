@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.db.models import User, ClinicalRecord
+from app.db.models import User, ClinicalRecord, Medication
 from app.core.security import require_roles
 from app.services.dataset_reader import get_mock_json
 from app.services.vnpt_api import vnpt_client
@@ -18,6 +18,52 @@ def get_patient_info(patient_id: str, db: Session = Depends(get_db)):
     return {
         "demographics": {"name": patient.name, "cccd": patient.cccd} if patient else {},
         "history": [{"date": r.created_at, "diagnosis": r.diagnosis, "notes": r.notes} for r in records],
+    }
+
+@router.get("/by-cccd/{cccd}", dependencies=[Depends(require_roles(["doctor", "clinician", "admin"]))])
+def get_patient_by_cccd(cccd: str, db: Session = Depends(get_db)):
+    patient = db.query(User).filter(User.cccd == cccd).first()
+    if not patient:
+        return {"status": "error", "message": "Không tìm thấy hồ sơ"}
+        
+    records = db.query(ClinicalRecord).filter(ClinicalRecord.patient_id == patient.id).order_by(ClinicalRecord.created_at.desc()).all()
+    
+    medications = []
+    if records:
+        medications = db.query(Medication).filter(Medication.record_id == records[0].id).all()
+        
+    return {
+        "status": "success",
+        "data": {
+            "cccd": patient.cccd,
+            "name": patient.name,
+            "gender": "Nam", # Default mock for missing fields
+            "dob": "01/01/1970",
+            "age": 55,
+            "address": "Địa chỉ",
+            "phone": patient.phone or "",
+            "bloodType": "O+",
+            "insurance": patient.bhxh_code or "",
+            "insuranceExpiry": "31/12/2026",
+            "allergies": [],
+            "chronicConditions": [],
+            "currentMeds": [{"name": m.medicine_name, "dose": m.dosage, "freq": m.instructions} for m in medications],
+            "previousVisits": [
+                {
+                    "date": r.created_at.strftime("%d/%m/%Y"),
+                    "dept": "Khoa Khám Bệnh",
+                    "doctor": "Bác sĩ",
+                    "diagnosis": r.diagnosis,
+                    "status": "Hoàn tất" if r.is_signed else "Đang khám"
+                } for r in records
+            ],
+            "vitalsLast": { "bp": "120/80", "hr": "75", "temp": "37.0", "spo2": "98", "weight": "65" },
+            "emergencyContact": { 
+                "name": patient.emergency_contact_name or "", 
+                "relation": "Người thân", 
+                "phone": patient.emergency_contact_phone or "" 
+            }
+        }
     }
 
 

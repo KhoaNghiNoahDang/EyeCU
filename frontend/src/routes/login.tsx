@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Activity,
   Camera,
@@ -19,7 +19,9 @@ import {
   Settings,
 } from "lucide-react";
 import { WebAuthnFaceStep } from "../components/auth/WebAuthnFaceStep";
-import { useAuth, MOCK_STAFF, type AuthUser, type WorkMode } from "../lib/auth/auth-context";
+import { useAuth, type AuthUser, type WorkMode } from "../lib/auth/auth-context";
+import { fetchApi } from "../lib/api/client";
+import { useQuery } from "@tanstack/react-query";
 import {
   ensureDemoPatient,
   findPatientByCccdAndPhone,
@@ -286,21 +288,96 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
   const [employeeId, setEmployeeId] = useState("");
   const [password, setPassword] = useState("");
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+
+  const stopCamera = useCallback(() => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+  }, []);
 
   useEffect(() => {
-    if (step === "scan") {
-      const t = setTimeout(() => setStep("identify"), 2500);
-      return () => clearTimeout(t);
-    }
-  }, [step]);
+    if (step !== "scan") return;
+    let cancelled = false;
 
-  const handleManualLogin = (e: React.FormEvent) => {
+    async function startCamera() {
+      setCameraError(null);
+      setCameraReady(false);
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setCameraError("Thiết bị không hỗ trợ camera. Hãy dùng mã nhân viên để đăng nhập.");
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "user" }, width: { ideal: 320 }, height: { ideal: 240 } },
+          audio: false,
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+          setCameraReady(true);
+        }
+      } catch {
+        if (!cancelled) setCameraError("Không mở được camera. Hãy cấp quyền trong cài đặt.");
+      }
+    }
+
+    void startCamera();
+    return () => {
+      cancelled = true;
+      stopCamera();
+    };
+  }, [step, stopCamera]);
+
+  const captureAndIdentify = useCallback(() => {
+    stopCamera();
+    setStep("identify");
+  }, [stopCamera]);
+
+  useEffect(() => {
+    return () => stopCamera();
+  }, [stopCamera]);
+
+  const { data: staffList = [], isLoading: isLoadingStaff } = useQuery({
+    queryKey: ["staff"],
+    queryFn: () => fetchApi("/auth/staff"),
+  });
+
+  const handleManualLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAuthenticating(true);
-    setTimeout(() => {
+    try {
+      // Create x-www-form-urlencoded
+      const body = new URLSearchParams();
+      body.append("username", employeeId);
+      body.append("password", password);
+
+      const res = await fetchApi("/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      });
+      
+      if (res.access_token) {
+        // Fetch current user details
+        sessionStorage.setItem("eyecu_token", res.access_token);
+        const me = await fetchApi("/auth/me");
+        setIdentifiedUser(me as AuthUser);
+        setStep("pick_shift");
+      }
+    } catch (err: any) {
+      alert(err.message || "Đăng nhập thất bại");
+    } finally {
       setIsAuthenticating(false);
-      setStep("identify");
-    }, 1500);
+    }
   };
 
   /* STEP 0 — Choose Login Method */
@@ -362,43 +439,91 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
     );
   }
 
-  /* STEP 1A — FaceID scan */
+  /* STEP 1A — FaceID scan (real camera) */
   if (step === "scan") {
     return (
       <div className="flex flex-col items-center text-center space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
         <SectionTitle icon={ScanFace} title="Quét FaceID" subtitle="Xác thực sinh trắc học eKYC" />
-        <div className="relative w-36 h-36 flex items-center justify-center">
-          <div
-            className="absolute inset-0 rounded-full border-2 animate-spin"
-            style={{
-              borderColor: `${ACCENT}40`,
-              borderTopColor: ACCENT,
-              animationDuration: "2s",
-            }}
-          />
-          <div
-            className="w-28 h-28 rounded-full flex items-center justify-center relative overflow-hidden"
-            style={{ backgroundColor: `${ACCENT}15`, border: `2px solid ${ACCENT}30` }}
-          >
-            <Camera className="w-10 h-10" style={{ color: ACCENT_DARK }} />
-            <div
-              className="absolute inset-x-0 h-0.5 animate-[scan_2s_ease-in-out_infinite]"
-              style={{ background: `linear-gradient(90deg, transparent, ${ACCENT}, transparent)` }}
-            />
-          </div>
+        <div
+          className="relative w-40 h-40 mx-auto overflow-hidden rounded-full border-2"
+          style={{ borderColor: cameraReady ? ACCENT : `${ACCENT}40` }}
+        >
+          {cameraError ? (
+            <div className="flex h-full w-full items-center justify-center bg-slate-100">
+              <Camera className="w-10 h-10 text-slate-400" />
+            </div>
+          ) : (
+            <>
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="h-full w-full object-cover"
+              />
+              {!cameraReady && (
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-900/30">
+                  <div className="w-6 h-6 border-2 border-t-transparent border-white rounded-full animate-spin" />
+                </div>
+              )}
+              {cameraReady && (
+                <div
+                  className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2"
+                  style={{
+                    background: `linear-gradient(90deg, transparent, ${ACCENT}, transparent)`,
+                    animation: "face-scan 2s ease-in-out infinite",
+                  }}
+                />
+              )}
+            </>
+          )}
+          <style>{`@keyframes face-scan { 0%, 100% { transform: translateY(-30px); opacity: 0.4; } 50% { transform: translateY(30px); opacity: 1; } }`}</style>
         </div>
         <div>
-          <p className="font-bold text-slate-900">Đang nhận diện khuôn mặt</p>
+          <p className="font-bold text-slate-900">
+            {cameraError
+              ? "Không mở được camera"
+              : cameraReady
+                ? "Đang nhận diện khuôn mặt"
+                : "Đang khởi động camera..."}
+          </p>
           <p className="text-xs text-slate-400 mt-1">
-            Vui lòng đưa khuôn mặt vào giữa khung hình...
+            {cameraError
+              ? "Hãy dùng mã nhân viên để đăng nhập"
+              : "Vui lòng đưa khuôn mặt vào giữa khung hình..."}
           </p>
         </div>
-        <button
-          onClick={() => setStep("choose")}
-          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-700 transition-colors mt-2"
-        >
-          <ArrowLeft className="w-3 h-3" /> Quay lại
-        </button>
+        {cameraError ? (
+          <button
+            onClick={() => {
+              setCameraError(null);
+              setStep("choose");
+            }}
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-700 transition-colors mt-2"
+          >
+            <ArrowLeft className="w-3 h-3" /> Quay lại
+          </button>
+        ) : (
+          <div className="flex gap-2 w-full">
+            <button
+              onClick={() => {
+                stopCamera();
+                setStep("choose");
+              }}
+              className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              <ArrowLeft className="w-3 h-3" /> Hủy
+            </button>
+            <button
+              onClick={captureAndIdentify}
+              disabled={!cameraReady}
+              className="flex-1 rounded-xl py-2.5 text-sm font-bold text-slate-900 transition-all disabled:opacity-40"
+              style={{ backgroundColor: ACCENT }}
+            >
+              Xác nhận khuôn mặt
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -481,58 +606,64 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
           subtitle="Chọn tài khoản của bạn để tiếp tục"
         />
         <div className="space-y-2">
-          {MOCK_STAFF.map((staff) => (
-            <button
-              key={staff.id}
-              onClick={() => {
-                setIdentifiedUser(staff);
-                if (staff.title === "ĐD.") {
-                  onLogin(staff, "ops");
-                } else {
-                  setStep("pick_shift");
-                }
-              }}
-              className="w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all text-left group hover:scale-[1.01]"
-              style={{ borderColor: "#f1f5f9" }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = ACCENT;
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = `${ACCENT}0A`;
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = "#f1f5f9";
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
-              }}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 border-2"
-                  style={{ borderColor: `${ACCENT}40`, backgroundColor: `${ACCENT}15` }}
-                >
-                  {staff.avatar ? (
-                    <img
-                      src={staff.avatar}
-                      alt={staff.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <UserCircle2 className="w-5 h-5" style={{ color: ACCENT_DARK }} />
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <div className="font-bold text-slate-900 text-sm">
-                    {staff.title} {staff.name}
+          {isLoadingStaff ? (
+            <div className="text-center py-4 text-slate-400 text-sm">Đang tải danh sách nhân viên...</div>
+          ) : staffList.length === 0 ? (
+            <div className="text-center py-4 text-slate-400 text-sm">Chưa có nhân viên nào trong hệ thống</div>
+          ) : (
+            staffList.map((staff: AuthUser) => (
+              <button
+                key={staff.id}
+                onClick={() => {
+                  setIdentifiedUser(staff);
+                  if (staff.title === "ĐD.") {
+                    onLogin(staff, "ops");
+                  } else {
+                    setStep("pick_shift");
+                  }
+                }}
+                className="w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all text-left group hover:scale-[1.01]"
+                style={{ borderColor: "#f1f5f9" }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = ACCENT;
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = `${ACCENT}0A`;
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = "#f1f5f9";
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 border-2"
+                    style={{ borderColor: `${ACCENT}40`, backgroundColor: `${ACCENT}15` }}
+                  >
+                    {staff.avatar ? (
+                      <img
+                        src={staff.avatar}
+                        alt={staff.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <UserCircle2 className="w-5 h-5" style={{ color: ACCENT_DARK }} />
+                      </div>
+                    )}
                   </div>
-                  <div className="text-xs text-slate-400">{staff.department}</div>
+                  <div>
+                    <div className="font-bold text-slate-900 text-sm">
+                      {staff.title} {staff.name}
+                    </div>
+                    <div className="text-xs text-slate-400">{staff.department}</div>
+                  </div>
                 </div>
-              </div>
-              <ChevronRight
-                className="w-4 h-4 transition-transform group-hover:translate-x-0.5"
-                style={{ color: ACCENT_DARK }}
-              />
-            </button>
-          ))}
+                <ChevronRight
+                  className="w-4 h-4 transition-transform group-hover:translate-x-0.5"
+                  style={{ color: ACCENT_DARK }}
+                />
+              </button>
+            ))
+          )}
         </div>
       </div>
     );
@@ -597,7 +728,15 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
         {shifts.map(({ mode, icon: Icon, label, sub }) => (
           <button
             key={mode}
-            onClick={() => identifiedUser && onLogin(identifiedUser, mode)}
+            onClick={() => {
+              if (identifiedUser) {
+                // Fetch auth token by employee_id when picking shift from staff list
+                // Since this step happens after "identify" (clicking from list without password),
+                // we should either skip password for demo or require it. For now, use the mock login
+                const loginToken = sessionStorage.getItem("eyecu_token") || "demo_token";
+                onLogin(identifiedUser, mode, loginToken);
+              }
+            }}
             className="w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all text-left group hover:scale-[1.01]"
             style={{ borderColor: "#f1f5f9" }}
             onMouseEnter={(e) => {

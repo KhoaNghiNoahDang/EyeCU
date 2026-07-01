@@ -23,6 +23,7 @@ class User(SQLModel, table=True):
     role: str = Field(max_length=20, index=True)  # admin, clinician, ops, ems, patient
     cccd: str = Field(max_length=12, unique=True, index=True)
     name: str = Field(max_length=100)
+    phone: Optional[str] = Field(default=None, max_length=20)
 
     # Dành cho NV Y tế
     employee_id: Optional[str] = Field(default=None, max_length=20, unique=True)
@@ -38,6 +39,7 @@ class User(SQLModel, table=True):
 
     # Chung
     avatar_url: Optional[str] = Field(default=None, max_length=255)
+    qr_token: Optional[str] = Field(default=None, max_length=100, unique=True, index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -88,7 +90,7 @@ class PatientsQueue(SQLModel, table=True):
     __tablename__ = "patients_queue"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     patient_id: uuid.UUID = Field(foreign_key="users.id")
-    department_id: uuid.UUID = Field(foreign_key="departments.id")
+    department_id: Optional[uuid.UUID] = Field(default=None, foreign_key="departments.id")
     triage_level: int = Field(default=3)  # 1: Đỏ, 2: Vàng, 3: Xanh
     status: str = Field(
         default="waiting", max_length=20
@@ -143,6 +145,33 @@ class SmartReaderDoc(SQLModel, table=True):
     )
     uploaded_at: datetime = Field(default_factory=datetime.utcnow)
 
+class FollowUp(SQLModel, table=True):
+    __tablename__ = "follow_ups"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    patient_id: uuid.UUID = Field(foreign_key="users.id")
+    record_id: uuid.UUID = Field(foreign_key="clinical_records.id")
+    date: str = Field(max_length=50)
+    time: str = Field(max_length=50)
+    department: str = Field(max_length=100)
+    note: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class HospitalFee(SQLModel, table=True):
+    __tablename__ = "hospital_fees"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    patient_id: uuid.UUID = Field(foreign_key="users.id")
+    record_id: uuid.UUID = Field(foreign_key="clinical_records.id")
+    total: int = Field(default=0)
+    status: str = Field(default="pending", max_length=20) # paid, pending
+    paid_at: Optional[datetime] = None
+
+class HospitalFeeItem(SQLModel, table=True):
+    __tablename__ = "hospital_fee_items"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    fee_id: uuid.UUID = Field(foreign_key="hospital_fees.id")
+    name: str = Field(max_length=150)
+    amount: int = Field(default=0)
+
 
 # =========================================================================
 # 4. NHÓM LOGGING & CẢNH BÁO (ALERTS)
@@ -165,7 +194,7 @@ class SystemLog(SQLModel, table=True):
 class LprLog(SQLModel, table=True):
     __tablename__ = "lpr_logs"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    camera_id: uuid.UUID = Field(foreign_key="devices.id")
+    camera_id: Optional[uuid.UUID] = Field(default=None, foreign_key="devices.id")
     plate_number: str = Field(max_length=20, index=True)
     confidence: Optional[float] = None
     image_url: Optional[str] = Field(default=None, max_length=255)

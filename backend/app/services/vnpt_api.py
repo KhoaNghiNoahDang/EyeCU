@@ -61,7 +61,7 @@ class VnptAPIClient:
                     headers={
                         "Token-id": settings.VNPT_EKYC_TOKEN_ID,
                         "Token-key": settings.VNPT_EKYC_TOKEN_KEY,
-                        "Authorization": f"Bearer {settings.VNPT_EKYC_TOKEN_ID}",
+                        "Authorization": f"{settings.VNPT_EKYC_ACCESS_TOKEN}",
                     },
                     files={"file": (filename, file_bytes, "image/jpeg")},
                     data={"title": filename, "description": "EyeCU upload"},

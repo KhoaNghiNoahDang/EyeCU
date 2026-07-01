@@ -12,6 +12,14 @@ export interface RegisteredPatient {
   credentialId: string;
   /** Mã QR riêng trên sổ khám bệnh */
   qrToken: string;
+  /** CCCD front photo (data URL) */
+  cccdFrontUrl: string | null;
+  /** CCCD back photo (data URL) */
+  cccdBackUrl: string | null;
+  /** Emergency contact name */
+  emergency_contact_name: string | null;
+  /** Emergency contact phone */
+  emergency_contact_phone: string | null;
   createdAt: string;
 }
 
@@ -61,6 +69,10 @@ export function registerPatient(
   }
   const patient: RegisteredPatient = {
     ...data,
+    cccdFrontUrl: data.cccdFrontUrl ?? null,
+    cccdBackUrl: data.cccdBackUrl ?? null,
+    emergency_contact_name: data.emergency_contact_name ?? null,
+    emergency_contact_phone: data.emergency_contact_phone ?? null,
     id: crypto.randomUUID(),
     qrToken: crypto.randomUUID().replace(/-/g, "").slice(0, 16),
     createdAt: new Date().toISOString(),
@@ -109,5 +121,9 @@ export function ensureDemoPatient() {
     bhxh_code: "DN4015002345678",
     avatar_url: null,
     credentialId: "",
+    cccdFrontUrl: null,
+    cccdBackUrl: null,
+    emergency_contact_name: "Nguyễn Thị B",
+    emergency_contact_phone: "0987654321",
   });
 }

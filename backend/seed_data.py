@@ -8,25 +8,36 @@ import sys, os
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from app.db.database import SessionLocal, engine, Base
+from sqlmodel import Session
+from app.db.database import engine, Base
 from app.db.models import (
     User,
     Ambulance,
     Department,
-    MedicalRecord,
-    AdmissionQueue,
-    RoomInfrastructure,
+    ClinicalRecord,
+    PatientsQueue,
+    Medication,
+    HospitalFee,
+    HospitalFeeItem,
+    FollowUp,
 )
 import uuid
 
 Base.metadata.create_all(bind=engine)
-db = SessionLocal()
+db = Session(engine)
 
 
 def seed():
-    if db.query(User).count() > 0:
-        print(" Dữ liệu mẫu đã tồn tại. Bỏ qua.")
-        return
+    if db.query(User).count() == 0:
+        seed_users_and_records(db)
+    
+    if db.query(HospitalFee).count() == 0:
+        seed_fees_and_followups(db)
+    
+    print(" Seed Data thành công!\n")
+    db.commit()
+
+def seed_users_and_records(db):
 
     # ── 1. KHOA PHÒNG ─────────────────────────────────────────────────
     depts = [
@@ -119,76 +130,82 @@ def seed():
     ]
     db.add_all(ambulances)
 
-    # ── 4. HẠ TẦNG PHÒNG ─────────────────────────────────────────────
-    rooms = [
-        RoomInfrastructure(
-            room_code="P.101",
-            department_id="ER",
-            ventilator_status="Sẵn sàng",
-            defibrillator_status="Đầy pin",
-        ),
-        RoomInfrastructure(
-            room_code="P.102",
-            department_id="ER",
-            ventilator_status="Đang dùng",
-            defibrillator_status="Đang sạc",
-        ),
-    ]
-    db.add_all(rooms)
+    # RoomInfrastructure has been removed from models
 
     # ── 5. HỒ SƠ Y TẾ MẪU ───────────────────────────────────────────
     patient_a = next(u for u in users if u.cccd == "012345678901")
+    doctor_1 = next(u for u in users if u.cccd == "000000000002")
     records = [
-        MedicalRecord(
+        ClinicalRecord(
             id=uuid.uuid4(),
             patient_id=patient_a.id,
-            extracted_data={
-                "Glucose": {
-                    "value": "7.8",
-                    "unit": "mmol/L",
-                    "ref": "< 6.4",
-                    "status": "high",
-                },
-                "Cholesterol": {
-                    "value": "5.9",
-                    "unit": "mmol/L",
-                    "ref": "< 5.2",
-                    "status": "warn",
-                },
-                "Creatinine": {
-                    "value": "92",
-                    "unit": "µmol/L",
-                    "ref": "< 110",
-                    "status": "ok",
-                },
-                "HbA1c": {
-                    "value": "6.8",
-                    "unit": "%",
-                    "ref": "< 6.5",
-                    "status": "warn",
-                },
-            },
-            soape_note=(
-                "S: Bệnh nhân than đau đầu, chóng mặt.\n"
-                "O: HA 160/100 mmHg, mạch 88l/p, nhịp thở 18l/p.\n"
-                "A: Tăng huyết áp vô căn độ II.\n"
-                "P: Amlodipine 5mg sáng, tái khám sau 2 tuần.\n"
-                "E: Bệnh nhân hiểu và đồng ý điều trị."
-            ),
-        )
-    ]
-    db.add_all(records)
-
-    # ── 6. HÀNG CHỜ MẪU ─────────────────────────────────────────────
-    queue = [
-        AdmissionQueue(
-            id=uuid.uuid4(),
-            patient_id=patient_a.id,
-            priority="critical",
-            status="waiting",
+            doctor_id=doctor_1.id,
+            symptoms="Đau đầu, chóng mặt khi đứng dậy; huyết áp cao buổi sáng",
+            diagnosis="Tăng huyết áp vô căn độ II",
+            notes="Tái khám sau 7 ngày",
+            is_signed=True,
         )
     ]
     db.add_all(queue)
+    db.flush()
+
+def seed_fees_and_followups(db):
+    patient_a = db.query(User).filter(User.cccd == "012345678901").first()
+    if not patient_a: return
+    record_a = db.query(ClinicalRecord).filter(ClinicalRecord.patient_id == patient_a.id).first()
+    if not record_a: return
+
+    # -- 5.1 MEDICATIONS --
+    meds = [
+        Medication(
+            record_id=record_a.id,
+            medicine_name="Amlodipin",
+            dosage="5mg — 1 viên/sáng",
+            instructions="Uống sau ăn sáng, không ngưng thuốc đột ngột"
+        ),
+        Medication(
+            record_id=record_a.id,
+            medicine_name="Metformin",
+            dosage="850mg — 2 viên/ngày",
+            instructions="1 viên sáng, 1 viên tối sau ăn"
+        ),
+        Medication(
+            record_id=record_a.id,
+            medicine_name="Atorvastatin",
+            dosage="20mg — 1 viên/tối",
+            instructions="Uống trước khi ngủ"
+        )
+    ]
+    db.add_all(meds)
+
+    # -- 5.2 FOLLOW UP --
+    followup = FollowUp(
+        patient_id=patient_a.id,
+        record_id=record_a.id,
+        date="02/07/2026",
+        time="09:00",
+        department="Phòng khám số 3 — Khoa Nội",
+        note="Tái khám sau 7 ngày · Đo HA tại nhà 3 lần/ngày · Mang kết quả xét nghiệm"
+    )
+    db.add(followup)
+
+    # -- 5.3 HOSPITAL FEES --
+    fee = HospitalFee(
+        patient_id=patient_a.id,
+        record_id=record_a.id,
+        total=655000,
+        status="paid"
+    )
+    db.add(fee)
+    db.flush()
+
+    fee_items = [
+        HospitalFeeItem(fee_id=fee.id, name="Khám bệnh", amount=150000),
+        HospitalFeeItem(fee_id=fee.id, name="Xét nghiệm sinh hóa", amount=320000),
+        HospitalFeeItem(fee_id=fee.id, name="Thuốc theo đơn", amount=185000)
+    ]
+    db.add_all(fee_items)
+    db.flush()
 
     db.commit()
 
