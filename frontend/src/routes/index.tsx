@@ -6653,29 +6653,16 @@ function EmsView() {
     <div className="space-y-4 max-w-3xl mx-auto">
       {/* ── 1. Patient Identification Panel ── */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
-              <CreditCard className="w-4 h-4 text-orange-600" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-900">Nhận diện Bệnh nhân</h3>
-              <p className="text-[11px] text-slate-500 font-geist">
-                Quét CCCD / FaceID trên xe cấp cứu
-              </p>
-            </div>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
+            <CreditCard className="w-4 h-4 text-orange-600" />
           </div>
-          <button
-            onClick={toggleGpsBroadcast}
-            className={`px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all flex items-center gap-2 ${
-              isBroadcasting
-                ? "bg-red-500 text-white hover:bg-red-600 animate-pulse"
-                : "bg-cyan-500 text-white hover:bg-cyan-600"
-            }`}
-          >
-            <MapPin className="w-4 h-4" />
-            {isBroadcasting ? "DỪNG TRUYỀN GPS" : "BẬT TRUYỀN GPS"}
-          </button>
+          <div>
+            <h3 className="text-base font-bold text-slate-900">Nhận diện Bệnh nhân</h3>
+            <p className="text-[11px] text-slate-500 font-geist">
+              Quét CCCD / FaceID trên xe cấp cứu
+            </p>
+          </div>
         </div>
 
         {!scanned ? (
@@ -6968,6 +6955,20 @@ function EmsView() {
           </div>
         )}
       </div>
+
+      {/* Floating GPS Broadcast Button */}
+      <button
+        onClick={toggleGpsBroadcast}
+        className={`fixed bottom-6 right-6 z-50 px-6 py-4 rounded-full text-sm font-black shadow-2xl transition-all flex items-center gap-3 hover:scale-105 active:scale-95 ${
+          isBroadcasting
+            ? "bg-red-500 text-white animate-pulse"
+            : "bg-cyan-500 text-white"
+        }`}
+        style={{ boxShadow: isBroadcasting ? "0 8px 32px rgba(239, 68, 68, 0.5)" : "0 8px 32px rgba(6, 182, 212, 0.4)" }}
+      >
+        <MapPin className="w-5 h-5" />
+        {isBroadcasting ? "DỪNG TRUYỀN GPS" : "BẬT TRUYỀN GPS"}
+      </button>
     </div>
   );
 }
