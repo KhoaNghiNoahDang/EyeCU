@@ -39,8 +39,13 @@ export function FaceIdCapture({ onCapture, capturedUrl }: FaceIdCaptureProps) {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: "user" },
+<<<<<<< Updated upstream
             width: { min: 640, ideal: 1280, max: 1920 },
             height: { min: 480, ideal: 720, max: 1080 },
+=======
+            width: { ideal: 320 },
+            height: { ideal: 240 },
+>>>>>>> Stashed changes
           },
           audio: false,
         });
