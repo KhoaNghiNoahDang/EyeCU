@@ -5847,175 +5847,226 @@ function PatientClinicalSheet({
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {active === "record" && (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-4">
-                <div className="mb-3 flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-[10px] font-geist uppercase tracking-wider text-blue-600">
-                      EMR #{record.id.slice(-8).toUpperCase()}
-                    </p>
-                    <p className="text-sm font-bold text-slate-900">{record.department}</p>
+              {!record ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50">
+                    <Receipt className="h-7 w-7 text-blue-300" />
                   </div>
-                  {record.is_signed && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">
-                      <BadgeCheck className="h-3 w-3" />
-                      SmartCA
-                    </span>
-                  )}
+                  <p className="text-sm font-semibold text-slate-700">Chưa có phiếu khám</p>
+                  <p className="mt-1 text-xs text-slate-400">Bạn chưa có lần khám nào được ghi nhận trong hệ thống.</p>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="rounded-xl bg-white/80 p-2.5">
-                    <p className="text-slate-400">Ngày khám</p>
-                    <p className="font-semibold text-slate-900">
-                      {formatRecordDate(record.created_at)}
-                    </p>
+              ) : (
+                <>
+                  <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-4">
+                    <div className="mb-3 flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-[10px] font-geist uppercase tracking-wider text-blue-600">
+                          EMR #{record.id?.slice(-8).toUpperCase() ?? "—"}
+                        </p>
+                        <p className="text-sm font-bold text-slate-900">{record.department ?? "—"}</p>
+                      </div>
+                      {record.is_signed && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">
+                          <BadgeCheck className="h-3 w-3" />
+                          SmartCA
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-xl bg-white/80 p-2.5">
+                        <p className="text-slate-400">Ngày khám</p>
+                        <p className="font-semibold text-slate-900">
+                          {formatRecordDate(record.created_at)}
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-white/80 p-2.5">
+                        <p className="text-slate-400">Bác sĩ</p>
+                        <p className="font-semibold text-slate-900">{record.doctor_name ?? "—"}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="rounded-xl bg-white/80 p-2.5">
-                    <p className="text-slate-400">Bác sĩ</p>
-                    <p className="font-semibold text-slate-900">{record.doctor_name}</p>
+                  <div className="space-y-3">
+                    <div className="rounded-xl border border-slate-100 p-3">
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Triệu chứng
+                      </p>
+                      <p className="text-sm leading-relaxed text-slate-700">{record.symptoms ?? "—"}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-100 p-3">
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Chẩn đoán
+                      </p>
+                      <p className="text-sm font-semibold text-slate-900">{record.diagnosis ?? "—"}</p>
+                    </div>
+                    {record.notes && (
+                      <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3">
+                        <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                          Ghi chú
+                        </p>
+                        <p className="text-sm text-amber-900">{record.notes}</p>
+                      </div>
+                    )}
                   </div>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div className="rounded-xl border border-slate-100 p-3">
-                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Triệu chứng
-                  </p>
-                  <p className="text-sm leading-relaxed text-slate-700">{record.symptoms}</p>
-                </div>
-                <div className="rounded-xl border border-slate-100 p-3">
-                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Chẩn đoán
-                  </p>
-                  <p className="text-sm font-semibold text-slate-900">{record.diagnosis}</p>
-                </div>
-                {record.notes && (
-                  <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3">
-                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-amber-700">
-                      Ghi chú
-                    </p>
-                    <p className="text-sm text-amber-900">{record.notes}</p>
-                  </div>
-                )}
-              </div>
+                </>
+              )}
             </div>
           )}
 
           {active === "prescription" && (
             <div className="space-y-3">
-              <div className="rounded-xl border border-violet-100 bg-violet-50/60 p-3">
-                <p className="text-[10px] font-geist uppercase tracking-wider text-violet-600">
-                  record_id · {record.id}
-                </p>
-                <p className="mt-1 text-sm text-slate-600">
-                  {data.medications.length} loại thuốc · Kê ngày{" "}
-                  {formatRecordDate(record.created_at)}
-                </p>
-              </div>
-              {data.medications.map((med) => (
-                <div
-                  key={med.id}
-                  className="flex gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm"
-                >
-                  <div
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-                    style={{ backgroundColor: "#7C3AED18" }}
-                  >
-                    <Pill className="h-5 w-5 text-violet-600" />
+              {!data?.medications?.length ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-violet-50">
+                    <Pill className="h-7 w-7 text-violet-300" />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-slate-900">{med.medicine_name}</p>
-                    <p className="mt-0.5 text-sm text-slate-600">{med.dosage}</p>
-                    {med.instructions && (
-                      <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
-                        {med.instructions}
-                      </p>
-                    )}
-                  </div>
+                  <p className="text-sm font-semibold text-slate-700">Chưa có đơn thuốc</p>
+                  <p className="mt-1 text-xs text-slate-400">Bác sĩ chưa kê đơn thuốc nào cho bạn.</p>
                 </div>
-              ))}
+              ) : (
+                <>
+                  <div className="rounded-xl border border-violet-100 bg-violet-50/60 p-3">
+                    <p className="text-[10px] font-geist uppercase tracking-wider text-violet-600">
+                      record_id · {record?.id ?? "—"}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {data.medications.length} loại thuốc{record ? ` · Kê ngày ${formatRecordDate(record.created_at)}` : ""}
+                    </p>
+                  </div>
+                  {data.medications.map((med) => (
+                    <div
+                      key={med.id}
+                      className="flex gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm"
+                    >
+                      <div
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                        style={{ backgroundColor: "#7C3AED18" }}
+                      >
+                        <Pill className="h-5 w-5 text-violet-600" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-slate-900">{med.medicine_name}</p>
+                        <p className="mt-0.5 text-sm text-slate-600">{med.dosage}</p>
+                        {med.instructions && (
+                          <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                            {med.instructions}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
           )}
 
           {active === "followup" && (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-4">
-                <div className="mb-3 flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-amber-600" />
-                  <p className="text-sm font-bold text-slate-900">Lịch hẹn tái khám</p>
+              {!data?.followUp ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-amber-50">
+                    <Calendar className="h-7 w-7 text-amber-300" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-700">Chưa có lịch tái khám</p>
+                  <p className="mt-1 text-xs text-slate-400">Bác sĩ chưa đặt lịch hẹn tái khám cho bạn.</p>
                 </div>
-                <p className="text-2xl font-bold text-amber-700">
-                  {data.followUp.date}
-                  <span className="ml-2 text-base font-semibold text-slate-600">
-                    · {data.followUp.time}
-                  </span>
-                </p>
-                <p className="mt-2 text-sm text-slate-700">{data.followUp.department}</p>
-              </div>
-              <div className="rounded-xl border border-slate-100 p-3">
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Từ clinical_records.notes
-                </p>
-                <p className="text-sm leading-relaxed text-slate-700">{data.followUp.note}</p>
-              </div>
-              <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
-                <Clock className="h-4 w-4 shrink-0 text-slate-400" />
-                BHYT: {data.bhxh_code ?? "—"} · Bệnh nhân: {data.patientName}
-              </div>
+              ) : (
+                <>
+                  <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-4">
+                    <div className="mb-3 flex items-center gap-2">
+                      <Calendar className="h-5 w-5 text-amber-600" />
+                      <p className="text-sm font-bold text-slate-900">Lịch hẹn tái khám</p>
+                    </div>
+                    <p className="text-2xl font-bold text-amber-700">
+                      {data.followUp.date}
+                      <span className="ml-2 text-base font-semibold text-slate-600">
+                        · {data.followUp.time}
+                      </span>
+                    </p>
+                    <p className="mt-2 text-sm text-slate-700">{data.followUp.department}</p>
+                  </div>
+                  {data.followUp.note && (
+                    <div className="rounded-xl border border-slate-100 p-3">
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Từ clinical_records.notes
+                      </p>
+                      <p className="text-sm leading-relaxed text-slate-700">{data.followUp.note}</p>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
+                    <Clock className="h-4 w-4 shrink-0 text-slate-400" />
+                    BHYT: {data.bhxh_code ?? "—"} · Bệnh nhân: {data.patientName}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
           {active === "fees" && (
             <div className="space-y-4">
-              <div
-                className={`rounded-2xl border p-4 ${
-                  data.fees.status === "paid"
-                    ? "border-emerald-200 bg-emerald-50/70"
-                    : "border-amber-200 bg-amber-50/70"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-bold text-slate-900">Tổng viện phí lượt khám</p>
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${
+              {!data?.fees ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-green-50">
+                    <FileText className="h-7 w-7 text-green-300" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-700">Chưa có thông tin viện phí</p>
+                  <p className="mt-1 text-xs text-slate-400">Chưa có hóa đơn viện phí nào trong hệ thống.</p>
+                </div>
+              ) : (
+                <>
+                  <div
+                    className={`rounded-2xl border p-4 ${
                       data.fees.status === "paid"
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-amber-100 text-amber-700"
+                        ? "border-emerald-200 bg-emerald-50/70"
+                        : "border-amber-200 bg-amber-50/70"
                     }`}
                   >
-                    {data.fees.status === "paid" ? "Đã thanh toán" : "Chưa thanh toán"}
-                  </span>
-                </div>
-                <p className="mt-2 text-2xl font-bold text-slate-900">
-                  {formatVnd(data.fees.total)}
-                </p>
-                {data.fees.paid_at && (
-                  <p className="mt-1 text-xs text-slate-500">
-                    Thanh toán lúc{" "}
-                    {new Date(data.fees.paid_at).toLocaleString("vi-VN", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                {data.fees.items.map((item) => (
-                  <div
-                    key={item.name}
-                    className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2.5"
-                  >
-                    <span className="text-sm text-slate-700">{item.name}</span>
-                    <span className="text-sm font-semibold text-slate-900">
-                      {formatVnd(item.amount)}
-                    </span>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-bold text-slate-900">Tổng viện phí lượt khám</p>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${
+                          data.fees.status === "paid"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {data.fees.status === "paid" ? "Đã thanh toán" : "Chưa thanh toán"}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-2xl font-bold text-slate-900">
+                      {formatVnd(data.fees.total)}
+                    </p>
+                    {data.fees.paid_at && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        Thanh toán lúc{" "}
+                        {new Date(data.fees.paid_at).toLocaleString("vi-VN", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    )}
                   </div>
-                ))}
-              </div>
-              <p className="text-[10px] text-slate-400">
-                Liên kết record_id: {data.fees.record_id}
-              </p>
+                  {data.fees.items?.length > 0 && (
+                    <div className="space-y-2">
+                      {data.fees.items.map((item) => (
+                        <div
+                          key={item.name}
+                          className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2.5"
+                        >
+                          <span className="text-sm text-slate-700">{item.name}</span>
+                          <span className="text-sm font-semibold text-slate-900">
+                            {formatVnd(item.amount)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-[10px] text-slate-400">
+                    Liên kết record_id: {data.fees.record_id ?? "—"}
+                  </p>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -6131,15 +6182,17 @@ function PatientPortalView({
       key: "record",
       Icon: Receipt,
       label: "Phiếu khám bệnh",
-      sub: `${formatRecordDate(clinicalData.latestRecord.created_at)} · ${clinicalData.latestRecord.doctor_name}`,
+      sub: clinicalData.latestRecord
+        ? `${formatRecordDate(clinicalData.latestRecord.created_at)} · ${clinicalData.latestRecord.doctor_name}`
+        : "Chưa có thông tin",
       color: "#2563EB",
-      badge: clinicalData.latestRecord.is_signed ? "Ký số" : undefined,
+      badge: clinicalData.latestRecord?.is_signed ? "Ký số" : undefined,
     },
     {
       key: "prescription",
       Icon: Pill,
       label: "Đơn thuốc điện tử",
-      sub: `${clinicalData.medications.length} loại · Hẹn giờ uống`,
+      sub: `${clinicalData.medications?.length || 0} loại · Hẹn giờ uống`,
       color: "#7C3AED",
     },
     {
