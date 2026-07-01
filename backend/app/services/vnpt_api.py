@@ -131,6 +131,8 @@ class VnptAPIClient:
                         "Authorization": f"{settings.VNPT_EKYC_ACCESS_TOKEN}",
                     },
                 )
+                if resp.status_code != 200:
+                    raise Exception(f"API Error {resp.status_code}")
                 data = resp.json()
                 return {
                     "liveness": data.get("object", {}).get("liveness", "fail"),
