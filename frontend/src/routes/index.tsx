@@ -3,11 +3,48 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, type WorkMode } from "../lib/auth/auth-context";
 import { useEyeCUSocket } from "../hooks/useEyeCUSocket";
 import { DEMO_PATIENT_CLINICAL, formatRecordDate, formatVnd } from "../lib/patient/clinical-data";
-// Remove driver import
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
 const gpsToSvg = (lat: number, lng: number) => {
   // Simple dummy fallback
   return { mapX: 200, mapY: 100 };
 };
+
+const ambulanceIcon = L.divIcon({
+  className: "bg-transparent border-none",
+  html: `
+    <div class="relative flex items-center justify-center w-8 h-8 -translate-x-1/2 -translate-y-1/2">
+      <span class="absolute w-full h-full bg-[#f97316] rounded-full opacity-40 animate-ping"></span>
+      <div class="relative w-4 h-4 bg-[#f97316] border-2 border-white rounded-full shadow-lg"></div>
+    </div>
+  `,
+  iconSize: [0, 0],
+});
+
+const hospitalIcon = L.divIcon({
+  className: "bg-transparent border-none",
+  html: `
+    <div class="flex flex-col items-center -translate-x-1/2 -translate-y-1/2">
+      <div class="w-9 h-9 rounded-lg flex items-center justify-center font-black text-slate-900 border-2 border-slate-900 shadow-lg bg-[#88E8F2]">
+        H
+      </div>
+      <span class="mt-1 text-[9px] font-bold text-slate-900 bg-white/90 px-1.5 py-0.5 rounded shadow">
+        BV Bạch Mai
+      </span>
+    </div>
+  `,
+  iconSize: [0, 0],
+});
+
+function LocationUpdater({ lat, lng }: { lat: number; lng: number }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView([lat, lng], map.getZoom(), { animate: true });
+  }, [lat, lng, map]);
+  return null;
+}
+
 import {
   Activity,
   Plus,
@@ -3610,7 +3647,30 @@ function ErRoomReadinessCard() {
   );
 }
 
-/* ---------- Real OpenStreetMap (iframe + overlay markers) ---------- */
+/* ---------- Dynamic MapBoundsUpdater ---------- */
+function MapBoundsUpdater({ ambulances }: { ambulances: AmbulanceUnit[] }) {
+  const map = useMap();
+  useEffect(() => {
+    const latLngs: [number, number][] = [
+      [21.0011, 105.8418] // Bach Mai Hospital
+    ];
+    ambulances.forEach(amb => {
+      if (amb.lat && amb.lng) {
+        latLngs.push([amb.lat, amb.lng]);
+      }
+    });
+    
+    if (latLngs.length > 1) {
+      const bounds = L.latLngBounds(latLngs);
+      map.fitBounds(bounds, { padding: [50, 50], animate: true });
+    } else {
+      map.setView([21.0011, 105.8418], 15, { animate: true });
+    }
+  }, [ambulances, map]);
+  return null;
+}
+
+/* ---------- Real OpenStreetMap (react-leaflet) ---------- */
 function RealAmbulanceMap({
   ambulances,
   selectedId,
@@ -3620,95 +3680,47 @@ function RealAmbulanceMap({
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
-  // Bach Mai Hospital, Hanoi: 21.0011, 105.8418
-  // Bounding box quanh BV Bạch Mai khoảng 3-4km (giống hệt bên EmsView)
-  const MIN_LNG = 105.8000;
-  const MAX_LNG = 105.8800;
-  const MIN_LAT = 20.9700;
-  const MAX_LAT = 21.0300;
-  const bbox = `${MIN_LNG},${MIN_LAT},${MAX_LNG},${MAX_LAT}`;
-  
-  const src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=21.0011,105.8418`;
-  // Vị trí mặc định ban đầu nếu chưa có GPS
-  const positions: Record<string, { top: string; left: string }> = {
-    xe1: { top: "38%", left: "62%" },
-    xe2: { top: "70%", left: "22%" },
-    xe3: { top: "52%", left: "42%" },
-  };
   return (
-    <div className="absolute inset-0">
-      <iframe
-        title="Hanoi Map"
-        src={src}
-        className="w-full h-full border-0"
-        loading="lazy"
-        referrerPolicy="no-referrer-when-downgrade"
-      />
-      {/* Hospital marker (Bach Mai) */}
-      <div
-        className="absolute z-[300] pointer-events-none"
-        style={{ top: "46%", left: "50%", transform: "translate(-50%,-50%)" }}
+    <div className="absolute inset-0 z-0">
+      <MapContainer 
+        center={[21.0011, 105.8418]} 
+        zoom={14} 
+        scrollWheelZoom={true}
+        className="w-full h-full"
+        zoomControl={false}
       >
-        <div className="flex flex-col items-center">
-          <div
-            className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-slate-900 border-2 border-slate-900 shadow-lg"
-            style={{ backgroundColor: ACCENT }}
-          >
-            H
-          </div>
-          <span className="mt-1 text-[9px] font-bold text-slate-900 bg-white/90 px-1.5 py-0.5 rounded shadow">
-            BV Bạch Mai
-          </span>
-        </div>
-      </div>
-      {/* Ambulance markers overlay */}
-      {ambulances.map((amb) => {
-        let top = positions[amb.id]?.top ?? "50%";
-        let left = positions[amb.id]?.left ?? "50%";
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
         
-        // Cập nhật toạ độ động nếu có tín hiệu GPS từ xe gửi về
-        if (amb.lat && amb.lng) {
-          let leftPerc = ((amb.lng - MIN_LNG) / (MAX_LNG - MIN_LNG)) * 100;
-          let topPerc = 100 - ((amb.lat - MIN_LAT) / (MAX_LAT - MIN_LAT)) * 100;
-          
-          leftPerc = Math.max(2, Math.min(98, leftPerc));
-          topPerc = Math.max(2, Math.min(98, topPerc));
-          
-          top = `${topPerc}%`;
-          left = `${leftPerc}%`;
-        }
+        {/* Hospital Marker */}
+        <Marker position={[21.0011, 105.8418]} icon={hospitalIcon} />
 
-        const color =
-          amb.status === "critical" ? "#EF4444" : amb.status === "urgent" ? "#F59E0B" : "#10B981";
-        const isSel = selectedId === amb.id;
-        return (
-          <button
-            key={amb.id}
-            onClick={() => onSelect(amb.id)}
-            className="absolute z-[350] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group"
-            style={{ top, left, transition: "all 1s ease-out" }}
-          >
-            {amb.status === "critical" && (
-              <span
-                className="absolute inline-flex h-10 w-10 rounded-full opacity-40 animate-ping"
-                style={{ backgroundColor: color }}
-              />
-            )}
-            <span
-              className={`relative w-8 h-8 rounded-full flex items-center justify-center text-white font-black text-sm border-2 border-white shadow-lg group-hover:scale-110 transition ${isSel ? "ring-4 ring-offset-1 ring-[#88E8F2]" : ""}`}
-              style={{ backgroundColor: color }}
+        {/* Ambulance Markers */}
+        {ambulances.map(amb => {
+          if (!amb.lat || !amb.lng) return null;
+          return (
+            <Marker 
+              key={amb.id}
+              position={[amb.lat, amb.lng]} 
+              icon={ambulanceIcon}
+              eventHandlers={{
+                click: () => onSelect(amb.id)
+              }}
             >
-              +
-            </span>
-            <span
-              className="mt-1 text-[9px] font-bold font-mono bg-white/95 px-1.5 py-0.5 rounded shadow whitespace-nowrap"
-              style={{ color }}
-            >
-              {amb.plate}
-            </span>
-          </button>
-        );
-      })}
+              <Popup>
+                <div className="text-center font-geist">
+                  <p className="font-bold text-slate-900 mb-1">{amb.plate}</p>
+                  <p className="text-xs text-slate-500 uppercase">{amb.status}</p>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+
+        <MapBoundsUpdater ambulances={ambulances} />
+      </MapContainer>
     </div>
   );
 }
@@ -6549,13 +6561,11 @@ function EmsView() {
   const [scanned, setScanned] = useState(false);
   const [alertSent, setAlertSent] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState<string | null>(null);
-  // Trang thai dong bo ho so tu BV phan hoi ve qua WebSocket
   const [syncStatus, setSyncStatus] = useState<"idle" | "synced">("idle");
   const [hospitalAck, setHospitalAck] = useState(false);
 
   const alertTypes = ["Nhoi mau co tim", "Dot quy", "Chan thuong nang", "Ngo doc"];
 
-  // Ket noi WebSocket de nhan phan hoi tu BV sau khi gui Pre-Alert hoac Fast-Track
   const WS_URL = (import.meta.env.VITE_WS_URL ?? "ws://localhost:8000") + "/api/ambient/ws/live";
   const [gpsState, setGpsState] = useState<{ lat: number; lng: number } | null>(null);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
@@ -6594,38 +6604,20 @@ function EmsView() {
       }
       setIsBroadcasting(true);
       
-      // Vị trí xuất phát giả lập ở Hà Nội (góc dưới bên trái của Bounding Box)
-      const FAKE_START_LAT = 20.9850;
-      const FAKE_START_LNG = 105.8150;
-      const FAKE_SCALE = 100; // Phóng đại bước đi: Đi 1 mét thực tế = 100 mét trên bản đồ
-
       watchIdRef.current = navigator.geolocation.watchPosition(
         (pos) => {
           const { latitude, longitude } = pos.coords;
           
-          if (!realStartRef.current) {
-            realStartRef.current = { lat: latitude, lng: longitude };
-          }
-          
-          // Tính chênh lệch độ lệch thực tế (delta)
-          const deltaLat = latitude - realStartRef.current.lat;
-          const deltaLng = longitude - realStartRef.current.lng;
-          
-          // Phóng đại chênh lệch và cộng vào vị trí xuất phát giả lập
-          const fakeLat = FAKE_START_LAT + (deltaLat * FAKE_SCALE);
-          const fakeLng = FAKE_START_LNG + (deltaLng * FAKE_SCALE);
-
-          setGpsState({ lat: fakeLat, lng: fakeLng });
+          setGpsState({ lat: latitude, lng: longitude });
           send({
             type: "GPS_UPDATE",
-            data: { ambulance_id: "current", lat: fakeLat, lng: fakeLng },
+            data: { ambulance_id: "current", lat: latitude, lng: longitude },
           });
         },
         (err) => {
           console.error("Lỗi GPS:", err);
           alert("Lỗi GPS: Vui lòng cho phép quyền truy cập vị trí trên trình duyệt (Nếu test bằng điện thoại, phải dùng HTTPs hoặc Localhost IP).");
           setIsBroadcasting(false);
-          realStartRef.current = null;
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 }
       );
@@ -6825,40 +6817,35 @@ function EmsView() {
           </div>
         </div>
 
-        {/* OpenStreetMap */}
-        <div className="relative w-full h-[240px] rounded-xl bg-[#e5e5e5] overflow-hidden mb-4 border border-slate-200">
-          <iframe
-            title="OpenStreetMap"
-            width="100%"
-            height="100%"
-            frameBorder="0"
-            scrolling="no"
-            src={src}
-            className="opacity-90"
-            style={{ pointerEvents: "none" }} // disable interactions for clean display
-          />
+        {/* OpenStreetMap via Leaflet */}
+        <div className="relative w-full h-[240px] rounded-xl bg-[#e5e5e5] overflow-hidden mb-4 border border-slate-200 z-0">
+          <MapContainer 
+            center={[mapCenterLat, mapCenterLng]} 
+            zoom={15} 
+            scrollWheelZoom={true}
+            className="w-full h-full"
+            zoomControl={false}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            
+            {/* Hospital Marker */}
+            <Marker position={[21.0011, 105.8418]} icon={hospitalIcon} />
 
-          {/* Ambulance position (Dynamic dot over iframe) */}
-          {gpsState && (
-            <div
-              className="absolute z-10"
-              style={{
-                top: ambTop,
-                left: ambLeft,
-                transform: "translate(-50%, -50%)",
-                transition: "all 1s ease-out",
-              }}
-            >
-              <div className="relative flex items-center justify-center w-8 h-8">
-                <span className="absolute w-full h-full bg-[#f97316] rounded-full opacity-40 animate-ping" />
-                <div className="relative w-4 h-4 bg-[#f97316] border-2 border-white rounded-full shadow-lg" />
-              </div>
-            </div>
-          )}
+            {/* Ambulance Location Marker */}
+            {gpsState && (
+              <>
+                <Marker position={[gpsState.lat, gpsState.lng]} icon={ambulanceIcon} />
+                <LocationUpdater lat={gpsState.lat} lng={gpsState.lng} />
+              </>
+            )}
+          </MapContainer>
 
           {/* Labels */}
-          <div className="absolute top-2 right-2 z-10 bg-white/90 backdrop-blur-sm border border-slate-200 text-slate-700 text-[9px] font-bold px-2 py-1 rounded shadow-sm">
-            OpenStreetMap · BV Bạch Mai
+          <div className="absolute top-2 right-2 z-[400] bg-white/90 backdrop-blur-sm border border-slate-200 text-slate-700 text-[9px] font-bold px-2 py-1 rounded shadow-sm">
+            GPS Live Map
           </div>
         </div>
 
