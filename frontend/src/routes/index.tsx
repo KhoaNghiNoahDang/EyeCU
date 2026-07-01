@@ -3,7 +3,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, type WorkMode } from "../lib/auth/auth-context";
 import { useEyeCUSocket } from "../hooks/useEyeCUSocket";
 import { DEMO_PATIENT_CLINICAL, formatRecordDate, formatVnd } from "../lib/patient/clinical-data";
-import { gpsToSvg } from "./driver";
+// Remove driver import
+const gpsToSvg = (lat: number, lng: number) => {
+  // Simple dummy fallback
+  return { mapX: 200, mapY: 100 };
+};
 import {
   Activity,
   Plus,
