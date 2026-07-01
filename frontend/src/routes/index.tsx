@@ -5552,58 +5552,81 @@ function SignedEMRView({ soapeData, onClose }: { soapeData: any; onClose: () => 
   });
 
   const handleSavePDF = () => {
-    alert("Mẹo: Để lưu file PDF với chất lượng vector TỐT NHẤT (không bị mờ chữ và mất định dạng), hệ thống sẽ sử dụng trình xuất PDF gốc của trình duyệt.\n\n👉 Vui lòng chọn mục Máy in (Destination) là 'Lưu dưới dạng PDF' (Save as PDF) ở màn hình tiếp theo nhé!");
-    setTimeout(() => {
-      window.print();
-    }, 500);
+    const executeSave = () => {
+      try {
+        const element = document.getElementById("emr-document");
+        const opt = {
+          margin: [10, 10, 10, 10],
+          filename: "Benh_An_Dien_Tu.pdf",
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        };
+        (window as any).html2pdf().set(opt).from(element).save().catch((err: any) => {
+          alert("Lỗi khi tải PDF: " + err.toString());
+        });
+      } catch (err: any) {
+        alert("Có lỗi xảy ra: " + err.toString());
+      }
+    };
+
+    if (!(window as any).html2pdf) {
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+      script.onload = () => executeSave();
+      script.onerror = () => alert("Không thể tải thư viện tạo PDF. Vui lòng kiểm tra mạng.");
+      document.body.appendChild(script);
+    } else {
+      executeSave();
+    }
   };
 
   return (
     <div className="mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto w-full pb-20">
-      <div id="emr-document" className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden print:shadow-none print:border-none">
+      <div id="emr-document" className="rounded-2xl shadow-xl border overflow-hidden print:shadow-none print:border-none" style={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0" }}>
         {/* Hospital Header */}
-        <div className="bg-slate-50 border-b border-slate-200 p-8 flex justify-between items-start">
+        <div className="border-b p-8 flex justify-between items-start" style={{ backgroundColor: "#f8fafc", borderColor: "#e2e8f0" }}>
           <div className="flex items-center space-x-4">
-            <div className="w-16 h-16 rounded-xl bg-blue-600 flex items-center justify-center shadow-inner">
-              <span className="text-white font-bold text-2xl tracking-tighter">EyeCU</span>
+            <div className="w-16 h-16 rounded-xl flex items-center justify-center shadow-inner" style={{ backgroundColor: "#2563eb" }}>
+              <span className="font-bold text-2xl tracking-tighter" style={{ color: "#ffffff" }}>EyeCU</span>
             </div>
             <div>
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Bệnh viện Đa Khoa EyeCU</h1>
-              <p className="text-slate-500 text-sm mt-1">123 Đường Y Tế, Phường Sức Khoẻ, TP.Hồ Chí Minh</p>
-              <p className="text-slate-500 text-sm">Điện thoại: 1900 1234 — Website: eyecu.vn</p>
+              <h1 className="text-2xl font-black tracking-tight uppercase" style={{ color: "#0f172a" }}>Bệnh viện Đa Khoa EyeCU</h1>
+              <p className="text-sm mt-1" style={{ color: "#64748b" }}>123 Đường Y Tế, Phường Sức Khoẻ, TP.Hồ Chí Minh</p>
+              <p className="text-sm" style={{ color: "#64748b" }}>Điện thoại: 1900 1234 — Website: eyecu.vn</p>
             </div>
           </div>
           <div className="text-right">
-            <h2 className="text-xl font-bold text-slate-800 uppercase tracking-widest">Bệnh án điện tử</h2>
-            <p className="text-slate-500 font-mono text-sm mt-1">Mã BA: EMR-{Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}</p>
-            <p className="text-slate-500 text-sm">Ngày: {dateStr.split(' ')[1]}</p>
+            <h2 className="text-xl font-bold uppercase tracking-widest" style={{ color: "#1e293b" }}>Bệnh án điện tử</h2>
+            <p className="font-mono text-sm mt-1" style={{ color: "#64748b" }}>Mã BA: EMR-{Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}</p>
+            <p className="text-sm" style={{ color: "#64748b" }}>Ngày: {dateStr.split(' ')[1]}</p>
           </div>
         </div>
 
         {/* Patient Info */}
-        <div className="p-8 border-b border-slate-100 bg-white">
+        <div className="p-8 border-b" style={{ backgroundColor: "#ffffff", borderColor: "#f1f5f9" }}>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div>
-              <p className="text-xs uppercase tracking-widest text-slate-400 font-bold mb-1">Họ tên người bệnh</p>
-              <p className="text-lg font-bold text-slate-800 uppercase">Nguyễn Văn A</p>
+              <p className="text-xs uppercase tracking-widest font-bold mb-1" style={{ color: "#94a3b8" }}>Họ tên người bệnh</p>
+              <p className="text-lg font-bold uppercase" style={{ color: "#1e293b" }}>Nguyễn Văn A</p>
             </div>
             <div>
-              <p className="text-xs uppercase tracking-widest text-slate-400 font-bold mb-1">Tuổi</p>
-              <p className="text-lg font-bold text-slate-800">45</p>
+              <p className="text-xs uppercase tracking-widest font-bold mb-1" style={{ color: "#94a3b8" }}>Tuổi</p>
+              <p className="text-lg font-bold" style={{ color: "#1e293b" }}>45</p>
             </div>
             <div>
-              <p className="text-xs uppercase tracking-widest text-slate-400 font-bold mb-1">Giới tính</p>
-              <p className="text-lg font-bold text-slate-800">Nam</p>
+              <p className="text-xs uppercase tracking-widest font-bold mb-1" style={{ color: "#94a3b8" }}>Giới tính</p>
+              <p className="text-lg font-bold" style={{ color: "#1e293b" }}>Nam</p>
             </div>
             <div>
-              <p className="text-xs uppercase tracking-widest text-slate-400 font-bold mb-1">Mã BN</p>
-              <p className="text-lg font-mono font-bold text-slate-800">P-12345</p>
+              <p className="text-xs uppercase tracking-widest font-bold mb-1" style={{ color: "#94a3b8" }}>Mã BN</p>
+              <p className="text-lg font-mono font-bold" style={{ color: "#1e293b" }}>P-12345</p>
             </div>
           </div>
         </div>
 
         {/* Clinical Notes (SOAPE) */}
-        <div className="p-8 bg-white space-y-8">
+        <div className="p-8 space-y-8" style={{ backgroundColor: "#ffffff" }}>
           <Section icon="S" title="Lý do vào viện (Subjective)" content={soapeData?.subjective} />
           <Section icon="O" title="Khám lâm sàng (Objective)" content={soapeData?.objective} />
           <Section icon="A" title="Chẩn đoán (Assessment)" content={soapeData?.assessment} highlight />
@@ -5612,26 +5635,26 @@ function SignedEMRView({ soapeData, onClose }: { soapeData: any; onClose: () => 
         </div>
 
         {/* Footer & Signature */}
-        <div className="bg-slate-50 p-8 flex justify-between items-end border-t border-slate-200">
-          <div className="text-xs text-slate-400 max-w-xs">
+        <div className="p-8 flex justify-between items-end border-t" style={{ backgroundColor: "#f8fafc", borderColor: "#e2e8f0" }}>
+          <div className="text-xs max-w-xs" style={{ color: "#94a3b8" }}>
             Bệnh án điện tử được ký số và lưu trữ theo chuẩn HL7 FHIR. Bản in chỉ có giá trị tham khảo.
           </div>
           <div className="text-center relative">
             {/* Digital Signature Badge */}
             <div className="absolute -top-12 -left-12 rotate-[-15deg] opacity-80 print:opacity-100">
-              <div className="border-4 border-red-500 rounded-full w-28 h-28 flex items-center justify-center p-1 relative shadow-sm bg-white/50 backdrop-blur-sm">
-                <div className="border border-red-500 rounded-full w-full h-full flex flex-col items-center justify-center text-red-600 font-bold tracking-tighter">
+              <div className="border-4 rounded-full w-28 h-28 flex items-center justify-center p-1 relative shadow-sm backdrop-blur-sm" style={{ borderColor: "#ef4444", backgroundColor: "rgba(255,255,255,0.5)" }}>
+                <div className="border rounded-full w-full h-full flex flex-col items-center justify-center font-bold tracking-tighter" style={{ borderColor: "#ef4444", color: "#dc2626" }}>
                   <span className="text-[10px] uppercase">Ký số hợp lệ</span>
-                  <svg className="w-5 h-5 my-0.5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+                  <svg className="w-5 h-5 my-0.5" style={{ color: "#dc2626" }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
                   <span className="text-[8px] font-mono">{dateStr.split(' ')[0]}</span>
                 </div>
               </div>
             </div>
             
-            <p className="font-bold text-slate-800 mb-6 relative z-10">BÁC SĨ ĐIỀU TRỊ</p>
-            <div className="font-[cursive] text-4xl text-blue-800 mb-4 opacity-90 relative z-10 select-none">Văn Ngữ</div>
-            <p className="font-bold text-slate-900 uppercase tracking-widest relative z-10">BS. VĂN NGỮ</p>
-            <p className="text-sm text-slate-500 mt-1 relative z-10">Chứng chỉ: CCHN-12345/BYT</p>
+            <p className="font-bold mb-6 relative z-10" style={{ color: "#1e293b" }}>BÁC SĨ ĐIỀU TRỊ</p>
+            <div className="font-[cursive] text-4xl mb-4 opacity-90 relative z-10 select-none" style={{ color: "#1e40af" }}>Văn Ngữ</div>
+            <p className="font-bold uppercase tracking-widest relative z-10" style={{ color: "#0f172a" }}>BS. VĂN NGỮ</p>
+            <p className="text-sm mt-1 relative z-10" style={{ color: "#64748b" }}>Chứng chỉ: CCHN-12345/BYT</p>
           </div>
         </div>
       </div>
@@ -5640,24 +5663,26 @@ function SignedEMRView({ soapeData, onClose }: { soapeData: any; onClose: () => 
       <div className="mt-8 flex justify-center space-x-4 print:hidden">
         <button 
           onClick={onClose}
-          className="px-6 py-2.5 rounded-full border-2 border-slate-200 text-slate-600 font-bold hover:bg-slate-50 hover:text-slate-900 transition-all active:scale-95"
+          className="px-6 py-2.5 rounded-full border-2 font-bold transition-all active:scale-95"
+          style={{ borderColor: "#e2e8f0", color: "#475569", backgroundColor: "transparent" }}
         >
           Quay lại
         </button>
         <button 
           onClick={handleSavePDF}
-          className="px-6 py-2.5 rounded-full bg-slate-800 text-white font-bold transition-all active:scale-95 shadow-md hover:shadow-lg flex items-center space-x-2"
+          className="px-6 py-2.5 rounded-full font-bold transition-all active:scale-95 shadow-md hover:shadow-lg flex items-center space-x-2"
+          style={{ backgroundColor: "#1e293b", color: "#ffffff" }}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
           <span>Lưu PDF</span>
         </button>
         <button 
           onClick={() => window.print()}
-          className="px-6 py-2.5 rounded-full text-white font-bold transition-all active:scale-95 shadow-md hover:shadow-lg flex items-center space-x-2"
-          style={{ backgroundColor: ACCENT }}
+          className="px-6 py-2.5 rounded-full font-bold transition-all active:scale-95 shadow-md hover:shadow-lg flex items-center space-x-2"
+          style={{ backgroundColor: ACCENT, color: "#0f172a" }}
         >
-          <svg className="w-5 h-5 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-          <span className="text-slate-900">In bệnh án</span>
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+          <span>In bệnh án</span>
         </button>
       </div>
     </div>
@@ -5668,14 +5693,15 @@ function Section({ icon, title, content, highlight = false }: { icon: string; ti
   if (!content || content === "Chưa có thông tin") return null;
   return (
     <div className="flex items-start space-x-4">
-      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0 ${highlight ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
+      <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0" 
+           style={{ backgroundColor: highlight ? "#fee2e2" : "#f1f5f9", color: highlight ? "#b91c1c" : "#475569" }}>
         {icon}
       </div>
       <div>
-        <h3 className={`font-bold text-sm uppercase tracking-wider mb-1 ${highlight ? 'text-red-700' : 'text-slate-400'}`}>
+        <h3 className="font-bold text-sm uppercase tracking-wider mb-1" style={{ color: highlight ? "#b91c1c" : "#94a3b8" }}>
           {title}
         </h3>
-        <p className="text-slate-800 leading-relaxed text-lg">{content}</p>
+        <p className="leading-relaxed text-lg" style={{ color: "#1e293b" }}>{content}</p>
       </div>
     </div>
   );
