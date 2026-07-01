@@ -5406,133 +5406,137 @@ function VoiceView() {
   };
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
-      {/* LEFT: Recording + transcript */}
-      <div className="flex min-h-[520px] flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6 lg:h-[620px]">
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h3 className="text-lg font-medium text-slate-900">Ghi âm Lâm sàng</h3>
-          <span
-            className="flex w-fit items-center gap-1 rounded px-2 py-1 text-[10px] uppercase tracking-wider text-slate-900 font-geist transition-colors duration-300"
-            style={{ backgroundColor: recording ? ACCENT : "#F1F5F9" }}
-          >
-            {recording && <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />}
-            {recording ? "Đang ghi" : "Sẵn sàng"}
-          </span>
-        </div>
+    <>
+      {showSignedEMR ? (
+        <SignedEMRView soapeData={soapeData} onClose={() => setShowSignedEMR(false)} />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
+          {/* LEFT: Recording + transcript */}
+          <div className="flex min-h-[520px] flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6 lg:h-[620px]">
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="text-lg font-medium text-slate-900">Ghi âm Lâm sàng</h3>
+              <span
+                className="flex w-fit items-center gap-1 rounded px-2 py-1 text-[10px] uppercase tracking-wider text-slate-900 font-geist transition-colors duration-300"
+                style={{ backgroundColor: recording ? ACCENT : "#F1F5F9" }}
+              >
+                {recording && <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />}
+                {recording ? "Đang ghi" : "Sẵn sàng"}
+              </span>
+            </div>
 
-        <div className="flex flex-col items-center justify-center py-2 relative">
-          <Waveform active={recording} />
-          <div
-            className="mt-3 flex max-w-full items-center gap-2 rounded-full border-2 px-3 py-1.5"
-            style={{ borderColor: ACCENT, backgroundColor: "#EAFBFE" }}
-          >
-            <BadgeCheck className="w-4 h-4" style={{ color: "#0891B2" }} />
-            <span className="text-[10px] font-bold uppercase tracking-wide text-slate-900 font-geist sm:text-[11px] sm:tracking-wider">
-              AI Voice NLU · Tiếng Việt
-            </span>
+            <div className="flex flex-col items-center justify-center py-2 relative">
+              <Waveform active={recording} />
+              <div
+                className="mt-3 flex max-w-full items-center gap-2 rounded-full border-2 px-3 py-1.5"
+                style={{ borderColor: ACCENT, backgroundColor: "#EAFBFE" }}
+              >
+                <BadgeCheck className="w-4 h-4" style={{ color: "#0891B2" }} />
+                <span className="text-[10px] font-bold uppercase tracking-wide text-slate-900 font-geist sm:text-[11px] sm:tracking-wider">
+                  AI Voice NLU · Tiếng Việt
+                </span>
+              </div>
+              <p className="mt-2 text-[11px] font-geist uppercase tracking-wider text-slate-500">
+                BS. Văn Ngữ · Phòng 103
+              </p>
+              
+              {!recording ? (
+                 <button
+                  onClick={startRecording}
+                  disabled={isProcessing}
+                  className="mt-3 flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-slate-900 transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed sm:px-6"
+                  style={{ backgroundColor: ACCENT }}
+                >
+                  <Play className="w-4 h-4" /> Bắt đầu thu
+                </button>
+              ) : (
+                <button
+                  onClick={stopRecording}
+                  className="mt-3 flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90 animate-pulse sm:px-6"
+                  style={{ backgroundColor: "#ef4444" }}
+                >
+                  <StopCircle className="w-4 h-4" /> Dừng & Xử lý
+                </button>
+              )}
+            </div>
+            
+            {errorMsg && (
+              <div className="mt-2 bg-red-50 text-red-600 p-2 rounded-md text-xs font-medium text-center">
+                {errorMsg}
+              </div>
+            )}
+
+            <div className="mt-3 border-t border-slate-200 pt-3 flex-1 overflow-auto scrollbar-hide">
+              <p className="text-[10px] font-geist uppercase tracking-wider text-slate-500 mb-1">
+                Phiên âm thô (raw speech)
+              </p>
+              {isProcessing ? (
+                 <div className="flex items-center text-slate-400 space-x-2 mt-4">
+                   <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" />
+                   <span className="text-sm">Đang phân tích SOAPE qua AI...</span>
+                 </div>
+              ) : (
+                 <p className="text-sm text-slate-800 italic leading-relaxed whitespace-pre-wrap">
+                   {recording ? (liveTranscript || "Đang lắng nghe...") : (transcript || "Chưa có dữ liệu...")}
+                 </p>
+              )}
+            </div>
           </div>
-          <p className="mt-2 text-[11px] font-geist uppercase tracking-wider text-slate-500">
-            BS. Văn Ngữ · Phòng 103
-          </p>
-          
-          {!recording ? (
-             <button
-              onClick={startRecording}
-              disabled={isProcessing}
-              className="mt-3 flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-slate-900 transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed sm:px-6"
-              style={{ backgroundColor: ACCENT }}
-            >
-              <Play className="w-4 h-4" /> Bắt đầu thu
-            </button>
-          ) : (
+
+          {/* RIGHT: SOAPE Form */}
+          <div className="flex min-h-[520px] flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6 lg:h-[620px]">
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="text-lg font-medium text-slate-900">EMR · Mẫu SOAPE</h3>
+              <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-slate-500 font-geist">
+                <Cpu className="w-3 h-3" style={{ color: ACCENT }} /> AI Parser · Trực tiếp
+              </span>
+            </div>
+            <div className="space-y-3 flex-1 overflow-auto scrollbar-hide">
+              <EMRField
+                label="Lý do vào viện (S — Subjective)"
+                value={soapeData?.subjective}
+                filled={!!soapeData}
+                isProcessing={isProcessing}
+              />
+              <EMRField
+                label="Khám lâm sàng (O — Objective)"
+                value={soapeData?.objective}
+                filled={!!soapeData}
+                isProcessing={isProcessing}
+              />
+              <EMRField
+                label="Chẩn đoán (A — Assessment)"
+                value={soapeData?.assessment}
+                filled={!!soapeData}
+                isProcessing={isProcessing}
+              />
+              <EMRField
+                label="Xử trí / Y lệnh (P — Plan)"
+                value={soapeData?.plan}
+                filled={!!soapeData}
+                isProcessing={isProcessing}
+              />
+              <EMRField
+                label="Đánh giá lại (E — Evaluation)"
+                value={soapeData?.evaluation}
+                filled={!!soapeData}
+                isProcessing={isProcessing}
+              />
+            </div>
             <button
-              onClick={stopRecording}
-              className="mt-3 flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90 animate-pulse sm:px-6"
-              style={{ backgroundColor: "#ef4444" }}
+              className="mt-4 rounded-lg py-3 text-sm font-bold text-slate-900 transition hover:opacity-90 disabled:opacity-50 flex items-center justify-center space-x-2"
+              style={{ backgroundColor: ACCENT }}
+              disabled={!soapeData || isProcessing}
+              onClick={() => setShowSignedEMR(true)}
             >
-              <StopCircle className="w-4 h-4" /> Dừng & Xử lý
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              <span>Xác nhận và Ký số</span>
             </button>
-          )}
-        </div>
-        
-        {errorMsg && (
-          <div className="mt-2 bg-red-50 text-red-600 p-2 rounded-md text-xs font-medium text-center">
-            {errorMsg}
           </div>
-        )}
-
-        <div className="mt-3 border-t border-slate-200 pt-3 flex-1 overflow-auto scrollbar-hide">
-          <p className="text-[10px] font-geist uppercase tracking-wider text-slate-500 mb-1">
-            Phiên âm thô (raw speech)
-          </p>
-          {isProcessing ? (
-             <div className="flex items-center text-slate-400 space-x-2 mt-4">
-               <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" />
-               <span className="text-sm">Đang phân tích SOAPE qua AI...</span>
-             </div>
-          ) : (
-             <p className="text-sm text-slate-800 italic leading-relaxed whitespace-pre-wrap">
-               {recording ? (liveTranscript || "Đang lắng nghe...") : (transcript || "Chưa có dữ liệu...")}
-             </p>
-          )}
         </div>
-      </div>
-
-      {/* RIGHT: SOAPE Form */}
-      <div className="flex min-h-[520px] flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6 lg:h-[620px]">
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h3 className="text-lg font-medium text-slate-900">EMR · Mẫu SOAPE</h3>
-          <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-slate-500 font-geist">
-            <Cpu className="w-3 h-3" style={{ color: ACCENT }} /> AI Parser · Trực tiếp
-          </span>
-        </div>
-        <div className="space-y-3 flex-1 overflow-auto scrollbar-hide">
-          <EMRField
-            label="Lý do vào viện (S — Subjective)"
-            value={soapeData?.subjective}
-            filled={!!soapeData}
-            isProcessing={isProcessing}
-          />
-          <EMRField
-            label="Khám lâm sàng (O — Objective)"
-            value={soapeData?.objective}
-            filled={!!soapeData}
-            isProcessing={isProcessing}
-          />
-          <EMRField
-            label="Chẩn đoán (A — Assessment)"
-            value={soapeData?.assessment}
-            filled={!!soapeData}
-            isProcessing={isProcessing}
-          />
-          <EMRField
-            label="Xử trí / Y lệnh (P — Plan)"
-            value={soapeData?.plan}
-            filled={!!soapeData}
-            isProcessing={isProcessing}
-          />
-          <EMRField
-            label="Đánh giá lại (E — Evaluation)"
-            value={soapeData?.evaluation}
-            filled={!!soapeData}
-            isProcessing={isProcessing}
-          />
-        </div>
-        <button
-          className="mt-4 rounded-lg py-3 text-sm font-bold text-slate-900 transition hover:opacity-90 disabled:opacity-50 flex items-center justify-center space-x-2"
-          style={{ backgroundColor: ACCENT }}
-          disabled={!soapeData || isProcessing}
-          onClick={() => setShowSignedEMR(true)}
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-          </svg>
-          <span>Xác nhận và Ký số</span>
-        </button>
-      </div>
-    </div>
       )}
-    </div>
+    </>
   );
 }
 
