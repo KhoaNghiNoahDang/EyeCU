@@ -1,0 +1,26 @@
+{
+  "status": "success",
+  "incident_detected": true,
+  "room_code": "P.103",
+  "department_id": "ER",
+  "severity": "Khẩn",
+  "analytics_result": {
+    "vision_ai": {
+      "model_name": "YOLOv8-Pose-Fall",
+      "confidence_score": 0.94,
+      "status": "FALL_DETECTED",
+      "alert_triggered": true
+    },
+    "audio_ai": {
+      "model_name": "Ysound-ESC50",
+      "confidence_score": 0.88,
+      "status": "HIGH_IMPACT_NOISE",
+      "alert_triggered": true
+    }
+  },
+  "timestamp": "2026-06-30T15:45:00Z",
+  "mock_files": {
+    "video_source": "fall_sample_01.mp4",
+    "audio_source": "sound_02.wav"
+  }
+}

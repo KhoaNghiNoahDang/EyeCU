@@ -11,6 +11,7 @@ async def process_voice_emr(
 ):
     audio_bytes = await audio.read()
 
+<<<<<<< HEAD
     # 1. Speech To Text
     stt_result = await vnpt_client.call_smartvoice_stt(audio_bytes, audio.filename)
 
@@ -42,4 +43,12 @@ Chỉ trả về JSON.
         "patient_id": patient_id,
         "transcript": transcript,
         "soape": soape_result,
+=======
+    # VNPT SmartVoice STT Mock
+    soape_data = get_mock_json("smartvoice_soape")
+
+    return {
+        "summary": soape_data.get("summary", "Bệnh nhân có biểu hiện đau đầu..."),
+        "raw_text": soape_data.get("raw_text", "Tôi bị đau đầu từ hôm qua..."),
+>>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5
     }

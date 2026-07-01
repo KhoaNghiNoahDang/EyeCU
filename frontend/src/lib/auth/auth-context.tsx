@@ -103,16 +103,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     persistAuth(user, workMode);
   }, []);
 
-  const setWorkMode = useCallback(
-    (mode: WorkMode) => {
-      setState((prev) => {
-        const next = { ...prev, workMode: mode };
-        persistAuth(next.user, mode);
-        return next;
-      });
-    },
-    [],
-  );
+  const setWorkMode = useCallback((mode: WorkMode) => {
+    setState((prev) => {
+      const next = { ...prev, workMode: mode };
+      persistAuth(next.user, mode);
+      return next;
+    });
+  }, []);
 
   const logout = useCallback(() => {
     setState({ user: null, workMode: null });

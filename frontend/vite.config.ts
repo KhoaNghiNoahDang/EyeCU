@@ -8,6 +8,7 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  nitro: true,
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
@@ -15,45 +16,54 @@ export default defineConfig({
   },
   plugins: [
     VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      registerType: "autoUpdate",
+      includeAssets: ["apple-touch-icon.svg", "masked-icon.svg", "pwa-icon.svg"],
       manifest: {
-        name: 'EyeCU Ambient Clinical OS',
-        short_name: 'EyeCU',
-        description: 'Hệ điều hành nhận thức không gian (Ambient Intelligence)',
-        theme_color: '#88E8F2',
+        id: "/",
+        name: "EyeCU Ambient Clinical OS",
+        short_name: "EyeCU",
+        description: "Hệ điều hành nhận thức không gian (Ambient Intelligence)",
+        start_url: "/",
+        scope: "/",
+        display: "standalone",
+        display_override: ["window-controls-overlay", "standalone", "browser"],
+        background_color: "#f8fafc",
+        theme_color: "#88E8F2",
+        orientation: "portrait",
         icons: [
           {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
+            src: "pwa-icon.svg",
+            sizes: "any",
+            type: "image/svg+xml",
+            purpose: "any",
           },
           {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          }
-        ]
+            src: "masked-icon.svg",
+            sizes: "any",
+            type: "image/svg+xml",
+            purpose: "maskable",
+          },
+        ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\.vnpt\.vn\/.*/i,
-            handler: 'NetworkFirst',
+            handler: "NetworkFirst",
             options: {
-              cacheName: 'vnpt-api-cache',
+              cacheName: "vnpt-api-cache",
               expiration: {
                 maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 // 1 day
+                maxAgeSeconds: 60 * 60 * 24, // 1 day
               },
               cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          }
-        ]
-      }
-    })
-  ]
+                statuses: [0, 200],
+              },
+            },
+          },
+        ],
+      },
+    }),
+  ],
 });

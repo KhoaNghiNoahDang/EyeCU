@@ -171,3 +171,13 @@ class LprLog(SQLModel, table=True):
     confidence: Optional[float] = None
     image_url: Optional[str] = Field(default=None, max_length=255)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+class Incident(SQLModel, table=True):
+    __tablename__ = "incidents"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    room_code: str = Field(max_length=50, index=True)
+    severity: str = Field(max_length=50)  # Khẩn, Cần xem, Ổn định
+    description: Optional[str] = None
+    status: str = Field(default="pending", max_length=20)  # pending, resolved
+    created_at: datetime = Field(default_factory=datetime.utcnow)

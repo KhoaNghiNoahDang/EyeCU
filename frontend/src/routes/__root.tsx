@@ -76,19 +76,47 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1, viewport-fit=cover",
+      },
+      { name: "apple-mobile-web-app-title", content: "EyeCU" },
+      { name: "theme-color", content: "#88E8F2" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
+      { name: "mobile-web-app-capable", content: "yes" },
       { title: "Lovable App" },
-      { name: "description", content: "Project Lovable Builder is a clinical dashboard application for enterprise Vietnamese hospitals." },
+      {
+        name: "description",
+        content:
+          "Project Lovable Builder is a clinical dashboard application for enterprise Vietnamese hospitals.",
+      },
       { name: "author", content: "Lovable" },
       { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Project Lovable Builder is a clinical dashboard application for enterprise Vietnamese hospitals." },
+      {
+        property: "og:description",
+        content:
+          "Project Lovable Builder is a clinical dashboard application for enterprise Vietnamese hospitals.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "Lovable App" },
-      { name: "twitter:description", content: "Project Lovable Builder is a clinical dashboard application for enterprise Vietnamese hospitals." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/fc51a1c5-3b06-456c-a43b-2dc4f36e3f35/id-preview-846c1fa8--df2e1bc2-28d3-4842-a652-1556e4989903.lovable.app-1780819003471.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/fc51a1c5-3b06-456c-a43b-2dc4f36e3f35/id-preview-846c1fa8--df2e1bc2-28d3-4842-a652-1556e4989903.lovable.app-1780819003471.png" },
+      {
+        name: "twitter:description",
+        content:
+          "Project Lovable Builder is a clinical dashboard application for enterprise Vietnamese hospitals.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/fc51a1c5-3b06-456c-a43b-2dc4f36e3f35/id-preview-846c1fa8--df2e1bc2-28d3-4842-a652-1556e4989903.lovable.app-1780819003471.png",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/fc51a1c5-3b06-456c-a43b-2dc4f36e3f35/id-preview-846c1fa8--df2e1bc2-28d3-4842-a652-1556e4989903.lovable.app-1780819003471.png",
+      },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -105,6 +133,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.svg" },
+      { rel: "mask-icon", href: "/masked-icon.svg", color: "#88E8F2" },
     ],
   }),
   shellComponent: RootShell,

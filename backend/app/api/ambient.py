@@ -11,7 +11,11 @@ router = APIRouter()
 
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 class AmbientManager:
+=======
+class ConnectionManager:
+>>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5
 =======
 class ConnectionManager:
 >>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5
@@ -75,6 +79,7 @@ class ConnectionManager:
 
 # Khoi tao Global Manager - dung chung cho ca he thong
 ambient_manager = ConnectionManager()
+<<<<<<< HEAD
 
 <<<<<<< HEAD
 
@@ -82,6 +87,9 @@ ambient_manager = AmbientManager()
 =======
 >>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5
 
+=======
+
+>>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5
 
 @router.websocket("/ws/live")
 async def websocket_ambient_endpoint(websocket: WebSocket):
@@ -103,10 +111,13 @@ async def push_camera_alert(room_code: str, severity: str):
             "severity": severity,  # "critical", "urgent", "stable"
             "room": room_code,
 <<<<<<< HEAD
+<<<<<<< HEAD
             "title": "CẢNH BÁO AI CAMERA",
         }
     )
 =======
+=======
+>>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5
             "title": "CANH BAO AI CAMERA",
         }
     )
@@ -209,4 +220,7 @@ async def background_log_flusher():
             except Exception as e:
                 db.rollback()
                 print(f"[Ambient] Error flushing logs: {e}")
+<<<<<<< HEAD
+>>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5
+=======
 >>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5

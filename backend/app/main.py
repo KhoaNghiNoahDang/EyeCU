@@ -1,11 +1,21 @@
+import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.db.database import engine, Base
+from app.db.database import engine
+from sqlmodel import SQLModel
 from app.api import auth, admin, ambulance, ambient, ems, patient, records, voice
+from app.api.ambulance import background_db_updater
 
-Base.metadata.create_all(bind=engine)
+SQLModel.metadata.create_all(engine)
 
 app = FastAPI(title="EyeCU Ambient Clinical OS", version="1.0.0")
+
+
+# Dang ky Background Task: chay ngam khi server khoi dong
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(background_db_updater())
+
 
 app.add_middleware(
     CORSMiddleware,

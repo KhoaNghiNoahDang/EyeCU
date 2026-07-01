@@ -1,0 +1,17 @@
+{
+  "statusCode": 200,
+  "message": "Thành công",
+  "object": {
+    "id": "012649254825",
+    "name": "NGUYỄN VĂN MƯỜI",
+    "birth_day": "21/01/1970",
+    "gender": "Nam",
+    "nationality": "Việt Nam",
+    "recent_location": "142/8 Nguyễn Văn Cừ, An Khánh, Ninh Kiều, Cần Thơ",
+    "checking_result_front": {
+      "check_photocopied_result": "0"
+    }
+  },
+  "Tampering": {},
+  "general_warning": []
+}
