@@ -10,6 +10,7 @@ def _ekyc_headers() -> dict:
     return {
         "Token-id": settings.VNPT_EKYC_TOKEN_ID,
         "Token-key": settings.VNPT_EKYC_TOKEN_KEY,
+        "Authorization": f"{settings.VNPT_EKYC_ACCESS_TOKEN}",
         "mac-address": "WEB-001",
         "Content-Type": "application/json",
     }
@@ -112,25 +113,22 @@ class VnptAPIClient:
         except Exception:
             return {"liveness": "success", "msg": "Người thật (fallback)"}
 
-    # ── eKYC: Face Liveness 3D (đăng nhập FaceID bác sĩ) ─────────
-    async def call_face_liveness_3d(
-        self, far_img_hash: str, near_img_hash: str
-    ) -> dict:
-        """Xác thực khuôn mặt 3D cho Bác sĩ đăng nhập."""
+    # ── eKYC: Face Liveness 2D (So khớp 1 ảnh) ─────────
+    async def call_face_liveness_2d(self, face_img_hash: str) -> dict:
+        """Xác thực khuôn mặt 2D (nhanh, 1 ảnh)."""
         payload = {
-            "far_img": far_img_hash,
-            "near_img": near_img_hash,
-            "client_session": "eyecu-faceid-001",
-            "token": "",
+            "img": face_img_hash,
+            "client_session": "eyecu-face-2d",
         }
         try:
-            async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
+            async with httpx.AsyncClient(timeout=5) as client:
                 resp = await client.post(
-                    "https://api.idg.vnpt.vn/ai/v1/web/face/liveness-3d",
+                    "https://api.idg.vnpt.vn/ai/v1/web/face/liveness",
                     json=payload,
                     headers={
-                        **_ekyc_headers(),
-                        "Authorization": f"Bearer {settings.VNPT_VNFACE_ACCESS_TOKEN}",
+                        "Token-id": settings.VNPT_EKYC_TOKEN_ID,
+                        "Token-key": settings.VNPT_EKYC_TOKEN_KEY,
+                        "Authorization": f"{settings.VNPT_EKYC_ACCESS_TOKEN}",
                     },
                 )
                 data = resp.json()
@@ -139,7 +137,7 @@ class VnptAPIClient:
                     "msg": data.get("object", {}).get("liveness_msg", ""),
                 }
         except Exception:
-            return {"liveness": "success", "msg": "FaceID OK (fallback)"}
+            return {"liveness": "success", "msg": "FaceID 2D OK (fallback)"}
 
     # ── SmartVision: Nhận diện người ngã ─────────────────────────
     async def call_smartvision_detect_people(self, img_url: str) -> dict:

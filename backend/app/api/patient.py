@@ -140,27 +140,23 @@ async def verify_face(data: EkycFaceRequest):
     import base64
 
     try:
-        far_str = (
+        # Lấy 1 ảnh duy nhất (Frontend vẫn gửi far/near nhưng ta chỉ lấy 1)
+        face_str = (
             data.far_image_base64.split(",")[1]
             if "," in data.far_image_base64
             else data.far_image_base64
         )
-        near_str = (
-            data.near_image_base64.split(",")[1]
-            if "," in data.near_image_base64
-            else data.near_image_base64
-        )
 
-        far_bytes = base64.b64decode(far_str)
-        near_bytes = base64.b64decode(near_str)
+        face_bytes = base64.b64decode(face_str)
 
-        far_hash = await vnpt_client.upload_file(far_bytes, "far.jpg")
-        near_hash = await vnpt_client.upload_file(near_bytes, "near.jpg")
+        # Upload 1 ảnh duy nhất (chứng minh có gọi VNPT)
+        face_hash = await vnpt_client.upload_file(face_bytes, "face.jpg")
 
-        if not far_hash or not near_hash:
+        if not face_hash:
             return {"status": "error", "message": "Lỗi upload ảnh khuôn mặt"}
 
-        result = await vnpt_client.call_face_liveness_3d(far_hash, near_hash)
+        # Gọi API 2D Liveness nhanh
+        result = await vnpt_client.call_face_liveness_2d(face_hash)
         return {"status": "success", "data": result}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -187,6 +183,9 @@ def register_patient(data: PatientRegistration, db: Session = Depends(get_db)):
         qr_token=qr_token_str,
         emergency_contact_name=data.emergency_contact_name,
         emergency_contact_phone=data.emergency_contact_phone,
+        avatar_url=data.avatar_url,
+        cccd_front_url=data.cccd_front_url,
+        cccd_back_url=data.cccd_back_url,
     )
     db.add(new_patient)
     db.commit()

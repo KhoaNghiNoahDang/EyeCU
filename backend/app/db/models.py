@@ -29,6 +29,9 @@ class Patient(SQLModel, table=True):
     )
     emergency_contact_name: Optional[str] = Field(default=None, max_length=100)
     emergency_contact_phone: Optional[str] = Field(default=None, max_length=20)
+    avatar_url: Optional[str] = Field(default=None, max_length=255)
+    cccd_front_url: Optional[str] = Field(default=None, max_length=255)
+    cccd_back_url: Optional[str] = Field(default=None, max_length=255)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     @property
