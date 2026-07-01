@@ -25,18 +25,21 @@ def _smartvision_headers() -> dict:
 
 
 def _smartbot_headers() -> dict:
+    token = str(settings.VNPT_SMARTBOT_ACCESS_TOKEN)
     return {
         "Token-id": settings.VNPT_SMARTBOT_TOKEN_ID,
         "Token-key": settings.VNPT_SMARTBOT_TOKEN_KEY,
+        "Authorization": token if token.lower().startswith("bearer") else f"Bearer {token}",
         "Content-Type": "application/json",
     }
 
 
 def _smartvoice_headers() -> dict:
+    token = str(settings.VNPT_SMARTVOICE_ACCESS_TOKEN)
     return {
         "Token-id": settings.VNPT_SMARTVOICE_TOKEN_ID,
         "Token-key": settings.VNPT_SMARTVOICE_TOKEN_KEY,
-        "Content-Type": "application/json",
+        "Authorization": token if token.lower().startswith("bearer") else f"Bearer {token}",
     }
 
 
