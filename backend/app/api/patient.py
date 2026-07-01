@@ -3,23 +3,11 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from app.db.database import get_db
-<<<<<<< HEAD
-from app.db.models import User, PatientsQueue
-=======
-<<<<<<< HEAD
-from app.db.models import (User, PatientsQueue, ClinicalRecord, Medication)
->>>>>>> 4c81aea7a66a8f624fd4dd09bfb9a04e844046c7
-from app.core.security import require_roles, get_current_user
-from app.api.ambient import ambient_manager
-from app.services.vnpt_api import vnpt_client
-
-=======
 from app.db.models import User, PatientsQueue
 from app.core.security import require_roles, get_current_user
 from app.api.ambient import ambient_manager
 from app.services.vnpt_api import vnpt_client
 from pydantic import BaseModel
->>>>>>> fa318aac17709536b905938aaec6a80d5b5a185d
 import uuid
 
 router = APIRouter()
@@ -50,31 +38,17 @@ def admit_walkin(data: WalkinSchema, db: Session = Depends(get_db)):
     new_patient = User(role="patient", cccd=data.cccd, name=data.name)
     db.add(new_patient)
     db.commit()
-<<<<<<< HEAD
-    db.refresh(new_patient)
 
-    return {"status": "success", "patient_id": str(new_patient.id), "cccd": data.cccd}
-
-=======
-<<<<<<< HEAD
-    
     ticket = AdmissionQueue(patient_id=new_patient.id, status="waiting", priority="urgent")
-=======
 
     ticket = PatientsQueue(
         patient_id=new_patient.id, status="waiting"
     )
->>>>>>> fa318aac17709536b905938aaec6a80d5b5a185d
     db.add(ticket)
     db.commit()
     return {"status": "success", "ticket_id": str(ticket.id)}
->>>>>>> 4c81aea7a66a8f624fd4dd09bfb9a04e844046c7
 
-<<<<<<< HEAD
 from app.services.vnpt_api import vnpt_client
-=======
-
->>>>>>> fa318aac17709536b905938aaec6a80d5b5a185d
 
 @router.post("/sos", dependencies=[Depends(require_roles(["patient"]))])
 async def trigger_patient_sos(user: User = Depends(get_current_user)):
