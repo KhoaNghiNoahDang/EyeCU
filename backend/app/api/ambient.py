@@ -10,40 +10,23 @@ import time
 router = APIRouter()
 
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-class AmbientManager:
-=======
 class ConnectionManager:
->>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5
-=======
-class ConnectionManager:
->>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5
     def __init__(self):
         # Danh sach cac ket noi WebSocket dang mo
         self.active_connections: List[WebSocket] = []
-
-        # Interface san sang cho Redis:
-        # Khi scale len nhieu server, chi can doi use_redis = True
-        # va viet logic redis.publish thay the broadcast ben duoi
         self.use_redis = False
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-        # Bat task Ping/Pong rieng cho tung socket ngay khi connect
         asyncio.create_task(self.keep_alive(websocket))
 
     def disconnect(self, websocket: WebSocket):
-        # Kiem tra truoc khi remove de tranh ValueError neu socket da bi xoa
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
 
     async def keep_alive(self, websocket: WebSocket):
-        """
-        Co che Ping/Pong moi 20 giay.
-        Ngan Render/Nginx tu dong cat ket noi idle sau 30 giay.
-        """
+        """Ping/Pong moi 20 giay de ngan Render/Nginx cat ket noi idle."""
         try:
             while websocket in self.active_connections:
                 await websocket.send_json({"type": "ping"})
@@ -52,44 +35,24 @@ class ConnectionManager:
             self.disconnect(websocket)
 
     async def broadcast(self, message: dict):
-        """
-        Pub/Sub Interface:
-        - use_redis = False (hien tai): In-memory broadcast
-        - use_redis = True (sau nay): Redis publish len eyecu_channel
-        """
-        if self.use_redis:
-            # TODO: redis.publish("eyecu_channel", json.dumps(message))
-            pass
-        else:
-            if not self.active_connections:
-                return
+        """In-memory broadcast den tat ca dashboard dang mo."""
+        if not self.active_connections:
+            return
 
-            # Thu thap cac ket noi bi loi trong luc broadcast (mat song, ve dien...)
-            disconnected = []
-            for connection in self.active_connections:
-                try:
-                    await connection.send_json(message)
-                except Exception:
-                    disconnected.append(connection)
+        disconnected = []
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception:
+                disconnected.append(connection)
 
-            # Don dep cac ket noi da chet de tranh memory leak
-            for conn in disconnected:
-                self.disconnect(conn)
+        for conn in disconnected:
+            self.disconnect(conn)
 
 
 # Khoi tao Global Manager - dung chung cho ca he thong
 ambient_manager = ConnectionManager()
-<<<<<<< HEAD
 
-<<<<<<< HEAD
-
-ambient_manager = AmbientManager()
-=======
->>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5
-
-=======
-
->>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5
 
 @router.websocket("/ws/live")
 async def websocket_ambient_endpoint(
@@ -98,10 +61,8 @@ async def websocket_ambient_endpoint(
     await ambient_manager.connect(websocket)
     try:
         while True:
-            # Cho nhan event tu AI worker hoac PWA
             data = await websocket.receive_json()
 
-            # Them logic luu DB neu la FALL_DETECTED
             if data.get("type") == "FALL_DETECTED":
                 incident = Incident(
                     room_code=data.get("room_id", "Unknown"),
@@ -112,7 +73,6 @@ async def websocket_ambient_endpoint(
                 db.add(incident)
                 db.commit()
 
-            # Broadcast lai cho cac dashboard
             await ambient_manager.broadcast(data)
     except WebSocketDisconnect:
         ambient_manager.disconnect(websocket)
@@ -122,17 +82,9 @@ async def push_camera_alert(room_code: str, severity: str):
     await ambient_manager.broadcast(
         {
             "type": "CAMERA_EVENT",
-            "severity": severity,  # "critical", "urgent", "stable"
+            "severity": severity,
             "room": room_code,
-<<<<<<< HEAD
-<<<<<<< HEAD
             "title": "CẢNH BÁO AI CAMERA",
-        }
-    )
-=======
-=======
->>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5
-            "title": "CANH BAO AI CAMERA",
         }
     )
 
@@ -148,9 +100,9 @@ async def receive_incident_alert(
     payload: IncidentPayload, db: Session = Depends(get_db)
 ):
     """
-    Webhook / API cho cac thiet bi AI Camera ben ngoai goi vao de kich hoat bao dong (Fall Alert).
+    Webhook cho cac thiet bi AI Camera goi vao de kich hoat bao dong.
     1. Ghi log vao database (bang incidents)
-    2. Broadcast canh bao realtime qua WebSocket den toan vien
+    2. Broadcast canh bao realtime qua WebSocket
     """
     incident = Incident(
         room_code=payload.room_code,
@@ -162,7 +114,6 @@ async def receive_incident_alert(
     db.commit()
     db.refresh(incident)
 
-    # Ban canh bao realtime qua WebSocket (OpsDashboardView / EmsView)
     await ambient_manager.broadcast(
         {
             "type": "INCIDENT_ALERT",
@@ -184,16 +135,13 @@ async def receive_incident_alert(
 
 
 # ==========================================
-# GIAI PHAP THROTTLING / BATCH UPDATE LOG
+# THROTTLING / BATCH UPDATE LOG
 # ==========================================
 system_log_buffer = []
 
 
 def enqueue_system_log(log_type: str, description: str, device_id=None):
-    """
-    Day log vao buffer thay vi ghi DB ngay lap tuc.
-    Giai quyet bai toan Throttling khi co qua nhieu request (VD: OCR, eKYC)
-    """
+    """Day log vao buffer thay vi ghi DB ngay lap tuc."""
     system_log_buffer.append(
         {
             "log_type": log_type,
@@ -205,10 +153,7 @@ def enqueue_system_log(log_type: str, description: str, device_id=None):
 
 
 async def background_log_flusher():
-    """
-    Background Task: Flush buffer vao DB moi 10 giay.
-    Su dung Session doc lap de dam bao an toan thread.
-    """
+    """Background Task: Flush buffer vao DB moi 10 giay."""
     global system_log_buffer
     while True:
         await asyncio.sleep(10)
@@ -234,7 +179,3 @@ async def background_log_flusher():
             except Exception as e:
                 db.rollback()
                 print(f"[Ambient] Error flushing logs: {e}")
-<<<<<<< HEAD
->>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5
-=======
->>>>>>> 7cb1ba39bd3b6e82a607c461028b2679881b71e5
