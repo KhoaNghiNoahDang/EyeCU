@@ -285,42 +285,91 @@ function DriverPage() {
         )}
 
         {/* Live info khi đang tracking */}
-        {status === "tracking" && lastCoords && (
-          <div className="rounded-2xl p-4" style={{
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.1)",
-          }}>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
-              <span className="text-xs font-black uppercase tracking-widest text-cyan-400">
-                Đang phát trực tiếp
-              </span>
-              <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full bg-cyan-400/10 text-cyan-300">
-                {sentCount} gói
-              </span>
-            </div>
+        {status === "tracking" && lastCoords && (() => {
+          // Tính toán ETA và tiến trình
+          const DEST_LAT = 21.000;
+          const DEST_LNG = 105.840;
+          const distDeg = Math.sqrt(Math.pow(lastCoords.lat - DEST_LAT, 2) + Math.pow(lastCoords.lng - DEST_LNG, 2));
+          const distanceKm = Number((distDeg * 111).toFixed(1));
+          const etaMins = Math.max(1, Math.round((distanceKm / 40) * 60)); // giả định 40km/h
+          const progress = Math.min(100, Math.max(0, 100 - (distanceKm / 10) * 100)); // max 10km
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl p-3" style={{ background: "rgba(0,0,0,0.3)" }}>
-                <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: "#64748b" }}>Vĩ độ (Lat)</p>
-                <p className="font-black text-white text-base">{lastCoords.lat.toFixed(6)}</p>
+          const ambX = 50 + (progress / 100) * 300;
+          const ambY = 150 - (progress / 100) * 100;
+
+          return (
+            <div className="rounded-2xl p-4 flex flex-col gap-4" style={{
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.1)",
+            }}>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
+                <span className="text-xs font-black uppercase tracking-widest text-cyan-400">
+                  Đang phát trực tiếp
+                </span>
+                <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full bg-cyan-400/10 text-cyan-300">
+                  {sentCount} gói
+                </span>
               </div>
-              <div className="rounded-xl p-3" style={{ background: "rgba(0,0,0,0.3)" }}>
-                <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: "#64748b" }}>Kinh độ (Lng)</p>
-                <p className="font-black text-white text-base">{lastCoords.lng.toFixed(6)}</p>
+
+              {/* Bản đồ trực quan giống hệt Dashboard */}
+              <div className="relative w-full aspect-[2/1] rounded-xl bg-[#111827] overflow-hidden shadow-inner">
+                <div
+                  className="absolute inset-0"
+                  style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%)" }}
+                />
+                <div
+                  className="absolute inset-0 opacity-10"
+                  style={{ backgroundImage: "radial-gradient(#88E8F2 1px, transparent 1px)", backgroundSize: "24px 24px" }}
+                />
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 200">
+                  <path d="M 50 150 Q 120 80 200 100 Q 280 120 350 50" fill="none" stroke="#5eead4" strokeWidth="4" strokeDasharray="8 6" opacity="0.8" />
+                  <circle cx="50" cy="150" r="8" fill="#F97316" stroke="#FFF" strokeWidth="2.5" />
+                  <circle cx="350" cy="50" r="8" fill="#22C55E" stroke="#FFF" strokeWidth="2.5" />
+                  <g transform={`translate(${ambX}, ${ambY})`} style={{ transition: "transform 0.8s cubic-bezier(0.4,0,0.2,1)" }}>
+                    <circle cx="0" cy="0" r="14" fill="#67e8f9" opacity="0.3">
+                      <animate attributeName="r" values="12;20;12" dur="2s" repeatCount="indefinite" />
+                      <animate attributeName="opacity" values="0.4;0;0.4" dur="2s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx="0" cy="0" r="8" fill="#67e8f9" stroke="#FFF" strokeWidth="2.5" />
+                  </g>
+                </svg>
+                <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm border border-white/10 text-white text-[9px] font-bold px-2 py-1 rounded-full flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-orange-500" /> Vị trí xuất phát
+                </div>
+                <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm border border-white/10 text-white text-[9px] font-bold px-2 py-1 rounded-full flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" /> BV Bạch Mai
+                </div>
               </div>
-              <div className="rounded-xl p-3 col-span-2 flex items-center gap-3" style={{ background: "rgba(0,0,0,0.3)" }}>
-                <Radio className="w-4 h-4 flex-shrink-0" style={{ color: selectedAmb.color }} />
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider" style={{ color: "#64748b" }}>Vị trí SVG trên Dashboard</p>
-                  <p className="font-black text-white text-sm">
-                    X: {lastCoords.mapX} · Y: {lastCoords.mapY}
-                  </p>
+
+              {/* Thông số ETA / Khoảng cách */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl p-3 border border-orange-500/30" style={{ background: "rgba(249,115,22,0.1)" }}>
+                  <p className="text-[10px] uppercase tracking-wider mb-1 font-bold text-orange-400">ETA</p>
+                  <p className="font-black text-orange-400 text-lg">{etaMins} phút</p>
+                </div>
+                <div className="rounded-xl p-3 border border-slate-500/30" style={{ background: "rgba(255,255,255,0.05)" }}>
+                  <p className="text-[10px] uppercase tracking-wider mb-1 font-bold text-slate-400">Khoảng cách</p>
+                  <p className="font-black text-white text-lg">{distanceKm} km</p>
+                </div>
+              </div>
+
+              {/* Tiến trình */}
+              <div className="mt-2">
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tiến trình</span>
+                  <span className="text-xs font-black text-white">{Math.round(progress)}%</span>
+                </div>
+                <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-1000 ease-out"
+                    style={{ width: `${progress}%`, background: "linear-gradient(90deg, #F97316 0%, #67e8f9 100%)" }}
+                  />
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* Footer */}
