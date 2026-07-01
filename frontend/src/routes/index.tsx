@@ -5552,33 +5552,10 @@ function SignedEMRView({ soapeData, onClose }: { soapeData: any; onClose: () => 
   });
 
   const handleSavePDF = () => {
-    const executeSave = () => {
-      try {
-        const element = document.getElementById("emr-document");
-        const opt = {
-          margin: [10, 10, 10, 10],
-          filename: "Benh_An_Dien_Tu.pdf",
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        };
-        (window as any).html2pdf().set(opt).from(element).save().catch((err: any) => {
-          alert("Lỗi khi tải PDF: " + err.toString());
-        });
-      } catch (err: any) {
-        alert("Có lỗi xảy ra: " + err.toString());
-      }
-    };
-
-    if (!(window as any).html2pdf) {
-      const script = document.createElement("script");
-      script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
-      script.onload = () => executeSave();
-      script.onerror = () => alert("Không thể tải thư viện tạo PDF. Vui lòng kiểm tra mạng.");
-      document.body.appendChild(script);
-    } else {
-      executeSave();
-    }
+    alert("Mẹo: Để lưu file PDF với chất lượng vector TỐT NHẤT (không bị mờ chữ và mất định dạng), hệ thống sẽ sử dụng trình xuất PDF gốc của trình duyệt.\n\n👉 Vui lòng chọn mục Máy in (Destination) là 'Lưu dưới dạng PDF' (Save as PDF) ở màn hình tiếp theo nhé!");
+    setTimeout(() => {
+      window.print();
+    }, 500);
   };
 
   return (
