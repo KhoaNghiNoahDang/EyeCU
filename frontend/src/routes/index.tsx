@@ -4,6 +4,7 @@ import { useAuth, type WorkMode } from "../lib/auth/auth-context";
 import { useEyeCUSocket } from "../hooks/useEyeCUSocket";
 import { DEMO_PATIENT_CLINICAL, formatRecordDate, formatVnd } from "../lib/patient/clinical-data";
 import { lazy, Suspense } from "react";
+import { MapErrorBoundary } from "../components/MapErrorBoundary";
 const gpsToSvg = (lat: number, lng: number) => {
   // Simple dummy fallback
   return { mapX: 200, mapY: 100 };
@@ -16,14 +17,26 @@ function ClientAmbulanceMap(props: any) {
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => setIsMounted(true), []);
   if (!isMounted) return <div className="absolute inset-0 bg-slate-100 animate-pulse" />;
-  return <Suspense fallback={<div className="absolute inset-0 bg-slate-100 animate-pulse" />}><LazyRealAmbulanceMap {...props} /></Suspense>;
+  return (
+    <MapErrorBoundary>
+      <Suspense fallback={<div className="absolute inset-0 bg-slate-100 animate-pulse" />}>
+        <LazyRealAmbulanceMap {...props} />
+      </Suspense>
+    </MapErrorBoundary>
+  );
 }
 
 function ClientEmsLeafletMap(props: any) {
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => setIsMounted(true), []);
   if (!isMounted) return <div className="relative w-full h-[240px] rounded-xl bg-[#e5e5e5] animate-pulse mb-4 z-0" />;
-  return <Suspense fallback={<div className="relative w-full h-[240px] rounded-xl bg-[#e5e5e5] animate-pulse mb-4 z-0" />}><LazyEmsLeafletMap {...props} /></Suspense>;
+  return (
+    <MapErrorBoundary>
+      <Suspense fallback={<div className="relative w-full h-[240px] rounded-xl bg-[#e5e5e5] animate-pulse mb-4 z-0" />}>
+        <LazyEmsLeafletMap {...props} />
+      </Suspense>
+    </MapErrorBoundary>
+  );
 }
 
 import {
