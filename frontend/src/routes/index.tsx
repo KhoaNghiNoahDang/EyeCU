@@ -5553,21 +5553,28 @@ function SignedEMRView({ soapeData, onClose }: { soapeData: any; onClose: () => 
 
   const handleSavePDF = () => {
     const executeSave = () => {
-      const element = document.getElementById("emr-document");
-      const opt = {
-        margin: 10,
-        filename: `Benh_An_Dien_Tu_${dateStr.split(" ")[0].replace(/\//g, "")}.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      };
-      (window as any).html2pdf().set(opt).from(element).save();
+      try {
+        const element = document.getElementById("emr-document");
+        const opt = {
+          margin: [10, 10, 10, 10],
+          filename: "Benh_An_Dien_Tu.pdf",
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        };
+        (window as any).html2pdf().set(opt).from(element).save().catch((err: any) => {
+          alert("Lỗi khi tải PDF: " + err.toString());
+        });
+      } catch (err: any) {
+        alert("Có lỗi xảy ra: " + err.toString());
+      }
     };
 
     if (!(window as any).html2pdf) {
       const script = document.createElement("script");
       script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
       script.onload = () => executeSave();
+      script.onerror = () => alert("Không thể tải thư viện tạo PDF. Vui lòng kiểm tra mạng.");
       document.body.appendChild(script);
     } else {
       executeSave();
