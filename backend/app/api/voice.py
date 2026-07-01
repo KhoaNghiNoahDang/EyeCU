@@ -9,6 +9,113 @@ from app.services.vnpt_api import vnpt_client
 
 router = APIRouter()
 
+from pydantic import BaseModel
+class TranscriptRequest(BaseModel):
+    transcript: str
+    patient_id: str = "123"
+
+@router.post(
+    "/soape", dependencies=[Depends(require_roles(["doctor", "clinician", "admin"]))]
+)
+async def process_soape_from_text(req: TranscriptRequest):
+    transcript = req.transcript.strip()
+    if not transcript:
+        return {"success": False, "message": "Transcript rỗng."}
+
+    soape = await _extract_soape_with_gemini(transcript)
+
+    return {
+        "success": True,
+        "patient_id": req.patient_id,
+        "transcript": transcript,
+        "soape": soape,
+        "raw_reply": "gemini_ai",
+    }
+
+async def _extract_soape_with_gemini(transcript: str) -> dict:
+    """Dùng Gemini AI để trích xuất SOAPE từ văn bản lâm sàng tự do."""
+    api_key = os.getenv("GEMINI_API_KEY", "")
+    
+    fallback = _heuristic_soape(transcript)
+    if not api_key:
+        return fallback
+    
+    prompt = f"""Bạn là trợ lý y khoa. Đọc đoạn ghi chú lâm sàng sau (có thể là hội thoại tự do, không theo mẫu cố định) và trích xuất thành JSON với 5 trường SOAPE.
+
+Quy tắc:
+- subjective: Lý do vào viện, triệu chứng bệnh nhân mô tả, tiền sử.
+- objective: Kết quả thăm khám, chỉ số sinh tồn, kết quả xét nghiệm/cận lâm sàng.
+- assessment: Chẩn đoán hoặc nhận định lâm sàng của bác sĩ.
+- plan: Y lệnh, thuốc, thủ thuật, kế hoạch điều trị.
+- evaluation: Đánh giá lại, hẹn tái khám (nếu có, nếu không có thì ghi "Chưa có thông tin").
+
+TRẢ VỀ JSON THUẦN TÚY, KHÔNG có markdown hay giải thích:
+
+Ghi chú lâm sàng: "{transcript}"""
+
+    try:
+        import httpx
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={{api_key}}"
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
+        }
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(url, json=payload)
+            data = resp.json()
+            raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
+            # Strip markdown code block if present
+            raw_text = re.sub(r"```json\n?", "", raw_text)
+            raw_text = re.sub(r"```\n?", "", raw_text)
+            result = json.loads(raw_text.strip())
+            # Ensure all keys exist
+            for k in ["subjective", "objective", "assessment", "plan", "evaluation"]:
+                if not result.get(k):
+                    result[k] = "Chưa có thông tin"
+            return result
+    except Exception as e:
+        import logging
+        logging.error(f"[Gemini SOAPE] error: {e}")
+        return fallback
+
+def _heuristic_soape(transcript: str) -> dict:
+    """Fallback nếu không có Gemini key."""
+    text = transcript.lower()
+    o_keys = ["khám", "mạch", "huyết áp", "nhiệt độ", "sinh tồn"]
+    a_keys = ["chẩn đoán", "dự đoán", "nghi ngờ", "theo dõi bệnh"]
+    p_keys = ["y lệnh", "cho uống", "xử trí", "chỉ định", "đặt ống", "truyền"]
+    e_keys = ["tái khám", "đánh giá lại", "hẹn"]
+
+    def find_first(words):
+        found = [text.find(w) for w in words]
+        valid = [i for i in found if i != -1]
+        return min(valid) if valid else -1
+
+    o_idx = find_first(o_keys)
+    a_idx = find_first(a_keys)
+    p_idx = find_first(p_keys)
+    e_idx = find_first(e_keys)
+
+    indices = [("S", 0)]
+    for name, idx in [("O", o_idx), ("A", a_idx), ("P", p_idx), ("E", e_idx)]:
+        if idx != -1: indices.append((name, idx))
+    indices.sort(key=lambda x: x[1])
+
+    soape = {"subjective": "", "objective": "", "assessment": "", "plan": "", "evaluation": ""}
+    for i, (name, start) in enumerate(indices):
+        end = indices[i+1][1] if i + 1 < len(indices) else len(transcript)
+        chunk = transcript[start:end].strip().capitalize()
+        if name == "S": soape["subjective"] = chunk
+        elif name == "O": soape["objective"] = chunk
+        elif name == "A": soape["assessment"] = chunk
+        elif name == "P": soape["plan"] = chunk
+        elif name == "E": soape["evaluation"] = chunk
+
+    for k in ["subjective", "objective", "assessment", "plan", "evaluation"]:
+        if not soape[k]: soape[k] = "Chưa có thông tin"
+    if not soape["subjective"]: soape["subjective"] = transcript
+    return soape
+
 
 @router.post(
     "/emr", dependencies=[Depends(require_roles(["doctor", "clinician", "admin"]))]
