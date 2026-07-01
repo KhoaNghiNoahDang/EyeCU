@@ -6530,10 +6530,18 @@ function EmsView() {
 
   // Ket noi WebSocket de nhan phan hoi tu BV sau khi gui Pre-Alert hoac Fast-Track
   const WS_URL = (import.meta.env.VITE_WS_URL ?? "ws://localhost:8000") + "/api/ambient/ws/live";
+  const [gpsState, setGpsState] = useState<{ lat: number; lng: number } | null>(null);
+
   const handleSocketMessage = useCallback(
     (msg: { type: string; data?: Record<string, unknown> }) => {
       if (msg.type === "FAST_TRACK_SYNC") setSyncStatus("synced");
       if (msg.type === "PRE_ALERT") setHospitalAck(true);
+      if (msg.type === "GPS_UPDATE" && msg.data) {
+        setGpsState({
+          lat: Number(msg.data.lat),
+          lng: Number(msg.data.lng),
+        });
+      }
     },
     [],
   );
@@ -6555,6 +6563,28 @@ function EmsView() {
       },
     );
   };
+
+  // Tính toán lộ trình động
+  let etaMins = 8;
+  let distanceKm = 4.2;
+  let progress = 52;
+  let ambX = 200;
+  let ambY = 100;
+
+  if (gpsState) {
+    // Giả định Toạ độ Đích (Bạch Mai)
+    const DEST_LAT = 21.000;
+    const DEST_LNG = 105.840;
+    // Euclidian distance approx (1 độ ~ 111km)
+    const distDeg = Math.sqrt(Math.pow(gpsState.lat - DEST_LAT, 2) + Math.pow(gpsState.lng - DEST_LNG, 2));
+    distanceKm = Number((distDeg * 111).toFixed(1));
+    etaMins = Math.max(1, Math.round((distanceKm / 40) * 60)); // giả định 40km/h
+    progress = Math.min(100, Math.max(0, 100 - (distanceKm / 10) * 100)); // giả định quãng đường tối đa là 10km
+
+    // Interpolate toạ độ SVG (route từ X=50 -> X=350)
+    ambX = 50 + (progress / 100) * 300;
+    ambY = 150 - (progress / 100) * 100; // Curve đơn giản
+  }
 
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
@@ -6671,7 +6701,7 @@ function EmsView() {
       </div>
 
       {/* ── 2. GPS Map Panel ── */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6">
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
         <div className="flex items-center gap-2 mb-4">
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -6687,8 +6717,8 @@ function EmsView() {
           </div>
         </div>
 
-        {/* Simulated map */}
-        <div className="relative w-full aspect-[2/1] rounded-xl bg-slate-800 overflow-hidden mb-4">
+        {/* Dynamic map */}
+        <div className="relative w-full aspect-[2/1] rounded-xl bg-[#111827] overflow-hidden mb-4">
           <div
             className="absolute inset-0"
             style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%)" }}
@@ -6705,61 +6735,75 @@ function EmsView() {
             <path
               d="M 50 150 Q 120 80 200 100 Q 280 120 350 50"
               fill="none"
-              stroke={ACCENT}
-              strokeWidth="3"
-              strokeDasharray="8 4"
+              stroke="#5eead4"
+              strokeWidth="4"
+              strokeDasharray="8 6"
               opacity="0.8"
             />
-            <circle cx="50" cy="150" r="8" fill="#F97316" stroke="#FFF" strokeWidth="2" />
-            <circle cx="350" cy="50" r="8" fill="#22C55E" stroke="#FFF" strokeWidth="2" />
-            {/* Ambulance position */}
-            <circle cx="200" cy="100" r="6" fill={ACCENT} stroke="#FFF" strokeWidth="2">
-              <animate attributeName="r" values="6;9;6" dur="1.5s" repeatCount="indefinite" />
-            </circle>
+            {/* Start point */}
+            <circle cx="50" cy="150" r="8" fill="#F97316" stroke="#FFF" strokeWidth="2.5" />
+            {/* End point */}
+            <circle cx="350" cy="50" r="8" fill="#22C55E" stroke="#FFF" strokeWidth="2.5" />
+            
+            {/* Ambulance position (Dynamic) */}
+            <g
+              transform={`translate(${ambX}, ${ambY})`}
+              style={{ transition: "transform 0.8s cubic-bezier(0.4,0,0.2,1)" }}
+            >
+              <circle cx="0" cy="0" r="14" fill="#67e8f9" opacity="0.3">
+                <animate attributeName="r" values="12;20;12" dur="2s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.4;0;0.4" dur="2s" repeatCount="indefinite" />
+              </circle>
+              <circle cx="0" cy="0" r="8" fill="#67e8f9" stroke="#FFF" strokeWidth="2.5" />
+            </g>
           </svg>
+
           {/* Labels */}
-          <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm text-white text-[10px] font-geist px-2 py-1 rounded-md flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-orange-500" /> Vị trí hiện tại
+          <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm border border-white/10 text-white text-[10px] font-geist px-2 py-1 rounded-full flex items-center gap-1.5 shadow">
+            <span className="w-2 h-2 rounded-full bg-orange-500" /> Vị trí xuất phát
           </div>
-          <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white text-[10px] font-geist px-2 py-1 rounded-md flex items-center gap-1">
+          <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm border border-white/10 text-white text-[10px] font-geist px-2 py-1 rounded-full flex items-center gap-1.5 shadow">
             <span className="w-2 h-2 rounded-full bg-emerald-500" /> BV Bạch Mai
           </div>
         </div>
 
         {/* ETA info */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="p-3 rounded-xl bg-orange-50 border border-orange-100 text-center">
-            <p className="text-[10px] font-geist uppercase tracking-wider text-orange-500 mb-0.5">
+          <div className="p-3 rounded-xl bg-[#fff7ed] border border-orange-100/50 text-center">
+            <p className="text-[10px] font-geist uppercase tracking-wider text-orange-400 mb-0.5 font-bold">
               ETA
             </p>
-            <p className="text-xl font-bold text-orange-600">8 phút</p>
+            <p className="text-xl font-black text-orange-500">{etaMins} phút</p>
           </div>
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-center">
-            <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5">
+            <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5 font-bold">
               Khoảng cách
             </p>
-            <p className="text-xl font-bold text-slate-900">4.2 km</p>
+            <p className="text-xl font-black text-slate-900">{distanceKm} km</p>
           </div>
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-center">
-            <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5">
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-center flex flex-col justify-center">
+            <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5 font-bold">
               Đích đến
             </p>
-            <p className="text-sm font-bold text-slate-900 leading-tight">BV Bạch Mai</p>
+            <p className="text-sm font-black text-slate-900 leading-tight">BV Bạch Mai</p>
           </div>
         </div>
 
         {/* Progress bar */}
         <div className="mt-4">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-[10px] font-geist uppercase tracking-wider text-slate-400">
+          <div className="flex justify-between items-center mb-1.5">
+            <span className="text-[10px] font-geist uppercase tracking-wider text-slate-400 font-bold">
               Tiến trình di chuyển
             </span>
-            <span className="text-[10px] font-bold text-slate-900">52%</span>
+            <span className="text-xs font-black text-slate-900">{Math.round(progress)}%</span>
           </div>
-          <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+          <div className="w-full h-2.5 rounded-full bg-slate-100 overflow-hidden">
             <div
-              className="h-full rounded-full transition-all"
-              style={{ width: "52%", background: `linear-gradient(90deg, #F97316, ${ACCENT})` }}
+              className="h-full rounded-full transition-all duration-1000 ease-out"
+              style={{
+                width: `${progress}%`,
+                background: "linear-gradient(90deg, #F97316 0%, #67e8f9 100%)",
+              }}
             />
           </div>
         </div>
