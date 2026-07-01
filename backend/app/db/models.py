@@ -17,29 +17,36 @@ class Department(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
-class User(SQLModel, table=True):
-    __tablename__ = "users"
+class Patient(SQLModel, table=True):
+    __tablename__ = "patients"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    role: str = Field(max_length=20, index=True)  # admin, clinician, ops, ems, patient
+    name: str = Field(max_length=100)
+    cccd: str = Field(max_length=12, unique=True, index=True)
+    phone: Optional[str] = Field(default=None, max_length=20)
+    bhxh_code: Optional[str] = Field(default=None, max_length=20)
+    qr_token: Optional[str] = Field(
+        default=None, max_length=100, unique=True, index=True
+    )
+    emergency_contact_name: Optional[str] = Field(default=None, max_length=100)
+    emergency_contact_phone: Optional[str] = Field(default=None, max_length=20)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    @property
+    def role(self) -> str:
+        return "patient"
+
+
+class Staff(SQLModel, table=True):
+    __tablename__ = "staffs"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    role: str = Field(max_length=20, index=True)  # admin, clinician, ops, ems
     cccd: str = Field(max_length=12, unique=True, index=True)
     name: str = Field(max_length=100)
-    phone: Optional[str] = Field(default=None, max_length=20)
-
-    # Dành cho NV Y tế
-    employee_id: Optional[str] = Field(default=None, max_length=20, unique=True)
-    password_hash: Optional[str] = Field(default=None, max_length=255)
+    employee_id: str = Field(max_length=20, unique=True)
+    password_hash: str = Field(max_length=255)
     department_id: Optional[uuid.UUID] = Field(
         default=None, foreign_key="departments.id"
     )
-
-    # Dành cho Bệnh nhân
-    bhxh_code: Optional[str] = Field(default=None, max_length=20)
-    emergency_contact_name: Optional[str] = Field(default=None, max_length=100)
-    emergency_contact_phone: Optional[str] = Field(default=None, max_length=20)
-
-    # Chung
-    avatar_url: Optional[str] = Field(default=None, max_length=255)
-    qr_token: Optional[str] = Field(default=None, max_length=100, unique=True, index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -64,7 +71,7 @@ class Shift(SQLModel, table=True):
     __tablename__ = "shifts"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     ambulance_id: uuid.UUID = Field(foreign_key="ambulances.id")
-    doctor_id: uuid.UUID = Field(foreign_key="users.id")
+    doctor_id: uuid.UUID = Field(foreign_key="staffs.id")
     start_time: datetime = Field(default_factory=datetime.utcnow)
     end_time: Optional[datetime] = None
 
@@ -89,8 +96,10 @@ class Device(SQLModel, table=True):
 class PatientsQueue(SQLModel, table=True):
     __tablename__ = "patients_queue"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    patient_id: uuid.UUID = Field(foreign_key="users.id")
-    department_id: Optional[uuid.UUID] = Field(default=None, foreign_key="departments.id")
+    patient_id: uuid.UUID = Field(foreign_key="patients.id")
+    department_id: Optional[uuid.UUID] = Field(
+        default=None, foreign_key="departments.id"
+    )
     triage_level: int = Field(default=3)  # 1: Đỏ, 2: Vàng, 3: Xanh
     status: str = Field(
         default="waiting", max_length=20
@@ -101,8 +110,8 @@ class PatientsQueue(SQLModel, table=True):
 class ClinicalRecord(SQLModel, table=True):
     __tablename__ = "clinical_records"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    patient_id: uuid.UUID = Field(foreign_key="users.id")
-    doctor_id: uuid.UUID = Field(foreign_key="users.id")
+    patient_id: uuid.UUID = Field(foreign_key="patients.id")
+    doctor_id: uuid.UUID = Field(foreign_key="staffs.id")
     symptoms: Optional[str] = None
     diagnosis: Optional[str] = None
     notes: Optional[str] = None
@@ -122,7 +131,7 @@ class Medication(SQLModel, table=True):
 class VitalSign(SQLModel, table=True):
     __tablename__ = "vital_signs"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    patient_id: uuid.UUID = Field(foreign_key="users.id")
+    patient_id: uuid.UUID = Field(foreign_key="patients.id")
     device_id: Optional[uuid.UUID] = Field(default=None, foreign_key="devices.id")
     heart_rate: Optional[int] = None
     blood_pressure: Optional[str] = Field(default=None, max_length=20)
@@ -134,7 +143,7 @@ class VitalSign(SQLModel, table=True):
 class SmartReaderDoc(SQLModel, table=True):
     __tablename__ = "smart_reader_docs"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    patient_id: uuid.UUID = Field(foreign_key="users.id")
+    patient_id: uuid.UUID = Field(foreign_key="patients.id")
     record_id: Optional[uuid.UUID] = Field(
         default=None, foreign_key="clinical_records.id"
     )
@@ -145,10 +154,11 @@ class SmartReaderDoc(SQLModel, table=True):
     )
     uploaded_at: datetime = Field(default_factory=datetime.utcnow)
 
+
 class FollowUp(SQLModel, table=True):
     __tablename__ = "follow_ups"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    patient_id: uuid.UUID = Field(foreign_key="users.id")
+    patient_id: uuid.UUID = Field(foreign_key="patients.id")
     record_id: uuid.UUID = Field(foreign_key="clinical_records.id")
     date: str = Field(max_length=50)
     time: str = Field(max_length=50)
@@ -156,14 +166,16 @@ class FollowUp(SQLModel, table=True):
     note: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+
 class HospitalFee(SQLModel, table=True):
     __tablename__ = "hospital_fees"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    patient_id: uuid.UUID = Field(foreign_key="users.id")
+    patient_id: uuid.UUID = Field(foreign_key="patients.id")
     record_id: uuid.UUID = Field(foreign_key="clinical_records.id")
     total: int = Field(default=0)
-    status: str = Field(default="pending", max_length=20) # paid, pending
+    status: str = Field(default="pending", max_length=20)  # paid, pending
     paid_at: Optional[datetime] = None
+
 
 class HospitalFeeItem(SQLModel, table=True):
     __tablename__ = "hospital_fee_items"

@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from app.core.config import settings
 from app.db.database import get_db
-from app.db.models import User
+from app.db.models import Patient, Staff
 
 # ─────────────────────────────────────────────
 # OAuth2 scheme — FastAPI tự đọc "Bearer <token>" từ Header
@@ -45,7 +45,7 @@ def create_access_token(
     to_encode = {
         "exp": expire,
         "sub": str(subject),  # ID người dùng (UUID từ DB)
-        "role": role,          # QUAN TRỌNG: Quyền gắn vào Token (patient, doctor, admin...)
+        "role": role,  # QUAN TRỌNG: Quyền gắn vào Token (patient, doctor, admin...)
     }
 
     encoded_jwt = jwt.encode(
@@ -87,11 +87,14 @@ async def get_current_token_data(
 # Hàm 2: Giải mã Token → trả về User object từ DB
 # Dùng khi cần thông tin đầy đủ của người dùng
 # ─────────────────────────────────────────────
+from app.db.models import Patient, Staff
+
+
 def get_current_user(
     db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
-) -> User:
+):
     """
-    Giải mã JWT và truy vấn DB để lấy User object đầy đủ.
+    Giải mã JWT và truy vấn DB để lấy object đầy đủ (Patient hoặc Staff).
     Dùng khi API cần truy cập thông tin chi tiết của người dùng.
     """
     credentials_exception = HTTPException(
@@ -104,15 +107,27 @@ def get_current_user(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
         user_id: str = payload.get("sub")
-        if user_id is None:
+        role: str = payload.get("role")
+        if user_id is None or role is None:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
 
-    user = db.query(User).filter(User.id == user_id).first()
+    import uuid
+    try:
+        user_uuid = uuid.UUID(user_id)
+    except ValueError:
+        raise credentials_exception
+
+    if role == "patient":
+        user = db.query(Patient).filter(Patient.id == user_uuid).first()
+    else:
+        user = db.query(Staff).filter(Staff.id == user_uuid).first()
+
     if user is None:
         raise credentials_exception
     return user
+
 
 
 # ─────────────────────────────────────────────
@@ -126,6 +141,7 @@ def require_roles(allowed_roles: List[str]):
     Ví dụ:
         @router.get("/report", dependencies=[Depends(require_roles(["doctor", "admin"]))])
     """
+
     async def role_checker(token_data: TokenData = Depends(get_current_token_data)):
         if token_data.role not in allowed_roles:
             raise HTTPException(

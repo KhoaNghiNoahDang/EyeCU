@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.db.models import Ambulance, User, PatientsQueue, LprLog
+from app.db.models import Ambulance, Patient, Staff, PatientsQueue, LprLog
 from app.core.security import require_roles
 from app.api.ambient import ambient_manager
 
@@ -45,7 +45,7 @@ async def handle_lpr_webhook(plate_number: str, db: Session = Depends(get_db)):
 async def fast_track_admission(
     cccd: str, ambulance_id: str, db: Session = Depends(get_db)
 ):
-    patient = db.query(User).filter(User.cccd == cccd).first()
+    patient = db.query(Patient).filter(Patient.cccd == cccd).first()
 
     patient_data = {
         "name": patient.name if patient else "Benh nhan moi",

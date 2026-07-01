@@ -21,7 +21,9 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.database import get_db
-from app.db.models import User
+from app.db.database import get_db
+from app.db.models import Patient, Staff
+from typing import Union
 
 # ─────────────────────────────────────────────
 # FastAPI tự đọc "Bearer <token>" từ Header của mỗi Request
@@ -34,7 +36,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 # ─────────────────────────────────────────────
 class TokenData(BaseModel):
     user_id: str  # "sub" trong JWT — là UUID của User trong DB
-    role: str     # "role" trong JWT — ví dụ: "patient", "doctor", "admin"
+    role: str  # "role" trong JWT — ví dụ: "patient", "doctor", "admin"
 
 
 # ─────────────────────────────────────────────
@@ -74,7 +76,7 @@ async def get_current_token_data(
 def get_current_user(
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme),
-) -> User:
+) -> Union[Patient, Staff]:
     """
     Giải mã JWT và truy vấn DB để lấy User object đầy đủ.
     Dùng khi handler cần truy cập các trường thông tin của người dùng.
@@ -89,14 +91,21 @@ def get_current_user(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
         user_id: str = payload.get("sub")
-        if user_id is None:
+        role: str = payload.get("role")
+        if user_id is None or role is None:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
 
-    user = db.query(User).filter(User.id == user_id).first()
+    if role == "patient":
+        user = db.query(Patient).filter(Patient.id == user_id).first()
+    else:
+        user = db.query(Staff).filter(Staff.id == user_id).first()
+
     if user is None:
         raise credentials_exception
+    if not hasattr(user, "role"):
+        user.role = "patient"
     return user
 
 
@@ -112,6 +121,7 @@ def require_roles(allowed_roles: List[str]):
         async def view_ambulance_map():
             return {"msg": "Bản đồ xe cứu thương"}
     """
+
     async def role_checker(
         token_data: TokenData = Depends(get_current_token_data),
     ):

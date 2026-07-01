@@ -365,7 +365,7 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body,
       });
-      
+
       if (res.access_token) {
         // Fetch current user details
         sessionStorage.setItem("eyecu_token", res.access_token);
@@ -607,9 +607,13 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
         />
         <div className="space-y-2">
           {isLoadingStaff ? (
-            <div className="text-center py-4 text-slate-400 text-sm">Đang tải danh sách nhân viên...</div>
+            <div className="text-center py-4 text-slate-400 text-sm">
+              Đang tải danh sách nhân viên...
+            </div>
           ) : staffList.length === 0 ? (
-            <div className="text-center py-4 text-slate-400 text-sm">Chưa có nhân viên nào trong hệ thống</div>
+            <div className="text-center py-4 text-slate-400 text-sm">
+              Chưa có nhân viên nào trong hệ thống
+            </div>
           ) : (
             staffList.map((staff: AuthUser) => (
               <button

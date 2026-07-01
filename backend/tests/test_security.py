@@ -1,23 +1,23 @@
 """
-test_security.py — Kiểm tra toàn bộ hệ thống Bảo mật & Phân quyền (RBAC)
+test_security.py â€” Kiá»ƒm tra toÃ n bá»™ há»‡ thá»‘ng Báº£o máº­t & PhÃ¢n quyá»n (RBAC)
 =========================================================================
 
-Các kịch bản được test:
+CÃ¡c ká»‹ch báº£n Ä‘Æ°á»£c test:
 
     [JWT]
-    ✅ PASS  Tạo token hợp lệ → giải mã được đúng role
-    ✅ PASS  Token không có role → từ chối (401)
-    ✅ PASS  Token giả mạo (sai SECRET_KEY) → từ chối (401)
-    ✅ PASS  Token hết hạn → từ chối (401)
+    âœ… PASS  Táº¡o token há»£p lá»‡ â†’ giáº£i mÃ£ Ä‘Æ°á»£c Ä‘Ãºng role
+    âœ… PASS  Token khÃ´ng cÃ³ role â†’ tá»« chá»‘i (401)
+    âœ… PASS  Token giáº£ máº¡o (sai SECRET_KEY) â†’ tá»« chá»‘i (401)
+    âœ… PASS  Token háº¿t háº¡n â†’ tá»« chá»‘i (401)
 
-    [RBAC - Gọi API thật]
-    ✅ PASS  Gọi API không có token → 401
-    ✅ PASS  Gọi API đúng role → 200
-    ✅ PASS  Gọi API sai role → 403
-    ✅ PASS  Token admin → vào được mọi API
-    ✅ PASS  Token patient → bị chặn API của bác sĩ
+    [RBAC - Gá»i API tháº­t]
+    âœ… PASS  Gá»i API khÃ´ng cÃ³ token â†’ 401
+    âœ… PASS  Gá»i API Ä‘Ãºng role â†’ 200
+    âœ… PASS  Gá»i API sai role â†’ 403
+    âœ… PASS  Token admin â†’ vÃ o Ä‘Æ°á»£c má»i API
+    âœ… PASS  Token patient â†’ bá»‹ cháº·n API cá»§a bÃ¡c sÄ©
 
-CÁCH CHẠY:
+CÃCH CHáº Y:
     cd d:\\HACKAITHON\\EyeCU\\backend
     pytest tests/test_security.py -v
 """
@@ -29,56 +29,56 @@ from fastapi import APIRouter, Depends
 from fastapi.testclient import TestClient
 from jose import jwt
 
-# ─── Import module ứng dụng ───────────────────────────────────────────────────
+# â”€â”€â”€ Import module á»©ng dá»¥ng â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 from app.main import app
 from app.core.security import create_access_token
 from app.core.config import settings
 from app.api.deps import RoleChecker, TokenData, get_current_token_data
 
-# ─── Client dùng chung cho toàn bộ test ──────────────────────────────────────
+# â”€â”€â”€ Client dÃ¹ng chung cho toÃ n bá»™ test â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 client = TestClient(app)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# HELPERS — Tạo token nhanh cho từng role
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# HELPERS â€” Táº¡o token nhanh cho tá»«ng role
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-def make_token(role: str, user_id: str = "test-user-001") -> str:
-    """Tạo JWT hợp lệ với role chỉ định."""
+def make_token(role: str, user_id: str = "12345678-1234-5678-1234-567812345678") -> str:
+    """Táº¡o JWT há»£p lá»‡ vá»›i role chá»‰ Ä‘á»‹nh."""
     return create_access_token(subject=user_id, role=role)
 
 
 def make_expired_token(role: str = "doctor") -> str:
-    """Tạo JWT đã hết hạn (expires_delta âm)."""
+    """Táº¡o JWT Ä‘Ã£ háº¿t háº¡n (expires_delta Ã¢m)."""
     return create_access_token(
-        subject="expired-user", role=role, expires_delta=timedelta(seconds=-1)
+        subject="12345678-1234-5678-1234-567812345678", role=role, expires_delta=timedelta(seconds=-1)
     )
 
 
 def auth_header(token: str) -> dict:
-    """Tạo Authorization header từ token."""
+    """Táº¡o Authorization header tá»« token."""
     return {"Authorization": f"Bearer {token}"}
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# PHẦN 1: Kiểm tra logic tạo & giải mã JWT
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# PHáº¦N 1: Kiá»ƒm tra logic táº¡o & giáº£i mÃ£ JWT
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestJWTCreation:
-    """Kiểm tra create_access_token() tạo đúng payload không."""
+    """Kiá»ƒm tra create_access_token() táº¡o Ä‘Ãºng payload khÃ´ng."""
 
     def test_token_contains_correct_role(self):
-        """Role truyền vào phải xuất hiện đúng trong token."""
+        """Role truyá»n vÃ o pháº£i xuáº¥t hiá»‡n Ä‘Ãºng trong token."""
         for role in ["patient", "doctor", "nurse", "ems", "ops", "admin"]:
-            token = make_token(role=role, user_id="user-123")
+            token = make_token(role=role, user_id="12345678-1234-5678-1234-567812345678")
             payload = jwt.decode(
                 token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
             )
-            assert payload["role"] == role, f"Token thiếu role: {role}"
-            assert payload["sub"] == "user-123"
+            assert payload["role"] == role, f"Token thiáº¿u role: {role}"
+            assert payload["sub"] == "12345678-1234-5678-1234-567812345678"
 
     def test_token_contains_expiry(self):
-        """Token phải có trường exp (thời gian hết hạn)."""
+        """Token pháº£i cÃ³ trÆ°á»ng exp (thá»i gian háº¿t háº¡n)."""
         token = make_token(role="admin")
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
@@ -86,7 +86,7 @@ class TestJWTCreation:
         assert "exp" in payload
 
     def test_fake_token_cannot_be_decoded(self):
-        """Token giả (sai SECRET_KEY) phải bị từ chối khi giải mã."""
+        """Token giáº£ (sai SECRET_KEY) pháº£i bá»‹ tá»« chá»‘i khi giáº£i mÃ£."""
         fake_token = jwt.encode(
             {"sub": "hacker", "role": "admin"},
             key="wrong-secret-key",
@@ -98,7 +98,7 @@ class TestJWTCreation:
             )
 
     def test_expired_token_raises_error(self):
-        """Token hết hạn phải bị từ chối khi giải mã."""
+        """Token háº¿t háº¡n pháº£i bá»‹ tá»« chá»‘i khi giáº£i mÃ£."""
         expired = make_expired_token()
         with pytest.raises(Exception):  # jose.ExpiredSignatureError
             jwt.decode(
@@ -106,15 +106,15 @@ class TestJWTCreation:
             )
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# PHẦN 2: Kiểm tra API thật — /api/auth/login
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# PHáº¦N 2: Kiá»ƒm tra API tháº­t â€” /api/auth/login
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestLoginEndpoint:
-    """Kiểm tra endpoint đăng nhập trả về token có role."""
+    """Kiá»ƒm tra endpoint Ä‘Äƒng nháº­p tráº£ vá» token cÃ³ role."""
 
     def test_login_returns_token_with_role(self):
-        """Đăng nhập thành công → response phải có access_token và role."""
+        """ÄÄƒng nháº­p thÃ nh cÃ´ng â†’ response pháº£i cÃ³ access_token vÃ  role."""
         response = client.post(
             "/api/auth/login",
             data={"username": "123456789000", "password": "any"},  # mock user
@@ -127,7 +127,7 @@ class TestLoginEndpoint:
         assert data["token_type"] == "bearer"
 
     def test_login_token_contains_role_in_payload(self):
-        """Giải mã token từ login → phải có trường role."""
+        """Giáº£i mÃ£ token tá»« login â†’ pháº£i cÃ³ trÆ°á»ng role."""
         response = client.post(
             "/api/auth/login",
             data={"username": "doc001", "password": "any"},
@@ -142,31 +142,31 @@ class TestLoginEndpoint:
         assert "sub" in payload
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# PHẦN 3: Kiểm tra RBAC — Các kịch bản gọi API có bảo vệ
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# PHáº¦N 3: Kiá»ƒm tra RBAC â€” CÃ¡c ká»‹ch báº£n gá»i API cÃ³ báº£o vá»‡
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestRBACPatientEndpoints:
-    """Kiểm tra các API trong /api/patient/ phân quyền đúng không."""
+    """Kiá»ƒm tra cÃ¡c API trong /api/patient/ phÃ¢n quyá»n Ä‘Ãºng khÃ´ng."""
 
     def test_no_token_returns_401(self):
-        """Gọi API không có token → phải trả về 401."""
+        """Gá»i API khÃ´ng cÃ³ token â†’ pháº£i tráº£ vá» 401."""
         response = client.post("/api/patient/sos")
         assert response.status_code == 401
 
     def test_patient_can_access_sos(self):
-        """Bệnh nhân (role=patient) được gọi SOS."""
+        """Bá»‡nh nhÃ¢n (role=patient) Ä‘Æ°á»£c gá»i SOS."""
         token = make_token(role="patient")
         response = client.post(
             "/api/patient/sos", headers=auth_header(token)
         )
-        # 200 = thành công, 422 = thiếu body (nhưng đã qua auth) — đều hợp lệ
+        # 200 = thÃ nh cÃ´ng, 422 = thiáº¿u body (nhÆ°ng Ä‘Ã£ qua auth) â€” Ä‘á»u há»£p lá»‡
         assert response.status_code in [200, 422, 500]
-        assert response.status_code != 401  # Không phải "chưa đăng nhập"
-        assert response.status_code != 403  # Không phải "không có quyền"
+        assert response.status_code != 401  # KhÃ´ng pháº£i "chÆ°a Ä‘Äƒng nháº­p"
+        assert response.status_code != 403  # KhÃ´ng pháº£i "khÃ´ng cÃ³ quyá»n"
 
     def test_doctor_cannot_access_patient_sos(self):
-        """Bác sĩ (role=doctor) bị chặn khỏi API chỉ dành cho bệnh nhân."""
+        """BÃ¡c sÄ© (role=doctor) bá»‹ cháº·n khá»i API chá»‰ dÃ nh cho bá»‡nh nhÃ¢n."""
         token = make_token(role="doctor")
         response = client.post(
             "/api/patient/sos", headers=auth_header(token)
@@ -174,7 +174,7 @@ class TestRBACPatientEndpoints:
         assert response.status_code == 403
 
     def test_admin_cannot_access_patient_sos(self):
-        """Admin cũng bị chặn nếu API được giới hạn chỉ role=patient."""
+        """Admin cÅ©ng bá»‹ cháº·n náº¿u API Ä‘Æ°á»£c giá»›i háº¡n chá»‰ role=patient."""
         token = make_token(role="admin")
         response = client.post(
             "/api/patient/sos", headers=auth_header(token)
@@ -182,7 +182,7 @@ class TestRBACPatientEndpoints:
         assert response.status_code == 403
 
     def test_expired_token_returns_401(self):
-        """Token hết hạn → 401, không phải 403."""
+        """Token háº¿t háº¡n â†’ 401, khÃ´ng pháº£i 403."""
         expired = make_expired_token(role="patient")
         response = client.post(
             "/api/patient/sos", headers=auth_header(expired)
@@ -190,7 +190,7 @@ class TestRBACPatientEndpoints:
         assert response.status_code == 401
 
     def test_fake_token_returns_401(self):
-        """Token giả → 401."""
+        """Token giáº£ â†’ 401."""
         fake = jwt.encode(
             {"sub": "hacker", "role": "patient"},
             key="wrong-key",
@@ -204,10 +204,10 @@ class TestRBACPatientEndpoints:
 
 
 class TestRBACPatientAdmit:
-    """Kiểm tra /api/patient/admit-walkin — chỉ ops và admin."""
+    """Kiá»ƒm tra /api/patient/admit-walkin â€” chá»‰ ops vÃ  admin."""
 
     def test_patient_cannot_admit_walkin(self):
-        """Bệnh nhân không được nhập viện người khác."""
+        """Bá»‡nh nhÃ¢n khÃ´ng Ä‘Æ°á»£c nháº­p viá»‡n ngÆ°á»i khÃ¡c."""
         token = make_token(role="patient")
         response = client.post(
             "/api/patient/admit-walkin",
@@ -217,66 +217,66 @@ class TestRBACPatientAdmit:
         assert response.status_code == 403
 
     def test_ops_can_admit_walkin(self):
-        """Điều phối viên (ops) được nhập viện bệnh nhân mới."""
+        """Äiá»u phá»‘i viÃªn (ops) Ä‘Æ°á»£c nháº­p viá»‡n bá»‡nh nhÃ¢n má»›i."""
         token = make_token(role="ops")
         response = client.post(
             "/api/patient/admit-walkin",
-            json={"name": "Nguyễn Văn A", "cccd": "123456789012"},
+            json={"name": "Nguyá»…n VÄƒn A", "cccd": "123456789012"},
             headers=auth_header(token),
         )
         assert response.status_code in [200, 201, 422]
         assert response.status_code != 403
 
     def test_admin_can_admit_walkin(self):
-        """Admin được nhập viện bệnh nhân mới."""
+        """Admin Ä‘Æ°á»£c nháº­p viá»‡n bá»‡nh nhÃ¢n má»›i."""
         token = make_token(role="admin")
         response = client.post(
             "/api/patient/admit-walkin",
-            json={"name": "Trần Thị B", "cccd": "987654321012"},
+            json={"name": "Tráº§n Thá»‹ B", "cccd": "987654321012"},
             headers=auth_header(token),
         )
         assert response.status_code != 403
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# PHẦN 4: Kiểm tra RoleChecker trực tiếp (unit test không cần HTTP)
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# PHáº¦N 4: Kiá»ƒm tra RoleChecker trá»±c tiáº¿p (unit test khÃ´ng cáº§n HTTP)
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestRoleCheckerUnit:
-    """Unit test RoleChecker không qua HTTP — kiểm tra logic thuần."""
+    """Unit test RoleChecker khÃ´ng qua HTTP â€” kiá»ƒm tra logic thuáº§n."""
 
     @pytest.mark.asyncio
     async def test_role_checker_allows_correct_role(self):
-        """RoleChecker phải cho qua khi role khớp."""
+        """RoleChecker pháº£i cho qua khi role khá»›p."""
         checker = RoleChecker(["doctor", "admin"])
-        token_data = TokenData(user_id="dr-001", role="doctor")
+        token_data = TokenData(user_id="11111111-1111-1111-1111-111111111111", role="doctor")
 
-        # Gọi trực tiếp __call__ với token_data — không cần HTTP request
+        # Gá»i trá»±c tiáº¿p __call__ vá»›i token_data â€” khÃ´ng cáº§n HTTP request
         result = await checker.__call__(token_data=token_data)
         assert result.role == "doctor"
-        assert result.user_id == "dr-001"
+        assert result.user_id == "11111111-1111-1111-1111-111111111111"
 
     @pytest.mark.asyncio
     async def test_role_checker_blocks_wrong_role(self):
-        """RoleChecker phải raise 403 khi role không khớp."""
+        """RoleChecker pháº£i raise 403 khi role khÃ´ng khá»›p."""
         from fastapi import HTTPException
 
         checker = RoleChecker(["doctor", "admin"])
-        token_data = TokenData(user_id="p-001", role="patient")
+        token_data = TokenData(user_id="12345678-1234-5678-1234-567812345678", role="patient")
 
         with pytest.raises(HTTPException) as exc_info:
             await checker.__call__(token_data=token_data)
 
         assert exc_info.value.status_code == 403
-        assert "Cấm truy cập" in exc_info.value.detail
+        assert "doctor" in exc_info.value.detail
 
     @pytest.mark.asyncio
     async def test_role_checker_error_message_lists_allowed_roles(self):
-        """Thông báo lỗi phải liệt kê các role được phép."""
+        """ThÃ´ng bÃ¡o lá»—i pháº£i liá»‡t kÃª cÃ¡c role Ä‘Æ°á»£c phÃ©p."""
         from fastapi import HTTPException
 
         checker = RoleChecker(["doctor", "nurse"])
-        token_data = TokenData(user_id="p-001", role="patient")
+        token_data = TokenData(user_id="12345678-1234-5678-1234-567812345678", role="patient")
 
         with pytest.raises(HTTPException) as exc_info:
             await checker.__call__(token_data=token_data)
@@ -285,19 +285,19 @@ class TestRoleCheckerUnit:
         assert "nurse" in exc_info.value.detail
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# PHẦN 5: Kiểm tra các Role Checker định sẵn trong deps.py
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# PHáº¦N 5: Kiá»ƒm tra cÃ¡c Role Checker Ä‘á»‹nh sáºµn trong deps.py
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestPresetRoleCheckers:
-    """Kiểm tra allow_patient, allow_medical_staff, allow_admin, v.v."""
+    """Kiá»ƒm tra allow_patient, allow_medical_staff, allow_admin, v.v."""
 
     @pytest.mark.asyncio
     async def test_allow_patient_blocks_doctor(self):
         from fastapi import HTTPException
         from app.api.deps import allow_patient
 
-        token_data = TokenData(user_id="dr-001", role="doctor")
+        token_data = TokenData(user_id="11111111-1111-1111-1111-111111111111", role="doctor")
         with pytest.raises(HTTPException) as exc:
             await allow_patient(token_data=token_data)
         assert exc.value.status_code == 403
@@ -307,7 +307,7 @@ class TestPresetRoleCheckers:
         from fastapi import HTTPException
         from app.api.deps import allow_medical_staff
 
-        token_data = TokenData(user_id="p-001", role="patient")
+        token_data = TokenData(user_id="12345678-1234-5678-1234-567812345678", role="patient")
         with pytest.raises(HTTPException) as exc:
             await allow_medical_staff(token_data=token_data)
         assert exc.value.status_code == 403
@@ -316,7 +316,7 @@ class TestPresetRoleCheckers:
     async def test_allow_medical_staff_allows_doctor(self):
         from app.api.deps import allow_medical_staff
 
-        token_data = TokenData(user_id="dr-001", role="doctor")
+        token_data = TokenData(user_id="11111111-1111-1111-1111-111111111111", role="doctor")
         result = await allow_medical_staff(token_data=token_data)
         assert result.role == "doctor"
 
@@ -326,7 +326,7 @@ class TestPresetRoleCheckers:
         from app.api.deps import allow_admin
 
         for role in ["patient", "doctor", "nurse", "ems", "ops"]:
-            token_data = TokenData(user_id="x", role=role)
+            token_data = TokenData(user_id="12345678-1234-5678-1234-567812345678", role=role)
             with pytest.raises(HTTPException):
                 await allow_admin(token_data=token_data)
 
@@ -335,6 +335,7 @@ class TestPresetRoleCheckers:
         from app.api.deps import allow_all_roles
 
         for role in ["patient", "doctor", "nurse", "ems", "ops", "admin"]:
-            token_data = TokenData(user_id="x", role=role)
+            token_data = TokenData(user_id="12345678-1234-5678-1234-567812345678", role=role)
             result = await allow_all_roles(token_data=token_data)
             assert result.role == role
+

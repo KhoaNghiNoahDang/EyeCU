@@ -51,14 +51,14 @@ export function MapBoundsUpdater({ ambulances }: { ambulances: AmbulanceUnit[] }
   const map = useMap();
   useEffect(() => {
     const latLngs: [number, number][] = [
-      [21.0011, 105.8418] // Bach Mai Hospital
+      [21.0011, 105.8418], // Bach Mai Hospital
     ];
-    ambulances.forEach(amb => {
+    ambulances.forEach((amb) => {
       if (amb.lat && amb.lng) {
         latLngs.push([amb.lat, amb.lng]);
       }
     });
-    
+
     if (latLngs.length > 1) {
       const bounds = L.latLngBounds(latLngs);
       map.fitBounds(bounds, { padding: [50, 50], animate: true });
@@ -80,9 +80,9 @@ export function RealAmbulanceMap({
 }) {
   return (
     <div className="absolute inset-0 z-0">
-      <MapContainer 
-        center={[21.0011, 105.8418]} 
-        zoom={14} 
+      <MapContainer
+        center={[21.0011, 105.8418]}
+        zoom={14}
         scrollWheelZoom={true}
         className="w-full h-full"
         zoomControl={false}
@@ -91,18 +91,18 @@ export function RealAmbulanceMap({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        
+
         <Marker position={[21.0011, 105.8418]} icon={hospitalIcon} />
 
-        {ambulances.map(amb => {
+        {ambulances.map((amb) => {
           if (!amb.lat || !amb.lng) return null;
           return (
-            <Marker 
+            <Marker
               key={amb.id}
-              position={[amb.lat, amb.lng]} 
+              position={[amb.lat, amb.lng]}
               icon={ambulanceIcon}
               eventHandlers={{
-                click: () => onSelect(amb.id)
+                click: () => onSelect(amb.id),
               }}
             >
               <Popup>
@@ -124,9 +124,9 @@ export function RealAmbulanceMap({
 export function EmsLeafletMap({ lat, lng }: { lat: number; lng: number }) {
   return (
     <div className="relative w-full h-[240px] rounded-xl bg-[#e5e5e5] overflow-hidden mb-4 border border-slate-200 z-0">
-      <MapContainer 
-        center={[lat, lng]} 
-        zoom={15} 
+      <MapContainer
+        center={[lat, lng]}
+        zoom={15}
         scrollWheelZoom={true}
         className="w-full h-full"
         zoomControl={false}
@@ -135,7 +135,7 @@ export function EmsLeafletMap({ lat, lng }: { lat: number; lng: number }) {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        
+
         <Marker position={[21.0011, 105.8418]} icon={hospitalIcon} />
         <Marker position={[lat, lng]} icon={ambulanceIcon} />
         <LocationUpdater lat={lat} lng={lng} />

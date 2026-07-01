@@ -11,8 +11,7 @@ services:
       - ./backend:/app          # Hot-reload: sửa code là tự reload ngay
     env_file:
       - ./backend/.env
-    environment:
-      - DATABASE_URL=sqlite:///./eyecu.db   # Dùng SQLite cho local (không cần cài PostgreSQL)
+      # Bỏ override DATABASE_URL ở đây để container nhận biến này từ backend/.env (trỏ tới Supabase)
     depends_on: []
     restart: unless-stopped
 

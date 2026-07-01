@@ -5,7 +5,9 @@ from app.services.vnpt_api import vnpt_client
 router = APIRouter()
 
 
-@router.post("/emr", dependencies=[Depends(require_roles(["doctor", "clinician", "admin"]))])
+@router.post(
+    "/emr", dependencies=[Depends(require_roles(["doctor", "clinician", "admin"]))]
+)
 async def process_voice_emr(
     audio: UploadFile = File(...), patient_id: str = Form("123")
 ):

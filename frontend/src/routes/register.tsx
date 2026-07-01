@@ -52,7 +52,7 @@ function RegisterPage() {
   const [registeredPatient, setRegisteredPatient] = useState<ReturnType<
     typeof registerPatient
   > | null>(null);
-  
+
   const [extracting, setExtracting] = useState(false);
 
   useEffect(() => {
@@ -101,10 +101,10 @@ function RegisterPage() {
         emergency_contact_name: emergencyName.trim() || "",
         emergency_contact_phone: emergencyPhone.trim() || "",
       };
-      
+
       const res = await fetchApi("/patient/register", {
         method: "POST",
-        body: payload
+        body: payload,
       });
 
       if (res.status === "error") {
@@ -116,7 +116,7 @@ function RegisterPage() {
         ...payload,
         credentialId: credentialId ?? "",
         qrToken: res.qr_token || "mock-qr",
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       } as any);
       setStep("done");
     } catch (err) {
@@ -302,7 +302,7 @@ function RegisterPage() {
                       try {
                         const res = await fetchApi("/patient/ekyc/cccd", {
                           method: "POST",
-                          body: { image_base64: url }
+                          body: { image_base64: url },
                         });
                         if (res.status === "success" && res.data) {
                           if (res.data.name) setName(res.data.name);
@@ -442,16 +442,16 @@ function RegisterPage() {
                       try {
                         const res = await fetchApi("/patient/ekyc/face", {
                           method: "POST",
-                          body: { far_image_base64: faceUrl, near_image_base64: faceUrl }
+                          body: { far_image_base64: faceUrl, near_image_base64: faceUrl },
                         });
                         if (res.status === "success" && res.data?.liveness !== "fail") {
-                           handleFaceMatchConfirm();
+                          handleFaceMatchConfirm();
                         } else {
-                           setFormError("Xác thực khuôn mặt thất bại hoặc ảnh không đạt.");
-                           setFaceUrl(null);
+                          setFormError("Xác thực khuôn mặt thất bại hoặc ảnh không đạt.");
+                          setFaceUrl(null);
                         }
                       } catch (e) {
-                         setFormError("Lỗi kết nối máy chủ VNPT.");
+                        setFormError("Lỗi kết nối máy chủ VNPT.");
                       } finally {
                         setExtracting(false);
                       }

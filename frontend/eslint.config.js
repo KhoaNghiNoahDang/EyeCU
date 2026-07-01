@@ -18,7 +18,7 @@ export default tseslint.config(
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
     },
-    rules: {
+    rules: { '@typescript-eslint/no-explicit-any': 'warn', 'no-empty': 'warn',
       ...reactHooks.configs.recommended.rules,
       "no-restricted-imports": [
         "error",

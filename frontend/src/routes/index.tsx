@@ -11,8 +11,12 @@ const gpsToSvg = (lat: number, lng: number) => {
   return { mapX: 200, mapY: 100 };
 };
 
-const LazyRealAmbulanceMap = lazy(() => import('../components/MapComponents').then(m => ({ default: m.RealAmbulanceMap })));
-const LazyEmsLeafletMap = lazy(() => import('../components/MapComponents').then(m => ({ default: m.EmsLeafletMap })));
+const LazyRealAmbulanceMap = lazy(() =>
+  import("../components/MapComponents").then((m) => ({ default: m.RealAmbulanceMap })),
+);
+const LazyEmsLeafletMap = lazy(() =>
+  import("../components/MapComponents").then((m) => ({ default: m.EmsLeafletMap })),
+);
 
 function ClientAmbulanceMap(props: any) {
   const [isMounted, setIsMounted] = useState(false);
@@ -30,10 +34,17 @@ function ClientAmbulanceMap(props: any) {
 function ClientEmsLeafletMap(props: any) {
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => setIsMounted(true), []);
-  if (!isMounted) return <div className="relative w-full h-[240px] rounded-xl bg-[#e5e5e5] animate-pulse mb-4 z-0" />;
+  if (!isMounted)
+    return (
+      <div className="relative w-full h-[240px] rounded-xl bg-[#e5e5e5] animate-pulse mb-4 z-0" />
+    );
   return (
     <MapErrorBoundary>
-      <Suspense fallback={<div className="relative w-full h-[240px] rounded-xl bg-[#e5e5e5] animate-pulse mb-4 z-0" />}>
+      <Suspense
+        fallback={
+          <div className="relative w-full h-[240px] rounded-xl bg-[#e5e5e5] animate-pulse mb-4 z-0" />
+        }
+      >
         <LazyEmsLeafletMap {...props} />
       </Suspense>
     </MapErrorBoundary>
@@ -745,21 +756,26 @@ function AmbientView({
   const [fullscreen, setFullscreen] = useState<Camera | null>(null);
 
   const [cameras, setCameras] = useState<Camera[]>([]);
-  
+
   useEffect(() => {
-    fetchApi("/ambient/devices").then((data: any[]) => {
-      const mapped = data.map(d => ({
-        room: d.location || "Unknown",
-        zone: d.location?.charAt(0) || "A",
-        status: d.status === "active" ? "stable" : "alert",
-        label: d.name,
-        dept: "internal" // Mock dept for demo based on device
-      }));
-      setCameras(mapped as Camera[]);
-    }).catch(() => setCameras(ALL_CAMERAS));
+    fetchApi("/ambient/devices")
+      .then((data: any[]) => {
+        const mapped = data.map((d) => ({
+          room: d.location || "Unknown",
+          zone: d.location?.charAt(0) || "A",
+          status: d.status === "active" ? "stable" : "alert",
+          label: d.name,
+          dept: "internal", // Mock dept for demo based on device
+        }));
+        setCameras(mapped as Camera[]);
+      })
+      .catch(() => setCameras(ALL_CAMERAS));
   }, []);
 
-  const deptCameras = cameras.length > 0 ? cameras.filter((c) => c.dept === selectedDept) : ALL_CAMERAS.filter((c) => c.dept === selectedDept);
+  const deptCameras =
+    cameras.length > 0
+      ? cameras.filter((c) => c.dept === selectedDept)
+      : ALL_CAMERAS.filter((c) => c.dept === selectedDept);
   const filtered = onlyAlerts ? deptCameras.filter((c) => c.status === "alert") : deptCameras;
   const alertCount = deptCameras.filter((c) => c.status === "alert").length;
   const currentTab = DEPT_TABS.find((t) => t.id === selectedDept);
@@ -1783,19 +1799,21 @@ function AmbientAside({ onAlertClick }: { onAlertClick: (room: string) => void }
   const [alerts, setAlerts] = useState<AlertData[]>([]);
 
   useEffect(() => {
-    fetchApi("/ambient/incidents").then((data: any[]) => {
-      const mapped = data.map(d => ({
-        id: d.id,
-        type: d.severity === "critical" ? "fall" : "sos",
-        room: d.room,
-        time: "Vừa xong", // parse time later
-        status: d.status === "pending" ? "new" : "resolved",
-        priority: d.severity === "critical" ? "high" : "medium",
-        details: d.description
-      }));
-      if (mapped.length > 0) setAlerts(mapped as AlertData[]);
-      else setAlerts(INITIAL_ALERTS);
-    }).catch(() => setAlerts(INITIAL_ALERTS));
+    fetchApi("/ambient/incidents")
+      .then((data: any[]) => {
+        const mapped = data.map((d) => ({
+          id: d.id,
+          type: d.severity === "critical" ? "fall" : "sos",
+          room: d.room,
+          time: "Vừa xong", // parse time later
+          status: d.status === "pending" ? "new" : "resolved",
+          priority: d.severity === "critical" ? "high" : "medium",
+          details: d.description,
+        }));
+        if (mapped.length > 0) setAlerts(mapped as AlertData[]);
+        else setAlerts(INITIAL_ALERTS);
+      })
+      .catch(() => setAlerts(INITIAL_ALERTS));
   }, []);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -3312,25 +3330,27 @@ function AmbulanceView() {
   const [ambulances, setAmbulances] = useState<AmbulanceUnit[]>([]);
 
   useEffect(() => {
-    fetchApi("/ambulance").then((data: any[]) => {
-      const mapped: AmbulanceUnit[] = data.map((d: any) => {
-        return {
-          id: d.id,
-          plate: d.plate,
-          status: d.status || "available",
-          patient: "Đang cập nhật...",
-          diagnosis: "Đang cập nhật...",
-          etaSeconds: 300,
-          crew: d.driver || "Chưa phân công",
-          mapX: 0,
-          mapY: 0,
-          departmentId: "er",
-          lat: d.lat,
-          lng: d.lng
-        };
-      });
-      setAmbulances(mapped);
-    }).catch(console.error);
+    fetchApi("/ambulance")
+      .then((data: any[]) => {
+        const mapped: AmbulanceUnit[] = data.map((d: any) => {
+          return {
+            id: d.id,
+            plate: d.plate,
+            status: d.status || "available",
+            patient: "Đang cập nhật...",
+            diagnosis: "Đang cập nhật...",
+            etaSeconds: 300,
+            crew: d.driver || "Chưa phân công",
+            mapX: 0,
+            mapY: 0,
+            departmentId: "er",
+            lat: d.lat,
+            lng: d.lng,
+          };
+        });
+        setAmbulances(mapped);
+      })
+      .catch(console.error);
   }, []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedDeptId, setSelectedDeptId] = useState<string | null>("er");
@@ -3352,44 +3372,54 @@ function AmbulanceView() {
   // Ket noi WebSocket de nhan cap nhat GPS va su kien cong vien theo thoi gian thuc
   const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
   const WS_URL = (import.meta.env.VITE_WS_URL ?? `ws://${host}:8000`) + "/api/ambient/ws/live";
-  
-  const handleSocketMessage = useCallback((msg: { type: string; data?: Record<string, unknown>; room_id?: string; blurred_image_base64?: string }) => {
-    if (msg.type === "GPS_UPDATE" && msg.data) {
-      const { ambulance_id, lat, lng } = msg.data as {
-        ambulance_id: string; lat: number; lng: number;
-      };
-      
-      setAmbulances(prev =>
-        prev.map(a => {
-          if (a.id === ambulance_id || (ambulance_id === "current" && a.id === "xe1")) {
-            return { ...a, lat, lng };
-          }
-          return a;
-        })
-      );
-    }
-    if (msg.type === "GATE_ARRIVED" && msg.data) {
-      const { plate } = msg.data as { plate: string };
-      showToast(`Xe ${plate} da den cong - Barrier tu dong mo`);
-    }
-    if (msg.type === "CAMERA_STREAM") {
-      window.dispatchEvent(
-        new CustomEvent("camera-stream", {
-          detail: { room: msg.room_id, image: (msg as any).image_base64 },
-        })
-      );
-    }
-    if (msg.type === "FALL_DETECTED") {
-      setFallAlert({
-        room: msg.room_id || "Unknown",
-        imageUrl: msg.blurred_image_base64 || "",
-        time: new Date().toLocaleTimeString(),
-      });
-      try {
-        new Audio("/alert.mp3").play().catch(() => {});
-      } catch (e) {}
-    }
-  }, [showToast]);
+
+  const handleSocketMessage = useCallback(
+    (msg: {
+      type: string;
+      data?: Record<string, unknown>;
+      room_id?: string;
+      blurred_image_base64?: string;
+    }) => {
+      if (msg.type === "GPS_UPDATE" && msg.data) {
+        const { ambulance_id, lat, lng } = msg.data as {
+          ambulance_id: string;
+          lat: number;
+          lng: number;
+        };
+
+        setAmbulances((prev) =>
+          prev.map((a) => {
+            if (a.id === ambulance_id || (ambulance_id === "current" && a.id === "xe1")) {
+              return { ...a, lat, lng };
+            }
+            return a;
+          }),
+        );
+      }
+      if (msg.type === "GATE_ARRIVED" && msg.data) {
+        const { plate } = msg.data as { plate: string };
+        showToast(`Xe ${plate} da den cong - Barrier tu dong mo`);
+      }
+      if (msg.type === "CAMERA_STREAM") {
+        window.dispatchEvent(
+          new CustomEvent("camera-stream", {
+            detail: { room: msg.room_id, image: (msg as any).image_base64 },
+          }),
+        );
+      }
+      if (msg.type === "FALL_DETECTED") {
+        setFallAlert({
+          room: msg.room_id || "Unknown",
+          imageUrl: msg.blurred_image_base64 || "",
+          time: new Date().toLocaleTimeString(),
+        });
+        try {
+          new Audio("/alert.mp3").play().catch(() => {});
+        } catch (e) {}
+      }
+    },
+    [showToast],
+  );
 
   useEyeCUSocket({ url: WS_URL, onMessage: handleSocketMessage });
 
@@ -4056,12 +4086,12 @@ function RecordsView() {
 
     // Bắt đầu scan
     setScanStep(1);
-    
+
     try {
       setScanStep(2);
       const res = await fetchApi(`/records/by-cccd/${num}`);
       setScanStep(3);
-      
+
       if (res.status === "error" || !res.data) {
         setScanning(false);
         setIdentityError(
@@ -4069,7 +4099,7 @@ function RecordsView() {
         );
         return;
       }
-      
+
       setFoundPatient(res.data);
       setScanning(false);
       setTimeout(() => setStep("face_match"), 800);
@@ -6028,29 +6058,26 @@ function PatientPortalView({
       key: "followup",
       Icon: Calendar,
       label: "Lịch tái khám",
-      sub: clinicalData.followUp ? `${clinicalData.followUp.date} · ${clinicalData.followUp.time}` : "Chưa có",
+      sub: clinicalData.followUp
+        ? `${clinicalData.followUp.date} · ${clinicalData.followUp.time}`
+        : "Chưa có",
       color: "#D97706",
     },
     {
       key: "fees",
       Icon: FileText,
       label: "Viện phí",
-      sub:
-        clinicalData.fees
-          ? clinicalData.fees.status === "paid"
-            ? `${formatVnd(clinicalData.fees.total)} · Đã TT ✓`
-            : `${formatVnd(clinicalData.fees.total)} · Chưa TT`
-          : "Chưa có",
+      sub: clinicalData.fees
+        ? clinicalData.fees.status === "paid"
+          ? `${formatVnd(clinicalData.fees.total)} · Đã TT ✓`
+          : `${formatVnd(clinicalData.fees.total)} · Chưa TT`
+        : "Chưa có",
       color: "#16A34A",
     },
   ];
 
-  const [labResults, setLabResults] = useState([
-    { name: "Glucose", value: "7.8", unit: "mmol/L", ref: "< 6.4", status: "high" as const },
-    { name: "Cholesterol", value: "5.9", unit: "mmol/L", ref: "< 5.2", status: "warn" as const },
-    { name: "Creatinine", value: "92", unit: "µmol/L", ref: "< 110", status: "ok" as const },
-    { name: "HbA1c", value: "6.8", unit: "%", ref: "< 6.5", status: "warn" as const },
-  ]);
+  const [labResults, setLabResults] = useState<any[]>([]);
+  // TODO: fetch lab results
 
   const statusStyle = (s: "ok" | "warn" | "high") =>
     s === "high"
@@ -6065,7 +6092,7 @@ function PatientPortalView({
     setMessages((prev) => [...prev, { from: "user", text, time: getTimeNow() }]);
     if (!textStr) setChatInput("");
     setBotTyping(true);
-    
+
     fetchApi("/patient/chat", { method: "POST", body: { message: text } })
       .then((data) => {
         setMessages((prev) => [
@@ -6332,7 +6359,11 @@ function PatientPortalView({
             ))}
           </div>
 
-          <PatientClinicalSheet active={activeService} onClose={() => setActiveService(null)} data={clinicalData} />
+          <PatientClinicalSheet
+            active={activeService}
+            onClose={() => setActiveService(null)}
+            data={clinicalData}
+          />
 
           {/* SCAN BANNER */}
           <div className="mx-4 mt-4 flex-shrink-0">
@@ -6629,7 +6660,7 @@ function EmsView() {
   const [gpsState, setGpsState] = useState<{ lat: number; lng: number } | null>(null);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const watchIdRef = useRef<number | null>(null);
-  const realStartRef = useRef<{lat: number, lng: number} | null>(null);
+  const realStartRef = useRef<{ lat: number; lng: number } | null>(null);
 
   const handleSocketMessage = useCallback(
     (msg: { type: string; data?: Record<string, unknown> }) => {
@@ -6662,11 +6693,11 @@ function EmsView() {
         return;
       }
       setIsBroadcasting(true);
-      
+
       watchIdRef.current = navigator.geolocation.watchPosition(
         (pos) => {
           const { latitude, longitude } = pos.coords;
-          
+
           setGpsState({ lat: latitude, lng: longitude });
           send({
             type: "GPS_UPDATE",
@@ -6684,7 +6715,7 @@ function EmsView() {
             console.warn("GPS: Quá thời gian lấy vị trí (Timeout), đang thử lại...");
           }
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 },
       );
     }
   };
@@ -6717,15 +6748,15 @@ function EmsView() {
   let etaMins = 8;
   let distanceKm = 4.2;
   let progress = 52;
-  
+
   // Bounding box cho OpenStreetMap (quanh BV Bạch Mai khoảng 3-4km)
-  const MIN_LNG = 105.8000;
-  const MAX_LNG = 105.8800;
-  const MIN_LAT = 20.9700;
-  const MAX_LAT = 21.0300;
+  const MIN_LNG = 105.8;
+  const MAX_LNG = 105.88;
+  const MIN_LAT = 20.97;
+  const MAX_LAT = 21.03;
   const bbox = `${MIN_LNG},${MIN_LAT},${MAX_LNG},${MAX_LAT}`;
   const src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=21.0011,105.8418`;
-  
+
   let ambTop = "50%";
   let ambLeft = "50%";
 
@@ -6734,7 +6765,9 @@ function EmsView() {
     const DEST_LAT = 21.0011;
     const DEST_LNG = 105.8418;
     // Euclidian distance approx (1 độ ~ 111km)
-    const distDeg = Math.sqrt(Math.pow(gpsState.lat - DEST_LAT, 2) + Math.pow(gpsState.lng - DEST_LNG, 2));
+    const distDeg = Math.sqrt(
+      Math.pow(gpsState.lat - DEST_LAT, 2) + Math.pow(gpsState.lng - DEST_LNG, 2),
+    );
     distanceKm = Number((distDeg * 111).toFixed(1));
     etaMins = Math.max(1, Math.round((distanceKm / 40) * 60)); // giả định 40km/h
     progress = Math.min(100, Math.max(0, 100 - (distanceKm / 10) * 100)); // giả định quãng đường tối đa là 10km
@@ -6742,18 +6775,17 @@ function EmsView() {
     // Map to percentage for the bbox
     let leftPerc = ((gpsState.lng - MIN_LNG) / (MAX_LNG - MIN_LNG)) * 100;
     let topPerc = 100 - ((gpsState.lat - MIN_LAT) / (MAX_LAT - MIN_LAT)) * 100;
-    
+
     // Giới hạn trong khung map
     leftPerc = Math.max(2, Math.min(98, leftPerc));
     topPerc = Math.max(2, Math.min(98, topPerc));
-    
+
     ambLeft = `${leftPerc}%`;
     ambTop = `${topPerc}%`;
   }
 
   const mapCenterLat = gpsState?.lat ?? 21.0011;
   const mapCenterLng = gpsState?.lng ?? 105.8418;
-
 
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
@@ -7032,11 +7064,13 @@ function EmsView() {
       <button
         onClick={toggleGpsBroadcast}
         className={`fixed bottom-6 right-6 z-50 px-6 py-4 rounded-full text-sm font-black shadow-2xl transition-all flex items-center gap-3 hover:scale-105 active:scale-95 ${
-          isBroadcasting
-            ? "bg-red-500 text-white animate-pulse"
-            : "bg-cyan-500 text-white"
+          isBroadcasting ? "bg-red-500 text-white animate-pulse" : "bg-cyan-500 text-white"
         }`}
-        style={{ boxShadow: isBroadcasting ? "0 8px 32px rgba(239, 68, 68, 0.5)" : "0 8px 32px rgba(6, 182, 212, 0.4)" }}
+        style={{
+          boxShadow: isBroadcasting
+            ? "0 8px 32px rgba(239, 68, 68, 0.5)"
+            : "0 8px 32px rgba(6, 182, 212, 0.4)",
+        }}
       >
         <MapPin className="w-5 h-5" />
         {isBroadcasting ? "DỪNG TRUYỀN GPS" : "BẬT TRUYỀN GPS"}
@@ -7146,92 +7180,10 @@ function AdminOverviewTab() {
 
 /* ── Tab 1: users table ── */
 function AdminUsersTab() {
-  const [users, setUsers] = useState([
-    {
-      id: "u1",
-      role: "admin",
-      cccd: "001000000001",
-      name: "Trần Admin",
-      employee_id: "AD001",
-      department_id: "Hành chính",
-      avatar_url: null,
-      emergency_contact_name: null,
-      emergency_contact_phone: null,
-      created_at: "2026-01-15",
-    },
-    {
-      id: "u2",
-      role: "clinician",
-      cccd: "001203001247",
-      name: "BS. Nguyễn Văn A",
-      employee_id: "NV001",
-      department_id: "Cấp cứu",
-      avatar_url: null,
-      emergency_contact_name: "Nguyễn Thị B",
-      emergency_contact_phone: "0987654321",
-      created_at: "2026-02-01",
-    },
-    {
-      id: "u3",
-      role: "clinician",
-      cccd: "001203001248",
-      name: "ĐD. Trần Thị B",
-      employee_id: "NV002",
-      department_id: "Cấp cứu",
-      avatar_url: null,
-      emergency_contact_name: "Trần Văn C",
-      emergency_contact_phone: "0976543210",
-      created_at: "2026-02-01",
-    },
-    {
-      id: "u4",
-      role: "clinician",
-      cccd: "001203001249",
-      name: "BS. Lê Văn C",
-      employee_id: "NV003",
-      department_id: "Tim mạch",
-      avatar_url: null,
-      emergency_contact_name: null,
-      emergency_contact_phone: null,
-      created_at: "2026-03-10",
-    },
-    {
-      id: "u5",
-      role: "ops",
-      cccd: "001203001250",
-      name: "Nguyễn Direct",
-      employee_id: "OP001",
-      department_id: "Cấp cứu",
-      avatar_url: null,
-      emergency_contact_name: null,
-      emergency_contact_phone: null,
-      created_at: "2026-03-15",
-    },
-    {
-      id: "u6",
-      role: "ems",
-      cccd: "001203001251",
-      name: "Phạm EMS",
-      employee_id: "EM001",
-      department_id: "Cấp cứu ngoại viện",
-      avatar_url: null,
-      emergency_contact_name: null,
-      emergency_contact_phone: null,
-      created_at: "2026-04-01",
-    },
-    {
-      id: "u7",
-      role: "patient",
-      cccd: "001203001247",
-      name: "Nguyễn Văn A",
-      employee_id: null,
-      department_id: null,
-      avatar_url: null,
-      emergency_contact_name: "Nguyễn Thị B",
-      emergency_contact_phone: "0987654321",
-      created_at: "2026-06-01",
-    },
-  ]);
+  const [users, setUsers] = useState<any[]>([]);
+  useEffect(() => {
+    fetchApi("/admin/tables/staffs").then(setUsers).catch(console.error);
+  }, []);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -7522,72 +7474,10 @@ function AdminUsersTab() {
 
 /* ── Tab 2: departments table ── */
 function AdminDepartmentsTab() {
-  const [departments] = useState([
-    {
-      id: "d1",
-      name: "Cấp cứu",
-      description: "Khoa Cấp cứu · 20 giường",
-      created_at: "2026-01-01",
-    },
-    {
-      id: "d2",
-      name: "Tim mạch",
-      description: "Khoa Tim mạch · 40 giường",
-      created_at: "2026-01-01",
-    },
-    {
-      id: "d3",
-      name: "Thần kinh",
-      description: "Khoa Thần kinh · 30 giường",
-      created_at: "2026-01-01",
-    },
-    {
-      id: "d4",
-      name: "Lồng ngực",
-      description: "Khoa Lồng ngực · 25 giường",
-      created_at: "2026-01-01",
-    },
-    {
-      id: "d5",
-      name: "Chấn thương",
-      description: "Khoa Chấn thương · 30 giường",
-      created_at: "2026-01-01",
-    },
-    {
-      id: "d6",
-      name: "Ngoại tổng hợp",
-      description: "Khoa Ngoại tổng hợp · 35 giường",
-      created_at: "2026-01-01",
-    },
-    { id: "d7", name: "Khoa Nội", description: "Khoa Nội · 50 giường", created_at: "2026-01-01" },
-    {
-      id: "d8",
-      name: "Nội tiết",
-      description: "Khoa Nội tiết · 30 giường",
-      created_at: "2026-01-01",
-    },
-    {
-      id: "d9",
-      name: "Cơ Xương Khớp",
-      description: "Khoa CXK · 25 giường",
-      created_at: "2026-01-01",
-    },
-    { id: "d10", name: "Thận", description: "Khoa Thận · 20 giường", created_at: "2026-01-01" },
-    { id: "d11", name: "Nhi", description: "Khoa Nhi · 40 giường", created_at: "2026-01-01" },
-    {
-      id: "d12",
-      name: "Phụ sản",
-      description: "Khoa Phụ sản · 35 giường",
-      created_at: "2026-01-01",
-    },
-    { id: "d13", name: "Gây mê", description: "Khoa Gây mê · 15 giường", created_at: "2026-01-01" },
-    {
-      id: "d14",
-      name: "Tạo hình",
-      description: "Khoa Tạo hình · 10 giường",
-      created_at: "2026-01-01",
-    },
-  ]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  useEffect(() => {
+    fetchApi("/admin/tables/departments").then(setDepartments).catch(console.error);
+  }, []);
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
@@ -7619,72 +7509,10 @@ function AdminDepartmentsTab() {
 
 /* ── Tab 3: devices table ── */
 function AdminDevicesTab() {
-  const [devices] = useState([
-    {
-      id: "dev1",
-      device_type: "camera_fall",
-      name: "Camera CC01 – Cấp cứu",
-      location: "Phòng cấp cứu 01",
-      status: "active",
-      ip_address: "192.168.1.101",
-    },
-    {
-      id: "dev2",
-      device_type: "camera_fall",
-      name: "Camera CC02 – Hồi sức",
-      location: "Phòng hồi sức 02",
-      status: "active",
-      ip_address: "192.168.1.102",
-    },
-    {
-      id: "dev3",
-      device_type: "camera_lpr",
-      name: "Camera LPR Cổng chính",
-      location: "Cổng vào bệnh viện",
-      status: "active",
-      ip_address: "192.168.1.200",
-    },
-    {
-      id: "dev4",
-      device_type: "camera_fall",
-      name: "Camera 103 – Khoa Nội",
-      location: "Phòng bệnh 103",
-      status: "active",
-      ip_address: "192.168.1.103",
-    },
-    {
-      id: "dev5",
-      device_type: "monitor_spo2",
-      name: "SpO2 Monitor – ICU Tim",
-      location: "ICU Tim mạch",
-      status: "active",
-      ip_address: "192.168.2.50",
-    },
-    {
-      id: "dev6",
-      device_type: "camera_fall",
-      name: "Camera hành lang A",
-      location: "Hành lang tầng 1",
-      status: "offline",
-      ip_address: "192.168.1.110",
-    },
-    {
-      id: "dev7",
-      device_type: "camera_fall",
-      name: "Camera TK01 – Thần kinh",
-      location: "Phòng mổ Thần kinh",
-      status: "active",
-      ip_address: "192.168.1.120",
-    },
-    {
-      id: "dev8",
-      device_type: "camera_fall",
-      name: "Camera CT02 – Chấn thương",
-      location: "Phòng bệnh Chấn thương",
-      status: "maintenance",
-      ip_address: "192.168.1.130",
-    },
-  ]);
+  const [devices, setDevices] = useState<any[]>([]);
+  useEffect(() => {
+    fetchApi("/admin/tables/devices").then(setDevices).catch(console.error);
+  }, []);
 
   const typeLabels: Record<string, { label: string; color: string }> = {
     camera_fall: { label: "Camera AI", color: "bg-blue-100 text-blue-700" },
@@ -7751,48 +7579,10 @@ function AdminDevicesTab() {
 
 /* ── Tab 4: ambulances table ── */
 function AdminAmbulancesTab() {
-  const [ambulances] = useState([
-    {
-      id: "a1",
-      plate_number: "30F-123.45",
-      driver_name: "Nguyễn Tài xế A",
-      status: "dispatched",
-      last_lat: 21.0285,
-      last_lng: 105.8542,
-    },
-    {
-      id: "a2",
-      plate_number: "29B-456.78",
-      driver_name: "Trần Tài xế B",
-      status: "dispatched",
-      last_lat: 21.0312,
-      last_lng: 105.8501,
-    },
-    {
-      id: "a3",
-      plate_number: "30C-789.01",
-      driver_name: "Lê Tài xế C",
-      status: "available",
-      last_lat: 21.0298,
-      last_lng: 105.8523,
-    },
-    {
-      id: "a4",
-      plate_number: "30F-234.56",
-      driver_name: "Phạm Tài xế D",
-      status: "returning",
-      last_lat: 21.0271,
-      last_lng: 105.856,
-    },
-    {
-      id: "a5",
-      plate_number: "29A-345.67",
-      driver_name: "Hoàng Tài xế E",
-      status: "available",
-      last_lat: 21.0305,
-      last_lng: 105.8515,
-    },
-  ]);
+  const [ambulances, setAmbulances] = useState<any[]>([]);
+  useEffect(() => {
+    fetchApi("/admin/tables/ambulances").then(setAmbulances).catch(console.error);
+  }, []);
 
   const ambStatus: Record<string, { label: string; color: string }> = {
     dispatched: { label: "Đang đi", color: "bg-red-100 text-red-700" },
@@ -7845,48 +7635,10 @@ function AdminAmbulancesTab() {
 
 /* ── Tab 5: patients_queue table ── */
 function AdminQueueTab() {
-  const [queue] = useState([
-    {
-      id: "q1",
-      patient_id: "BN001",
-      department_id: "Cấp cứu",
-      triage_level: 1,
-      status: "in_treatment",
-      entered_at: "10:32",
-    },
-    {
-      id: "q2",
-      patient_id: "BN002",
-      department_id: "Cấp cứu",
-      triage_level: 2,
-      status: "waiting",
-      entered_at: "10:45",
-    },
-    {
-      id: "q3",
-      patient_id: "BN003",
-      department_id: "Tim mạch",
-      triage_level: 3,
-      status: "waiting",
-      entered_at: "11:02",
-    },
-    {
-      id: "q4",
-      patient_id: "BN004",
-      department_id: "Khoa Nội",
-      triage_level: 3,
-      status: "in_treatment",
-      entered_at: "11:15",
-    },
-    {
-      id: "q5",
-      patient_id: "BN005",
-      department_id: "Cấp cứu",
-      triage_level: 1,
-      status: "waiting",
-      entered_at: "11:20",
-    },
-  ]);
+  const [queue, setQueue] = useState<any[]>([]);
+  useEffect(() => {
+    fetchApi("/admin/tables/patients_queue").then(setQueue).catch(console.error);
+  }, []);
 
   const triageColors: Record<number, { bg: string; text: string; label: string }> = {
     1: { bg: "bg-red-500", text: "text-white", label: "ĐỎ · Cấp cứu" },
@@ -7952,53 +7704,10 @@ function AdminQueueTab() {
 
 /* ── Tab 6: system_logs table ── */
 function AdminLogsTab() {
-  const [logs] = useState([
-    {
-      id: "l1",
-      log_type: "fall_detected",
-      device_id: "dev1",
-      description: "Phát hiện ngã tại phòng CC01",
-      is_alert: true,
-      resolved_at: "10:48",
-      created_at: "10:45",
-    },
-    {
-      id: "l2",
-      log_type: "auth_success",
-      device_id: "dev4",
-      description: "Đăng nhập FaceID thành công — BS. Nguyễn Văn A",
-      is_alert: false,
-      resolved_at: null,
-      created_at: "10:30",
-    },
-    {
-      id: "l3",
-      log_type: "fall_detected",
-      device_id: "dev4",
-      description: "Phát hiện ngã tại phòng 103 — Khoa Nội",
-      is_alert: true,
-      resolved_at: "10:40",
-      created_at: "10:15",
-    },
-    {
-      id: "l4",
-      log_type: "device_offline",
-      device_id: "dev6",
-      description: "Camera hành lang A mất kết nối",
-      is_alert: false,
-      resolved_at: null,
-      created_at: "09:55",
-    },
-    {
-      id: "l5",
-      log_type: "auth_fail",
-      device_id: "dev1",
-      description: "Đăng nhập FaceID thất bại — chưa nhận diện",
-      is_alert: false,
-      resolved_at: null,
-      created_at: "09:50",
-    },
-  ]);
+  const [logs, setLogs] = useState<any[]>([]);
+  useEffect(() => {
+    fetchApi("/admin/tables/system_logs").then(setLogs).catch(console.error);
+  }, []);
 
   const logTypeLabels: Record<string, { label: string; color: string }> = {
     fall_detected: { label: "Ngã", color: "bg-red-100 text-red-700" },
@@ -8073,48 +7782,10 @@ function AdminLogsTab() {
 
 /* ── Tab 7: lpr_logs table ── */
 function AdminLprTab() {
-  const [lprLogs] = useState([
-    {
-      id: "lp1",
-      camera_id: "dev3",
-      plate_number: "30F-123.45",
-      confidence: 98.5,
-      image_url: "/img/lpr1.jpg",
-      timestamp: "10:42:31",
-    },
-    {
-      id: "lp2",
-      camera_id: "dev3",
-      plate_number: "29B-456.78",
-      confidence: 97.2,
-      image_url: "/img/lpr2.jpg",
-      timestamp: "10:38:15",
-    },
-    {
-      id: "lp3",
-      camera_id: "dev3",
-      plate_number: "30C-789.01",
-      confidence: 99.1,
-      image_url: "/img/lpr3.jpg",
-      timestamp: "10:25:08",
-    },
-    {
-      id: "lp4",
-      camera_id: "dev3",
-      plate_number: "29A-999.88",
-      confidence: 85.3,
-      image_url: "/img/lpr4.jpg",
-      timestamp: "10:10:44",
-    },
-    {
-      id: "lp5",
-      camera_id: "dev3",
-      plate_number: "30F-234.56",
-      confidence: 96.8,
-      image_url: "/img/lpr5.jpg",
-      timestamp: "09:55:20",
-    },
-  ]);
+  const [lprLogs, setLprLogs] = useState<any[]>([]);
+  useEffect(() => {
+    fetchApi("/admin/tables/lpr_logs").then(setLprLogs).catch(console.error);
+  }, []);
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
@@ -8186,36 +7857,10 @@ function AdminLprTab() {
 
 /* ── Tab 8: medical_books table ── */
 function AdminMedicalBooksTab() {
-  const [books] = useState([
-    {
-      id: "mb1",
-      patient_id: "u7",
-      qr_token: "EYECU-QR-A1B2C3D4",
-      status: "active",
-      issued_at: "2026-06-01",
-    },
-    {
-      id: "mb2",
-      patient_id: "u8",
-      qr_token: "EYECU-QR-E5F6G7H8",
-      status: "active",
-      issued_at: "2026-06-15",
-    },
-    {
-      id: "mb3",
-      patient_id: "u9",
-      qr_token: "EYECU-QR-I9J0K1L2",
-      status: "lost",
-      issued_at: "2026-05-20",
-    },
-    {
-      id: "mb4",
-      patient_id: "u10",
-      qr_token: "EYECU-QR-M3N4O5P6",
-      status: "revoked",
-      issued_at: "2026-04-10",
-    },
-  ]);
+  const [books, setBooks] = useState<any[]>([]);
+  useEffect(() => {
+    fetchApi("/admin/tables/clinical_records").then(setBooks).catch(console.error);
+  }, []);
 
   const statusStyle: Record<string, string> = {
     active: "bg-emerald-100 text-emerald-700",
@@ -8266,48 +7911,10 @@ function AdminMedicalBooksTab() {
 
 /* ── Tab 9: webauthn_credentials table ── */
 function AdminWebAuthnTab() {
-  const [creds] = useState([
-    {
-      id: "w1",
-      user_id: "u7",
-      credential_id: "cred_abc123",
-      public_key: "MIIBIjANBg...",
-      sign_count: 12,
-      device_name: "iPhone 15 Pro của Tùng",
-      created_at: "2026-06-01",
-      last_used_at: "2026-06-30",
-    },
-    {
-      id: "w2",
-      user_id: "u2",
-      credential_id: "cred_def456",
-      public_key: "MIIBIjANBg...",
-      sign_count: 45,
-      device_name: "iPhone 14 của BS. A",
-      created_at: "2026-02-15",
-      last_used_at: "2026-06-30",
-    },
-    {
-      id: "w3",
-      user_id: "u7",
-      credential_id: "cred_ghi789",
-      public_key: "MIIBIjANBg...",
-      sign_count: 3,
-      device_name: "Galaxy S24 của con trai",
-      created_at: "2026-06-20",
-      last_used_at: "2026-06-29",
-    },
-    {
-      id: "w4",
-      user_id: "u3",
-      credential_id: "cred_jkl012",
-      public_key: "MIIBIjANBg...",
-      sign_count: 28,
-      device_name: "iPad Pro của ĐD. B",
-      created_at: "2026-03-01",
-      last_used_at: "2026-06-28",
-    },
-  ]);
+  const [creds, setCreds] = useState<any[]>([]);
+  useEffect(() => {
+    setCreds([]);
+  }, []);
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
