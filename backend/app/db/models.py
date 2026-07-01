@@ -1,7 +1,6 @@
 from typing import Optional, Dict, Any, List
 from sqlmodel import SQLModel, Field, Column
 from sqlalchemy import JSON
-from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime
 import uuid
 
@@ -140,7 +139,7 @@ class SmartReaderDoc(SQLModel, table=True):
     doc_type: str = Field(max_length=50)  # blood_test, old_prescription
     image_url: str = Field(max_length=255)
     extracted_data: Optional[Dict[str, Any]] = Field(
-        default=None, sa_column=Column(JSONB)
+        default=None, sa_column=Column(JSON)
     )
     uploaded_at: datetime = Field(default_factory=datetime.utcnow)
 

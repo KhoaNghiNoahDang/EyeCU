@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.db.models import User, AdmissionQueue
+from app.db.models import User, PatientsQueue
 from app.core.security import require_roles, get_current_user
 from app.api.ambient import ambient_manager
+from app.services.vnpt_api import vnpt_client
 from pydantic import BaseModel
 import uuid
 
@@ -35,15 +36,13 @@ def admit_walkin(data: WalkinSchema, db: Session = Depends(get_db)):
     db.add(new_patient)
     db.commit()
 
-    ticket = AdmissionQueue(
-        patient_id=new_patient.id, status="waiting", priority="urgent"
+    ticket = PatientsQueue(
+        patient_id=new_patient.id, status="waiting"
     )
     db.add(ticket)
     db.commit()
     return {"status": "success", "ticket_id": str(ticket.id)}
 
-
-from app.services.vnpt_api import vnpt_client
 
 
 @router.post("/sos", dependencies=[Depends(require_roles(["patient"]))])

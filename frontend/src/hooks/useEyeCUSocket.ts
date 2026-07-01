@@ -10,7 +10,8 @@ export type SocketMessageType =
   | "CAMERA_EVENT"
   | "INCIDENT_ALERT"
   | "OCR_RESULT_SYNC"
-  | "FACE_VERIFY_SUCCESS";
+  | "FACE_VERIFY_SUCCESS"
+  | "FALL_DETECTED";
 
 export interface SocketMessage {
   type: SocketMessageType;

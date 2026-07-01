@@ -5,6 +5,9 @@ from app.core.config import settings
 # We ensure we have pool pre-ping to handle connection drops.
 engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
 
+# Alias de tuong thich voi code dung Base.metadata.create_all()
+Base = SQLModel
+
 
 def get_db():
     with Session(engine) as session:
