@@ -1,19 +1,17 @@
-import os
-import sys
 import requests
+import os
+import json
 from dotenv import load_dotenv
 
-sys.stdout.reconfigure(encoding='utf-8')
+# Load các biến môi trường
 load_dotenv()
 
-print("=== BẮT ĐẦU KIỂM THỬ LẠI KẾT NỐI 6 API VNPT ===")
-
-def print_result(api_name, success, detail):
-    status = " THÀNH CÔNG" if success else " THẤT BẠI"
-    print(f"{api_name:<20} | {status} | {detail}")
+def print_result(api_name, success, details=""):
+    status = "THÀNH CÔNG" if success else "THẤT BẠI"
+    print(f"{api_name:<20} |  {status} | {details}")
 
 def safe_req(method, url, **kwargs):
-    api_name = kwargs.pop("api_name", "API")
+    api_name = kwargs.pop("api_name", "Unknown API")
     try:
         res = requests.request(method, url, timeout=10, **kwargs)
         if res.status_code in [200, 201]:
@@ -58,9 +56,8 @@ def test_smartvision():
 
 def test_smartbot():
     url = "https://assistant-stream.vnpt.vn/v1/conversation"
-    token = os.getenv("VNPT_SMARTBOT_ACCESS_TOKEN")
     headers = {
-        "Authorization": token if token and "Bearer" in str(token) else f"Bearer {token}",
+        "Authorization": os.getenv("VNPT_SMARTBOT_ACCESS_TOKEN"),
         "Token-id": os.getenv("VNPT_SMARTBOT_TOKEN_ID"),
         "Token-key": os.getenv("VNPT_SMARTBOT_TOKEN_KEY"),
         "Content-Type": "application/json",
@@ -75,66 +72,23 @@ def test_smartbot():
     }
     safe_req("POST", url, headers=headers, json=payload, api_name="SmartBot")
 
-def test_smartvoice():
-    import sys
-    sys.path.append('./app/grpc_proto')
-    try:
-        import grpc
-        import vnpt_asr_pb2
-        import vnpt_asr_pb2_grpc
-        import vnpt_audio_pb2
-    except ImportError as e:
-        print_result("SmartVoice", False, f"Missing gRPC libs or proto compiled files: {e}")
-        return
-
-    # Endpoint host cho gRPC (Thường gRPC dùng domain:port, không có https:// hay /path)
-    # Tuy nhiên VNPT STT đôi khi Gateway nằm ở path cụ thể nếu dùng gRPC-Web hoặc Envoy. 
-    # Nhưng chuẩn gRPC native thì thường là host:443. Dựa trên URL cũ: api.idg.vnpt.vn
-    host = "api.idg.vnpt.vn:443"
-    
-    token = os.getenv("VNPT_SMARTVOICE_ACCESS_TOKEN")
-    if token and "Bearer" not in token:
-        token = f"Bearer {token}"
-        
-    metadata = (
-        ("authorization", token),
-        ("token-id", os.getenv("VNPT_SMARTVOICE_TOKEN_ID")),
-        ("token-key", os.getenv("VNPT_SMARTVOICE_TOKEN_KEY")),
-    )
-
-    try:
-        credentials = grpc.ssl_channel_credentials()
-        channel = grpc.secure_channel(host, credentials)
-        stub = vnpt_asr_pb2_grpc.VnptSpeechRecognitionStub(channel)
-
-        config = vnpt_asr_pb2.RecognitionConfig(
-            encoding=vnpt_audio_pb2.LINEAR_PCM,
-            sample_rate_hertz=16000,
-            language_code="vi-VN",
-            max_alternatives=1,
-            enable_automatic_punctuation=False
-        )
-        streaming_config = vnpt_asr_pb2.StreamingRecognitionConfig(config=config, interim_results=True)
-        
-        # Generator for streaming request
-        def request_generator():
-            yield vnpt_asr_pb2.StreamingRecognizeRequest(streaming_config=streaming_config)
-            # Dummy PCM audio chunk (just zeros)
-            dummy_chunk = b'\x00' * 2048
-            yield vnpt_asr_pb2.StreamingRecognizeRequest(audio_content=dummy_chunk)
-
-        # Gửi streaming request lên server
-        responses = stub.StreamingRecognize(request_generator(), metadata=metadata, timeout=10)
-        
-        # Đọc response đầu tiên để xác nhận kết nối thành công
-        for response in responses:
-            print_result("SmartVoice(gRPC)", True, f"Kết nối gRPC thành công! Phản hồi Streaming: OK")
-            break
-            
-    except grpc.RpcError as e:
-        print_result("SmartVoice(gRPC)", False, f"gRPC Error: {e.code().name} - {e.details()}")
-    except Exception as e:
-        print_result("SmartVoice(gRPC)", False, f"Error: {str(e)}")
+def test_tts():
+    url = "https://api.idg.vnpt.vn/tts-service/v1/standard"
+    token = os.getenv("VNPT_TTS_ACCESS_TOKEN")
+    headers = {
+        "Authorization": token if token and token.lower().startswith("bearer") else f"Bearer {token}",
+        "Token-id": os.getenv("VNPT_TTS_TOKEN_ID", ""),
+        "Token-key": os.getenv("VNPT_TTS_TOKEN_KEY", ""),
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "text": "Xin chào, đây là giọng nói trí tuệ nhân tạo.",
+        "text_split": "false",
+        "model": "books",
+        "speed": "1",
+        "region": "female_north_ngochoa"
+    }
+    safe_req("POST", url, headers=headers, json=payload, api_name="SmartVoice(TTS)")
 
 def test_vnface():
     token = os.getenv("VNPT_VNFACE_ACCESS_TOKEN")
@@ -147,10 +101,15 @@ def test_vnface():
     }
     safe_req("GET", url, headers=headers, api_name="VNFace")
 
-test_smartreader()
-test_ekyc()
-test_smartvision()
-test_smartbot()
-test_smartvoice()
-test_vnface()
-print("===============================================")
+def main():
+    print("=== BẮT ĐẦU KIỂM THỬ LẠI KẾT NỐI 6 API VNPT ===")
+    test_smartreader()
+    test_ekyc()
+    test_smartvision()
+    test_smartbot()
+    test_tts()
+    test_vnface()
+    print("===============================================")
+
+if __name__ == "__main__":
+    main()
