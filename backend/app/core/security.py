@@ -114,6 +114,7 @@ def get_current_user(
         raise credentials_exception
 
     import uuid
+
     try:
         user_uuid = uuid.UUID(user_id)
     except ValueError:
@@ -127,7 +128,6 @@ def get_current_user(
     if user is None:
         raise credentials_exception
     return user
-
 
 
 # ─────────────────────────────────────────────
