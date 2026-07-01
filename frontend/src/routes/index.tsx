@@ -5810,7 +5810,7 @@ function PatientClinicalSheet({
 }) {
   if (!active) return null;
 
-  const record = data.latestRecord;
+  const record = data?.latestRecord;
 
   const titles: Record<PatientServiceKey, string> = {
     record: "Phiếu khám bệnh",
@@ -6107,7 +6107,17 @@ function PatientPortalView({
   const [activeService, setActiveService] = useState<PatientServiceKey | null>(null);
 
   // Default mock fallback if loading or no records
-  const clinicalData = clinical || DEMO_PATIENT_CLINICAL;
+  const clinicalData = clinical || {
+    is_empty: true,
+    patientId: user?.id || "",
+    patientName: user?.name || "",
+    cccd: user?.cccd || "",
+    bhxh_code: null,
+    latestRecord: null,
+    medications: [],
+    followUp: null,
+    fees: null,
+  };
 
   const tiles: {
     key: PatientServiceKey;
