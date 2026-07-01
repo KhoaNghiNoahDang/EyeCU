@@ -17,7 +17,7 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["apple-touch-icon.svg", "masked-icon.svg", "pwa-icon.svg"],
+      includeAssets: ["apple-touch-icon.svg", "apple-touch-icon.png", "masked-icon.svg", "pwa-icon.svg"],
       manifest: {
         id: "/",
         name: "EyeCU Ambient Clinical OS",
@@ -30,7 +30,15 @@ export default defineConfig({
         background_color: "#f8fafc",
         theme_color: "#88E8F2",
         orientation: "portrait",
+        lang: "vi",
+        categories: ["medical", "health"],
         icons: [
+          {
+            src: "apple-touch-icon.png",
+            sizes: "180x180",
+            type: "image/png",
+            purpose: "any",
+          },
           {
             src: "pwa-icon.svg",
             sizes: "any",
@@ -46,7 +54,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp}"],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\.vnpt\.vn\/.*/i,
@@ -61,6 +69,10 @@ export default defineConfig({
                 statuses: [0, 200],
               },
             },
+          },
+          {
+            urlPattern: /^https:\/\/ekyc\.vnpt\.vn\/.*/i,
+            handler: "NetworkOnly", // Never cache eKYC responses
           },
         ],
       },

@@ -2,14 +2,22 @@
   "name": "EyeCU Ambient Clinical OS",
   "short_name": "EyeCU",
   "id": "/",
-  "description": "Hệ điều hành nhận thức không gian (Ambient Intelligence)",
+  "description": "Hệ điều hành nhận thức không gian (Ambient Intelligence) cho bệnh viện thông minh",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#f8fafc",
   "theme_color": "#88E8F2",
   "orientation": "portrait",
+  "categories": ["medical", "health"],
+  "lang": "vi",
   "icons": [
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
     {
       "src": "pwa-icon.svg",
       "sizes": "any",
@@ -22,5 +30,7 @@
       "type": "image/svg+xml",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
 }

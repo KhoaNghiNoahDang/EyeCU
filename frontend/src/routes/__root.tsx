@@ -78,34 +78,38 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       {
         name: "viewport",
-        content: "width=device-width, initial-scale=1, viewport-fit=cover",
+        content: "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover",
       },
+      // iOS PWA meta tags
       { name: "apple-mobile-web-app-title", content: "EyeCU" },
-      { name: "theme-color", content: "#88E8F2" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      // Android PWA
       { name: "mobile-web-app-capable", content: "yes" },
-      { title: "Lovable App" },
+      // Theme colors
+      { name: "theme-color", content: "#88E8F2", media: "(prefers-color-scheme: light)" },
+      { name: "theme-color", content: "#0A9BAD", media: "(prefers-color-scheme: dark)" },
+      // SEO & Branding
+      { title: "EyeCU — Ambient Clinical OS" },
       {
         name: "description",
         content:
-          "Project Lovable Builder is a clinical dashboard application for enterprise Vietnamese hospitals.",
+          "EyeCU — Hệ thống quản lý bệnh viện thông minh tích hợp eKYC, AI và nhận diện sinh trắc học.",
       },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
+      { name: "author", content: "EyeCU Team" },
+      { property: "og:title", content: "EyeCU — Ambient Clinical OS" },
       {
         property: "og:description",
         content:
-          "Project Lovable Builder is a clinical dashboard application for enterprise Vietnamese hospitals.",
+          "EyeCU — Hệ thống quản lý bệnh viện thông minh tích hợp eKYC, AI và nhận diện sinh trắc học.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Lovable App" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "EyeCU — Ambient Clinical OS" },
       {
         name: "twitter:description",
         content:
-          "Project Lovable Builder is a clinical dashboard application for enterprise Vietnamese hospitals.",
+          "EyeCU — Hệ thống quản lý bệnh viện thông minh tích hợp eKYC, AI và nhận diện sinh trắc học.",
       },
       {
         property: "og:image",
@@ -134,8 +138,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "manifest", href: "/manifest.webmanifest" },
+      // iOS requires PNG apple-touch-icon (SVG not supported on older iOS Safari)
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
+      // Fallback for older iOS
       { rel: "apple-touch-icon", href: "/apple-touch-icon.svg" },
       { rel: "mask-icon", href: "/masked-icon.svg", color: "#88E8F2" },
+      // iOS Splash screens (covers iPhone SE through iPhone 15 Pro Max)
+      { rel: "apple-touch-startup-image", href: "/apple-touch-icon.svg" },
+      // Performance: preconnect to backend
+      { rel: "dns-prefetch", href: "https://ekyc.vnpt.vn" },
     ],
   }),
   shellComponent: RootShell,
