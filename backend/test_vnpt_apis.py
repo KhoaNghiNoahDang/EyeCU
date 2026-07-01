@@ -1,17 +1,19 @@
-import requests
 import os
-import json
+import sys
+import requests
 from dotenv import load_dotenv
 
-# Load các biến môi trường
-load_dotenv()
+sys.stdout.reconfigure(encoding='utf-8')
+load_dotenv(override=True)
 
-def print_result(api_name, success, details=""):
-    status = "THÀNH CÔNG" if success else "THẤT BẠI"
-    print(f"{api_name:<20} |  {status} | {details}")
+print("=== BẮT ĐẦU KIỂM THỬ LẠI KẾT NỐI 6 API VNPT ===")
+
+def print_result(api_name, success, detail):
+    status = " THÀNH CÔNG" if success else " THẤT BẠI"
+    print(f"{api_name:<20} | {status} | {detail}")
 
 def safe_req(method, url, **kwargs):
-    api_name = kwargs.pop("api_name", "Unknown API")
+    api_name = kwargs.pop("api_name", "API")
     try:
         res = requests.request(method, url, timeout=10, **kwargs)
         if res.status_code in [200, 201]:
@@ -56,8 +58,9 @@ def test_smartvision():
 
 def test_smartbot():
     url = "https://assistant-stream.vnpt.vn/v1/conversation"
+    token = os.getenv("VNPT_SMARTBOT_ACCESS_TOKEN")
     headers = {
-        "Authorization": os.getenv("VNPT_SMARTBOT_ACCESS_TOKEN"),
+        "Authorization": token if token and "Bearer" in str(token) else f"Bearer {token}",
         "Token-id": os.getenv("VNPT_SMARTBOT_TOKEN_ID"),
         "Token-key": os.getenv("VNPT_SMARTBOT_TOKEN_KEY"),
         "Content-Type": "application/json",
@@ -72,23 +75,30 @@ def test_smartbot():
     }
     safe_req("POST", url, headers=headers, json=payload, api_name="SmartBot")
 
-def test_tts():
-    url = "https://api.idg.vnpt.vn/tts-service/v1/standard"
-    token = os.getenv("VNPT_TTS_ACCESS_TOKEN")
+def test_smartvoice():
+    import uuid
+    url = "https://api.idg.vnpt.vn/stt-service/v1/grpc/standard"
+    
+    token = os.getenv("VNPT_SMARTVOICE_ACCESS_TOKEN")
+    if token and token.lower().startswith("bearer"):
+        auth_header = token
+    else:
+        auth_header = f"Bearer {token}"
+        
     headers = {
-        "Authorization": token if token and token.lower().startswith("bearer") else f"Bearer {token}",
-        "Token-id": os.getenv("VNPT_TTS_TOKEN_ID", ""),
-        "Token-key": os.getenv("VNPT_TTS_TOKEN_KEY", ""),
-        "Content-Type": "application/json"
+        "Authorization": auth_header,
+        "Token-id": os.getenv("VNPT_SMARTVOICE_TOKEN_ID"),
+        "Token-key": os.getenv("VNPT_SMARTVOICE_TOKEN_KEY"),
     }
-    payload = {
-        "text": "Xin chào, đây là giọng nói trí tuệ nhân tạo.",
-        "text_split": "false",
-        "model": "books",
-        "speed": "1",
-        "region": "female_north_ngochoa"
-    }
-    safe_req("POST", url, headers=headers, json=payload, api_name="SmartVoice(TTS)")
+    
+    # Upload 1 file âm thanh giả 0s chuẩn WAV
+    dummy_wav = b"RIFF\x24\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80\x3e\x00\x00\x00\x7d\x00\x00\x02\x00\x10\x00data\x00\x00\x00\x00"
+    files = {"audioFile": ("audio.wav", dummy_wav, "audio/wav")}
+    
+    # Cần truyền clientSession (VD: uuid ngẫu nhiên) để không bị lỗi IDG-00000006
+    data = {"clientSession": str(uuid.uuid4())}
+    
+    safe_req("POST", url, headers=headers, files=files, data=data, api_name="SmartVoice(STT)")
 
 def test_vnface():
     token = os.getenv("VNPT_VNFACE_ACCESS_TOKEN")
@@ -101,15 +111,10 @@ def test_vnface():
     }
     safe_req("GET", url, headers=headers, api_name="VNFace")
 
-def main():
-    print("=== BẮT ĐẦU KIỂM THỬ LẠI KẾT NỐI 6 API VNPT ===")
-    test_smartreader()
-    test_ekyc()
-    test_smartvision()
-    test_smartbot()
-    test_tts()
-    test_vnface()
-    print("===============================================")
-
-if __name__ == "__main__":
-    main()
+test_smartreader()
+test_ekyc()
+test_smartvision()
+test_smartbot()
+test_smartvoice()
+test_vnface()
+print("===============================================")
