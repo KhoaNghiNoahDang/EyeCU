@@ -42,11 +42,13 @@ async def _extract_soape_with_gemini(transcript: str) -> dict:
     
     prompt = f"""Bạn là một bác sĩ chuyên khoa. Đọc đoạn ghi chú lâm sàng sau (có thể là hội thoại tự do, không theo mẫu cố định) và trích xuất thành JSON với 5 trường SOAPE.
 
-Quy tắc chuẩn hoá:
-- CHUẨN HOÁ TỪ NGỮ: 
-  + Huyết áp đọc là "X trên Y" phải chuyển thành định dạng chuẩn "X/Y mmHg" (VD: "115 trên 75" -> "115/75 mmHg").
-  + Các đơn vị đo lường đọc bằng chữ phải chuyển thành ký hiệu chuẩn: "mililit" -> "ml", "muy mol" -> "µmol/L", "mi li gam" -> "mg", "gam" -> "g", "độ" -> "°C", "lần một phút" -> "lần/phút", v.v.
-  + Viết hoa chữ cái đầu của mỗi câu.
+Quy tắc chuẩn hoá (RẤT QUAN TRỌNG):
+- Bạn KHÔNG CHỈ trích xuất, mà PHẢI định dạng lại toàn bộ các chỉ số y khoa cho chuẩn mực:
+  + Mạch / Nhịp tim: Viết là "lần/phút" (VD: "102 lần 1 phút", "102 nhịp một phút" -> "102 lần/phút").
+  + Huyết áp: Viết là "X/Y mmHg" (VD: "115 trên 75" -> "115/75 mmHg", "120 phần 80" -> "120/80 mmHg").
+  + Nhiệt độ: Viết là "°C" với chữ C in hoa (VD: "38 độ c", "38 độ" -> "38°C").
+  + Thể tích/Khối lượng: "mililit", "ml", "mi li lít" -> "ml". "muy mol" -> "µmol/L". "gam" -> "g".
+  + Viết hoa chữ cái đầu tiên của toàn bộ các câu. Chèn thêm dấu chấm phẩy (, hoặc .) cho dễ đọc.
 - subjective: Lý do vào viện, triệu chứng bệnh nhân mô tả, tiền sử.
 - objective: Kết quả thăm khám, chỉ số sinh tồn (đã chuẩn hoá), kết quả xét nghiệm/cận lâm sàng.
 - assessment: Chẩn đoán hoặc nhận định lâm sàng của bác sĩ.
