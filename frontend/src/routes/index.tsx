@@ -2192,6 +2192,8 @@ interface AmbulanceUnit {
   crew: string;
   mapX: number;
   mapY: number;
+  lat?: number;
+  lng?: number;
   departmentId: string;
 }
 
@@ -3248,17 +3250,18 @@ function AmbulanceView() {
   const WS_URL = (import.meta.env.VITE_WS_URL ?? "ws://localhost:8000") + "/api/ambient/ws/live";
   const handleSocketMessage = useCallback((msg: { type: string; data?: Record<string, unknown>; room_id?: string; blurred_image_base64?: string }) => {
     if (msg.type === "GPS_UPDATE" && msg.data) {
-      const { ambulance_id, lat, lng, mapX, mapY } = msg.data as {
+      const { ambulance_id, lat, lng } = msg.data as {
         ambulance_id: string; lat: number; lng: number;
-        mapX?: number; mapY?: number;
       };
-      // Uu tien dung mapX/mapY da duoc tinh san tu trang /driver.
-      // Neu khong co (GUI simulator gui len), tu tinh lai bang gpsToSvg.
-      const coords = (mapX !== undefined && mapY !== undefined)
-        ? { mapX, mapY }
-        : gpsToSvg(lat, lng);
+      
       setAmbulances(prev =>
-        prev.map(a => a.id === ambulance_id ? { ...a, ...coords } : a)
+        prev.map(a => {
+          // Update mapping: demo app uses "current", we map it to "xe1" to show movement on the dashboard
+          if (a.id === ambulance_id || (ambulance_id === "current" && a.id === "xe1")) {
+            return { ...a, lat, lng };
+          }
+          return a;
+        })
       );
     }
     if (msg.type === "GATE_ARRIVED" && msg.data) {
@@ -3617,14 +3620,19 @@ function RealAmbulanceMap({
   onSelect: (id: string) => void;
 }) {
   // Bach Mai Hospital, Hanoi: 21.0011, 105.8418
-  // Bounding box around Bach Mai covering ~3km
-  const bbox = "105.8200,20.9850,105.8650,21.0180";
+  // Bounding box quanh BV Bạch Mai khoảng 3-4km (giống hệt bên EmsView)
+  const MIN_LNG = 105.8000;
+  const MAX_LNG = 105.8800;
+  const MIN_LAT = 20.9700;
+  const MAX_LAT = 21.0300;
+  const bbox = `${MIN_LNG},${MIN_LAT},${MAX_LNG},${MAX_LAT}`;
+  
   const src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=21.0011,105.8418`;
-  // Position ambulances as percentage overlays (approximate)
+  // Vị trí mặc định ban đầu nếu chưa có GPS
   const positions: Record<string, { top: string; left: string }> = {
-    a1: { top: "38%", left: "62%" },
-    a2: { top: "70%", left: "22%" },
-    a3: { top: "52%", left: "42%" },
+    xe1: { top: "38%", left: "62%" },
+    xe2: { top: "70%", left: "22%" },
+    xe3: { top: "52%", left: "42%" },
   };
   return (
     <div className="absolute inset-0">
@@ -3654,7 +3662,21 @@ function RealAmbulanceMap({
       </div>
       {/* Ambulance markers overlay */}
       {ambulances.map((amb) => {
-        const pos = positions[amb.id] ?? { top: "50%", left: "50%" };
+        let top = positions[amb.id]?.top ?? "50%";
+        let left = positions[amb.id]?.left ?? "50%";
+        
+        // Cập nhật toạ độ động nếu có tín hiệu GPS từ xe gửi về
+        if (amb.lat && amb.lng) {
+          let leftPerc = ((amb.lng - MIN_LNG) / (MAX_LNG - MIN_LNG)) * 100;
+          let topPerc = 100 - ((amb.lat - MIN_LAT) / (MAX_LAT - MIN_LAT)) * 100;
+          
+          leftPerc = Math.max(2, Math.min(98, leftPerc));
+          topPerc = Math.max(2, Math.min(98, topPerc));
+          
+          top = `${topPerc}%`;
+          left = `${leftPerc}%`;
+        }
+
         const color =
           amb.status === "critical" ? "#EF4444" : amb.status === "urgent" ? "#F59E0B" : "#10B981";
         const isSel = selectedId === amb.id;
@@ -3663,7 +3685,7 @@ function RealAmbulanceMap({
             key={amb.id}
             onClick={() => onSelect(amb.id)}
             className="absolute z-[350] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group"
-            style={{ top: pos.top, left: pos.left }}
+            style={{ top, left, transition: "all 1s ease-out" }}
           >
             {amb.status === "critical" && (
               <span
