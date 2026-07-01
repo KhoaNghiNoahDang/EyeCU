@@ -101,12 +101,7 @@ def get_current_user(
 
 
 # ─────────────────────────────────────────────
-# PHÂN QUYỀN — Cách 1: Hàm require_roles()
-#
-# Cú pháp dùng:
-#   @router.get("/endpoint", dependencies=[Depends(require_roles(["doctor"]))])
-#
-# Ưu điểm: Ngắn gọn, không cần thêm tham số vào hàm handler
+# PHÂN QUYỀN: Hàm require_roles()
 # ─────────────────────────────────────────────
 def require_roles(allowed_roles: List[str]):
     """
@@ -131,13 +126,7 @@ def require_roles(allowed_roles: List[str]):
 
 
 # ─────────────────────────────────────────────
-# PHÂN QUYỀN — Cách 2: Class RoleChecker
-#
-# Cú pháp dùng:
-#   allow_doctor = RoleChecker(["doctor", "admin"])
-#   async def handler(current_user: TokenData = Depends(allow_doctor)):
-#
-# Ưu điểm: Lấy được thông tin user_id và role bên trong hàm handler
+# PHÂN QUYỀN : Class RoleChecker
 # ─────────────────────────────────────────────
 class RoleChecker:
     """

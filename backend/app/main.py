@@ -6,7 +6,7 @@ from sqlmodel import SQLModel
 from app.api import auth, admin, ambulance, ambient, ems, patient, records, voice
 from app.api.ambulance import background_db_updater
 
-SQLModel.metadata.create_all(engine)
+SQLModel.metadata.create_all(bind=engine)
 
 app = FastAPI(title="EyeCU Ambient Clinical OS", version="1.0.0")
 

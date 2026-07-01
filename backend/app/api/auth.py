@@ -22,15 +22,21 @@ def login(
     # Fallback/Test login
     user = db.query(User).filter(User.cccd == form_data.username).first()
     if not user:
-        # Nếu không có, tự tạo user test cho demo
-        user = User(cccd=form_data.username, name="Test User", role="admin")
-        db.add(user)
-        db.commit()
+        try:
+            user = User(cccd=form_data.username, name="Test User", role="admin")
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        except Exception:
+            # Trường hợp race condition hoặc unique constraint — query lại
+            db.rollback()
+            user = db.query(User).filter(User.cccd == form_data.username).first()
+            if not user:
+                raise HTTPException(status_code=500, detail="Không thể tạo tài khoản")
+    else:
         db.refresh(user)
 
-    # Cập nhật trạng thái online
-    user.is_online = True
-    db.commit()
+
 
     access_token = create_access_token(subject=user.id, role=user.role)
     return {"access_token": access_token, "token_type": "bearer", "role": user.role}
@@ -46,8 +52,6 @@ def login_ekyc(data: EkycLogin, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found from eKYC")
 
-    user.is_online = True
-    db.commit()
     access_token = create_access_token(subject=user.id, role=user.role)
     return {
         "access_token": access_token,
