@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useAuth } from "../lib/auth/auth-context";
 import { fetchApi } from "../lib/api/client";
-import { User, LogIn, Calendar, FileText, Settings, Heart, Bell, MessageCircle, MapPin, Menu, X, ArrowLeft, ArrowRight, ShieldCheck, ChevronRight, Mic, Send, Phone, ClipboardList, ScanFace, FileSignature, Info, LogOut, Copy, Download, Eye, Map as MapIcon, Trash2, CalendarClock, Lock, Globe, Users, Activity, Search, Stethoscope, Receipt, Home, Bot, Star, Camera, ScanLine } from "lucide-react";
+import { User, LogIn, Calendar, FileText, Settings, Heart, Bell, MessageCircle, MapPin, Menu, X, ArrowLeft, ArrowRight, ShieldCheck, ChevronRight, Mic, Send, Phone, ClipboardList, ScanFace, FileSignature, Info, LogOut, Copy, Download, Eye, Map as MapIcon, Trash2, CalendarClock, Lock, Globe, Users, Activity, Search, Stethoscope, Receipt, Home, Bot, Star, Camera, ScanLine, Share, PlusSquare } from "lucide-react";
 import { getHospitalsByProvince, CENTRAL_HOSPITALS, Hospital } from "../lib/hospitals";
 import { MapErrorBoundary } from "./MapErrorBoundary";
 
@@ -44,12 +44,62 @@ export function PatientPortalNew({
   ]);
   const [chatInput, setChatInput] = useState("");
   const [botTyping, setBotTyping] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // PWA Installation States
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showIosPrompt, setShowIosPrompt] = useState(false);
+  const [isAppInstalled, setIsAppInstalled] = useState(false);
+
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
     setIsMounted(true);
+
+    // Check if already installed
+    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true) {
+      setIsAppInstalled(true);
+    }
+
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    const handleAppInstalled = () => {
+      setIsAppInstalled(true);
+      setDeferredPrompt(null);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
   }, []);
+
+  const isIos = () => {
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    return /iphone|ipad|ipod/.test(userAgent);
+  };
+
+  const handleInstallClick = async () => {
+    if (isIos()) {
+      setShowIosPrompt(true);
+      return;
+    }
+    
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+      }
+    } else {
+      alert('Thiết bị của bạn không hỗ trợ cài đặt hoặc bạn đã cài đặt ứng dụng này rồi.');
+    }
+  };
 
   useEffect(() => {
     // Auto-pop bot after 1.5s as requested
@@ -1163,6 +1213,15 @@ export function PatientPortalNew({
          <div className="mt-2 bg-white border-y border-slate-100">
             <span className="block px-4 py-3 text-[14px] font-medium text-slate-800">Cài đặt</span>
             <div className="pl-4">
+               {!isAppInstalled && (
+                 <button onClick={handleInstallClick} className="w-full flex items-center justify-between py-3 pr-4 border-b border-slate-100 active:bg-slate-50">
+                    <div className="flex items-center gap-3">
+                       <div className="w-8 h-8 rounded-md bg-blue-50 flex items-center justify-center"><Download className="w-5 h-5 text-blue-500" /></div>
+                       <span className="text-[15px] text-slate-700 font-bold">Cài đặt Ứng dụng</span>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-slate-400" />
+                 </button>
+               )}
                <button onClick={() => setShowPasswordModal(true)} className="w-full flex items-center justify-between py-3 pr-4 border-b border-slate-100 active:bg-slate-50">
                   <div className="flex items-center gap-3">
                      <div className="w-8 h-8 rounded-md bg-slate-100 flex items-center justify-center"><Lock className="w-5 h-5 text-slate-400" /></div>
@@ -1414,6 +1473,51 @@ export function PatientPortalNew({
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Modal Hướng dẫn cài đặt iOS */}
+        {showIosPrompt && (
+          <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 animate-in fade-in">
+            <div className="w-full max-w-xs rounded-2xl bg-white p-5 shadow-2xl relative animate-in zoom-in-95">
+              <button 
+                onClick={() => setShowIosPrompt(false)}
+                className="absolute right-3 top-3 p-1 rounded-full bg-slate-100 text-slate-500 active:scale-95"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              
+              <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center mb-4 mx-auto">
+                <Download className="w-6 h-6 text-blue-600" />
+              </div>
+              
+              <h3 className="text-[18px] font-bold text-center text-[#0d1f2d] mb-2">Cài đặt Ứng dụng</h3>
+              <p className="text-[14px] text-center text-slate-600 mb-6">
+                Để cài đặt EyeCU lên iPhone/iPad của bạn, vui lòng làm theo 2 bước sau:
+              </p>
+              
+              <div className="space-y-4 mb-6">
+                <div className="flex gap-3">
+                  <div className="w-8 h-8 shrink-0 rounded-full bg-slate-100 flex items-center justify-center text-[14px] font-bold text-slate-500">1</div>
+                  <p className="text-[14px] text-slate-700 pt-1">
+                    Nhấn vào biểu tượng <Share className="w-4 h-4 inline-block mx-1 text-blue-600" /> <b>Chia sẻ</b> ở thanh công cụ dưới cùng của trình duyệt Safari.
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <div className="w-8 h-8 shrink-0 rounded-full bg-slate-100 flex items-center justify-center text-[14px] font-bold text-slate-500">2</div>
+                  <p className="text-[14px] text-slate-700 pt-1">
+                    Kéo xuống và chọn <PlusSquare className="w-4 h-4 inline-block mx-1 text-slate-800" /> <b>Thêm vào MH chính</b> (Add to Home Screen).
+                  </p>
+                </div>
+              </div>
+              
+              <button 
+                onClick={() => setShowIosPrompt(false)}
+                className="w-full py-3 bg-[#88E8F2] text-[#0d1f2d] font-bold rounded-xl active:scale-95"
+              >
+                Đã hiểu
+              </button>
+            </div>
           </div>
         )}
 
