@@ -78,12 +78,11 @@ function LoginPage() {
         <div className="relative z-10 flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div
-              className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-md"
-              style={{ background: "linear-gradient(135deg, #0A9BAD, #34d399)" }}
-            >
-              <Activity className="w-6 h-6 text-white" strokeWidth={2.5} />
-            </div>
+            <img 
+              src="/logo.png" 
+              alt="EyeCU Logo"
+              className="w-11 h-11 rounded-2xl shadow-md object-contain"
+            />
             <div>
               <h1 className="text-xl font-bold tracking-tight text-slate-900">EyeCU</h1>
               <p className="text-[10px] tracking-widest font-geist uppercase text-slate-500">
@@ -172,12 +171,11 @@ function LoginPage() {
         <div className="w-full max-w-[400px] space-y-6">
           {/* Mobile logo */}
           <div className="text-center lg:hidden mb-6">
-            <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-md"
-              style={{ background: "linear-gradient(135deg, #0A9BAD, #34d399)" }}
-            >
-              <Activity className="w-8 h-8 text-white" strokeWidth={2.5} />
-            </div>
+            <img 
+              src="/logo.png" 
+              alt="EyeCU Logo"
+              className="w-14 h-14 rounded-2xl mx-auto mb-3 shadow-md object-contain"
+            />
             <h1 className="text-2xl font-bold text-slate-900">EyeCU</h1>
             <p className="text-xs text-slate-400 mt-1 font-geist uppercase tracking-wider">
               Ambient Clinical OS

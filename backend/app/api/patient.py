@@ -137,11 +137,7 @@ async def scan_document(
         b64_str = data.image_base64.split(",")[1] if "," in data.image_base64 else data.image_base64
         file_bytes = base64.b64decode(b64_str)
         
-        hash_str = await vnpt_client.upload_file(file_bytes, "doc.jpg")
-        if not hash_str:
-            return {"status": "error", "message": "Lỗi upload ảnh lên VNPT"}
-            
-        ocr_data = await vnpt_client.call_smartreader_ocr(hash_str)
+        ocr_data = await vnpt_client.call_smartreader_ocr(file_bytes, "doc.jpg")
         
         from app.db.models import SmartReaderDoc
         doc = SmartReaderDoc(

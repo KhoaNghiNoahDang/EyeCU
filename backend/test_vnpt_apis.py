@@ -82,7 +82,7 @@ def test_smartbot():
     safe_req("POST", url, headers=headers, json=payload, api_name="SmartBot")
 
 def test_smartvoice():
-    url = "https://api.idg.vnpt.vn/stt-service/v3/standard"
+    url = "https://api.idg.vnpt.vn/stt-service/v1/grpc/standard"
     
     token = os.getenv("VNPT_SMARTVOICE_ACCESS_TOKEN") or ""
     if token.lower().startswith("bearer"):
@@ -103,6 +103,32 @@ def test_smartvoice():
     
     safe_req("POST", url, headers=headers, files=files, data=data, api_name="SmartVoice(STT)")
 
+def test_smartvoice_tts():
+    url = "https://api.idg.vnpt.vn/tts-service/v2/standard"
+    
+    token = os.getenv("VNPT_TTS_ACCESS_TOKEN") or ""
+    if token.lower().startswith("bearer"):
+        auth_header = token if token.startswith("Bearer") else f"Bearer {token[7:]}".strip()
+    else:
+        auth_header = f"Bearer {token}"
+        
+    headers = {
+        "Authorization": auth_header,
+        "Token-id": os.getenv("VNPT_TTS_TOKEN_ID"),
+        "Token-key": os.getenv("VNPT_TTS_TOKEN_KEY"),
+        "Content-Type": "application/json",
+    }
+    
+    payload = {
+        "text": "Xin chào, đây là hệ thống Eye C U",
+        "text_split": False,
+        "model": "news",
+        "speed": "1",
+        "region": "female_north"
+    }
+    
+    safe_req("POST", url, headers=headers, json=payload, api_name="SmartVoice(TTS)")
+
 def test_vnface():
     token = os.getenv("VNPT_VNFACE_ACCESS_TOKEN")
     channel = os.getenv("VNPT_VNFACE_TOKEN_CHANNEL")
@@ -120,6 +146,7 @@ def main():
     test_smartvision()
     test_smartbot()
     test_smartvoice()
+    test_smartvoice_tts()
     test_vnface()
     print("===============================================")
 

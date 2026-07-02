@@ -33,10 +33,15 @@ class Settings(BaseSettings):
     VNPT_VNFACE_ACCESS_TOKEN: str = ""
     VNPT_VNFACE_TOKEN_CHANNEL: str = ""
 
-    # VNPT SmartVoice
+    # VNPT SmartVoice (STT)
     VNPT_SMARTVOICE_TOKEN_ID: str = ""
     VNPT_SMARTVOICE_TOKEN_KEY: str = ""
     VNPT_SMARTVOICE_ACCESS_TOKEN: str = ""
+
+    # VNPT SmartVoice (TTS)
+    VNPT_TTS_TOKEN_ID: str = ""
+    VNPT_TTS_TOKEN_KEY: str = ""
+    VNPT_TTS_ACCESS_TOKEN: str = ""
 
     # VNPT SmartReader
     VNPT_SMARTREADER_TOKEN_ID: str = ""

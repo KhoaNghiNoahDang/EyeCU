@@ -166,6 +166,53 @@ class VnptAPIClient:
         except Exception:
             return get_mock_json("smartvision_lpr")
 
+    # ── SmartVoice: Text to Speech (TTS) ──────────────────────────────
+
+    async def call_smartvoice_tts(
+        self,
+        text: str,
+        voice_model: str = "news",
+        voice_region: str = "female_north",
+    ) -> bytes:
+        """Chuyển văn bản thành giọng nói."""
+        payload = {
+            "text": text,
+            "text_split": False,
+            "model": voice_model,
+            "speed": "1",
+            "region": voice_region
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
+                headers = {
+                    "Authorization": settings.VNPT_TTS_ACCESS_TOKEN if settings.VNPT_TTS_ACCESS_TOKEN.lower().startswith("bearer") else f"Bearer {settings.VNPT_TTS_ACCESS_TOKEN}",
+                    "Token-id": settings.VNPT_TTS_TOKEN_ID,
+                    "Token-key": settings.VNPT_TTS_TOKEN_KEY,
+                    "Content-Type": "application/json",
+                }
+                
+                resp = await client.post(
+                    "https://api.idg.vnpt.vn/tts-service/v2/standard",
+                    json=payload,
+                    headers=headers,
+                )
+
+                data = resp.json()
+                if "object" in data and "playlist" in data["object"]:
+                     # Lấy URL của file âm thanh đầu tiên
+                     playlist = data["object"]["playlist"]
+                     if playlist and isinstance(playlist, list):
+                         audio_url = playlist[0].get("audio_link")
+                         if audio_url:
+                             # Tải file âm thanh về
+                             audio_resp = await client.get(audio_url)
+                             return audio_resp.content
+                             
+                return b""
+        except Exception:
+            return b""
+
     # ── SmartVision: Nhận diện xe (LPR) ──────────────────────────
     async def call_smartvision_detect_vehicle(self, img_url: str) -> dict:
         """Đọc biển số xe cấp cứu vào cổng."""
@@ -219,7 +266,7 @@ class VnptAPIClient:
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:
                 resp = await client.post(
-                    "https://api.idg.vnpt.vn/stt-service/v3/standard",
+                    "https://api.idg.vnpt.vn/stt-service/v1/grpc/standard",
                     headers=_smartvoice_headers(),
                     files={"audioFile": (filename, audio_bytes, content_type)},
                     data={"clientSession": str(uuid.uuid4())}
@@ -230,8 +277,6 @@ class VnptAPIClient:
                 results = data.get("object", {}).get("results", [])
                 transcript = ""
                 for res in results:
-                    # Tùy theo cấu trúc trả về thực tế của VNPT, 
-                    # thường là 'transcript' hoặc 'text' hoặc 'sentence'
                     if "transcript" in res:
                         transcript += str(res.get("transcript", "")) + " "
                     elif "text" in res:
@@ -247,36 +292,65 @@ class VnptAPIClient:
             return {
                 "transcript": "",
                 "raw": {"error": str(e)},
-            }  # ── SmartReader: OCR tài liệu
+            }
 
-        # ── SmartReader: OCR tài liệu ───────────────────────────────
+    # ── SmartReader: OCR tài liệu ───────────────────────────────
 
     async def call_smartreader_ocr(
         self,
         file_bytes: bytes,
-        filename: str = "document.pdf",
+        filename: str = "doc.jpg",
     ) -> dict:
-        """Đọc văn bản từ PDF hoặc ảnh."""
-
+        """Đọc văn bản từ tài liệu (upload và bóc tách)."""
+        import uuid
+        
         try:
             async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
-
-                resp = await client.post(
+                # 1. Upload file using SmartReader headers
+                headers = _smartreader_headers()
+                content_type = "image/jpeg"
+                if filename.lower().endswith(".pdf"):
+                     content_type = "application/pdf"
+                     
+                upload_resp = await client.post(
                     "https://api.idg.vnpt.vn/file-service/v1/addFile",
-                    headers=_smartreader_headers(),
-                    files={
-                        "file": (
-                            filename,
-                            file_bytes,
-                            "application/pdf",
-                        )
-                    },
+                    headers=headers,
+                    files={"file": (filename, file_bytes, content_type)},
+                )
+                upload_data = upload_resp.json()
+                hash_string = upload_data.get("object", {}).get("hash")
+                
+                if not hash_string:
+                    return {"text": "", "raw": upload_data}
+
+                # 2. Call OCR/Scan
+                headers["mac-address"] = "WEB-001"
+                payload = {
+                    "file_hash": hash_string,
+                    "file_type": "pdf" if filename.lower().endswith(".pdf") else "jpg",
+                    "token": "8928skjhfa89298jahga1771vbvb",
+                    "client_session": str(uuid.uuid4()),
+                    "details": True
+                }
+                
+                ocr_resp = await client.post(
+                    "https://api.idg.vnpt.vn/rpa-service/aidigdoc/v1/ocr/scan",
+                    json=payload,
+                    headers=headers,
                 )
 
-                data = resp.json()
+                data = ocr_resp.json()
+                
+                # Extract text
+                text_result = ""
+                if "object" in data and isinstance(data["object"], list):
+                     for item in data["object"]:
+                         text_result += str(item.get("text", "")) + " "
+                elif "object" in data and isinstance(data["object"], dict):
+                     text_result = data["object"].get("text", str(data["object"]))
 
                 return {
-                    "text": data.get("text", ""),
+                    "text": text_result.strip(),
                     "raw": data,
                 }
 

@@ -293,12 +293,11 @@ function PatientRounds() {
           <div className={`mb-4 ${collapsed ? "px-4" : "px-6"}`}>
             <div className="flex items-center gap-3 justify-between">
               <div className="flex items-center gap-3 min-w-0">
-                <div
-                  className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: ACCENT }}
-                >
-                  <Activity className="w-5 h-5 text-slate-900" strokeWidth={2.5} />
-                </div>
+                <img 
+                  src="/logo.png" 
+                  alt="EyeCU Logo"
+                  className="w-9 h-9 rounded-lg shadow-sm object-contain flex-shrink-0"
+                />
                 {!collapsed && (
                   <div className="min-w-0">
                     <h1 className="text-base font-bold leading-tight text-slate-900 truncate">
@@ -404,12 +403,11 @@ function PatientRounds() {
         >
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <div className="flex shrink-0 items-center gap-2 md:hidden">
-              <div
-                className="flex h-8 w-8 items-center justify-center rounded-lg"
-                style={{ backgroundColor: ACCENT }}
-              >
-                <Activity className="h-4 w-4 text-slate-900" strokeWidth={2.3} />
-              </div>
+              <img 
+                src="/logo.png" 
+                alt="EyeCU Logo"
+                className="h-8 w-8 rounded-lg shadow-sm object-contain"
+              />
               <span className="text-sm font-bold text-slate-900">EyeCU</span>
             </div>
             <div className="hidden md:flex items-center rounded-full border border-slate-200 bg-slate-50/80 px-3 py-1.5">
@@ -6604,12 +6602,11 @@ function PatientPortalView({
         <div className="sticky top-0 z-30 shrink-0 border-b border-slate-100 bg-white pt-safe px-safe pb-2">
           <div className="relative flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div
-                className="flex h-8 w-8 items-center justify-center rounded-full"
-                style={{ backgroundColor: `${ACCENT}55` }}
-              >
-                <Activity className="h-4 w-4 text-slate-900" strokeWidth={2.3} />
-              </div>
+              <img 
+                src="/logo.png" 
+                alt="EyeCU Logo"
+                className="h-8 w-8 rounded-full shadow-sm object-contain"
+              />
               <span className="text-sm font-bold text-slate-900">EyeCU</span>
             </div>
 
@@ -6944,13 +6941,23 @@ function PatientPortalView({
                   </button>
                 </div>
               )}
-              <div className="pointer-events-none absolute inset-6 flex items-center justify-center rounded-3xl border-2 border-dashed border-[#88E8F2] bg-slate-800/30 backdrop-blur-sm">
-                <p className="px-4 text-center text-sm font-medium text-white opacity-90">
-                  Đưa giấy xét nghiệm vào khung
-                </p>
-                {isAnalyzing && (
-                  <div className="absolute left-0 right-0 h-1 bg-[#88E8F2] shadow-[0_0_20px_#88E8F2] animate-scan" />
-                )}
+              {/* Cutout Mask with 4 panels for true backdrop blur outside */}
+              <div className="pointer-events-none absolute inset-0 z-10 flex flex-col">
+                <div className="w-full h-6 bg-slate-900/60 backdrop-blur-md" />
+                <div className="flex flex-1">
+                  <div className="w-6 h-full bg-slate-900/60 backdrop-blur-md" />
+                  <div className="flex-1 relative rounded-3xl border-2 border-dashed border-[#88E8F2] flex items-center justify-center">
+                    <div className="absolute inset-0 shadow-[0_0_0_999px_rgba(15,23,42,0.1)] rounded-3xl pointer-events-none" />
+                    <p className="px-4 text-center text-sm font-medium text-white opacity-100 drop-shadow-lg">
+                      Đưa giấy xét nghiệm vào khung
+                    </p>
+                    {isAnalyzing && (
+                      <div className="absolute left-0 right-0 h-1 bg-[#88E8F2] shadow-[0_0_20px_#88E8F2] animate-scan" />
+                    )}
+                  </div>
+                  <div className="w-6 h-full bg-slate-900/60 backdrop-blur-md" />
+                </div>
+                <div className="w-full h-6 bg-slate-900/60 backdrop-blur-md" />
               </div>
             </div>
             <div className="flex h-36 shrink-0 items-center justify-around bg-black px-6">

@@ -147,14 +147,11 @@ function RegisterPage() {
           </Link>
 
           <div className="flex items-center gap-3">
-            <div
-              className="flex h-11 w-11 items-center justify-center rounded-2xl shadow-md"
-              style={{
-                background: "linear-gradient(135deg, #0A9BAD, #34d399)",
-              }}
-            >
-              <Activity className="h-6 w-6 text-white" strokeWidth={2.5} />
-            </div>
+            <img 
+              src="/logo.png" 
+              alt="EyeCU Logo"
+              className="h-11 w-11 rounded-2xl shadow-md object-contain"
+            />
             <div>
               <h1 className="text-xl font-bold text-slate-900">Đăng ký bệnh nhân</h1>
               <p className="text-[10px] font-geist uppercase tracking-wider text-slate-500">

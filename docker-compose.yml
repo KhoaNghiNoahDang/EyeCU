@@ -27,7 +27,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: eyecu_frontend
     ports:
-      - "5173:5173"
+      - "8080:8080"
     volumes:
       # Hot-reload: thay đổi code React → Vite tự reload
       - ./frontend:/app
