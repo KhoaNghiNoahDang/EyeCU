@@ -44,7 +44,7 @@ export function PatientPortalNew({
   ]);
   const [chatInput, setChatInput] = useState("");
   const [botTyping, setBotTyping] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   // PWA Installation States
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);

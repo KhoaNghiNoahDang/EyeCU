@@ -112,7 +112,7 @@ export function useEyeCUSocket({
 
     ws.onerror = () => {
       // onerror luon di kem voi onclose nen khong can xu ly them o day
-      console.error("[EyeCU WS] Connection error.");
+      console.warn("[EyeCU WS] Connection warning: Server might be offline.");
     };
 
     ws.onclose = () => {
@@ -142,8 +142,13 @@ export function useEyeCUSocket({
         reconnectTimerRef.current = null;
       }
       if (wsRef.current) {
-        wsRef.current.onclose = null; // Xoa handler truoc khi close
-        wsRef.current.close();
+        const ws = wsRef.current;
+        ws.onclose = null; // Xoa handler truoc khi close
+        if (ws.readyState === WebSocket.CONNECTING) {
+          ws.onopen = () => ws.close();
+        } else {
+          ws.close();
+        }
         wsRef.current = null;
       }
     };
