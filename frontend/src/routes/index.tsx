@@ -5477,37 +5477,65 @@ function SignedEMRView({ soapeData, onClose }: { soapeData: any; onClose: () => 
   });
 
   const handleSavePDF = () => {
-    // html2canvas doesn't support Tailwind v4 oklch() colors, causing "unsupported color function lab"
-    // Using native browser print is much more reliable and produces vector PDFs.
-    const style = document.createElement("style");
-    style.id = "emr-print-style";
-    style.innerHTML = `
-      @media print {
-        body * {
-          visibility: hidden;
-        }
-        #emr-document, #emr-document * {
-          visibility: visible;
-        }
-        #emr-document {
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 100%;
-          margin: 0;
-          padding: 0;
-          box-shadow: none !important;
-          border: none !important;
-        }
+    const executeSave = () => {
+      try {
+        const element = document.getElementById("emr-document");
+        if (!element) return;
+        
+        // Hide actions temporarily
+        const actions = element.querySelector(".print\\\\:hidden") as HTMLElement;
+        if (actions) actions.style.display = "none";
+
+        // Use html-to-image which supports modern CSS via foreignObject
+        (window as any).htmlToImage.toPng(element, { quality: 0.95, pixelRatio: 2, backgroundColor: '#ffffff' })
+          .then((dataUrl: string) => {
+            if (actions) actions.style.display = ""; // restore
+            
+            const { jsPDF } = (window as any).jspdf;
+            const pdf = new jsPDF({
+              orientation: "portrait",
+              unit: "mm",
+              format: "a4"
+            });
+            
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (element.clientHeight * pdfWidth) / element.clientWidth;
+            
+            pdf.addImage(dataUrl, "PNG", 0, 0, pdfWidth, pdfHeight);
+            pdf.save("Benh_An_Dien_Tu.pdf");
+          })
+          .catch((err: any) => {
+            if (actions) actions.style.display = "";
+            alert("Lỗi khi tải PDF: " + err.toString());
+          });
+      } catch (err: any) {
+        alert("Có lỗi xảy ra: " + err.toString());
       }
-    `;
-    document.head.appendChild(style);
-    
-    // Give browser time to apply styles before printing
-    setTimeout(() => {
-      window.print();
-      document.head.removeChild(style);
-    }, 100);
+    };
+
+    const loadScript = (src: string) => {
+      return new Promise((resolve, reject) => {
+        if (document.querySelector(`script[src="${src}"]`)) return resolve(true);
+        const script = document.createElement("script");
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    };
+
+    if (!(window as any).htmlToImage || !(window as any).jspdf) {
+      Promise.all([
+        loadScript("https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"),
+        loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js")
+      ]).then(() => {
+        executeSave();
+      }).catch(() => {
+        alert("Không thể tải thư viện tạo PDF. Vui lòng kiểm tra mạng.");
+      });
+    } else {
+      executeSave();
+    }
   };
 
   return (
