@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 
+import { fetchApi } from "../api/client";
+
 /* ─── Types ─── */
 export type WorkMode = "ops" | "clinician" | "patient" | "admin" | "ems";
 
@@ -13,6 +15,8 @@ export interface AuthUser {
   title?: string;
   cccd?: string;
   phone?: string;
+  gender?: string;
+  dob?: string;
   staffCode?: string;
 }
 
@@ -71,6 +75,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: persisted.user,
       workMode: persisted.workMode,
     });
+
+    // Background refresh user data on app load to sync fresh DB fields (e.g. phone, dob, gender)
+    const token = sessionStorage.getItem("eyecu_token");
+    if (token && persisted.user) {
+      fetchApi("/auth/me").then((freshUser) => {
+        setState((prev) => {
+          const next = { ...prev, user: freshUser as AuthUser };
+          persistAuth(next.user, next.workMode, token);
+          return next;
+        });
+      }).catch((err) => console.error("Failed to refresh user", err));
+    }
   }, []);
 
   const login = useCallback((user: AuthUser, mode?: WorkMode, token?: string) => {
