@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useRef, useCallback, ComponentType } from "react";
+import { supabase } from "../lib/supabase";
 import { useAuth, type WorkMode } from "../lib/auth/auth-context";
 import { useEyeCUSocket } from "../hooks/useEyeCUSocket";
 import { fetchApi } from "../lib/api/client";
@@ -59,6 +60,7 @@ function ClientEmsLeafletMap(props: any) {
 
 import {
   Activity,
+  History as HistoryIcon,
   Plus,
   Eye,
   Ambulance,
@@ -136,6 +138,7 @@ const ACCENT = "#88E8F2";
 type ViewKey =
   | "ambient"
   | "ambulance"
+  | "history"
   | "records"
   | "voice"
   | "chatbot"
@@ -161,7 +164,7 @@ const roleConfig: Record<WorkMode, { label: string; views: ViewKey[]; defaultVie
   },
   ops: {
     label: "Trực Cấp cứu",
-    views: ["ambient", "ambulance"],
+    views: ["ambient", "ambulance", "history"],
     defaultView: "ambient",
   },
   clinician: {
@@ -186,6 +189,7 @@ const viewTitles: Record<ViewKey, { title: string; subtitle: string }> = {
     title: "Giám sát Không gian — Đa Khoa",
     subtitle: "Giám sát AI Nhận thức · Sensor Fusion",
   },
+  history: { title: "Lịch sử Cấp cứu", subtitle: "Theo dõi các ca cấp cứu đã hoàn thành" },
   ambulance: { title: "Điều phối Cấp cứu", subtitle: "Bản đồ Hà Nội · Pre-admission · Kíp trực" },
   records: { title: "Hồ sơ Bệnh nhân", subtitle: "OCR · Xác thực sinh trắc học" },
   voice: { title: "Bệnh án Giọng nói", subtitle: "SmartVoice · Tự điền EMR" },
@@ -1878,7 +1882,7 @@ function AmbientAside({ onAlertClick }: { onAlertClick: (room: string) => void }
           priority: d.severity === "critical" ? "high" : "medium",
           details: d.description,
         }));
-        if (mapped.length > 0) setAlerts(mapped as AlertData[]);
+        if (mapped.length > 0) setAlerts(mapped as any as AlertData[]);
         else setAlerts(INITIAL_ALERTS);
       })
       .catch(() => setAlerts(INITIAL_ALERTS));
@@ -2457,6 +2461,7 @@ function LprScanner({
   activeId,
   onSelectQueue,
   hospitalId,
+  onScanComplete,
 }: {
   plate: string;
   onNotify: () => void;
@@ -2464,6 +2469,7 @@ function LprScanner({
   activeId: string | null;
   onSelectQueue: (id: string) => void;
   hospitalId?: string;
+  onScanComplete?: (plate: string) => void;
 }) {
   // ── Camera state ─────────────────────────────────────────────────────
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -3754,100 +3760,315 @@ function AutoEmrPanel({ plate }: { plate: string }) {
   );
 }
 
+/* ---------- HistoryView (Supabase Connected) ---------- */
+function HistoryView() {
+  const [historyRecords, setHistoryRecords] = useState<any[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from('dispatch_records')
+      .select('*')
+      .eq('status', 'completed')
+      .order('completed_at', { ascending: false })
+      .then(({ data }) => {
+        if (data) setHistoryRecords(data);
+      });
+
+    const sub = supabase
+      .channel('history_channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'dispatch_records', filter: 'status=eq.completed' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setHistoryRecords(prev => [payload.new, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setHistoryRecords(prev => {
+              const idx = prev.findIndex(r => r.plate === payload.new.plate);
+              if (idx === -1) return [payload.new, ...prev];
+              const copy = [...prev];
+              copy[idx] = payload.new;
+              return copy;
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(sub);
+    };
+  }, []);
+
+  return (
+    <div className="flex-1 flex flex-col p-6 max-h-screen overflow-hidden bg-slate-50/50">
+      <div className="flex items-center gap-4 mb-8">
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 font-geist tracking-tight flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center text-white shadow-lg shadow-slate-900/20">
+              <HistoryIcon className="w-5 h-5" />
+            </div>
+            Lịch sử Điều phối Cấp cứu
+          </h1>
+          <p className="text-slate-500 font-medium mt-1 ml-13 flex items-center gap-2">
+            Theo dõi các ca cấp cứu ngoại viện đã hoàn thành
+          </p>
+        </div>
+      </div>
+      
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex-1 flex flex-col">
+        <div className="flex flex-wrap justify-between items-center px-4 py-3 border-b border-slate-100 gap-2">
+          <div>
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4" style={{ color: '#88E8F2' }} />
+              Danh sách Đã hoàn thành
+            </h3>
+            <p className="text-[11px] text-slate-500 font-geist">
+              Tổng số {historyRecords.length} ca
+            </p>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto flex-1 h-0">
+          <table className="w-full text-sm text-left min-w-[1000px]">
+            <thead className="text-[10px] text-slate-500 font-geist uppercase tracking-wider bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+              <tr>
+                <th className="px-3 py-3 whitespace-nowrap">Biển số xe</th>
+                <th className="px-3 py-3 whitespace-nowrap">Tên bệnh nhân</th>
+                <th className="px-3 py-3 whitespace-nowrap">Giới tính</th>
+                <th className="px-3 py-3 whitespace-nowrap">Độ tuổi</th>
+                <th className="px-3 py-3 whitespace-nowrap">Số CCCD</th>
+                <th className="px-3 py-3 whitespace-nowrap">Bệnh nền</th>
+                <th className="px-3 py-3 whitespace-nowrap">Dị ứng thuốc</th>
+                <th className="px-3 py-3 whitespace-nowrap">Nhãn cấp cứu</th>
+                <th className="px-3 py-3 whitespace-nowrap">Kíp CC</th>
+                <th className="px-3 py-3 whitespace-nowrap">Kết thúc lúc</th>
+              </tr>
+            </thead>
+            <tbody>
+              {historyRecords.length === 0 ? (
+                <tr><td colSpan={10} className="px-4 py-8 text-center text-slate-400">Chưa có ca cấp cứu nào hoàn thành</td></tr>
+              ) : historyRecords.map((rec, idx) => (
+                <tr key={`${rec.plate}-${idx}`} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80 transition-colors">
+                  <td className="px-3 py-3"><span className="font-mono font-bold text-slate-600 text-[13px]">{rec.plate}</span></td>
+                  <td className="px-3 py-3"><span className="font-semibold text-slate-600">{rec.patient_name || "—"}</span></td>
+                  <td className="px-3 py-3 text-slate-500">{rec.gender || "—"}</td>
+                  <td className="px-3 py-3 text-slate-500">{rec.age || "—"}</td>
+                  <td className="px-3 py-3 font-mono text-[12px] text-slate-500">{rec.cccd || "—"}</td>
+                  <td className="px-3 py-3 max-w-[180px]">
+                    {rec.chronic_conditions && rec.chronic_conditions.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {rec.chronic_conditions.map((c: string) => (
+                          <span key={c} className="px-1.5 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">{c}</span>
+                        ))}
+                      </div>
+                    ) : <span className="text-slate-400 text-xs">Không có</span>}
+                  </td>
+                  <td className="px-3 py-3 max-w-[160px]">
+                    {rec.allergies && rec.allergies.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {rec.allergies.map((a: string) => (
+                          <span key={a} className="px-1.5 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">{a}</span>
+                        ))}
+                      </div>
+                    ) : <span className="text-slate-400 text-xs">Không có</span>}
+                  </td>
+                  <td className="px-3 py-3">
+                    {rec.alert_label ? (
+                      <span className="px-2 py-1 rounded-lg text-[11px] font-bold text-slate-500 bg-slate-100 border border-slate-200 whitespace-nowrap">{rec.alert_label}</span>
+                    ) : <span className="text-slate-400 text-xs">Chưa có</span>}
+                  </td>
+                  <td className="px-3 py-3 text-slate-500 text-xs font-semibold">{rec.er_team || "—"}</td>
+                  <td className="px-3 py-3 text-slate-500 text-xs">{rec.completed_at ? new Date(rec.completed_at).toLocaleTimeString() : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- Main AmbulanceView ---------- */
-type MapFilter = "all" | "critical" | "urgent" | "standby";
+
+type MapFilter = "all" | "critical" | "urgent" | "standby";
+
+// Dispatch Record — realtime from EMS WebSocket
+interface DispatchRecord {
+  plate: string;
+  eta: number | null;
+  patientName: string | null;
+  gender: string | null;
+  age: string | null;
+  cccd: string | null;
+  chronicConditions: string[] | null;
+  allergies: string[] | null;
+  alertLabel: string | null;
+  erTeam: string;
+  addedAt: number;
+}
 
 function AmbulanceView() {
   const [ambulances, setAmbulances] = useState<AmbulanceUnit[]>([]);
+  const [dispatchRecords, setDispatchRecords] = useState<Record<string, any>>({});
 
+  useEffect(() => {
+    supabase.from('dispatch_records').select('*').eq('status', 'active').then(({ data }) => {
+      if (data) {
+        const r: Record<string, any> = {};
+        data.forEach(d => { r[d.plate] = d; });
+        setDispatchRecords(r);
+      }
+    });
+
+    const sub = supabase.channel('active_dispatch')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'dispatch_records', filter: 'status=eq.active' }, (payload) => {
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          setDispatchRecords(prev => ({ ...prev, [payload.new.plate]: payload.new }));
+        } else if (payload.eventType === 'DELETE') {
+          setDispatchRecords(prev => {
+            const copy = { ...prev };
+            delete copy[payload.old.plate];
+            return copy;
+          });
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(sub); };
+  }, []);
+  
   useEffect(() => {
     fetchApi("/ambulance")
       .then((data: any[]) => {
-        const mapped: AmbulanceUnit[] = data.map((d: any) => {
-          return {
-            id: d.id,
-            plate: d.plate,
-            status: ["critical", "urgent", "standby"].includes(d.status) ? d.status : "standby",
-            patient: "Đang cập nhật...",
-            diagnosis: "Đang cập nhật...",
-            etaSeconds: 300,
-            crew: d.driver || "Chưa phân công",
-            mapX: 0,
-            mapY: 0,
-            departmentId: "er",
-            lat: d.lat,
-            lng: d.lng,
-          };
-        });
+        const mapped: AmbulanceUnit[] = data.map((d: any) => ({
+          id: d.id,
+          plate: d.plate,
+          status: ["critical", "urgent", "standby"].includes(d.status) ? d.status : "standby",
+          patient: "Đang cập nhật...",
+          diagnosis: "Đang cập nhật...",
+          etaSeconds: 300,
+          crew: d.driver || "Chưa phân công",
+          mapX: 0,
+          mapY: 0,
+          departmentId: "er",
+          lat: d.lat,
+          lng: d.lng,
+        }));
         setAmbulances(mapped);
       })
       .catch(console.error);
   }, []);
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedDeptId, setSelectedDeptId] = useState<string | null>("er");
   const [filter, setFilter] = useState<MapFilter>("all");
   const [lprPlate, setLprPlate] = useState("29A-213.07");
   const [toast, setToast] = useState("");
   const [panelMode, setPanelMode] = useState<"dept" | "vehicle">("dept");
-  const [fallAlert, setFallAlert] = useState<{
-    room: string;
-    imageUrl: string;
-    time: string;
-  } | null>(null);
+  const [fallAlert, setFallAlert] = useState<{ room: string; imageUrl: string; time: string } | null>(null);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(""), 4000);
   }, []);
 
-  // Ket noi WebSocket de nhan cap nhat GPS va su kien cong vien theo thoi gian thuc
   const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
   const WS_URL = (import.meta.env.VITE_WS_URL ?? `ws://${host}:8000`) + "/api/ambient/ws/live";
 
   const handleSocketMessage = useCallback(
-    (msg: {
-      type: string;
-      data?: Record<string, unknown>;
-      room_id?: string;
-      blurred_image_base64?: string;
-    }) => {
-      if (msg.type === "GPS_UPDATE" && msg.data) {
-        const { ambulance_id, lat, lng } = msg.data as {
-          ambulance_id: string;
-          lat: number;
-          lng: number;
-        };
+    (msg: { type: string; data?: Record<string, unknown>; room_id?: string; blurred_image_base64?: string }) => {
+      // ── GPS_START: xe mới đăng ký nhiệm vụ ──────────────────────────
+      if (msg.type === "GPS_START" && msg.data) {
+        const { plate, eta_seconds, lat, lng } = msg.data as { plate: string, eta_seconds?: number, lat?: number, lng?: number };
+        if (plate) {
+          supabase.from('dispatch_records').upsert({
+            plate,
+            eta: typeof eta_seconds === 'number' ? eta_seconds : null,
+            status: 'active',
+            lat: lat ?? null,
+            lng: lng ?? null,
+            added_at: Date.now()
+          }).then();
 
+          // Cũng cập nhật ambulances map nếu xe chưa có
+          setAmbulances((prev) => {
+            if (prev.find((a) => a.plate === plate)) return prev;
+            return [
+              ...prev,
+              {
+                id: plate,
+                plate,
+                status: "urgent" as const,
+                patient: "Đang cập nhật...",
+                diagnosis: "Đang cập nhật...",
+                etaSeconds: 600,
+                crew: "Kíp EMS",
+                mapX: 0,
+                mapY: 0,
+                departmentId: "er",
+                lat: lat ?? undefined,
+                lng: lng ?? undefined,
+              },
+            ];
+          });
+        }
+      }
+      // ── GPS_UPDATE: cập nhật vị trí + ETA ───────────────────────────
+      if (msg.type === "GPS_UPDATE" && msg.data) {
+        const { ambulance_id, lat, lng, plate: msgPlate, eta_seconds } = msg.data as {
+          ambulance_id: string; lat: number; lng: number; plate?: string; eta_seconds?: number;
+        };
         setAmbulances((prev) =>
           prev.map((a) => {
-            if (a.id === ambulance_id || (ambulance_id === "current" && a.id === "xe1")) {
-              return { ...a, lat, lng };
+            if (a.id === ambulance_id || (ambulance_id === "current" && a.id === "xe1") || (msgPlate && a.plate === msgPlate)) {
+              return { ...a, lat, lng, etaSeconds: eta_seconds ?? a.etaSeconds };
             }
             return a;
           }),
         );
+        // Cập nhật ETA trong dispatchRecords
+        if (msgPlate) {
+          supabase.from('dispatch_records').update({
+            lat,
+            lng,
+            eta: eta_seconds ?? null
+          }).eq('plate', msgPlate).then();
+        }
       }
+      // ── PATIENT_UPDATE: bệnh nhân được gắn kèm xe ───────────────────
+      if (msg.type === "PATIENT_UPDATE" && msg.data) {
+        const d = msg.data as {
+          plate: string; name?: string; gender?: string; age?: string; cccd?: string;
+          chronic_conditions?: string[]; allergies?: string[]; alert_label?: string;
+        };
+        if (d.plate) {
+          supabase.from('dispatch_records').update({
+            patient_name: d.name ?? null,
+            gender: d.gender ?? null,
+            age: d.age ?? null,
+            cccd: d.cccd ?? null,
+            chronic_conditions: d.chronic_conditions ?? null,
+            allergies: d.allergies ?? null,
+            alert_label: d.alert_label ?? null
+          }).eq('plate', d.plate).then();
+        }
+      }
+      // ── GATE events ──────────────────────────────────────────────────
       if ((msg.type === "GATE_ARRIVED" || msg.type === "GATE_OPEN") && msg.data) {
         const { plate } = msg.data as { plate: string };
         setLprPlate(plate);
         showToast(`Xe ${plate} đã đến cổng - Barrier tự động mở`);
+        supabase.from('dispatch_records').update({
+          eta: -1
+        }).eq('plate', plate).then();
       }
       if (msg.type === "CAMERA_STREAM") {
-        window.dispatchEvent(
-          new CustomEvent("camera-stream", {
-            detail: { room: msg.room_id, image: (msg as any).image_base64 },
-          }),
-        );
+        window.dispatchEvent(new CustomEvent("camera-stream", { detail: { room: msg.room_id, image: (msg as any).image_base64 } }));
       }
       if (msg.type === "FALL_DETECTED") {
-        setFallAlert({
-          room: msg.room_id || "Unknown",
-          imageUrl: msg.blurred_image_base64 || "",
-          time: new Date().toLocaleTimeString(),
-        });
-        try {
-          new Audio("/alert.mp3").play().catch(() => {});
-        } catch (e) {}
+        setFallAlert({ room: msg.room_id || "Unknown", imageUrl: msg.blurred_image_base64 || "", time: new Date().toLocaleTimeString() });
+        try { new Audio("/alert.mp3").play().catch(() => {}); } catch (e) {}
       }
     },
     [showToast],
@@ -3862,30 +4083,13 @@ function AmbulanceView() {
     setLprPlate(found.plate);
     setPanelMode("vehicle");
   };
-  const handleSelectDept = (deptId: string) => {
-    setSelectedDeptId(deptId);
-    setPanelMode("dept");
-    setSelectedId(null);
-  };
-  const handleAssignDept = (deptId: string) => {
-    if (!selectedId) return;
-    const dept = DEPARTMENTS.find((d) => d.id === deptId);
-    const amb = ambulances.find((a) => a.id === selectedId);
-    setAmbulances((prev) =>
-      prev.map((a) => (a.id === selectedId ? { ...a, departmentId: deptId } : a)),
-    );
-    showToast(`✓ Đã phân công xe ${amb?.plate} → ${dept?.name}`);
-    setPanelMode("dept");
-    setSelectedDeptId(deptId);
-    setSelectedId(null);
-  };
   const handleNotify = () => showToast("✓ Đã gửi OTT cho kíp trực · Phản hồi trong 30s");
-  const handleBook = () => showToast("✓ Đã đặt giường khẩn · Phòng đang chuẩn bị");
-  const handleCall = (dept: Department) => showToast(` Đang gọi ${dept.doctor}...`);
 
   const visibleAmbs = filter === "all" ? ambulances : ambulances.filter((a) => a.status === filter);
   const selectedAmb = ambulances.find((a) => a.id === selectedId) ?? null;
-  const selectedDept = DEPARTMENTS.find((d) => d.id === selectedDeptId) ?? null;
+
+  // Danh sách hồ sơ dispatch — sắp xếp theo thời gian đến mới nhất
+  const dispatchList = Object.values(dispatchRecords).sort((a, b) => b.addedAt - a.addedAt);
 
   return (
     <>
@@ -3895,7 +4099,6 @@ function AmbulanceView() {
           <span className="text-sm font-medium">{toast}</span>
         </div>
       )}
-
       {fallAlert && (
         <div className="fixed top-20 right-6 z-[999] bg-red-950 text-white p-5 rounded-2xl shadow-2xl flex flex-col gap-3 animate-fade-in border border-red-500 max-w-sm">
           <div className="flex items-center justify-between">
@@ -3903,160 +4106,257 @@ function AmbulanceView() {
               <AlertTriangle className="w-6 h-6 text-red-500 animate-pulse" />
               <h3 className="font-bold text-red-400">PHÁT HIỆN TÉ NGÃ</h3>
             </div>
-            <button onClick={() => setFallAlert(null)} className="text-gray-400 hover:text-white">
-              ✕
-            </button>
+            <button onClick={() => setFallAlert(null)} className="text-gray-400 hover:text-white">✕</button>
           </div>
-          <p className="text-sm">
-            Camera AI phát hiện sự cố ngã tại phòng{" "}
-            <span className="font-bold text-red-300">{fallAlert.room}</span> lúc {fallAlert.time}
-          </p>
-          {fallAlert.imageUrl && (
-            <img
-              src={fallAlert.imageUrl}
-              alt="Blurred Body"
-              className="w-full rounded border border-red-900 mt-2"
-            />
-          )}
+          <p className="text-sm">Camera AI phát hiện sự cố ngã tại phòng <span className="font-bold text-red-300">{fallAlert.room}</span> lúc {fallAlert.time}</p>
+          {fallAlert.imageUrl && <img src={fallAlert.imageUrl} alt="Blurred Body" className="w-full rounded border border-red-900 mt-2" />}
         </div>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        {/* Header */}
-        <div className="flex flex-wrap justify-between items-center px-4 py-3 border-b border-slate-100 gap-2">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <MapIcon className="w-4 h-4" style={{ color: ACCENT }} />
-              Theo dõi Cấp cứu — BV Bạch Mai · {DEPARTMENTS.length} Khoa
-            </h3>
-            <p className="text-[11px] text-slate-500 font-geist">
-              {ambulances.length} xe đang giám sát · GPS Galileo · Thời gian thực
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {(["all", "critical", "urgent", "standby"] as MapFilter[]).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition ${filter === f ? "text-slate-900" : "bg-white border border-slate-200 text-slate-500 hover:border-slate-400"}`}
-                style={filter === f ? { backgroundColor: ACCENT } : undefined}
-              >
-                {f === "all"
-                  ? "Tất cả"
-                  : f === "critical"
-                    ? "Critical"
-                    : f === "urgent"
-                      ? "Urgent"
-                      : "Standby"}
-              </button>
-            ))}
-            <span
-              className="px-2 py-1 rounded text-[10px] font-geist uppercase tracking-wider text-slate-900 flex items-center gap-1"
-              style={{ backgroundColor: ACCENT }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
-              Live
-            </span>
-          </div>
-        </div>
-
-        {/* 2-column body — real interactive map + right command panel */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] lg:h-[560px]">
-          {/* COL 1: Real interactive map */}
-          <div className="relative border-r border-slate-100 overflow-hidden bg-slate-100 h-[420px] lg:h-auto min-h-[420px]">
-            <ClientAmbulanceMap
-              ambulances={visibleAmbs}
-              selectedId={selectedId}
-              onSelect={handleSelectMap}
-            />
-            {/* ETA cards top-right */}
-            <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-[400] max-w-[180px]">
-              {ambulances
-                .filter((a) => a.status !== "standby")
-                .map((amb) => {
-                  const s = STATUS_STYLE[amb.status];
-                  const isSel = selectedId === amb.id;
-                  return (
-                    <button
-                      key={amb.id}
-                      onClick={() => handleSelectMap(amb.id)}
-                      className={`bg-white border-2 ${s.border} rounded-xl shadow-lg px-2.5 py-1.5 text-left transition hover:shadow-xl ${isSel ? "ring-2 ring-offset-1 ring-sky-400" : ""}`}
-                    >
-                      <div className="flex items-center gap-1.5 mb-0.5">
-                        <span className="relative flex w-2 h-2">
-                          <span
-                            className={`absolute inline-flex h-full w-full rounded-full ${s.dot} opacity-75 animate-ping`}
-                          />
-                          <span className={`relative inline-flex rounded-full h-2 w-2 ${s.dot}`} />
-                        </span>
-                        <span className="text-[10px] font-bold text-slate-900 font-mono">
-                          {amb.plate}
-                        </span>
-                        <span
-                          className={`ml-auto text-[8px] font-bold uppercase px-1 py-0.5 rounded ${s.badge} ${s.badgeText}`}
-                        >
-                          {s.label}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-600 truncate">{amb.diagnosis}</p>
-                      <p
-                        className="text-[10px] font-bold"
-                        style={{ color: amb.status === "critical" ? "#DC2626" : "#D97706" }}
-                      >
-                        ETA: <EtaCountdown initialSeconds={amb.etaSeconds} />
-                      </p>
-                    </button>
-                  );
-                })}
+      <div className="space-y-4">
+        {/* ═══════════════════════════════════════════════════════════════
+            BOX 1: THEO DÕI CẤP CỨU
+        ═══════════════════════════════════════════════════════════════ */}
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          {/* Header Box 1 */}
+          <div className="flex flex-wrap justify-between items-center px-4 py-3 border-b border-slate-100 gap-2">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <MapIcon className="w-4 h-4" style={{ color: ACCENT }} />
+                Theo dõi Cấp cứu — BV Bạch Mai
+              </h3>
+              <p className="text-[11px] text-slate-500 font-geist">
+                {ambulances.length} xe đang giám sát · GPS Galileo · Thời gian thực
+              </p>
             </div>
-            <div className="absolute bottom-2 left-2 z-[400] bg-white/90 text-[9px] text-slate-500 px-2 py-0.5 rounded shadow">
-              OpenStreetMap · BV Bạch Mai, Hà Nội
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {(["all", "critical", "urgent", "standby"] as MapFilter[]).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition ${filter === f ? "text-slate-900" : "bg-white border border-slate-200 text-slate-500 hover:border-slate-400"}`}
+                  style={filter === f ? { backgroundColor: ACCENT } : undefined}
+                >
+                  {f === "all" ? "Tất cả" : f === "critical" ? "Critical" : f === "urgent" ? "Urgent" : "Standby"}
+                </button>
+              ))}
+              <span className="px-2 py-1 rounded text-[10px] font-geist uppercase tracking-wider text-slate-900 flex items-center gap-1" style={{ backgroundColor: ACCENT }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
+                Live
+              </span>
             </div>
           </div>
 
-          {/* COL 2: Right command panel */}
-          <div className="overflow-y-auto scrollbar-hide bg-slate-50/50 max-h-[560px] lg:max-h-none">
-            {panelMode === "vehicle" && selectedAmb && (
-              <div className="p-2.5 border-b border-slate-100">
-                <VehiclePanel
-                  amb={selectedAmb}
-                  onClose={() => {
-                    setSelectedId(null);
-                    setPanelMode("dept");
-                  }}
-                />
+          {/* 2 cột ngang: Map trái | LPR phải */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 lg:h-[400px]">
+            {/* COL LEFT: Bản đồ xe cấp cứu */}
+            <div className="relative border-r border-slate-100 overflow-hidden bg-slate-100 h-[300px] lg:h-auto min-h-[300px]">
+              <ClientAmbulanceMap ambulances={visibleAmbs} selectedId={selectedId} onSelect={handleSelectMap} />
+              <div className="absolute bottom-2 left-2 z-[400] bg-white/90 text-[9px] text-slate-500 px-2 py-0.5 rounded shadow">
+                OpenStreetMap · BV Bạch Mai, Hà Nội
               </div>
-            )}
-            {/* LPR + Queue */}
-            <div className="p-2.5 border-b border-slate-100">
-              <LprScanner
-                plate={lprPlate}
-                onNotify={handleNotify}
-                queue={ambulances}
-                activeId={selectedId}
-                onSelectQueue={handleSelectMap}
-              />
             </div>
 
-            {/* Hồ sơ Tốc hành — administrative automation */}
-            <div className="p-2.5 border-b border-slate-100">
+            {/* COL RIGHT: Quét biển số mở barrier */}
+            <div className="overflow-y-auto scrollbar-hide bg-slate-50/50 p-3 flex flex-col gap-3">
               <div className="bg-white border border-slate-200 rounded-xl p-3">
                 <h4 className="text-xs font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                  <UserCheck className="w-3.5 h-3.5" style={{ color: ACCENT }} />
-                  Xử lý Hồ sơ Tốc hành & Số hóa Thủ tục
+                  <ScanLine className="w-3.5 h-3.5" style={{ color: ACCENT }} />
+                  Quét biển số · Mở cửa Barrier
                 </h4>
-                <AutoEmrPanel plate={lprPlate} />
+                <LprScanner
+                  plate={lprPlate}
+                  onNotify={handleNotify}
+                  queue={ambulances}
+                  activeId={selectedId}
+                  onSelectQueue={handleSelectMap}
+                  onScanComplete={(plate) => handleSocketMessage({ type: 'GATE_OPEN', data: { plate } })}
+                />
               </div>
-            </div>
-
-            {/* Kíp trực ER Chỉ định */}
-            <div className="p-2.5 border-b border-slate-100">
-              <ErStaffCard onCall={(name) => showToast(` Đang gọi nội bộ ${name}...`)} />
             </div>
           </div>
         </div>
+
+        {/* ═══════════════════════════════════════════════════════════════
+            BOX 2: XỬ LÝ HỒ SƠ
+        ═══════════════════════════════════════════════════════════════ */}
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          {/* Header Box 2 */}
+          <div className="flex flex-wrap justify-between items-center px-4 py-3 border-b border-slate-100 gap-2">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <UserCheck className="w-4 h-4" style={{ color: ACCENT }} />
+                Xử lý Hồ sơ Cấp cứu
+              </h3>
+              <p className="text-[11px] text-slate-500 font-geist">
+                {dispatchList.length > 0 ? `${dispatchList.length} xe đang trên đường` : "Chưa có xe nào đang trên đường"}
+                {" · "}Cập nhật tự động từ xe EMS
+              </p>
+            </div>
+            <span className="px-2 py-1 rounded text-[10px] font-geist uppercase tracking-wider text-slate-900 flex items-center gap-1" style={{ backgroundColor: ACCENT }}>
+              <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
+              Realtime
+            </span>
+          </div>
+
+          {/* Bảng hồ sơ */}
+          {dispatchList.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+              <Ambulance className="w-12 h-12 mb-3 opacity-30" />
+              <p className="text-sm font-medium">Chưa có xe cấp cứu nào đang trên đường</p>
+              <p className="text-xs mt-1">Khi đội EMS bật GPS từ xe, thông tin sẽ hiển thị tại đây</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left min-w-[1100px]">
+                <thead className="text-[10px] text-slate-500 font-geist uppercase tracking-wider bg-slate-50 border-b border-slate-200 sticky top-0">
+                  <tr>
+                    <th className="px-3 py-3 whitespace-nowrap">Biển số xe</th>
+                    <th className="px-3 py-3 whitespace-nowrap">Dự kiến đến</th>
+                    <th className="px-3 py-3 whitespace-nowrap">Tên bệnh nhân</th>
+                    <th className="px-3 py-3 whitespace-nowrap">Giới tính</th>
+                    <th className="px-3 py-3 whitespace-nowrap">Độ tuổi</th>
+                    <th className="px-3 py-3 whitespace-nowrap">Số CCCD</th>
+                    <th className="px-3 py-3 whitespace-nowrap">Bệnh nền</th>
+                    <th className="px-3 py-3 whitespace-nowrap">Dị ứng thuốc</th>
+                    <th className="px-3 py-3 whitespace-nowrap">Nhãn cấp cứu</th>
+                    <th className="px-3 py-3 whitespace-nowrap">Chỉ định kíp CC</th>
+                    <th className="px-3 py-3 whitespace-nowrap text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dispatchList.map((rec) => {
+                    const hasPatient = rec.patient_name !== null;
+                    const isArrived = rec.eta === -1;
+                    const etaText = rec.eta !== null && rec.eta !== -1 ? `${Math.max(0, Math.round(rec.eta / 60))} phút` : null;
+                    return (
+                      <tr key={rec.plate} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80 transition-colors">
+                        {/* Biển số */}
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="relative flex w-2 h-2 flex-shrink-0">
+                              <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                            </span>
+                            <span className="font-mono font-bold text-slate-900 text-[13px]">{rec.plate}</span>
+                          </div>
+                        </td>
+                        {/* ETA */}
+                        <td className="px-3 py-3">
+                          {isArrived ? (
+                            <span className="font-bold text-emerald-600 text-[13px] bg-emerald-100 px-2 py-1 rounded-md">Đã đến</span>
+                          ) : etaText ? (
+                            <span className="font-bold text-orange-600 text-[13px]">{etaText}</span>
+                          ) : (
+                            <LoadingCell />
+                          )}
+                        </td>
+                        {/* Tên */}
+                        <td className="px-3 py-3">
+                          {hasPatient ? (
+                            <span className="font-semibold text-slate-900">{rec.patient_name || "—"}</span>
+                          ) : <LoadingCell />}
+                        </td>
+                        {/* Giới tính */}
+                        <td className="px-3 py-3">
+                          {hasPatient ? (
+                            <span className="text-slate-700">{rec.gender || "—"}</span>
+                          ) : <LoadingCell />}
+                        </td>
+                        {/* Độ tuổi */}
+                        <td className="px-3 py-3">
+                          {hasPatient ? (
+                            <span className="text-slate-700">{rec.age || "—"}</span>
+                          ) : <LoadingCell />}
+                        </td>
+                        {/* CCCD */}
+                        <td className="px-3 py-3">
+                          {hasPatient ? (
+                            <span className="font-mono text-[12px] text-slate-700">{rec.cccd || "—"}</span>
+                          ) : <LoadingCell />}
+                        </td>
+                        {/* Bệnh nền */}
+                        <td className="px-3 py-3 max-w-[180px]">
+                          {hasPatient ? (
+                            rec.chronic_conditions && rec.chronic_conditions.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {rec.chronic_conditions.map((c: string) => (
+                                  <span key={c} className="px-1.5 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-700">{c}</span>
+                                ))}
+                              </div>
+                            ) : <span className="text-slate-400 text-xs">Không có</span>
+                          ) : <LoadingCell />}
+                        </td>
+                        {/* Dị ứng */}
+                        <td className="px-3 py-3 max-w-[160px]">
+                          {hasPatient ? (
+                            rec.allergies && rec.allergies.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {rec.allergies.map((a: string) => (
+                                  <span key={a} className="px-1.5 py-0.5 rounded-full bg-red-100 text-[10px] font-bold text-red-700 border border-red-200">{a}</span>
+                                ))}
+                              </div>
+                            ) : <span className="text-slate-400 text-xs">Không có</span>
+                          ) : <LoadingCell />}
+                        </td>
+                        {/* Nhãn cấp cứu */}
+                        <td className="px-3 py-3">
+                          {hasPatient ? (
+                            rec.alert_label ? (
+                              <span className="px-2 py-1 rounded-lg text-[11px] font-bold text-red-700 bg-red-100 border border-red-200 whitespace-nowrap">{rec.alert_label}</span>
+                            ) : <span className="text-slate-400 text-xs">Chưa có</span>
+                          ) : <LoadingCell />}
+                        </td>
+                        {/* Chỉ định kíp CC */}
+                        <td className="px-3 py-3">
+                          <input
+                            type="text"
+                            defaultValue={rec.er_team}
+                            placeholder="Nhập kíp..."
+                            onBlur={(e) => {
+                              const val = e.target.value;
+                              setDispatchRecords((prev) => ({
+                                ...prev,
+                                [rec.plate]: { ...prev[rec.plate], erTeam: val },
+                              }));
+                            }}
+                            className="w-32 px-2 py-1 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400 outline-none bg-white"
+                          />
+                        </td>
+                        <td className="px-3 py-3 text-right">
+                          <button
+                            onClick={() => {
+                              supabase.from('dispatch_records').update({ status: 'completed', completed_at: Date.now() }).eq('plate', rec.plate).then(() => {
+                                showToast(`Đã hoàn thành hồ sơ xe ${rec.plate}`);
+                              });
+                            }}
+                            className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition-colors"
+                          >
+                            Hoàn thành
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+        
+
       </div>
     </>
+  );
+}
+
+/** Ô hiển thị khi đang chờ dữ liệu từ EMS */
+function LoadingCell() {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-slate-400 text-[11px]">
+      <span className="w-3 h-3 border-2 border-slate-300 border-t-slate-500 rounded-full animate-spin flex-shrink-0" />
+      Đang lấy thông tin
+    </span>
   );
 }
 
@@ -6524,7 +6824,7 @@ function PatientClinicalSheet({
                       {data.medications.length} loại thuốc{record ? ` · Kê ngày ${formatRecordDate(record.created_at)}` : ""}
                     </p>
                   </div>
-                  {data.medications.map((med) => (
+                  {data.medications.map((med: any) => (
                     <div
                       key={med.id}
                       className="flex gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm"
@@ -6641,7 +6941,7 @@ function PatientClinicalSheet({
                   </div>
                   {data.fees.items?.length > 0 && (
                     <div className="space-y-2">
-                      {data.fees.items.map((item) => (
+                      {data.fees.items.map((item: any) => (
                         <div
                           key={item.name}
                           className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2.5"
@@ -7395,6 +7695,12 @@ function EmsView() {
   const [syncStatus, setSyncStatus] = useState<"idle" | "synced">("idle");
   const [hospitalAck, setHospitalAck] = useState(false);
 
+  const [manualInputMode, setManualInputMode] = useState<"cccd" | "unknown" | "no_cccd">("cccd");
+  const [manualGender, setManualGender] = useState("");
+  const [manualAgeRange, setManualAgeRange] = useState("");
+  const [manualName, setManualName] = useState("");
+
+
   const alertTypes = ["Nhoi mau co tim", "Dot quy", "Chan thuong nang", "Ngo doc"];
 
   const WS_URL = (import.meta.env.VITE_WS_URL ?? "ws://localhost:8000") + "/api/ambient/ws/live";
@@ -7404,6 +7710,8 @@ function EmsView() {
   const realStartRef = useRef<{ lat: number; lng: number } | null>(null);
 
   const [routeInfo, setRouteInfo] = useState<{km: string, mins: number, destName: string} | null>(null);
+  const routeInfoRef = useRef(routeInfo);
+  useEffect(() => { routeInfoRef.current = routeInfo; }, [routeInfo]);
   const [isMissionStarted, setIsMissionStarted] = useState(false);
   const [showMissionSetup, setShowMissionSetup] = useState(false);
   const [plate, setPlate] = useState("");
@@ -7455,6 +7763,7 @@ function EmsView() {
           const dbRes = await fetchApi(`/records/by-cccd/${ocrCccd}`);
           if (dbRes.status === "success" && dbRes.data) {
             setScannedPatient(dbRes.data);
+            sendPatientUpdate(dbRes.data);
           } else {
             setEkycError("Không tìm thấy hồ sơ bệnh nhân trong hệ thống cho CCCD này.");
             setCapturedCccdUrl(null);
@@ -7492,6 +7801,28 @@ function EmsView() {
 
   const { send } = useEyeCUSocket({ url: WS_URL, onMessage: handleSocketMessage });
 
+  // Khi scannedPatient được cập nhật và xe đã có biển số → gửi PATIENT_UPDATE lên dispatch
+  const sendPatientUpdate = useCallback((patient: any, alertLabel?: string) => {
+    const activePlate = plate.trim() || localStorage.getItem("ems_plate") || "";
+    if (!activePlate || !patient) return;
+    const age = patient.dob
+      ? String(new Date().getFullYear() - new Date(patient.dob).getFullYear())
+      : patient.age ?? null;
+    send({
+      type: "PATIENT_UPDATE",
+      data: {
+        plate: activePlate,
+        name: patient.full_name || patient.name || null,
+        gender: patient.gender || null,
+        age,
+        cccd: patient.cccd_number || patient.cccd || null,
+        chronic_conditions: patient.chronic_conditions || patient.chronicConditions || [],
+        allergies: patient.allergies || [],
+        alert_label: alertLabel || selectedAlert || null,
+      },
+    });
+  }, [plate, send, selectedAlert]);
+
   // Khi an nut BẬT TRUYỀN GPS -> hien modal nhap bien so
   const toggleGpsBroadcast = () => {
     if (isBroadcasting) {
@@ -7522,15 +7853,43 @@ function EmsView() {
       setPlateConfirmed(savedPlate);
       setIsBroadcasting(true);
 
+      // GỬI NGAY LẬP TỨC để bảng nhận được thông tin mà không cần chờ thiết bị định vị
+      const initLat = gpsState?.lat ?? 21.0011;
+      const initLng = gpsState?.lng ?? 105.8418;
+      const initDistKm = Math.sqrt(Math.pow(initLat - 21.0011, 2) + Math.pow(initLng - 105.8418, 2)) * 111;
+      const initEta = routeInfoRef.current ? routeInfoRef.current.mins * 60 : Math.max(60, Math.round((initDistKm / 40) * 3600));
+      supabase.from('dispatch_records').upsert({
+        plate: savedPlate,
+        lat: initLat,
+        lng: initLng,
+        eta: initEta,
+        status: 'active',
+        added_at: Date.now()
+      }).then();
+      send({
+        type: "GPS_START",
+        data: { plate: savedPlate, lat: initLat, lng: initLng, eta_seconds: initEta },
+      });
+
       // Lay vi tri lan dau tien -> gui GPS_START kem bien so
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const { latitude, longitude } = pos.coords;
           setGpsState({ lat: latitude, lng: longitude });
+          const distKm = Math.sqrt(Math.pow(latitude - 21.0011, 2) + Math.pow(longitude - 105.8418, 2)) * 111;
+          const etaSeconds = routeInfoRef.current ? routeInfoRef.current.mins * 60 : Math.max(60, Math.round((distKm / 40) * 3600));
           // GPS_START: dang ky bien so + toa do dau tien voi backend
+          supabase.from('dispatch_records').upsert({
+            plate: savedPlate,
+            lat: latitude,
+            lng: longitude,
+            eta: etaSeconds,
+            status: 'active',
+            added_at: Date.now()
+          }).then();
           send({
             type: "GPS_START",
-            data: { plate: savedPlate, lat: latitude, lng: longitude },
+            data: { plate: savedPlate, lat: latitude, lng: longitude, eta_seconds: etaSeconds },
           });
         },
         () => {},
@@ -7542,9 +7901,16 @@ function EmsView() {
         (pos) => {
           const { latitude, longitude } = pos.coords;
           setGpsState({ lat: latitude, lng: longitude });
+          const distKm = Math.sqrt(Math.pow(latitude - 21.0011, 2) + Math.pow(longitude - 105.8418, 2)) * 111;
+          const etaSeconds = routeInfoRef.current ? routeInfoRef.current.mins * 60 : Math.max(60, Math.round((distKm / 40) * 3600));
+          supabase.from('dispatch_records').update({
+            lat: latitude,
+            lng: longitude,
+            eta: etaSeconds
+          }).eq('plate', savedPlate).then();
           send({
             type: "GPS_UPDATE",
-            data: { plate: savedPlate, ambulance_id: "current", lat: latitude, lng: longitude },
+            data: { plate: savedPlate, ambulance_id: "current", lat: latitude, lng: longitude, eta_seconds: etaSeconds },
           });
         },
         (err) => {
@@ -7693,6 +8059,132 @@ function EmsView() {
         </div>
       )}
 
+      {/* ── 4. Pre-Alert Panel ── */}
+    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm mb-4">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
+          <Mic className="w-4 h-4 text-red-600" />
+        </div>
+        <div>
+          <h3 className="text-base font-bold text-slate-900">Cảnh báo Trước (Pre-Alert)</h3>
+          <p className="text-[11px] text-slate-500 font-geist">
+            Gửi cảnh báo đến phòng cấp cứu bệnh viện
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-col items-center py-6 bg-slate-50 rounded-xl border border-slate-100">
+        <button 
+          className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center hover:bg-red-200 hover:scale-105 active:scale-95 transition-all shadow-sm border border-red-200"
+        >
+          <Mic className="w-8 h-8 text-red-600" />
+        </button>
+        <p className="mt-4 text-sm font-bold text-slate-700">Chạm để ghi âm</p>
+        <p className="mt-1 text-[11px] text-slate-500 text-center px-4 max-w-xs">
+          Ghi âm tình trạng bệnh nhân, chỉ số sinh tồn và gửi trực tiếp về kíp trực cấp cứu.
+        </p>
+      </div>
+    </div>
+
+    {/* ── 2. GPS Map Panel ── */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+        <div className="flex items-center gap-2 mb-4">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{ backgroundColor: ACCENT }}
+          >
+            <MapPin className="w-4 h-4 text-slate-900" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-slate-900">Định vị GPS · Lộ trình</h3>
+            <p className="text-[11px] text-slate-500 font-geist">
+              Theo dõi thời gian thực · ETA tự động cập nhật
+            </p>
+          </div>
+        </div>
+
+        {/* OpenStreetMap via Leaflet (Client side only) */}
+        <ClientEmsLeafletMap lat={mapCenterLat} lng={mapCenterLng} onRouteUpdate={setRouteInfo} hospitalId={isMissionStarted ? hospitalId : undefined} />
+
+        {/* ETA info */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="p-3 rounded-xl bg-[#fff7ed] border border-orange-100/50 text-center">
+            <p className="text-[10px] font-geist uppercase tracking-wider text-orange-400 mb-0.5 font-bold">
+              ETA
+            </p>
+            <p className="text-xl font-black text-orange-500">{etaMins} phút</p>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-center">
+            <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5 font-bold">
+              Khoảng cách
+            </p>
+            <p className="text-xl font-black text-slate-900">{distanceKm} km</p>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-center flex flex-col justify-center">
+            <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5 font-bold">
+              Đích đến
+            </p>
+            <p className="text-sm font-black text-slate-900 leading-tight">
+              {routeInfo ? routeInfo.destName : "BV Bạch Mai"}
+            </p>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="mt-4">
+          <div className="flex justify-between items-center mb-1.5">
+            <span className="text-[10px] font-geist uppercase tracking-wider text-slate-400 font-bold">
+              Tiến trình di chuyển
+            </span>
+            <span className="text-xs font-black text-slate-900">{Math.round(progress)}%</span>
+          </div>
+          <div className="w-full h-2.5 rounded-full bg-slate-100 overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-1000 ease-out"
+              style={{
+                width: `${progress}%`,
+                background: "linear-gradient(90deg, #F97316 0%, #67e8f9 100%)",
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── 3. Communication Panel ── */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+            <Radio className="w-4 h-4 text-blue-600" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-slate-900">Liên lạc Khẩn cấp</h3>
+            <p className="text-[11px] text-slate-500 font-geist">Kết nối trực tiếp · VoIP mã hóa</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button className="flex items-center gap-3 p-4 rounded-xl border-2 border-slate-100 hover:border-[#88E8F2] hover:bg-[#88E8F2]/5 transition-all group text-left">
+            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0">
+              <Phone className="w-6 h-6 text-emerald-600" />
+            </div>
+            <div>
+              <span className="font-bold text-slate-900 text-sm block"> Gọi Người thân</span>
+              <span className="text-xs text-slate-500">Liên hệ người thân bệnh nhân</span>
+            </div>
+          </button>
+
+          <button className="flex items-center gap-3 p-4 rounded-xl border-2 border-slate-100 hover:border-[#88E8F2] hover:bg-[#88E8F2]/5 transition-all group text-left">
+            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0">
+              <Radio className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <span className="font-bold text-slate-900 text-sm block">Liên lạc Kíp trực BV</span>
+              <span className="text-xs text-slate-500">Kết nối trực tiếp phòng Cấp cứu</span>
+            </div>
+          </button>
+        </div>
+      </div>
+
       {/* ── 1. Patient Identification Panel ── */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6">
         <div className="flex items-center gap-2 mb-4">
@@ -7709,7 +8201,25 @@ function EmsView() {
 
         {!scannedPatient ? (
           <div className="w-full relative">
-            <CccdCapture 
+            
+            <div className="flex gap-2 mb-4">
+              <button 
+                onClick={() => setManualInputMode("cccd")}
+                className={`flex-1 py-2 rounded-lg text-sm font-bold border transition ${manualInputMode === "cccd" ? "bg-cyan-500 text-white border-cyan-500" : "bg-white text-slate-700 border-slate-200"}`}
+              >Quét CCCD</button>
+              <button 
+                onClick={() => setManualInputMode("unknown")}
+                className={`flex-1 py-2 rounded-lg text-sm font-bold border transition ${manualInputMode === "unknown" ? "bg-cyan-500 text-white border-cyan-500" : "bg-white text-slate-700 border-slate-200"}`}
+              >Không rõ danh tính</button>
+              <button 
+                onClick={() => setManualInputMode("no_cccd")}
+                className={`flex-1 py-2 rounded-lg text-sm font-bold border transition ${manualInputMode === "no_cccd" ? "bg-cyan-500 text-white border-cyan-500" : "bg-white text-slate-700 border-slate-200"}`}
+              >Không có CCCD</button>
+            </div>
+
+            {manualInputMode === "cccd" && (
+              <>
+                <CccdCapture 
               side="front" 
               capturedUrl={capturedCccdUrl} 
               onCapture={(url) => {
@@ -7719,6 +8229,63 @@ function EmsView() {
                 }
               }} 
             />
+              </>
+            )}
+
+            {manualInputMode === "unknown" && (
+              <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Giới tính</label>
+                  <select value={manualGender} onChange={e => setManualGender(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300">
+                    <option value="">Chọn giới tính</option>
+                    <option value="Nam">Nam</option>
+                    <option value="Nữ">Nữ</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Khoảng tuổi</label>
+                  <input type="text" value={manualAgeRange} onChange={e => setManualAgeRange(e.target.value)} placeholder="VD: 20-30, 40-50" className="w-full px-3 py-2 rounded-lg border border-slate-300" />
+                </div>
+                <button
+                  className="w-full py-2 bg-cyan-500 text-white font-bold rounded-lg mt-2"
+                  onClick={() => {
+                    const fakePatient = { name: "Không rõ", gender: manualGender, age: manualAgeRange, cccd: null, chronic_conditions: [], allergies: [] };
+                    setScannedPatient({ full_name: "Không rõ danh tính", gender: manualGender, dob: null, cccd_number: null, chronic_conditions: [], allergies: [] });
+                    sendPatientUpdate(fakePatient);
+                  }}
+                >Xác nhận</button>
+              </div>
+            )}
+
+            {manualInputMode === "no_cccd" && (
+              <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Họ và tên</label>
+                  <input type="text" value={manualName} onChange={e => setManualName(e.target.value)} placeholder="Nhập họ và tên" className="w-full px-3 py-2 rounded-lg border border-slate-300" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Giới tính</label>
+                  <select value={manualGender} onChange={e => setManualGender(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300">
+                    <option value="">Chọn giới tính</option>
+                    <option value="Nam">Nam</option>
+                    <option value="Nữ">Nữ</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Khoảng tuổi</label>
+                  <input type="text" value={manualAgeRange} onChange={e => setManualAgeRange(e.target.value)} placeholder="VD: 20-30, 40-50" className="w-full px-3 py-2 rounded-lg border border-slate-300" />
+                </div>
+                <button
+                  className="w-full py-2 bg-cyan-500 text-white font-bold rounded-lg mt-2"
+                  onClick={() => {
+                    const fakePatient = { name: manualName, gender: manualGender, age: manualAgeRange, cccd: null, chronic_conditions: [], allergies: [] };
+                    setScannedPatient({ full_name: manualName, gender: manualGender, dob: null, cccd_number: null, chronic_conditions: [], allergies: [] });
+                    sendPatientUpdate(fakePatient);
+                  }}
+                >Xác nhận</button>
+              </div>
+            )}
+  
             {scanningEkyc && (
               <div className="absolute inset-0 bg-white/80 flex items-center justify-center backdrop-blur-[2px] z-10 rounded-2xl">
                 <div className="flex flex-col items-center gap-3">
@@ -7825,168 +8392,8 @@ function EmsView() {
         )}
       </div>
 
-      {/* ── 2. GPS Map Panel ── */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <div className="flex items-center gap-2 mb-4">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ backgroundColor: ACCENT }}
-          >
-            <MapPin className="w-4 h-4 text-slate-900" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-slate-900">Định vị GPS · Lộ trình</h3>
-            <p className="text-[11px] text-slate-500 font-geist">
-              Theo dõi thời gian thực · ETA tự động cập nhật
-            </p>
-          </div>
-        </div>
-
-        {/* OpenStreetMap via Leaflet (Client side only) */}
-        <ClientEmsLeafletMap lat={mapCenterLat} lng={mapCenterLng} onRouteUpdate={setRouteInfo} hospitalId={isMissionStarted ? hospitalId : undefined} />
-
-        {/* ETA info */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="p-3 rounded-xl bg-[#fff7ed] border border-orange-100/50 text-center">
-            <p className="text-[10px] font-geist uppercase tracking-wider text-orange-400 mb-0.5 font-bold">
-              ETA
-            </p>
-            <p className="text-xl font-black text-orange-500">{etaMins} phút</p>
-          </div>
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-center">
-            <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5 font-bold">
-              Khoảng cách
-            </p>
-            <p className="text-xl font-black text-slate-900">{distanceKm} km</p>
-          </div>
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-center flex flex-col justify-center">
-            <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5 font-bold">
-              Đích đến
-            </p>
-            <p className="text-sm font-black text-slate-900 leading-tight">
-              {routeInfo ? routeInfo.destName : "BV Bạch Mai"}
-            </p>
-          </div>
-        </div>
-
-        {/* Progress bar */}
-        <div className="mt-4">
-          <div className="flex justify-between items-center mb-1.5">
-            <span className="text-[10px] font-geist uppercase tracking-wider text-slate-400 font-bold">
-              Tiến trình di chuyển
-            </span>
-            <span className="text-xs font-black text-slate-900">{Math.round(progress)}%</span>
-          </div>
-          <div className="w-full h-2.5 rounded-full bg-slate-100 overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-1000 ease-out"
-              style={{
-                width: `${progress}%`,
-                background: "linear-gradient(90deg, #F97316 0%, #67e8f9 100%)",
-              }}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* ── 3. Communication Panel ── */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-            <Radio className="w-4 h-4 text-blue-600" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-slate-900">Liên lạc Khẩn cấp</h3>
-            <p className="text-[11px] text-slate-500 font-geist">Kết nối trực tiếp · VoIP mã hóa</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <button className="flex items-center gap-3 p-4 rounded-xl border-2 border-slate-100 hover:border-[#88E8F2] hover:bg-[#88E8F2]/5 transition-all group text-left">
-            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0">
-              <Phone className="w-6 h-6 text-emerald-600" />
-            </div>
-            <div>
-              <span className="font-bold text-slate-900 text-sm block"> Gọi Người thân</span>
-              <span className="text-xs text-slate-500">Liên hệ người thân bệnh nhân</span>
-            </div>
-          </button>
-
-          <button className="flex items-center gap-3 p-4 rounded-xl border-2 border-slate-100 hover:border-[#88E8F2] hover:bg-[#88E8F2]/5 transition-all group text-left">
-            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0">
-              <Radio className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <span className="font-bold text-slate-900 text-sm block">Liên lạc Kíp trực BV</span>
-              <span className="text-xs text-slate-500">Kết nối trực tiếp phòng Cấp cứu</span>
-            </div>
-          </button>
-        </div>
-      </div>
-
-      {/* ── 4. Pre-Alert Panel ── */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
-            <Siren className="w-4 h-4 text-red-600" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-slate-900">Cảnh báo Trước (Pre-Alert)</h3>
-            <p className="text-[11px] text-slate-500 font-geist">
-              Gửi thông báo sớm cho Kíp trực Bệnh viện
-            </p>
-          </div>
-        </div>
-
-        {alertSent ? (
-          <div className="flex flex-col items-center gap-3 py-4 animate-fade-in">
-            <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center">
-              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
-            </div>
-            <div className="text-center">
-              <p className="font-bold text-slate-900">Đã gửi cảnh báo trước tới BV</p>
-              <p className="text-sm text-slate-500 mt-1">
-                Loại: <span className="font-bold text-red-600">{selectedAlert}</span>
-              </p>
-              <p className="text-xs text-slate-400 mt-2">
-                Kíp trực BV Bạch Mai đã nhận thông báo và đang chuẩn bị
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                setAlertSent(false);
-                setSelectedAlert(null);
-              }}
-              className="mt-2 px-4 py-2 rounded-lg border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 transition"
-            >
-              Gửi cảnh báo khác
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-xs text-slate-500">Chọn loại tình huống:</p>
-            <div className="grid grid-cols-2 gap-2">
-              {alertTypes.map((type) => (
-                <button
-                  key={type}
-                  onClick={() => handleSendAlert(type)}
-                  className="p-3 rounded-xl border-2 border-slate-100 hover:border-red-300 hover:bg-red-50 transition-all text-left group"
-                >
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-red-400 group-hover:text-red-600 transition-colors flex-shrink-0" />
-                    <span className="text-sm font-bold text-slate-900">{type}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-            <p className="text-[10px] text-slate-400 font-geist text-center mt-2">
-              Cảnh báo sẽ được gửi tới Phòng Cấp cứu BV Bạch Mai
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Floating GPS Broadcast Button */}
+  
+    {/* Floating GPS Broadcast Button */}
       <button
         onClick={() => {
           if (!isMissionStarted) {

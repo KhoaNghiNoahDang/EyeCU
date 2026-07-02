@@ -1,5 +1,5 @@
 # Dockerfile dành cho chạy dev (hot-reload, dùng để test nhanh)
-FROM node:20-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 
@@ -13,5 +13,6 @@ COPY . .
 # Vite dev server expose port 5173
 EXPOSE 5173
 
-# Chạy dev server, bind tất cả interface để Docker port-forward được
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
+CMD ["npm", "run", "dev", "--", "--port", "5173"]
+
+

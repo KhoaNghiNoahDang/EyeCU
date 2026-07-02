@@ -40,4 +40,7 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    tty: true
+    stdin_open: true
     restart: unless-stopped
+
