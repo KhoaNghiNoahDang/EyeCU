@@ -65,7 +65,7 @@ class VnptAPIClient:
     async def upload_file(
         self, file_bytes: bytes, filename: str = "image.jpg"
     ) -> str | None:
-        """Bước 1: Upload ảnh lên VNPT lấy hash. Hash này dùng cho OCR/Liveness."""
+        """Bước 1: Upload ảnh lên VNPT lấy hash. Hash này dùng cho OCR/Liveness/SmartVision."""
         try:
             async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
                 resp = await client.post(
@@ -80,6 +80,26 @@ class VnptAPIClient:
                 )
                 data = resp.json()
                 return data.get("object", {}).get("hash")
+        except Exception:
+            return None
+
+    # ── Proxy Service: Lấy CDN URL từ hash ────────────────────────────
+    async def get_cdn_url(self, file_hash: str) -> str | None:
+        """Bước 2 (SmartVision): Lấy CDN URL từ file_hash."""
+        try:
+            async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
+                resp = await client.get(
+                    "https://api.idg.vnpt.vn/proxy-service/url-file",
+                    params={"hash": file_hash},
+                    headers=_smartvision_headers(),
+                )
+                data = resp.json()
+                cdn_url = data.get("object")
+                if isinstance(cdn_url, dict):
+                    cdn_url = cdn_url.get("url") or cdn_url.get("fileUrl")
+                if isinstance(cdn_url, str) and cdn_url.startswith("http"):
+                    return cdn_url
+                return None
         except Exception:
             return None
 
@@ -215,7 +235,7 @@ class VnptAPIClient:
 
     # ── SmartVision: Nhận diện xe (LPR) ──────────────────────────
     async def call_smartvision_detect_vehicle(self, img_url: str) -> dict:
-        """Đọc biển số xe cấp cứu vào cổng."""
+        """Đọc biển số xe cấp cứu vào cổng — trả về TẤT CẢ biển số trong ảnh."""
         try:
             async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
                 resp = await client.post(
@@ -224,10 +244,37 @@ class VnptAPIClient:
                     headers=_smartvision_headers(),
                 )
                 data = resp.json()
-                plate = data.get("object", {}).get("license_plate", "Không rõ")
-                return {"plate": plate, "raw": data}
+
+                # Parse cấu trúc thật của VNPT: object.message.info.lpr
+                obj = data.get("object", {})
+                info = obj.get("message", {}).get("info", {})
+                lpr_list = info.get("lpr", [])
+                lp_probs = info.get("lp_probs", [])
+
+                # Lấy TẤT CẢ biển số hợp lệ (không rỗng), kèm confidence
+                valid_plates = [
+                    (p.strip(), prob)
+                    for p, prob in zip(lpr_list, lp_probs)
+                    if p and p.strip() and p.strip() not in ("Không rõ", "")
+                ]
+
+                if valid_plates:
+                    # Sắp xếp theo confidence giảm dần
+                    valid_plates.sort(key=lambda x: x[1], reverse=True)
+                    best_plate = valid_plates[0][0]
+                    all_plate_strings = [p for p, _ in valid_plates]
+                else:
+                    best_plate = "Không rõ"
+                    all_plate_strings = []
+
+                return {
+                    "plate": best_plate,         # biển số tốt nhất (backward compat)
+                    "plates": all_plate_strings, # TẤT CẢ biển số trong ảnh
+                    "raw": data,
+                }
         except Exception:
-            return {"plate": "51A-999.11", "raw": get_mock_json("smartvision_lpr")}
+            return {"plate": "Không rõ", "plates": [], "raw": {"error": "Detect vehicle exception"}}
+
 
     # ── SmartBot: Chatbot hỗ trợ bệnh nhân ───────────────────────
     async def call_smartbot_conversation(

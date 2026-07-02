@@ -74,6 +74,25 @@ async def handle_lpr_webhook(req: LprWebhookRequest, db: Session = Depends(get_d
     return {"status": "ignored", "message": "No active mission for this plate"}
 
 
+@router.get("/missions/active")
+def get_active_missions(hospital_id: str = "", db: Session = Depends(get_db)):
+    """Lấy danh sách EmsMission đang active — hiển thị hàng đợi xe cấp cứu tại cổng."""
+    query = db.query(EmsMission).filter(EmsMission.status == "active")
+    if hospital_id:
+        query = query.filter(EmsMission.hospital_id == hospital_id)
+    missions = query.order_by(EmsMission.created_at.asc()).all()
+    return [
+        {
+            "id": str(m.id),
+            "plate_number": m.plate_number,
+            "hospital_id": m.hospital_id,
+            "status": m.status,
+            "created_at": m.created_at.isoformat() if m.created_at else None,
+        }
+        for m in missions
+    ]
+
+
 @router.post("/fast-track", dependencies=[Depends(require_roles(["ems", "admin"]))])
 async def fast_track_admission(
     cccd: str, ambulance_id: str, db: Session = Depends(get_db)

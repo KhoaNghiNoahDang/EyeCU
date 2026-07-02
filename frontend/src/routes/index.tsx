@@ -2365,9 +2365,22 @@ function fmtEta(s: number): string {
   return m > 0 ? `${m}p ${sec}s` : `${sec}s`;
 }
 
-/* ---------- LPR Scanner ---------- */
-const AMBULANCE_PHOTO_SRC = "/img/ambulance_real.jpg";
-type LprStage = "scanning" | "detecting" | "done";
+/* ---------- LPR Scanner — Camera thực từ điện thoại/webcam ---------- */
+type LprScanResult = {
+  matched: boolean;
+  plate: string | null;
+  plates?: string[];
+  open_gate: boolean;
+  error?: string;
+};
+
+type EmsMissionEntry = {
+  id: string;
+  plate_number: string;
+  hospital_id: string | null;
+  status: string;
+  created_at: string | null;
+};
 
 function LprScanner({
   plate,
@@ -2375,62 +2388,287 @@ function LprScanner({
   queue,
   activeId,
   onSelectQueue,
+  hospitalId,
 }: {
   plate: string;
   onNotify: () => void;
   queue: AmbulanceUnit[];
   activeId: string | null;
   onSelectQueue: (id: string) => void;
+  hospitalId?: string;
 }) {
-  const [stage, setStage] = useState<LprStage>("scanning");
-  const [progress, setProgress] = useState(0);
+  // ── Camera state ─────────────────────────────────────────────────────
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const scanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const [cameraActive, setCameraActive] = useState(false);
+  const [autoScan, setAutoScan] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [lastResult, setLastResult] = useState<LprScanResult | null>(null);
   const [notified, setNotified] = useState(false);
+  const [cameraError, setCameraError] = useState("");
+  const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
+  const [gateOpenAlert, setGateOpenAlert] = useState(false);
+  const [scanCount, setScanCount] = useState(0);
+  const [activeMissions, setActiveMissions] = useState<EmsMissionEntry[]>([]);
+  const [demoPlate, setDemoPlate] = useState(""); // Demo mode: nhập biển số trực tiếp
+  const [demoMode, setDemoMode] = useState(false);
+
+  // ── Fetch danh sách xe cấp cứu đang active từ backend ────────────────
+  const fetchActiveMissions = useCallback(async () => {
+    try {
+      const params = hospitalId ? `?hospital_id=${encodeURIComponent(hospitalId)}` : "";
+      const data: EmsMissionEntry[] = await fetchApi(`/ems/missions/active${params}`);
+      setActiveMissions(Array.isArray(data) ? data : []);
+    } catch {
+      setActiveMissions([]);
+    }
+  }, [hospitalId]);
+
   useEffect(() => {
-    setStage("scanning");
-    setProgress(0);
-    setNotified(false);
-    const t1 = setTimeout(() => setStage("detecting"), 1800);
-    const t2 = setTimeout(() => {
-      setStage("done");
-      setProgress(100);
-    }, 3200);
-    const prog = setInterval(() => setProgress((p) => Math.min(p + 4, 99)), 120);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearInterval(prog);
-    };
-  }, [plate]);
+    fetchActiveMissions();
+    // Làm mới mỗi 10s để cập nhật khi tài xế mới chia sẻ GPS
+    const timer = setInterval(fetchActiveMissions, 10000);
+    return () => clearInterval(timer);
+  }, [fetchActiveMissions]);
+
+  // ── Bật camera ─────────────────────────────────────────────────────
+  const startCamera = async () => {
+    setCameraError("");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" }, // Camera sau trên điện thoại
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setCameraActive(true);
+    } catch (err: any) {
+      if (err.name === "NotAllowedError") {
+        setCameraError("Trình duyệt chưa cấp quyền camera. Vui lòng cho phép trong cài đặt.");
+      } else if (err.name === "NotFoundError") {
+        setCameraError("Không tìm thấy camera. Hãy kiểm tra thiết bị.");
+      } else {
+        setCameraError(`Lỗi camera: ${err.message}`);
+      }
+    }
+  };
+
+  // ── Tắt camera ─────────────────────────────────────────────────────
+  const stopCamera = () => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    setCameraActive(false);
+    setAutoScan(false);
+  };
+
+  // Dọn dẹp khi unmount
+  useEffect(() => {
+    return () => stopCamera();
+  }, []);
+
+  // ── Chụp 1 frame từ video → blob → FormData → POST backend ─────────
+  const captureAndScan = async () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    if (scanning) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0);
+
+    // Hiển thị preview
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+    setPreviewDataUrl(dataUrl);
+
+    // Chuyển thành Blob để gửi multipart
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      setScanning(true);
+      setScanCount((c) => c + 1);
+      try {
+        const formData = new FormData();
+        formData.append("image", blob, "lpr_capture.jpg");
+        if (hospitalId) formData.append("hospital_id", hospitalId);
+        formData.append("camera_id", "cam_mobile_gate");
+
+        const data: LprScanResult = await fetchApi("/ambulance/lpr/camera", {
+          method: "POST",
+          body: formData,
+        });
+        setLastResult(data);
+
+        if (data.open_gate) {
+          setGateOpenAlert(true);
+          setAutoScan(false); // Dừng quét khi đã mở
+          if (scanIntervalRef.current) {
+            clearInterval(scanIntervalRef.current);
+            scanIntervalRef.current = null;
+          }
+          // Âm thanh thông báo
+          try { new Audio("/alert.mp3").play().catch(() => {}); } catch (_) {}
+        }
+      } catch (err: any) {
+        setLastResult({ matched: false, plate: null, open_gate: false, error: err?.message || "Lỗi kết nối backend." });
+      } finally {
+        setScanning(false);
+      }
+    }, "image/jpeg", 0.85);
+  };
+
+  // ── Bật/tắt chế độ tự động quét mỗi 3 giây ────────────────────────
+  const toggleAutoScan = () => {
+    if (autoScan) {
+      if (scanIntervalRef.current) {
+        clearInterval(scanIntervalRef.current);
+        scanIntervalRef.current = null;
+      }
+      setAutoScan(false);
+    } else {
+      setAutoScan(true);
+      captureAndScan(); // Quét ngay lập tức
+      scanIntervalRef.current = setInterval(captureAndScan, 3000);
+    }
+  };
+
+  // ── Upload ảnh thủ công từ máy ────────────────────────────────────
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const dataUrl = URL.createObjectURL(file);
+    setPreviewDataUrl(dataUrl);
+    setScanning(true);
+    setScanCount((c) => c + 1);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", file, file.name);
+      if (hospitalId) formData.append("hospital_id", hospitalId);
+      formData.append("camera_id", "cam_upload");
+
+      const data: LprScanResult = await fetchApi("/ambulance/lpr/camera", {
+        method: "POST",
+        body: formData,
+      });
+      setLastResult(data);
+      if (data.open_gate) {
+        setGateOpenAlert(true);
+        try { new Audio("/alert.mp3").play().catch(() => {}); } catch (_) {}
+      }
+    } catch (err: any) {
+      setLastResult({ matched: false, plate: null, open_gate: false, error: err?.message || "Lỗi kết nối backend." });
+    } finally {
+      setScanning(false);
+      e.target.value = "";
+    }
+  };
+
+  // ── Demo mode: gửi biển số trực tiếp mà không cần ảnh (bypass VNPT) ─────────
+  const handleDemoScan = async () => {
+    const plate = demoPlate.trim();
+    if (!plate) return;
+
+    setScanning(true);
+    setScanCount((c) => c + 1);
+    setPreviewDataUrl(null); // không có ảnh preview khi demo
+    try {
+      // Gửi một file giả (trống) kèm plate_hint để backend dùng demo mode
+      const formData = new FormData();
+      const fakeBlob = new Blob(["demo"], { type: "image/jpeg" });
+      formData.append("image", fakeBlob, "demo.jpg");
+      if (hospitalId) formData.append("hospital_id", hospitalId);
+      formData.append("camera_id", "cam_demo");
+      formData.append("plate_hint", plate);
+
+      const data: LprScanResult = await fetchApi("/ambulance/lpr/camera", {
+        method: "POST",
+        body: formData,
+      });
+      setLastResult(data);
+      if (data.open_gate) {
+        setGateOpenAlert(true);
+        try { new Audio("/alert.mp3").play().catch(() => {}); } catch (_) {}
+      }
+    } catch (err: any) {
+      setLastResult({ matched: false, plate: null, open_gate: false, error: err?.message || "Lỗi kết nối backend." });
+    } finally {
+      setScanning(false);
+    }
+  };
+
   const handleNotify = () => {
     if (notified) return;
     setNotified(true);
     onNotify();
   };
-  const activePlate = plate;
-  const queueRest = queue.filter((a) => a.plate !== activePlate);
+
+  // Sau khi mở barrier, refresh lại danh sách
+  useEffect(() => {
+    if (gateOpenAlert) {
+      fetchActiveMissions();
+    }
+  }, [gateOpenAlert, fetchActiveMissions]);
+
+  const queueRest = queue.filter((a) => a.plate !== plate);
+
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-3">
-      <h4 className="text-xs font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-        <Video className="w-3.5 h-3.5" style={{ color: ACCENT }} /> LPR Cổng vào · Camera AI · Hàng
-        đợi {queue.length}
+    <div className="bg-white border border-slate-200 rounded-xl p-3 space-y-2.5">
+      <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+        <Camera className="w-3.5 h-3.5" style={{ color: ACCENT }} />
+        LPR Cổng vào · Camera · Cấp cứu
       </h4>
-      <div className="relative h-28 bg-slate-900 rounded-lg overflow-hidden mb-2">
-        <img
-          src={AMBULANCE_PHOTO_SRC}
-          alt="xe"
-          className="absolute inset-0 w-full h-full object-cover opacity-90"
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = "none";
-          }}
+
+      {/* ── Khu vực Camera / Video ── */}
+      <div className="relative rounded-lg overflow-hidden bg-slate-900" style={{ aspectRatio: "16/9" }}>
+        {/* Canvas ẩn để chụp frame */}
+        <canvas ref={canvasRef} className="hidden" />
+
+        {/* Video stream */}
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className={`w-full h-full object-cover ${!cameraActive ? "hidden" : ""}`}
         />
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              "repeating-linear-gradient(0deg,rgba(0,0,0,0.08) 0 1px,transparent 1px 3px)",
-          }}
-        />
-        {stage !== "done" && (
+
+        {/* Preview ảnh vừa chụp / chưa bật camera */}
+        {!cameraActive && (
+          <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+            {previewDataUrl ? (
+              <img src={previewDataUrl} alt="LPR preview" className="absolute inset-0 w-full h-full object-cover opacity-70" />
+            ) : (
+              <>
+                <Camera className="w-10 h-10 text-slate-500" />
+                <p className="text-slate-400 text-xs font-medium text-center px-4">
+                  Bật camera để quét biển số tự động
+                </p>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Overlay: đường quét nếu đang auto-scan */}
+        {autoScan && (
           <div
             className="absolute inset-x-0 h-[2px] z-20 pointer-events-none"
             style={{
@@ -2440,112 +2678,237 @@ function LprScanner({
             }}
           />
         )}
-        <style>{`@keyframes lpr-scan{0%,100%{top:0%}50%{top:calc(100% - 2px)}} @keyframes mp-blink{0%,100%{opacity:1}50%{opacity:.35}} @keyframes mp-spin{to{transform:rotate(360deg)}}`}</style>
-        {stage !== "scanning" && (
-          <div
-            className="absolute border-2 rounded-sm z-10 transition-all"
-            style={{
-              bottom: "14%",
-              left: "22%",
-              right: "22%",
-              height: "18%",
-              borderColor: stage === "done" ? "#22C55E" : "#FACC15",
-              boxShadow: stage === "done" ? "0 0 8px #22C55E88" : "0 0 8px #FACC1588",
-            }}
-          />
-        )}
-        {stage === "done" && (
-          <div className="absolute inset-x-0 bottom-0 flex justify-center pb-1 z-20">
-            <div className="bg-white border-2 border-green-500 px-2 py-0.5 rounded flex items-center gap-1.5">
-              <span className="text-xs font-bold tracking-widest text-slate-900 font-mono">
-                {plate}
+
+        {/* Khung nhận diện biển số */}
+        {lastResult?.plate && (
+          <div className="absolute inset-x-4 bottom-2 flex justify-center z-20">
+            <div
+              className={`px-3 py-1 rounded border-2 flex items-center gap-2 ${
+                lastResult.open_gate ? "bg-white border-green-500" : "bg-white border-yellow-400"
+              }`}
+            >
+              <span className="text-xs font-black tracking-widest text-slate-900 font-mono">
+                {lastResult.plate}
               </span>
-              <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+              {lastResult.open_gate ? (
+                <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+              ) : (
+                <X className="w-3.5 h-3.5 text-yellow-500" />
+              )}
             </div>
           </div>
         )}
-        <div className="absolute top-1.5 left-1.5 z-30 flex items-center gap-1 bg-black/50 rounded px-1.5 py-0.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-          <span className="text-[8px] font-mono text-white">CAM-GATE-01</span>
-        </div>
-        <div className="absolute top-1.5 right-1.5 z-30 bg-black/50 rounded px-1.5 py-0.5">
+
+        {/* Badge Live / Số lần quét */}
+        <div className="absolute top-1.5 left-1.5 z-30 flex items-center gap-1 bg-black/60 rounded px-1.5 py-0.5">
+          <span className={`w-1.5 h-1.5 rounded-full ${autoScan ? "bg-red-500 animate-pulse" : "bg-slate-500"}`} />
           <span className="text-[8px] font-mono text-white">
-            {stage === "done" ? "AI: 99.2%" : `AI: ${progress}%`}
+            {autoScan ? "AUTO SCAN" : cameraActive ? "CAMERA ON" : "CAMERA OFF"}
           </span>
         </div>
-      </div>
-      <div className="h-1 bg-slate-100 rounded-full overflow-hidden mb-1.5">
-        <div
-          className="h-full rounded-full transition-all duration-300"
-          style={{
-            width: `${stage === "done" ? 100 : progress}%`,
-            background: stage === "done" ? "#22C55E" : ACCENT,
-          }}
-        />
-      </div>
-      <div
-        className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] mb-1.5"
-        style={{ backgroundColor: stage === "done" ? "#F0FDF4" : "#EAFBFE" }}
-      >
-        {stage === "done" ? (
-          <CheckCircle2 className="w-3 h-3 text-green-600" />
-        ) : (
-          <span
-            className="w-3 h-3 border-2 border-t-transparent rounded-full animate-spin"
-            style={{ borderColor: "#0891B2" }}
-          />
+        {scanCount > 0 && (
+          <div className="absolute top-1.5 right-1.5 z-30 bg-black/60 rounded px-1.5 py-0.5">
+            <span className="text-[8px] font-mono text-white">#{scanCount} lần quét</span>
+          </div>
         )}
-        <span className="font-bold text-slate-900">
-          {stage === "scanning" && "Đang quét khung hình…"}
-          {stage === "detecting" && "Phát hiện biển số · Đang xác thực…"}
-          {stage === "done" && `Mở Barrier ✓ ${plate} — Cho phép vào cổng`}
-        </span>
+
+        {/* Lỗi camera */}
+        {cameraError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60 p-3 z-30">
+            <p className="text-red-400 text-xs text-center font-bold">{cameraError}</p>
+          </div>
+        )}
       </div>
 
-      {/* Horizontal queue strip */}
-      <div className="border-t border-slate-100 pt-2 mt-1">
-        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
-          Hàng đợi tiếp theo tại cổng
-        </p>
-        <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-1">
-          {queueRest.length === 0 && (
-            <span className="text-[10px] text-slate-400 italic">Không còn xe trong hàng đợi</span>
+      <style>{`@keyframes lpr-scan{0%,100%{top:0%}50%{top:calc(100% - 2px)}}`}</style>
+
+      {/* ── Cảnh báo: Phát hiện xe cấp cứu → Mở Barrier ── */}
+      {gateOpenAlert && (
+        <div className="space-y-2">
+          {/* Bước 1: Cảnh báo đỏ */}
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-red-50 border-2 border-red-500">
+            <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center flex-shrink-0 animate-pulse">
+              <Siren className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1">
+              <p className="font-black text-red-800 text-sm">🚨 PHÁT HIỆN XE CẤP CỨU</p>
+              <p className="text-xs text-red-600 font-mono font-bold">{lastResult?.plate}</p>
+              <p className="text-[10px] text-red-500">Xe khớp danh sách cấp cứu — Đang mở barrier</p>
+            </div>
+          </div>
+          {/* Bước 2: Xác nhận mở barrier */}
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-green-50 border-2 border-green-500 animate-pulse">
+            <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+              <CheckCircle2 className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <p className="font-black text-green-800 text-sm">✅ MỞ BARRIER!</p>
+              <p className="text-xs text-green-700">
+                Xe <span className="font-mono font-bold">{lastResult?.plate}</span> — Nhiệm vụ xác nhận ✓
+              </p>
+            </div>
+            <button
+              onClick={() => setGateOpenAlert(false)}
+              className="text-green-600 hover:text-green-800"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Kết quả quét ── */}
+      {lastResult && !gateOpenAlert && (
+        <>
+          {/* Trường hợp: phát hiện xe cấp cứu khớp → mở barrier (đã xử lý ở gateOpenAlert) */}
+          {/* Trường hợp: không nhận diện được biển số nào, hoặc nhận diện được xe nhưng KHÔNG thuộc danh sách cấp cứu */}
+          {!lastResult.open_gate && !lastResult.error && (
+            <div className="flex items-center gap-1.5 px-2 py-1.5 rounded text-[10px] bg-slate-50 border border-slate-200">
+              <CheckCircle2 className="w-3 h-3 text-slate-400" />
+              <span className="font-medium text-slate-500">
+                {lastResult.plates && lastResult.plates.length > 0
+                  ? `Phát hiện: ${lastResult.plates.join(", ")} — Không nằm trong danh sách ưu tiên`
+                  : lastResult.plate
+                    ? `Biển số ${lastResult.plate} — Không nằm trong danh sách ưu tiên`
+                    : "Không có cấp cứu — Chưa phát hiện biển số xe"}
+              </span>
+            </div>
           )}
-          {queueRest.map((a) => {
-            const c =
-              a.status === "critical" ? "#EF4444" : a.status === "urgent" ? "#F59E0B" : "#10B981";
-            const lbl =
-              a.status === "critical"
-                ? "Đỏ/Khẩn cấp"
-                : a.status === "urgent"
-                  ? "Vàng/Khẩn cấp"
-                  : "Xanh/Chờ lệnh";
-            const sel = activeId === a.id;
-            return (
-              <button
-                key={a.id}
-                onClick={() => onSelectQueue(a.id)}
-                className={`flex-shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-full border text-[10px] font-bold transition active:scale-95 ${sel ? "ring-2 ring-offset-1" : ""}`}
-                style={{
-                  borderColor: c,
-                  color: "#0F172A",
-                  backgroundColor: "#fff",
-                  boxShadow: sel ? `0 0 0 2px ${ACCENT}` : undefined,
-                }}
-              >
-                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: c }} />
-                <span className="font-mono">Xe {a.plate}</span>
-                <span className="text-slate-500 font-normal">• {lbl}</span>
-              </button>
-            );
-          })}
+          {/* Lỗi */}
+          {lastResult.error && (
+            <div className="flex items-center gap-1.5 px-2 py-1.5 rounded text-[10px] bg-red-50">
+              <X className="w-3 h-3 text-red-500" />
+              <span className="font-bold text-red-700">{lastResult.error}</span>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── Đang quét spinner ── */}
+      {scanning && (
+        <div className="flex items-center gap-2 text-xs text-cyan-700 font-bold">
+          <span className="w-3 h-3 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+          Đang nhận diện biển số...
+        </div>
+      )}
+
+      {/* ── Nút điều khiển camera ── */}
+      <div className="flex flex-wrap gap-1.5">
+        {!cameraActive ? (
+          <button
+            onClick={startCamera}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-900 hover:opacity-90 transition"
+            style={{ backgroundColor: ACCENT }}
+          >
+            <Camera className="w-3.5 h-3.5" />
+            Bật Camera
+          </button>
+        ) : (
+          <>
+            <button
+              onClick={toggleAutoScan}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                autoScan ? "bg-red-500 text-white animate-pulse" : "bg-cyan-500 text-white"
+              }`}
+            >
+              {autoScan ? <StopCircle className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+              {autoScan ? "Dừng tự động" : "Quét tự động (3s)"}
+            </button>
+            <button
+              onClick={captureAndScan}
+              disabled={scanning || autoScan}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-white disabled:opacity-40 hover:bg-slate-700 transition"
+            >
+              <ScanLine className="w-3.5 h-3.5" />
+              Chụp thủ công
+            </button>
+            <button
+              onClick={stopCamera}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition"
+            >
+              <X className="w-3.5 h-3.5" />
+              Tắt
+            </button>
+          </>
+        )}
+
+        {/* Upload ảnh thay vì dùng camera */}
+        <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition cursor-pointer">
+          <Upload className="w-3.5 h-3.5" />
+          Upload ảnh
+          <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+        </label>
+
+        {/* Nút mở Demo Mode */}
+        <button
+          onClick={() => setDemoMode((v) => !v)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition ${
+            demoMode
+              ? "bg-amber-50 border-amber-400 text-amber-700"
+              : "border-slate-200 text-slate-600 hover:bg-slate-50"
+          }`}
+          title="Nhập biển số trực tiếp (demo)"
+        >
+          ⚡ Demo
+        </button>
+      </div>
+
+      {/* Demo Mode: nhập biển số thủ công để test */}
+      {demoMode && (
+        <div className="flex gap-1.5 items-center p-2 rounded-xl bg-amber-50 border border-amber-200">
+          <Siren className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+          <input
+            type="text"
+            placeholder="Nhập biển số VD: 51F-123.45"
+            value={demoPlate}
+            onChange={(e) => setDemoPlate(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleDemoScan()}
+            className="flex-1 bg-transparent text-xs font-mono border-none outline-none text-amber-900 placeholder:text-amber-400"
+          />
+          <button
+            onClick={handleDemoScan}
+            disabled={scanning || !demoPlate.trim()}
+            className="px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50 transition"
+          >
+            {scanning ? "..." : "Quét"}
+          </button>
+        </div>
+      )}
+
+      {/* ── Hàng đợi Cấp cứu tại cổng (từ EmsMission active) ── */}
+      <div className="border-t border-slate-100 pt-2">
+        <div className="flex items-center justify-between mb-1.5">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+            Cấp cứu
+          </p>
+          <button
+            onClick={fetchActiveMissions}
+            className="text-[9px] text-cyan-600 hover:text-cyan-800 font-medium flex items-center gap-0.5"
+            title="Làm mới danh sách"
+          >
+            <span className="text-[10px]">↻</span> Cập nhật
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-1.5 pb-1">
+          {activeMissions.length === 0 && (
+            <span className="text-[10px] text-slate-400 italic">Chưa có xe cấp cứu trong hàng đợi</span>
+          )}
+          {activeMissions.map((m) => (
+            <div
+              key={m.id}
+              className="flex-shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-full border border-red-300 bg-red-50 text-[10px] font-bold"
+            >
+              <Siren className="w-2.5 h-2.5 text-red-500" />
+              <span className="font-mono text-red-800">{m.plate_number}</span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {stage === "done" && !notified && (
+      {lastResult?.open_gate && !notified && (
         <button
           onClick={handleNotify}
-          className="mt-2 w-full py-1.5 rounded-lg text-xs font-bold text-slate-900 hover:opacity-90 transition flex items-center justify-center gap-1.5"
+          className="w-full py-1.5 rounded-lg text-xs font-bold text-slate-900 hover:opacity-90 transition flex items-center justify-center gap-1.5"
           style={{ backgroundColor: ACCENT }}
         >
           <Phone className="w-3 h-3" />
@@ -2553,7 +2916,7 @@ function LprScanner({
         </button>
       )}
       {notified && (
-        <div className="mt-2 flex items-center gap-1.5 text-[10px] text-emerald-700 font-bold">
+        <div className="flex items-center gap-1.5 text-[10px] text-emerald-700 font-bold">
           <CheckCircle2 className="w-3 h-3" />
           Đã gửi OTT — Kíp đang chuẩn bị
         </div>
@@ -3396,7 +3759,7 @@ function AmbulanceView() {
           }),
         );
       }
-      if (msg.type === "GATE_ARRIVED" && msg.data) {
+      if ((msg.type === "GATE_ARRIVED" || msg.type === "GATE_OPEN") && msg.data) {
         const { plate } = msg.data as { plate: string };
         setLprPlate(plate);
         showToast(`Xe ${plate} đã đến cổng - Barrier tự động mở`);
@@ -6979,15 +7342,20 @@ function EmsView() {
   const [hospitalId, setHospitalId] = useState(CENTRAL_HOSPITALS[0].id.toString());
   const groupedHospitals = getHospitalsByProvince();
 
+  // State cho modal nhập biển số khi bật GPS
+  const [plateConfirmed, setPlateConfirmed] = useState<string | null>(null);
+  const [plateInput, setPlateInput] = useState("");
+  const [plateError, setPlateError] = useState("");
+  const [showPlateModal, setShowPlateModal] = useState(false);
+
   const handleStartMission = async () => {
     const finalPlate = plate.trim() || localStorage.getItem("ems_plate") || "";
     if (!finalPlate) return;
     try {
       localStorage.setItem("ems_plate", finalPlate);
-      const res = await fetch("/api/ems/start-mission", {
+      const res = await fetchApi("/ems/start-mission", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plate_number: finalPlate, hospital_id: hospitalId }),
+        body: { plate_number: finalPlate, hospital_id: hospitalId },
       });
       // Even if fetch fails, we let them use the app
       setIsMissionStarted(true);
@@ -7085,7 +7453,7 @@ function EmsView() {
   };
 
   // Sau khi tai xe nhap bien so va xac nhan -> bat dau GPS
-  const startGpsWithPlate = () => {
+  const startGpsWithPlate = async () => {
     const trimmed = plateInput.trim();
     if (trimmed.length < 4) {
       setPlateError("Vui lòng nhập ít nhất 4 ký tự biển số.");
@@ -7095,6 +7463,16 @@ function EmsView() {
     setShowPlateModal(false);
     setPlateConfirmed(trimmed);
     setIsBroadcasting(true);
+
+    // Bắt đầu nhiệm vụ trên backend để hiện vào hàng đợi LPR
+    try {
+      await fetchApi("/ems/start-mission", {
+        method: "POST",
+        body: { plate_number: trimmed, hospital_id: hospitalId },
+      });
+    } catch (err) {
+      console.error("Lỗi tạo mission:", err);
+    }
 
     // Lay vi tri lan dau tien -> gui GPS_START kem bien so
     navigator.geolocation.getCurrentPosition(
