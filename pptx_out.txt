@@ -1,0 +1,357 @@
+HƯỚNG DẪN KHỞI TẠO 
+KỊCH BẢN CHATBOT 
+‹#›
+2
+Tạo Bot dùng kịch bản, ý định, thực thể
+Nội dung
+‹#›
+1
+Tạo Bot dùng GenAI
+3
+Xây dựng kịch bản tích hợp API
+Tạo Bot dùng GenAI
+
+01
+‹#›
+‹#›
+Bước 1: Login thành công vào hệ thống
+Bước 2: Truy cập màn hình danh sách bot và click “Tạo bot” 
+Bước 3: Chọn template bot Trợ lý GenAI
+Bước 4: Nhập tên bot, mô tả, loại bot, ngôn ngữ sau đó click “Xác nhận” để tạo bot 
+Bước 5: Sau khi tạo bot thành công, hệ thống mặc định hiển thị màn hình cây kịch bản
+1.2
+1.2
+
+1.1
+Tạo bot
+
+
+1.2
+1.2
+
+1.2
+Thiết lập bot GenAI
+
+
+Hỏi đáp áp dụng RAG
+Hỏi đáp không áp dụng RAG
+Bước 1: Truy cập menu Ngân hàng dữ liệu => Tạo nhóm tri thức
+Bước 2: Upload file. VNPT SmartBot chấp nhận định dạng PDF, DOCX, Excel, Json, txt.
+Bước 3: Huấn luyện dữ liệu 
+Hỏi đáp trực tiếp, KHÔNG upload tri thức
+‹#›
+Tạo Bot dùng kịch bản,
+ý định, thực thể
+
+02
+‹#›
+1.2
+1.2
+
+2
+Tạo bot kịch bản ý định, thực thể
+Các bước thực hiện
+1.2
+1.2
+
+2.1
+Xây dựng quy trình luồng nghiệp vụ
+‹#›
+Một nhánh quy trình về Nghiệp vụ Khiếu nại + Báo hỏng bang rộng cố định của 1 nhà mạng
+Khảo sát khách hàng, tìm hiểu nghiệp vụ cần triển khai
+
+Đối với những nghiệp vụ phức tạp, nhiều quy trình xử lý rẽ nhánh, nhiều kết nối đến hệ thống khác, chúng ta cần xây dựng quy trình và khái quát bằng sơ đồ workflow
+
+Dựa vào workflow, chúng ta xây dựng kịch bản dễ dàng hơn
+
+Nếu các nghiệp vụ không phức tạp, chúng ta không cần vẽ quy trình
+
+Thực hiện xây dựng ý định – dữ liệu – phản hồi
+1.2
+1.2
+
+2.3
+Xây dựng kịch bản trên Platform
+‹#›
+Ví dụ đơn giản: Học sinh và phụ huynh muốn hỏi về tình hình tuyển thẳng vào Đại học chính quy khóa 63 Học viện Tài chính năm 2025
+Khách hàng hỏi: Ai là đối tượng tuyển thẳng vào HVTC năm 2025
+Trợ lý ảo trả lời: 
+		Đối tượng tuyển sinh được nêu ra trong quyết định số Số: 789/TB-HVTC ngày 19 tháng 6 năm 2025. Quý phụ huynh tham khảo thông tin tại website: https://tuyensinh.hvtc.edu.vn/tabid/1699/catid/916/news/37997/TB-vv-nhan-ho-so-dang-ky-xet-tuyen-thang-vao-dai-hoc-chinh-quy-khoa-63-Hoc-vien-Tai-chinh-nam-2025/Default.aspx
+Để xây dựng được ví dụ này trên nền tảng (platform), chúng ta cần hiểu các khái niệm trong xây dựng chatbot
+1.2
+1.2
+
+2.3
+Xây dựng kịch bản trên Platform
+‹#›
+Ý định:  Là mục đích/ chủ đề mà khách hàng có thể hỏi đến
+Câu mẫu:  Là những câu training cho bot, là các câu hỏi, câu chat có khả năng khách hàng có thể chat hỏi về ý định đó
+Thực thể: Là một thành phần đi từ khóa về đối tượng/hành vi trong câu chat, 1 thực thể có nhiều giá trị
+Giá trị của thực thể: Là các từ khóa cụ thể về đối tượng/hành cụ thể mà khách hàng nhắc tới
+Từ đồng nghĩa: Là các từ có nghĩa tương đương với ‘Giá trị thực thể’ (viết tắt, sai chính tả, từ địa phương, từ long, …)
+Biến: Là đơn vị lưu trữ các giá trị, lưu ý: Biến của chatbot là biến toàn cục
+Độ tin cậy:  Là tỉ lệ chính xác giữa câu chat của khách hàng với các ý định bạn đã xây dựng (giao động từ 0 – 100%)
+Ngưỡng tự tin: Là ngưỡng chính xác tiêu chuẩn, nếu độ tin cậy >= ngưỡng thì bot định vị được đúng ý định 
+Ví dụ: 
+Ý định:                               thong_tin_tuyen_sinh
+Câu mẫu:                          Đối tượng tuyển thẳng vào HVTC 			         năm học 2025-2026
+Thực thể:                           nam
+Giá trị của thực thể:           2025
+Từ đồng nghĩa:                  năm học 2025-2026, …
+Biến:                                   keyword_nam
+
+Khái niệm trong xây dựng Chatbot
+Ngưỡng tự tin: 80%
+Độ tin cậy:   câu chat “Chào hỏi”  có độ tin cậy ứng với các ý định:  
+            chao_hoi: 85%            tam_biet: 10%            hoi_dich_benh: 5%
+1.2
+1.2
+
+2.3
+Xây dựng kịch bản trên platform
+‹#›
+B1. Truy cập  https://console-smartbot.vnpt.vn/user/signin
+B2. Tạo bot
+Lưu ý: Mỗi đơn vị chỉ dùng một account chính để tạo bot.  Có thể phân quyền acc khác để biên tập bot. Tránh tạo các bot không liên quan vì ảnh hưởng đến tài nguyên của chatbot
+Tạo Bot
+Một bot mới tạo sẽ có hai kịch bản cố định là Chào hỏi và Trả lời mặc định. Các kịch bản mới sẽ được tạo nằm giữa hai bước này:
++ Chào hỏi: Kịch bản mở đầu với ý định là chào hỏi của khách hàng
++ Trả lời mặc định: Kịch bản phản hồi khi bot không tìm được ý định của câu chat
+Bot có thể dựa vào ý định, thực thể trong câu hỏi của khách hàng để đưa ra phản hồi theo kịch bản hoặc sử dụng dữ liệu trong kho tri thức nâng cao/ chuyển yêu cầu tới ĐTV nếu trong câu hỏi của khách hàng không chứa các ý định đã được thiết lập trong kịch bản. 
+
+
+
+1.2
+1.2
+
+2.3
+Xây dựng kịch bản trên platform
+‹#›
+Cách 1: Tạo ý định đơn lẻ và tạo các câu mẫu tương ứng
+Các câu mẫu cần đa dạng  (khuyến nghị 30 câu trở lên) 
+Câu mẫu cần cùng mục đích với ý định đã tạo
+Với các cụm từ phổ biến ví dụ như “Cho anh biết”, “cho tôi biết”, “như thế nào”, “phải làm sao” … nên train đều cho tất cả các ý định quan trọng.
+Ấn [Huấn luyện] để bot có thể học bộ dữ liệu
+   (Nếu có thêm, sửa, xóa về dữ liệu, bạn cần huấn luyện lại bot)
+Trong một số trường hợp, cần tạo ý định tên “fallback”: 
+TH ở thẻ câu hỏi, câu trả lời của KH có khả năng nhầm với ý định khác, bạn cần train 1 số câu trả lời vào ý đinh fallback. 
+TH bạn muốn câu chat nhảy vào trả lời mặc định
+Tạo ý định
+1.2
+1.2
+
+2.3
+Xây dựng kịch bản trên platform
+‹#›
+Cách 2: Import danh sách ý định
+Tạo ý định (tiếp)
+1.2
+1.2
+
+2.3
+Xây dựng kịch bản trên platform
+‹#›
+Tạo thực thể
+Bot đã cung cấp một số thực thể hệ thống có sẵn, như sys.email, sys.number, sys.phonenumber, … để validate các giá trị khách hàng nhập vào
+
+Lưu ý:  Thực thể sys.any và sys.dummy dùng để bắt giá trị text KH nhập vào, không nhảy kịch bản. 
+    Nhưng sys.any sẽ lưu tên ý định của câu chat vào biến sender_intent
+                 sys.dummy không lưu ý định của khách hàng
+
+Đối với một câu chat của KH 
+Ngoài các thực thể hệ thống, người dùng có thể tạo thực thể cho nghiệp vụ của mình
+1.2
+1.2
+
+2.3
+Xây dựng kịch bản trên platform
+‹#›
+Cách 1: tạo thực thể
+Tạo lần lượt các giá trị và các từ đồng nghĩa tương ứng trên platform
+Các giá trị, từ đồng nghĩa không cần phân biệt viết Hoa hay viết thường
+Tạo thực thể
+1.2
+1.2
+
+2.3
+Xây dựng kịch bản trên platform
+‹#›
+‹#›
+Cách 2: Import danh sách thực thể
+Tạo thực thể (tiếp)
+1.2
+1.2
+
+2.3
+Xây dựng kịch bản trên platform
+‹#›
+Để tạo thêm bước, người quản trị cần chọn ba chấm để thao tác:
++ Tạo bước con: Tạo bước mới là cấp con của bước hiện tại
++ Tạo bước lớn: Tạo bước mới cùng cấp với bước hiện tại
++ Nhân bản bước: Tạo bước mới giống với bước hiện tại, cùng cấp
++ Xóa bước: Xóa bước hiện tại
+
+=> Chọn “Tạo bước con” hoặc “Tạo bước lớn” hoặc “Nhân bản bước” để tạo bước mới phù hợp
+Để xây dựng kịch bản theo workflow quy trình nghiệp vụ, chúng ta tiến hành xây dựng cây kịch bản ( Cây kịch bản bao gồm các Bước)
+
+Tạo kịch bản
+1.2
+1.2
+
+2.3
+Xây dựng kịch bản trên platform
+‹#›
+Gán ý định vào kịch bản (Tùy TH, có thể gán hoặc không gán)
+1 ý định chỉ được gán vào 1 kịch bản
+Thiết lập hình thức phản hồi cho kịch bản, có 10 loại thẻ phản hồi
+Tạo kịch bản (tiếp) – Gán ý định và thiết lập thẻ phản hồi
+1.2
+1.2
+
+2.3
+Xây dựng kịch bản trên platform
+‹#›
+Bot xử lý phản hồi bằng cách đọc từ trên xuống
+Các thao tác cơ bản với thẻ: Di chuyển thẻ, Kiểm tra điều kiện, Xóa thẻ. 
+Người tạo bot sẽ sử dụng 10 thẻ phản hồi để thiết lập phản hồi
+Tạo kịch bản (tiếp) – Thiết lập thẻ phản hồi
+1.2
+1.2
+
+2.3
+Xây dựng kịch bản trên platform
+‹#›
+TH Đưa ra câu hỏi và thu thập câu trả lời của khách hàng thì dùng thẻ câu hỏi
+Phải định nghĩa 1 biến (biến phải được gắn với thực thể)
+Thực thể có nhiệm vụ tìm đối tượng khách hàng nhắc tới trong câu
+Sau khi tìm được giá trị thì thực thể sẽ gắn giá trị vào biến
+Người tạo bot dùng biến để thực hiện các nghiệp vụ khác
+Cơ chế bắt câu trả lời ở thẻ câu hỏi: 
+     1) Bot xác định ý định của câu trả lời
+2) Nếu câu trả lời không thuộc ý định nào, hoặc là ý định fallback thì bot hiểu đó là câu trả lời của câu hỏi
+3) Nếu câu trả lời được bot hiểu sang ý định khác, thì sẽ nhảy tới kịch bản tương ứng
+Tạo kịch bản (tiếp) – Thẻ câu hỏi 
+1.2
+1.2
+
+2.3
+Xây dựng kịch bản trên platform
+‹#›
+Để Smartbot có thể gọi api ở hệ thống khác, 
+    API phải theo định dạng sau:
+Để trả về các định dạng khác, vui lòng tham khảo tài liệu để biết thêm chi tiết:https://docs.google.com/document/d/1eO_v9HEazfIhFRP2s9EuNhK3tYYUT9Au/edit?usp=sharing&ouid=114704767677962935001&rtpof=true&sd=true
+Tạo kịch bản (tiếp) – Thẻ API
+Để Bot nhận được response trả về của api, cần tạo các biến có cùng tên với các tham số thuộc key “set_variables” (biến không cần gán thực thể)
+Lưu ý: Các API phải sử dụng port 80 hoặc 443 để tương tác với hệ thống bot
+1.2
+1.2
+
+2.3
+Xây dựng kịch bản trên platform
+‹#›
+Cho phép tạo các biến không có thực thể
+Cho phép xóa giá trị nhiều biến
+Cho phép xóa giá trị tất cả các biến
+Lưu ý: Để tạo biến có thực thể, bạn phải tạo qua thẻ câu hỏi
+Tạo kịch bản (tiếp) – Thẻ Biến
+1.2
+1.2
+
+2.3
+Xây dựng kịch bản trên platform
+‹#›
+Cho phép ứng dụng GenAI để thực hiện các tác vụ như xác định ý định, thực thể, xác định câu sql, tạo hàm,.... với đầu ra là các giá trị biến của GenAI được lưu trên bot 
+Tạo kịch bản (tiếp) – Thẻ LLM Action
+1.2
+1.2
+
+2.3
+Xây dựng kịch bản trên platform
+‹#›
+‹#›
+Ở mỗi thẻ, tùy nghiệp vụ, bạn có thể tạo điều kiện để cho phép  thẻ hoạt động hay không 
+Các phép toán cơ bản: Bằng, Không bằng, Lớn hơn, Nhỏ hơn
+Các phép toán khác: 
+Lưu ý: Các điều kiện liên tiếp trên cùng 1 thẻ là phép And
+Tạo kịch bản (tiếp) – Điều kiện ở thẻ phản hồi
+1.2
+1.2
+
+2.3
+Xây dựng kịch bản trên platform
+‹#›
+Các biến được gán thực thể, được tạo qua thẻ câu hỏi
+Các biến không gán thực thể có thể tạo qua thẻ câu hỏi hoặc thẻ biến
+Biến được tạo ra ở kịch bản là biến toàn cục
+Biến “sender_text” là biến tự động lưu giá trị khách hàng chat
+Lưu ý khi sử dụng biến trong tạo kịch bản
+Xây dựng kịch bản tích hợp API
+
+03
+‹#›
+1.2
+1.2
+
+3
+Xây dựng kịch bản tích hợp API
+‹#›
+Thêm mới thẻ API
+Bước 1: Truy cập mục [Cài đặt] => [Thẻ API]
+Bước 2: Thêm mới thẻ API 
+Nhập các trường thông tin: 
+Tên API: Đặt tên API 
+URL: Nhập endpoint của API
+Basic Auth và Header: tùy chọn nếu API yêu cầu 
+Bấm [ Lưu ] để lưu thông tin API 
+
+
+1.2
+1.2
+‹#›
+Truy cập menu [Thực thể] => tab [Danh sách biến] để khởi tạo các biến input và output của API
+1.2
+1.2
+
+3
+Xây dựng kịch bản tích hợp API
+Khởi tạo biến cho API
+1.2
+1.2
+‹#›
+Bước 1: Truy cập menu [Kịch bản] => Click vào 1 bước kịch bản cần tích hợp API và chọn tab [Trả lời]
+1.2
+1.2
+
+3
+Xây dựng kịch bản tích hợp API
+Xây kịch bản
+1.2
+1.2
+‹#›
+1.2
+1.2
+
+3
+Xây dựng kịch bản tích hợp API
+Xây kịch bản (tiếp)
+Bước 2: Tạo các thẻ trước thẻ API 
+Trường hợp cần lấy thông tin từ người dùng cuối, quản trị bot tạo thẻ đặt câu hỏi
+Trường hợp không cần cần lấy thông tin từ người dùng cuối, quản trị bot tạo thẻ biến để cấu hình giá trị input của API tích hợp 
+1.2
+1.2
+‹#›
+1.2
+1.2
+
+3
+Xây dựng kịch bản tích hợp API
+Xây kịch bản (tiếp)
+Bước 3: Tạo thẻ API, người dùng nhập các trường thông tin:
+Phương thức API: POST hoặc GET
+Thẻ API: chọn thẻ API từ danh sách đã tạo
+Biến: chọn biến input của API từ danh sách biến
+
+Bước 4: Tạo thẻ văn bản để hiển thị thông tin theo mong muốn dựa vào thông tin kết quả API trả về. Hoặc Tạo thẻ tri thức để Hệ thống dựa vào kết quả API trả về, tổng hợp nội dung và trả lời người dùng cuối.
+
+Thanks!
+‹#›

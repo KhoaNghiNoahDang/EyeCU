@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 # Patient
@@ -166,23 +166,59 @@ async def patient_chatbot(
     recent_doc = db.query(SmartReaderDoc).filter(SmartReaderDoc.patient_id == user.id).order_by(SmartReaderDoc.uploaded_at.desc()).first()
     
     context = ""
-    if recent_doc and recent_doc.extracted_data:
-        import json
-        context_str = json.dumps(recent_doc.extracted_data, ensure_ascii=False)
-        context = f"Thông tin hồ sơ y tế/đơn thuốc/xét nghiệm gần nhất của tôi: {context_str}. "
+    if data.message.strip().lower() not in ["xin chào", "xin chao", "hello", "hi", "chào", "bắt đầu"]:
+        if recent_doc and recent_doc.extracted_data:
+            import json
+            context_str = json.dumps(recent_doc.extracted_data, ensure_ascii=False)
+            context = f"Thông tin hồ sơ y tế/đơn thuốc/xét nghiệm gần nhất của tôi: {context_str}. "
         
     final_message = context + "Câu hỏi của tôi: " + data.message if context else data.message
-    bot_response = await vnpt_client.call_smartbot_conversation(final_message)
+    bot_response = await vnpt_client.call_smartbot_conversation(final_message, session_id=f"patient_{user.id}")
 
-    reply = "Tôi chưa hiểu rõ câu hỏi, vui lòng thử lại."
-    if (
-        "data" in bot_response
-        and isinstance(bot_response["data"], list)
-        and len(bot_response["data"]) > 0
-    ):
-        reply = bot_response["data"][0].get("text", reply)
+    reply = bot_response.get("reply") or "Tôi chưa hiểu rõ câu hỏi, vui lòng thử lại."
+    raw_data = bot_response.get("raw", {})
+    if "error" in raw_data:
+        reply = f"Lỗi VNPT SmartBot: {raw_data['error']}"
 
-    return {"reply": reply, "raw_data": bot_response}
+    buttons = []
+    texts = []
+    images = []
+    try:
+        if "object" in raw_data and "sb" in raw_data["object"] and "card_data" in raw_data["object"]["sb"]:
+            for card in raw_data["object"]["sb"]["card_data"]:
+                if "text" in card and card["text"]:
+                    texts.append(card["text"])
+                if "buttons" in card and card["buttons"]:
+                    buttons.extend(card["buttons"])
+                if "image_url" in card and card["image_url"]:
+                    images.append(card["image_url"])
+                elif "url" in card and card.get("type") == "image":
+                    images.append(card["url"])
+            if texts:
+                reply = "\n\n".join(texts)
+    except Exception:
+        pass
+
+    return {"reply": reply, "raw_data": raw_data, "buttons": buttons, "images": images}
+
+
+@router.post("/chat/voice", dependencies=[Depends(require_roles(["patient"]))])
+async def patient_voice_chat(
+    file: UploadFile = File(...),
+    user: Patient = Depends(get_current_user),
+):
+    audio_bytes = await file.read()
+    stt_response = await vnpt_client.call_smartvoice_stt(
+        audio_bytes=audio_bytes,
+        filename=file.filename,
+        content_type=file.content_type
+    )
+    
+    transcript = stt_response.get("transcript", "")
+    if not transcript:
+        return {"error": "Không thể nhận diện giọng nói", "raw": stt_response.get("raw")}
+        
+    return {"transcript": transcript}
 
 
 @router.post("/ekyc/cccd")

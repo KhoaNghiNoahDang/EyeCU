@@ -1,0 +1,360 @@
+ Tài liệu tích hợp Smartbot (Chatbot, Voicebot) dạng streaming
+1. Mô tả hệ thống
+
+Hình 1.1 Tương tác giữa Smartbot và các hệ thống ngoài 
+Hệ thống Smartbot có thể tương tác với các hệ thống khác qua API. Một flow gọi api có thể thấy như trên hình 1.1, các hệ thống App/Contact Center gọi đến smartbot tại bước (1), dựa vào kịch bản xây dựng, Smartbot có thể cần gọi đến các hệ thống khác để lấy thông tin ở bước (2), (3) và tạo phản hồi. Sau đó phản hồi được trả ra cho hệ thống Contact Center ở bước (4). Tài liệu này tập trung vào mô tả tích hợp giữa Contact Center với Smartbot ở bước (1) và (4).
+2. API tương tác với Smartbot
+2.1 Mô tả 
+Api dưới đây chấp nhận input ở cả dạng text và audio.Trong Response của Smartbot gửi về, trường "card_data" sẽ chứa các thông tin phản hồi và hiển thị cho người dùng. Mô tả chi tiết xem mục 3. 
+2.2 Chi tiết API
+Endpoint : https://assistant-stream.vnpt.vn/v1/conversation 
+Chức năng: 
+Method: POST
+
+Request Header 
+
+Body (raw): (Giữ nguyên giống như api /sb)
+
+
+
+
+Phản hồi
+Mã trạng thái: 200 OK (hoặc mã lỗi thích hợp)
+Định dạng phản hồi: JSON
+Mô tả: Phản hồi sẽ chứa kết quả xử lý cuộc hội thoại, bao gồm trả lời từ bot hoặc thông tin trạng thái.
+Response Body
+
+
+
+Ví dụ Code PHP Backend:
+
+
+Metadata
+Metadata cho phép truyền thêm các thông tin đi kèm tới bot. Trường "metadata" cần có format như sau:
+"metadata": "{"button_variables": [{"variableName":"phone_number","value":"0974615448"},{"variableName":"bot_callout_session_id","value":"1503"},{"variableName":"data_1","value":"Tranm"}]}"
+
+Trường "button_variables" chứa list các biến và giá trị cần gán. Trong đó "variableName" là tên biến muốn gán giá trị và "value" là giá trị của biến đó. Lưu ý tất cả các giá trị đều ở dạng string.
+
+Ví dụ: Giả sử cần truyền tên đăng nhập và mật khẩu sang bot,và mong muốn dùng biến username và password để chứa tên đăng nhập và mật khẩu trên kịch bản, người dùng có thể truyền qua "metadata" như sau: 
+"metadata": "{"button_variables": [{"variableName":"username", "value": "Nguyen Van Nam"} , {"variableName":"password","value":"123456"}]}"
+Khi đó bot tự động gán giá trị "Nguyen Van Nam" cho biến "username" và "123456" cho biến "password".
+
+Lưu ý: 
+- Trên kịch bản bot cần tạo biến username và password để hứng giá trị được gán và sử dụng trên kịch bản. 
+- Trường hợp kịch bản có thẻ xóa biến thì các giá trị trên sẽ bị xóa giống như các biến bình thường khác.
+Chuyển giao dịch viên
+Trong trường hợp cần chuyển giao dịch viên, bot sẽ gửi sang 1 phản hồi có chứa trường “type” là “chuyen_gdv”. phản hồi đó sẽ nằm trong “card_data” như những phản hồi khác. Tại contact center, khi bắt được 1 phản hồi có “type” là “chuyen_gdv” viên thì thực hiện định hướng luồng chat sang giao dịch viên thay vì sang bot
+Ví dụ về phản hồi có chứa type là “chuyen_gdv” :
+{
+   "dataSign": "ais+1sPPte15569yvUA8TbelJgv/hLjJA9BofPBvbwlF70VP0e1uczGcQLcnqD7d5tELbkOztNKHJr7h9U1C8g==",
+   "dataBase64": "eyJtZXNzYWdlIjoiSURHLTAwMDAwMDAwIiwib2JqZWN0Ijp7ImZlZSI6eyJzYl9yZXF1ZXN0IjoxLCJ0dHNfdGV4dF9sZW5ndGgiOjAsInN0dF9hdWRpb19kdXJhdGlvbiI6MH0sInNiIjp7ImNhcmRfZGF0YSI6W3sicGxheV90eXBlIjoidGV4dCIsImJ1dHRvbnMiOltdLCJhdWRpb191cmwiOiIiLCJ0ZXh0IjoiQ2jDoG8gYW5oIGNo4buLLiBFbSBsw6AgdHLhu6MgbMO9IOG6o28gaVNlZSBM4bqhbmcgU8ahbiwgY8OzIHRo4buDIHTGsCB24bqlbiB0cuG6oyBs4budaSB04bqldCBj4bqjIGPDoWMgbuG7mWkgZHVuZyB0aOG7pyB04bulYyBow6BuaCBjaMOtbmggY8O0bmcgdOG7iW5oIEzhuqFuZyBTxqFuISIsInR5cGUiOiJ0ZXh0In1dLCJpbnRlbnRfbmFtZSI6Inhpbl9jaGFvIn19LCJjaGFsbGVuZ2VDb2RlIjoiMTExMTEifQ==",
+   "logID": "5cb67709-c614-11ec-a46f-6d3e417e7454-f60ae492-Zuulserver4",
+   "message": "IDG-00000000",
+   "object": {
+       "fee": {
+           "sb_request": 1,
+           "tts_text_length": 0,
+           "stt_audio_duration": 0
+       },
+       "sb": {
+           "card_data": [
+               {
+                   "play_type": "text",
+                   "buttons": [],
+                   "audio_url": "",
+                   "text": "Em xin phép được kết nối anh chị tới các giao dịch viên để được hỗ trợ chi tiết ạ.",
+                   "type": "text"
+               },
+		 {
+                   "play_type": "text",
+                   "buttons": [],
+                   "audio_url": "",
+                   "text": "",
+                   "type": "chuyen_gdv"
+               }
+
+           ],
+           "intent_name": ""
+       }
+   },
+   "challengeCode": "11111"
+}
+
+3. Mô tả các thông tin hiển thị trong "card_data"
+3.1 Mô tả trường "card_data"
+Card data chứa list các object để hiển thị. Chi tiết về các object như mô tả dưới đây:
+
+card object: Card object được chia làm 4 loại chính: text, image, quickreply, carousel. Ngoài ra có 1 loại đặc biệt cho phép người dùng tùy biến qua thẻ command để truyền tải các mệnh lệnh điều khiển (ví dụ như chuyển sang giao dịch viên). Nội dung dưới đây mô tả 4 loại chính. Phần thẻ command có thể tham khảo mục 3.2 ở tài liệu https://docs.google.com/document/d/1f3Z9jbsmNmU4EKFj7oVyIj2F0Vx781VkrcoVOy2zuWE/edit#heading=h.v19s895ifchs
+text card object: Bot trả về nội dung text kèm các <button>
+
+quickreply card object: Bot trả về nội dung text kèm các <button> ở dạng quickreply
+Image card object: Bot trả về nội dung ảnh kèm các <button> 
+
+Carousel card object: Bot trả về nội dung 1 slide ảnh kèm các <button> 
+
+Button object: Button là một thuộc tính nằm trong object của các loại card object bên trên. Button có các thuộc tính sau:
+
+
+Lưu ý cách thức xử lý card_data: 
+Card_data là 1 list các object và được hiển thị/phát audio lần lượt từ trên xuống dựa vào trường "play_type" và "type" như đã mô tả.
+Khi người dùng tương tác với button, cách xử lý như mô tả ở trường type của button object.
+3.2 Example Request and Response
+Ví dụ: 
+https://api.idg.vnpt.vn/assistant-service/v1/standard/sb 
+Request:
+{
+  "bot_id": "a657df60-e5da-11eb-8beb-b1112a8afa13",
+  "sender_id": "12345",
+  "text": "?ic_bot_button_22982",
+  "input_channel": "livechat",
+    "tts_config": {
+       "model": "news",
+       "region": "female_north",
+   },
+  "metadata": {}
+}
+Response (phần card_data):
+
+"card_data": [
+               {
+                   "play_type": "text",
+                   "buttons": [],
+                   "audio_url": null,
+                   "text": "Vinaphone chào bạn!",
+                   "type": "text"
+               },
+               {
+                   "play_type": "audio",
+                   "buttons": [],
+                   "audio_speed": 1,
+                   "audio_url": "https://idg-obs.vnpt.vn/text-speech-media/20220419/tts/8d5d06c8ba4e40c58efe73bd20f519c0.wav",
+                   "text": "Kiểm tra thẻ chỉ có thoại!",
+                   "type": "text"
+               },
+               {
+                   "play_type": "both",
+                   "buttons": [],
+                   "audio_speed": 1,
+                   "audio_url": "https://idg-obs.vnpt.vn/text-speech-media/20220419/tts/494aa8d00b564f0c939157667fd94cec.wav",
+                   "text": "Kiểm tra thẻ có cả văn bản và thoại",
+                   "type": "text"
+               },
+               {
+                   "play_type": "text",
+                   "buttons": [
+                       {
+                           "button_variables": [],
+                           "color": "#F3DF7E",
+                           "payload": "?ic_bot_button_11434",
+                           "icon": "",
+                           "title": "Đi đến bước",
+                           "type": "postback"
+                       },
+                       {
+                           "button_variables": [],
+                           "color": "#A9D1D9",
+                           "payload": "https://vnptpay.vn/web/",
+                           "icon": "",
+                           "title": "Đi đến URL",
+                           "type": "web_url"
+                       },
+                       {
+                           "button_variables": [],
+                           "color": "#EFC1A7",
+                           "payload": "0941634482",
+                           "icon": "",
+                           "title": "Gọi điện thoại",
+                           "type": "phone_number"
+                       }
+                   ],
+                   "audio_url": null,
+                   "text": "Mời bạn chọn dịch vụ bên dưới:",
+                   "type": "text"
+               },
+               {
+                   "play_type": "text",
+                   "buttons": [
+                       {
+                           "button_variables": [],
+                           "color": "#F3DF7E",
+                           "payload": "?ic_bot_button_11434",
+                           "icon": "",
+                           "title": "Đi đến bước",
+                           "type": "postback"
+                       }
+                   ],
+                   "audio_url": null,
+                   "text": "Chọn dịch vụ:",
+                   "type": "quickreply"
+               },
+               {
+                   "play_type": null,
+                   "buttons": [],
+                   "subtitle": "",
+                   "audio_url": null,
+                   "title": "Tiêu đề",
+                   "type": "image",
+                   "url": "https://storage-cic.vnpt.vn/smartbot/chatbot_images/4152021/b23113d2-a703-480b-906c-a79a70830e59.png"
+               },
+               {
+                   "play_type": null,
+                   "buttons": [
+                       {
+                           "button_variables": [],
+                           "color": "#F3DF7E",
+                           "payload": "?ic_bot_button_11434",
+                           "icon": "",
+                           "title": "Đi đến bước",
+                           "type": "postback"
+                       },
+                       {
+                           "button_variables": [],
+                           "color": "#A9D1D9",
+                           "payload": "https://vnpt.com.vn/ho-tro/diem-giao-dich",
+                           "icon": "",
+                           "title": "Đi đến URL",
+                           "type": "web_url"
+                       },
+                       {
+                           "button_variables": [],
+                           "color": "#EFC1A7",
+                           "payload": "0941634482",
+                           "icon": "",
+                           "title": "Gọi điện thoại",
+                           "type": "phone_number"
+                       }
+                   ],
+                   "subtitle": "",
+                   "audio_url": null,
+                   "title": "Tiêu đề",
+                   "type": "image",
+                   "url": "https://storage-cic.vnpt.vn/smartbot/chatbot_images/4152021/1db6dcb3-9a6f-46f3-a295-04306ff4fbec.png"
+               },
+               {
+                   "play_type": null,
+                   "data": [
+                       {
+                           "buttons": [],
+                           "subtitle": "Mô tả",
+                           "title": "Tiêu đề",
+                           "url": "https://storage-cic.vnpt.vn/smartbot/chatbot_images/4152021/a2d0c83e-4fed-40d8-9681-c5130dfbaa52.png"
+                       },
+                       {
+                           "buttons": [],
+                           "subtitle": "Mô tả",
+                           "title": "Tiêu đề",
+                           "url": "https://storage-cic.vnpt.vn/smartbot/chatbot_images/4152021/486be173-91dd-472e-aed4-aa82d4d67e02.jpg"
+                       },
+                       {
+                           "buttons": [],
+                           "subtitle": "Mô tả",
+                           "title": "Tiêu đề",
+                           "url": "https://storage-cic.vnpt.vn/smartbot/chatbot_images/4152021/994ce44f-22c6-445b-aaac-e49377aadd36.png"
+                       }
+                   ],
+                   "audio_url": null,
+                   "type": "carousel"
+               },
+               {
+                   "play_type": null,
+                   "data": [
+                       {
+                           "buttons": [
+                               {
+                                   "button_variables": [],
+                                   "color": "#F3DF7E",
+                                   "payload": "?ic_bot_button_11434",
+                                   "icon": "",
+                                   "title": "Đi đến bước",
+                                   "type": "postback"
+                               },
+                               {
+                                   "button_variables": [],
+                                   "color": "#A9D1D9",
+                                   "payload": "https://vnpt.com.vn/ho-tro/diem-giao-dich",
+                                   "icon": "",
+                                   "title": "Đi đến URL",
+                                   "type": "web_url"
+                               },
+                               {
+                                   "button_variables": [],
+                                   "color": "#EFC1A7",
+                                   "payload": "0941634482",
+                                   "icon": "",
+                                   "title": "Gọi điện thoại",
+                                   "type": "phone_number"
+                               }
+                           ],
+                           "subtitle": "Mô tả",
+                           "title": "Tiêu đề",
+                           "url": "https://storage-cic.vnpt.vn/smartbot/chatbot_images/4152021/d3943f81-0aed-4b86-aea1-6d2c635a37f6.png"
+                       },
+                       {
+                           "buttons": [
+                               {
+                                   "button_variables": [],
+                                   "color": "#F3DF7E",
+                                   "payload": "?ic_bot_button_11434",
+                                   "icon": "",
+                                   "title": "Đi đến bước",
+                                   "type": "postback"
+                               },
+                               {
+                                   "button_variables": [],
+                                   "color": "#A9D1D9",
+                                   "payload": "https://vnpt.com.vn/ho-tro/diem-giao-dich",
+                                   "icon": "",
+                                   "title": "Đi đến URL",
+                                   "type": "web_url"
+                               },
+                               {
+                                   "button_variables": [],
+                                   "color": "#EFC1A7",
+                                   "payload": "0941634482",
+                                   "icon": "",
+                                   "title": "Gọi điện thoại",
+                                   "type": "phone_number"
+                               }
+                           ],
+                           "subtitle": "Mô tả",
+                           "title": "Tiêu đề",
+                           "url": "https://storage-cic.vnpt.vn/smartbot/chatbot_images/4152021/cf890a72-44fb-4f17-b167-19dc6e6ed219.jpg"
+                       }
+                   ],
+                   "audio_url": null,
+                   "type": "carousel"
+               }
+           ],
+3.3 Example UI (từ facebook)
+
+a. Send text
+
+
+
+b. Send text + buttons
+
+
+
+c. Send text + quick replies  
+
+
+
+
+d. Send Image
+
+
+
+
+
+
+
+
+e. Send Image + buttons
+
+
+f. Send Carousel
+
+
+g. Send Carousel + buttons
+
+

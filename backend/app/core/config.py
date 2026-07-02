@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     VNPT_SMARTBOT_TOKEN_ID: str = ""
     VNPT_SMARTBOT_TOKEN_KEY: str = ""
     VNPT_SMARTBOT_ACCESS_TOKEN: str = ""
+    VNPT_SMARTBOT_ID: str = "1caedbb0-760d-11f1-8ff8-dfa790a1e2db"
 
     # VNPT vnFace
     VNPT_VNFACE_ACCESS_TOKEN: str = ""

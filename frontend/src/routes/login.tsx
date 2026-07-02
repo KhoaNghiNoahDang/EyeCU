@@ -15,8 +15,10 @@ import {
   ArrowLeft,
   Zap,
   Users,
-  Eye,
   Settings,
+  Smartphone,
+  X,
+  Eye,
 } from "lucide-react";
 import { WebAuthnFaceStep } from "../components/auth/WebAuthnFaceStep";
 import { useAuth, type AuthUser, type WorkMode } from "../lib/auth/auth-context";
@@ -235,9 +237,9 @@ function LoginPage() {
             {activeTab === "staff" ? (
               <StaffLoginFlow onLogin={(u, m) => login(u, m)} />
             ) : activeTab === "patient" ? (
-              <PatientLoginFlow onLogin={(u, token) => login(u, "patient", token)} />
+              <PatientLoginFlow onLogin={(u, _token) => login(u, "patient")} />
             ) : (
-              <AdminLoginFlow onLogin={(u) => login(u, "admin")} />
+              <AdminLoginFlow onLogin={(u, _token) => login(u, "admin")} />
             )}
           </div>
 
@@ -278,9 +280,9 @@ function SectionTitle({
 }
 
 /* ─── STAFF FLOW ─── */
-function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode) => void }) {
-  const [step, setStep] = useState<"choose" | "scan" | "manual" | "identify" | "pick_shift">(
-    "choose",
+function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode, token?: string) => void }) {
+  const [step, setStep] = useState<"scan" | "manual" | "identify" | "pick_shift">(
+    "manual",
   );
   const [identifiedUser, setIdentifiedUser] = useState<AuthUser | null>(null);
   const [employeeId, setEmployeeId] = useState("");
@@ -335,19 +337,59 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
     };
   }, [step, stopCamera]);
 
-  const captureAndIdentify = useCallback(() => {
-    stopCamera();
-    setStep("identify");
-  }, [stopCamera]);
-
-  useEffect(() => {
-    return () => stopCamera();
-  }, [stopCamera]);
-
   const { data: staffList = [], isLoading: isLoadingStaff } = useQuery({
     queryKey: ["staff"],
     queryFn: () => fetchApi("/auth/staff"),
   });
+
+  const captureAndIdentify = useCallback(async () => {
+    if (!videoRef.current) return;
+    
+    // Capture image from video
+    const canvas = document.createElement("canvas");
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    const base64Image = canvas.toDataURL("image/jpeg", 0.8);
+
+    stopCamera();
+    setIsAuthenticating(true);
+    
+    try {
+      const res = await fetchApi("/auth/login/face/staff", {
+        method: "POST",
+        body: JSON.stringify({ face_base64: base64Image }),
+      });
+
+      if (res.access_token) {
+        sessionStorage.setItem("eyecu_token", res.access_token);
+        const me = await fetchApi("/auth/me");
+        if (me.role === "admin") {
+          sessionStorage.removeItem("eyecu_token");
+          throw new Error("Tài khoản quản trị không thể đăng nhập tại đây");
+        }
+        setIdentifiedUser(me as AuthUser);
+        
+        // Nếu là Điều dưỡng thì vào thẳng ops, còn lại chọn ca
+        if (me.title === "ĐD.") {
+          onLogin(me as AuthUser, "ops");
+        } else {
+          setStep("pick_shift");
+        }
+      }
+    } catch (err: any) {
+      alert(err.message || "Không tìm thấy dữ liệu khuôn mặt. Vui lòng đăng nhập thủ công.");
+      setStep("manual");
+    } finally {
+      setIsAuthenticating(false);
+    }
+  }, [stopCamera, onLogin]);
+
+  useEffect(() => {
+    return () => stopCamera();
+  }, [stopCamera]);
 
   const handleManualLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -378,64 +420,7 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
     }
   };
 
-  /* STEP 0 — Choose Login Method */
-  if (step === "choose") {
-    return (
-      <div className="space-y-3 animate-in fade-in duration-300">
-        <SectionTitle
-          icon={Stethoscope}
-          title="Đăng nhập Nhân viên"
-          subtitle="Chọn phương thức xác thực"
-        />
-        {[
-          {
-            id: "scan" as const,
-            icon: ScanFace,
-            title: "Quét FaceID",
-            sub: "Sinh trắc học · Nhanh chóng & An toàn",
-            filled: true,
-          },
-          {
-            id: "manual" as const,
-            icon: Keyboard,
-            title: "Mã Nhân viên & Mật khẩu",
-            sub: "Đăng nhập thủ công bằng tài khoản",
-            filled: false,
-          },
-        ].map(({ id, icon: Icon, title, sub, filled }) => (
-          <button
-            key={id}
-            onClick={() => setStep(id)}
-            className="w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left group"
-            style={{ borderColor: "#f1f5f9" }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.borderColor = ACCENT;
-              (e.currentTarget as HTMLButtonElement).style.backgroundColor = `${ACCENT}08`;
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.borderColor = "#f1f5f9";
-              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
-            }}
-          >
-            <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110"
-              style={{ backgroundColor: filled ? `${ACCENT}18` : "#f8fafc" }}
-            >
-              <Icon className="w-5 h-5" style={{ color: filled ? ACCENT_DARK : "#94a3b8" }} />
-            </div>
-            <div className="flex-1">
-              <div className="font-bold text-slate-900 text-sm">{title}</div>
-              <div className="text-xs text-slate-400 mt-0.5">{sub}</div>
-            </div>
-            <ChevronRight
-              className="w-4 h-4 transition-transform group-hover:translate-x-0.5"
-              style={{ color: `${ACCENT_DARK}80` }}
-            />
-          </button>
-        ))}
-      </div>
-    );
-  }
+  /* STEP 0 — Choose Login Method removed */
 
   /* STEP 1A — FaceID scan (real camera) */
   if (step === "scan") {
@@ -495,7 +480,7 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
           <button
             onClick={() => {
               setCameraError(null);
-              setStep("choose");
+              setStep("pick_shift");
             }}
             className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-700 transition-colors mt-2"
           >
@@ -506,7 +491,7 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
             <button
               onClick={() => {
                 stopCamera();
-                setStep("choose");
+                setStep("pick_shift");
               }}
               className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
             >
@@ -514,11 +499,18 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
             </button>
             <button
               onClick={captureAndIdentify}
-              disabled={!cameraReady}
-              className="flex-1 rounded-xl py-2.5 text-sm font-bold text-slate-900 transition-all disabled:opacity-40"
+              disabled={!cameraReady || isAuthenticating}
+              className="flex-1 rounded-xl py-2.5 text-sm font-bold text-slate-900 transition-all disabled:opacity-40 flex items-center justify-center gap-2"
               style={{ backgroundColor: ACCENT }}
             >
-              Xác nhận khuôn mặt
+              {isAuthenticating ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-t-transparent border-slate-900 rounded-full animate-spin" />{" "}
+                  Đang xử lý...
+                </>
+              ) : (
+                "Xác nhận khuôn mặt"
+              )}
             </button>
           </div>
         )}
@@ -526,34 +518,34 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
     );
   }
 
-  /* STEP 1B — Manual Login */
+  /* STEP 1B — Manual Login + Fast Login */
   if (step === "manual") {
     return (
       <div className="flex flex-col text-center space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
         <SectionTitle
-          icon={Keyboard}
-          title="Đăng nhập Thủ công"
-          subtitle="Sử dụng Mã Nhân viên và Mật khẩu"
+          icon={Stethoscope}
+          title="Đăng nhập Nhân viên"
+          subtitle="Nhập thông tin tài khoản chuyên môn"
         />
 
         <form onSubmit={handleManualLogin} className="w-full flex flex-col gap-4 text-left">
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Mã Nhân viên</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">MÃ NHÂN VIÊN</label>
             <div className="relative">
               <UserCircle2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
                 required
                 value={employeeId}
-                onChange={(e) => setEmployeeId(e.target.value)}
-                placeholder="VD: BS001"
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 text-sm uppercase focus:border-[#88E8F2] outline-none"
+                onChange={(e) => setEmployeeId(e.target.value.toUpperCase())}
+                placeholder="Ví dụ: BS-1000"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 text-sm uppercase focus:border-[#0d1f2d] outline-none transition-colors"
                 disabled={isAuthenticating}
               />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Mật khẩu</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">MẬT KHẨU</label>
             <div className="relative">
               <Keyboard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
@@ -562,7 +554,7 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:border-[#88E8F2] outline-none"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:border-[#0d1f2d] outline-none transition-colors"
                 disabled={isAuthenticating}
               />
             </div>
@@ -570,12 +562,12 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
           <button
             type="submit"
             disabled={isAuthenticating || employeeId.length < 3 || password.length < 3}
-            className="mt-2 w-full py-2.5 rounded-lg text-sm font-bold text-slate-900 transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
-            style={{ backgroundColor: ACCENT }}
+            className="mt-2 w-full py-2.5 rounded-lg text-sm font-bold text-white transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 shadow-md"
+            style={{ backgroundColor: "#0d1f2d" }}
           >
             {isAuthenticating ? (
               <>
-                <span className="w-4 h-4 border-2 border-t-transparent border-slate-900 rounded-full animate-spin" />{" "}
+                <span className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin" />{" "}
                 Đang đăng nhập...
               </>
             ) : (
@@ -584,92 +576,33 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
           </button>
         </form>
 
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-slate-200" />
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-geist">Hoặc</span>
+          <div className="flex-1 h-px bg-slate-200" />
+        </div>
+
         <button
-          onClick={() => setStep("choose")}
-          className="flex items-center justify-center gap-1.5 text-xs text-slate-400 hover:text-slate-700 transition-colors mt-2"
+          type="button"
+          onClick={() => setStep("scan")}
+          className="group flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-all hover:border-slate-300 hover:shadow-md active:scale-[0.99]"
         >
-          <ArrowLeft className="w-3 h-3" /> Quay lại chọn phương thức khác
+          <div className="min-w-0 text-left leading-snug">
+            <p className="text-[13px] font-semibold text-slate-900">Đăng nhập nhanh bằng FaceID</p>
+            <p className="text-[11px] text-slate-500 font-geist">Xác thực sinh trắc học an toàn</p>
+          </div>
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110"
+            style={{ backgroundColor: `${ACCENT}18` }}
+          >
+            <ScanFace className="w-5 h-5" style={{ color: ACCENT_DARK }} />
+          </div>
         </button>
       </div>
     );
   }
 
-  /* STEP 2 — Pick staff */
-  if (step === "identify") {
-    return (
-      <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-        <SectionTitle
-          icon={ShieldCheck}
-          title="Xác thực thành công"
-          subtitle="Chọn tài khoản của bạn để tiếp tục"
-        />
-        <div className="space-y-2">
-          {isLoadingStaff ? (
-            <div className="text-center py-4 text-slate-400 text-sm">
-              Đang tải danh sách nhân viên...
-            </div>
-          ) : staffList.length === 0 ? (
-            <div className="text-center py-4 text-slate-400 text-sm">
-              Chưa có nhân viên nào trong hệ thống
-            </div>
-          ) : (
-            staffList.map((staff: AuthUser) => (
-              <button
-                key={staff.id}
-                onClick={() => {
-                  setIdentifiedUser(staff);
-                  if (staff.title === "ĐD.") {
-                    onLogin(staff, "ops");
-                  } else {
-                    setStep("pick_shift");
-                  }
-                }}
-                className="w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all text-left group hover:scale-[1.01]"
-                style={{ borderColor: "#f1f5f9" }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.borderColor = ACCENT;
-                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = `${ACCENT}0A`;
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.borderColor = "#f1f5f9";
-                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
-                }}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 border-2"
-                    style={{ borderColor: `${ACCENT}40`, backgroundColor: `${ACCENT}15` }}
-                  >
-                    {staff.avatar ? (
-                      <img
-                        src={staff.avatar}
-                        alt={staff.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <UserCircle2 className="w-5 h-5" style={{ color: ACCENT_DARK }} />
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-900 text-sm">
-                      {staff.title} {staff.name}
-                    </div>
-                    <div className="text-xs text-slate-400">{staff.department}</div>
-                  </div>
-                </div>
-                <ChevronRight
-                  className="w-4 h-4 transition-transform group-hover:translate-x-0.5"
-                  style={{ color: ACCENT_DARK }}
-                />
-              </button>
-            ))
-          )}
-        </div>
-      </div>
-    );
-  }
+  /* STEP 2 — Identify step removed */
 
   /* STEP 3 — Pick shift */
   const shifts: { mode: WorkMode; icon: typeof Eye; label: string; sub: string }[] = [
@@ -799,14 +732,68 @@ function VNeidLoginButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+
 function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string) => void }) {
-  const [step, setStep] = useState<
-    "form" | "face" | "vneid_face" | "register_face" | "no_credential"
-  >("form");
   const [cccd, setCccd] = useState("");
-  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
-  const [pendingPatient, setPendingPatient] = useState<RegisteredPatient | null>(null);
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [isCapturingFace, setIsCapturingFace] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  useEffect(() => {
+    if (isCapturingFace && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [isCapturingFace]);
+
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setIsCapturingFace(false);
+  };
+
+  const startCamera = async () => {
+    try {
+      setFormError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "user" }, width: { ideal: 320 }, height: { ideal: 240 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      setIsCapturingFace(true);
+    } catch (e) {
+      alert("Không thể mở camera");
+    }
+  };
+
+  const captureFaceAndLogin = async () => {
+    if (!videoRef.current) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    const base64Image = canvas.toDataURL("image/jpeg", 0.8);
+    stopCamera();
+
+    try {
+      const res = await fetchApi("/auth/login/face/patient", {
+        method: "POST",
+        body: JSON.stringify({ face_base64: base64Image })
+      });
+      if (res.access_token) {
+        sessionStorage.setItem("eyecu_token", res.access_token);
+        const me = await fetchApi("/auth/me");
+        onLogin(me as AuthUser, res.access_token);
+      }
+    } catch (err: any) {
+      setFormError(err.message || "Đăng nhập bằng khuôn mặt thất bại");
+    }
+  };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -816,273 +803,319 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
       setFormError("Số CCCD phải gồm 12 chữ số");
       return;
     }
-    if (phone.replace(/\D/g, "").length < 9) {
-      setFormError("Số điện thoại không hợp lệ");
-      return;
-    }
 
     try {
-      const res = await fetchApi(`/patient/lookup?cccd=${cccd}&phone=${phone}`);
-      if (!res) throw new Error("Not found");
-      
-      const localFound = findPatientByCccdAndPhone(cccd, phone);
-      const pending: any = {
-        cccd: res.cccd,
-        name: res.name,
-        phone: res.phone || phone,
-        bhxh_code: res.bhxh_code,
-        avatar_url: res.avatar_url,
-        credentialId: localFound?.credentialId,
-        access_token: res.access_token,
-      };
-
-      setPendingPatient(pending as RegisteredPatient);
-
-      if (!pending.credentialId) {
-        setStep("no_credential");
-        return;
+      const res = await fetchApi("/auth/login/patient", {
+        method: "POST",
+        body: JSON.stringify({ cccd: cccd.trim(), password })
+      });
+      if (res.access_token) {
+        sessionStorage.setItem("eyecu_token", res.access_token);
+        const me = await fetchApi("/auth/me");
+        onLogin(me as AuthUser, res.access_token);
       }
-
-      setStep("face");
     } catch (err: any) {
-      setFormError("Chưa tìm thấy tài khoản. Vui lòng kiểm tra lại thông tin hoặc đăng ký mới.");
+      setFormError(err.message || "Sai CCCD hoặc mật khẩu");
     }
   };
 
   const handleVneidClick = () => {
-    setFormError(null);
-    const demo = findPatientByCccdAndPhone("001203001247", "0912345678");
-    if (demo) {
-      if (!demo.credentialId) {
-        setPendingPatient(demo);
-        setStep("no_credential");
-        return;
-      }
-      setPendingPatient(demo);
-      setStep("vneid_face");
-    } else {
-      setFormError("Không tìm thấy tài khoản demo");
-    }
+    // Tạm thời chưa kết nối VNeID nên dùng eKYC quét khuôn mặt
+    startCamera();
   };
-
-  const handleRegisterSuccess = (credentialId?: string) => {
-    if (!pendingPatient || !credentialId) return;
-    updatePatientCredentialId(pendingPatient.cccd, credentialId, pendingPatient);
-    onLogin(toAuthUser({ ...pendingPatient, credentialId }), (pendingPatient as any).access_token);
-  };
-
-  if (step === "no_credential" && pendingPatient) {
-    return (
-      <div className="space-y-4 animate-in fade-in duration-300">
-        <SectionTitle
-          icon={ShieldCheck}
-          title="Chưa có sinh trắc học"
-          subtitle="Tài khoản chưa đăng ký Face ID"
-        />
-        <div
-          className="rounded-xl p-4 space-y-1"
-          style={{ backgroundColor: `${ACCENT}10`, border: `1px solid ${ACCENT}30` }}
-        >
-          <p className="text-sm font-bold text-slate-900">{pendingPatient.name}</p>
-          <p className="text-xs text-slate-500">CCCD: {pendingPatient.cccd}</p>
-        </div>
-        <p className="text-xs text-slate-500 text-center">
-          Bạn muốn đăng ký sinh trắc học (Face ID) để lần sau đăng nhập nhanh hơn?
-        </p>
-        <div className="space-y-2">
-          <button
-            type="button"
-            onClick={() => setStep("register_face")}
-            className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold text-slate-900 transition-all hover:opacity-90"
-            style={{ backgroundColor: ACCENT }}
-          >
-            <ScanFace className="w-4 h-4" />
-            Đăng ký Face ID ngay
-          </button>
-          <button
-            type="button"
-            onClick={() => onLogin(toAuthUser(pendingPatient), (pendingPatient as any).access_token)}
-            className="w-full rounded-xl py-2.5 text-sm font-bold text-slate-500 transition-all hover:text-slate-700 border border-slate-200"
-          >
-            Bỏ qua, vào thẳng
-          </button>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            setPendingPatient(null);
-            setStep("form");
-          }}
-          className="flex items-center justify-center gap-1.5 text-xs text-slate-400 hover:text-slate-700 transition-colors"
-        >
-          <ArrowLeft className="w-3 h-3" /> Quay lại
-        </button>
-      </div>
-    );
-  }
-
-  if (step === "register_face" && pendingPatient) {
-    return (
-      <WebAuthnFaceStep
-        mode="register"
-        cccd={pendingPatient.cccd}
-        displayName={pendingPatient.name}
-        onSuccess={handleRegisterSuccess}
-        onBack={() => setStep("no_credential")}
-      />
-    );
-  }
-
-  if (step === "face" && pendingPatient) {
-    return (
-      <WebAuthnFaceStep
-        mode="authenticate"
-        cccd={pendingPatient.cccd}
-        displayName={pendingPatient.name}
-        credentialId={pendingPatient.credentialId}
-        title="Quét FaceID eKYC"
-        subtitle="WebAuthn · So khớp sinh trắc đã đăng ký"
-        onSuccess={() => onLogin(toAuthUser(pendingPatient), (pendingPatient as any).access_token)}
-        onBack={() => {
-          setPendingPatient(null);
-          setStep("form");
-        }}
-      />
-    );
-  }
-
-  if (step === "vneid_face") {
-    const vneidPatient =
-      pendingPatient ??
-      ({
-        cccd: "001203001247",
-        name: "Nguyễn Văn A",
-        credentialId: "",
-      } as RegisteredPatient);
-
-    return (
-      <WebAuthnFaceStep
-        mode="authenticate"
-        cccd={vneidPatient.cccd}
-        displayName={vneidPatient.name}
-        credentialId={vneidPatient.credentialId}
-        title="Xác thực FaceID VNeID"
-        subtitle="Quét khuôn mặt · Định danh điện tử quốc gia"
-        onSuccess={() =>
-          onLogin(
-            pendingPatient
-              ? toAuthUser(pendingPatient)
-              : {
-                  id: "p-vneid",
-                  name: "Nguyễn Văn A",
-                  type: "patient",
-                  cccd: "001203001247",
-                },
-            (pendingPatient as any)?.access_token
-          )
-        }
-        onBack={() => setStep("form")}
-      />
-    );
-  }
 
   return (
     <div className="space-y-4">
       <SectionTitle
         icon={ShieldCheck}
         title="Đăng nhập Bệnh nhân"
-        subtitle="Nhập thông tin tài khoản EyeCU"
+        subtitle="Hệ thống quản lý và chăm sóc sức khỏe nhãn khoa EyeCU"
       />
 
-      <form onSubmit={handleLoginSubmit} className="space-y-3">
-        <div>
-          <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
-            Số CCCD
-          </label>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={cccd}
-            onChange={(e) => setCccd(e.target.value.replace(/\D/g, "").slice(0, 12))}
-            placeholder="001203001247"
-            className="w-full rounded-xl border-2 px-3 py-2.5 text-sm outline-none transition-all"
-            style={{ borderColor: "#f1f5f9" }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = ACCENT;
-              e.currentTarget.style.boxShadow = `0 0 0 3px ${ACCENT}20`;
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = "#f1f5f9";
-              e.currentTarget.style.boxShadow = "none";
-            }}
-          />
+      {isCapturingFace ? (
+        <div className="flex flex-col items-center text-center space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+          <div
+            className="relative w-40 h-40 mx-auto overflow-hidden rounded-full border-2"
+            style={{ borderColor: ACCENT }}
+          >
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="h-full w-full object-cover"
+            />
+            <div
+              className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2"
+              style={{
+                background: `linear-gradient(90deg, transparent, ${ACCENT}, transparent)`,
+                animation: "face-scan 2s ease-in-out infinite",
+              }}
+            />
+            <style>{`
+              @keyframes face-scan {
+                0%, 100% { transform: translateY(-30px); opacity: 0.4; }
+                50% { transform: translateY(30px); opacity: 1; }
+              }
+            `}</style>
+          </div>
+          <div>
+            <p className="font-bold text-slate-900">Đang nhận diện khuôn mặt</p>
+            <p className="text-xs text-slate-400 mt-1">Vui lòng đưa khuôn mặt vào giữa khung hình...</p>
+          </div>
+          <div className="flex gap-2 w-full">
+            <button
+              type="button"
+              onClick={stopCamera}
+              className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              <ArrowLeft className="w-3 h-3" /> Hủy
+            </button>
+            <button
+              type="button"
+              onClick={captureFaceAndLogin}
+              className="flex-1 rounded-xl py-2.5 text-sm font-bold text-slate-900 transition-all hover:opacity-90"
+              style={{ backgroundColor: ACCENT }}
+            >
+              Xác nhận khuôn mặt
+            </button>
+          </div>
         </div>
+      ) : (
+        <form onSubmit={handleLoginSubmit} className="space-y-3">
+          <div>
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+              SỐ CCCD
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={cccd}
+              onChange={(e) => setCccd(e.target.value.replace(/\D/g, "").slice(0, 12))}
+              placeholder="Nhập 12 số căn cước"
+              className="w-full rounded-xl border-2 px-3 py-2.5 text-sm outline-none transition-all"
+              style={{ borderColor: "#f1f5f9" }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = ACCENT;
+                e.currentTarget.style.boxShadow = `0 0 0 3px ${ACCENT}20`;
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = "#f1f5f9";
+                e.currentTarget.style.boxShadow = "none";
+              }}
+            />
+          </div>
 
-        <div>
-          <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
-            Số điện thoại
-          </label>
-          <input
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="Số đã đăng ký tại bệnh viện"
-            className="w-full rounded-xl border-2 px-3 py-2.5 text-sm outline-none transition-all"
-            style={{ borderColor: "#f1f5f9" }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = ACCENT;
-              e.currentTarget.style.boxShadow = `0 0 0 3px ${ACCENT}20`;
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = "#f1f5f9";
-              e.currentTarget.style.boxShadow = "none";
-            }}
-          />
-        </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+              MẬT KHẨU
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Nhập mật khẩu"
+              className="w-full rounded-xl border-2 px-3 py-2.5 text-sm outline-none transition-all"
+              style={{ borderColor: "#f1f5f9" }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = ACCENT;
+                e.currentTarget.style.boxShadow = `0 0 0 3px ${ACCENT}20`;
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = "#f1f5f9";
+                e.currentTarget.style.boxShadow = "none";
+              }}
+            />
+          </div>
 
-        {formError && (
-          <p className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">{formError}</p>
-        )}
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setShowForgotModal(true)}
+              className="text-[11px] font-medium text-slate-500 hover:text-[#0d1f2d] hover:underline"
+            >
+              Quên mật khẩu?
+            </button>
+          </div>
 
-        <button
-          type="submit"
-          disabled={!cccd || !phone}
-          className="w-full rounded-xl py-2.5 text-sm font-bold text-slate-900 transition-all disabled:cursor-not-allowed disabled:opacity-40"
-          style={{ backgroundColor: ACCENT }}
-        >
-          Đăng nhập
-        </button>
-      </form>
+          {formError && (
+            <p className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">{formError}</p>
+          )}
 
-      <div className="flex items-center gap-3 py-1">
+          <div className="flex gap-2 pt-1">
+            <button
+              type="submit"
+              disabled={!cccd || !password}
+              className="flex-1 rounded-xl py-3 text-sm font-bold text-white transition-all disabled:cursor-not-allowed disabled:opacity-40"
+              style={{ backgroundColor: "#0d1f2d" }}
+            >
+              ĐĂNG NHẬP
+            </button>
+            <button
+              type="button"
+              onClick={startCamera}
+              className="flex items-center justify-center w-12 h-12 rounded-xl border-2 border-slate-200 text-slate-500 hover:text-[#0d1f2d] hover:border-[#0d1f2d] transition-all shrink-0"
+            >
+              <ScanFace className="w-6 h-6" />
+            </button>
+          </div>
+        </form>
+      )}
+
+      <div className="flex items-center gap-3 py-2 mt-4">
         <div className="h-px flex-1 bg-slate-200" />
         <span className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
-          Hoặc
+          HOẶC
         </span>
         <div className="h-px flex-1 bg-slate-200" />
       </div>
 
       <VNeidLoginButton onClick={handleVneidClick} />
 
-      <p className="text-center text-sm text-slate-500">
-        Chưa có tài khoản?{" "}
+      <p className="text-center text-sm text-slate-500 pt-4">
+        Bạn chưa có tài khoản?{" "}
         <Link
           to="/register"
-          className="font-bold transition-colors hover:underline"
-          style={{ color: ACCENT_DARK }}
+          className="font-bold transition-colors hover:underline text-[#0A9BAD]"
         >
           Đăng ký ngay
         </Link>
       </p>
+
+      {showForgotModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl relative animate-in zoom-in-95">
+            <button
+              onClick={() => setShowForgotModal(false)}
+              className="absolute right-4 top-4 rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <h3 className="mb-2 text-lg font-bold text-slate-900 text-center">Quên mật khẩu?</h3>
+            <p className="mb-6 text-sm text-slate-500 text-center">
+              Vui lòng chọn phương thức xác thực lại để lấy lại mật khẩu của bạn.
+            </p>
+            <div className="space-y-3">
+              <button
+                className="w-full flex items-center gap-3 rounded-xl border border-slate-200 p-4 hover:border-[#0A9BAD] hover:bg-[#0A9BAD]/5 transition-all text-left"
+                onClick={() => { alert("Chức năng đang phát triển!"); setShowForgotModal(false); }}
+              >
+                <div className="bg-[#0A9BAD]/10 p-2 rounded-lg text-[#0A9BAD]">
+                  <Smartphone className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="font-bold text-slate-900 text-sm">Xác thực qua Số điện thoại</div>
+                  <div className="text-xs text-slate-500">Nhận mã OTP qua SMS</div>
+                </div>
+              </button>
+              <button
+                className="w-full flex items-center gap-3 rounded-xl border border-slate-200 p-4 hover:border-red-500 hover:bg-red-50 transition-all text-left"
+                onClick={() => { alert("Chức năng đang phát triển!"); setShowForgotModal(false); }}
+              >
+                <div className="bg-red-100 p-2 rounded-lg text-red-600">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="font-bold text-slate-900 text-sm">Xác thực qua VNeID</div>
+                  <div className="text-xs text-slate-500">Ứng dụng định danh điện tử</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
+
 /* ─── ADMIN FLOW ─── */
 function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string) => void }) {
+  const [step, setStep] = useState<"manual" | "scan">("manual");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+
+  const stopCamera = useCallback(() => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+  }, []);
+
+  useEffect(() => {
+    if (step !== "scan") return;
+    let cancelled = false;
+
+    async function startCamera() {
+      setCameraError(null);
+      setCameraReady(false);
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "user" }, width: { ideal: 320 }, height: { ideal: 240 } },
+          audio: false,
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+          setCameraReady(true);
+        }
+      } catch {
+        if (!cancelled) setCameraError("Không mở được camera.");
+      }
+    }
+
+    void startCamera();
+    return () => {
+      cancelled = true;
+      stopCamera();
+    };
+  }, [step, stopCamera]);
+
+  const captureAndIdentify = useCallback(async () => {
+    if (!videoRef.current) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    const base64Image = canvas.toDataURL("image/jpeg", 0.8);
+
+    stopCamera();
+    setIsAuthenticating(true);
+    
+    try {
+      const res = await fetchApi("/auth/login/face/staff", {
+        method: "POST",
+        body: JSON.stringify({ face_base64: base64Image }),
+      });
+
+      if (res.access_token) {
+        sessionStorage.setItem("eyecu_token", res.access_token);
+        const me = await fetchApi("/auth/me");
+        if (me.role !== "admin") {
+          sessionStorage.removeItem("eyecu_token");
+          throw new Error("Tài khoản này không có quyền quản trị");
+        }
+        onLogin(me as AuthUser, res.access_token);
+      }
+    } catch (err: any) {
+      alert(err.message || "Không nhận diện được khuôn mặt");
+      setStep("manual");
+    } finally {
+      setIsAuthenticating(false);
+    }
+  }, [onLogin, stopCamera]);
 
   const handleLogin = async () => {
     if (!username || !password) return;
@@ -1101,6 +1134,10 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string)
       if (res.access_token) {
         sessionStorage.setItem("eyecu_token", res.access_token);
         const me = await fetchApi("/auth/me");
+        if (me.role !== "admin") {
+          sessionStorage.removeItem("eyecu_token");
+          throw new Error("Tài khoản này không có quyền quản trị");
+        }
         onLogin(me as AuthUser, res.access_token);
       }
     } catch (err: any) {
@@ -1109,6 +1146,76 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string)
       setIsAuthenticating(false);
     }
   };
+
+  if (step === "scan") {
+    return (
+      <div className="space-y-4">
+        <SectionTitle
+          icon={Settings}
+          title="Đăng nhập FaceID Quản trị"
+          subtitle="Nhận diện khuôn mặt..."
+        />
+        <div className="flex flex-col items-center text-center space-y-5 animate-in fade-in duration-300">
+          <div
+            className="relative w-40 h-40 mx-auto overflow-hidden rounded-full border-2"
+            style={{ borderColor: ACCENT }}
+          >
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="h-full w-full object-cover"
+            />
+            {cameraReady && !isAuthenticating && (
+              <div
+                className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2"
+                style={{
+                  background: `linear-gradient(90deg, transparent, ${ACCENT}, transparent)`,
+                  animation: "face-scan 2s ease-in-out infinite",
+                }}
+              />
+            )}
+            <style>{`
+              @keyframes face-scan {
+                0%, 100% { transform: translateY(-30px); opacity: 0.4; }
+                50% { transform: translateY(30px); opacity: 1; }
+              }
+            `}</style>
+          </div>
+          <div>
+            <p className="font-bold text-slate-900">
+              {isAuthenticating ? "Đang xử lý..." : "Đang mở camera"}
+            </p>
+            {cameraError ? (
+              <p className="text-xs text-red-500 mt-1">{cameraError}</p>
+            ) : (
+              <p className="text-xs text-slate-400 mt-1">Đưa mặt vào giữa khung...</p>
+            )}
+          </div>
+          <div className="flex gap-2 w-full">
+            <button
+              onClick={() => {
+                stopCamera();
+                setStep("manual");
+              }}
+              className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={captureAndIdentify}
+              disabled={!cameraReady || isAuthenticating}
+              className="flex-1 rounded-xl py-2.5 text-sm font-bold text-slate-900 transition-all hover:opacity-90 disabled:opacity-50"
+              style={{ backgroundColor: ACCENT }}
+            >
+              Quét khuôn mặt
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -1158,20 +1265,46 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string)
           </div>
         ))}
       </div>
+      
+      <div className="flex gap-2 w-full mt-2">
+        <button
+          onClick={handleLogin}
+          disabled={!username || !password || isAuthenticating}
+          className="w-full py-2.5 rounded-lg font-bold text-sm transition-all text-white disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md"
+          style={{ backgroundColor: "#0d1f2d" }}
+        >
+          {isAuthenticating ? (
+            <>
+              <span className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin" />{" "}
+              Đang đăng nhập...
+            </>
+          ) : (
+            "Đăng nhập"
+          )}
+        </button>
+      </div>
+
+      <div className="flex items-center gap-3 mt-4">
+        <div className="flex-1 h-px bg-slate-200" />
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-geist">Hoặc</span>
+        <div className="flex-1 h-px bg-slate-200" />
+      </div>
+
       <button
-        onClick={handleLogin}
-        disabled={!username || !password || isAuthenticating}
-        className="w-full py-2.5 rounded-xl font-bold text-sm transition-all text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-        style={{ backgroundColor: ACCENT }}
+        type="button"
+        onClick={() => setStep("scan")}
+        className="group flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-all hover:border-slate-300 hover:shadow-md active:scale-[0.99] mt-2"
       >
-        {isAuthenticating ? (
-          <>
-            <span className="w-4 h-4 border-2 border-t-transparent border-slate-900 rounded-full animate-spin" />{" "}
-            Đang đăng nhập...
-          </>
-        ) : (
-          "Đăng nhập"
-        )}
+        <div className="min-w-0 text-left leading-snug">
+          <p className="text-[13px] font-semibold text-slate-900">Đăng nhập nhanh bằng FaceID</p>
+          <p className="text-[11px] text-slate-500 font-geist">Xác thực sinh trắc học an toàn</p>
+        </div>
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110"
+          style={{ backgroundColor: `${ACCENT}18` }}
+        >
+          <ScanFace className="w-5 h-5" style={{ color: ACCENT_DARK }} />
+        </div>
       </button>
     </div>
   );

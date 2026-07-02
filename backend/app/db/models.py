@@ -32,6 +32,16 @@ class Patient(SQLModel, table=True):
     avatar_url: Optional[str] = Field(default=None, max_length=255)
     cccd_front_url: Optional[str] = Field(default=None, max_length=255)
     cccd_back_url: Optional[str] = Field(default=None, max_length=255)
+    password_hash: Optional[str] = Field(default=None, max_length=255)
+    face_base64: Optional[str] = Field(default=None)
+    dob: Optional[str] = Field(default=None, max_length=20)
+    address: Optional[str] = Field(default=None)
+    hometown: Optional[str] = Field(default=None)
+    gender: Optional[str] = Field(default=None, max_length=10)
+    issue_date: Optional[str] = Field(default=None, max_length=20)
+    issue_place: Optional[str] = Field(default=None)
+    valid_until: Optional[str] = Field(default=None, max_length=20)
+    characteristics: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     @property
@@ -47,9 +57,12 @@ class Staff(SQLModel, table=True):
     name: str = Field(max_length=100)
     employee_id: str = Field(max_length=20, unique=True)
     password_hash: str = Field(max_length=255)
+    phone: Optional[str] = Field(default=None, max_length=20)
+    dob: Optional[str] = Field(default=None, max_length=20)
     department_id: Optional[uuid.UUID] = Field(
         default=None, foreign_key="departments.id"
     )
+    face_base64: Optional[str] = Field(default=None) # To store the registered face image
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 

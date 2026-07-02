@@ -5,13 +5,28 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { Hospital } from "../lib/hospitals";
 
-// No icon fix
+import iconUrl from "leaflet/dist/images/marker-icon.png";
+import iconShadow from "leaflet/dist/images/marker-shadow.png";
 
+let DefaultIcon = L.icon({
+  iconUrl,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41]
+});
+L.Marker.prototype.options.icon = DefaultIcon;
 function MapUpdater({ center }: { center: [number, number] }) {
   const map = useMap();
   useEffect(() => {
     map.flyTo(center, 15, { duration: 1.5 });
   }, [center[0], center[1], map]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      map.invalidateSize();
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [map]);
   return null;
 }
 
@@ -20,7 +35,7 @@ export default function PatientPortalMap({ selectedHospital }: { selectedHospita
     <MapContainer 
       center={[selectedHospital.latitude, selectedHospital.longitude]} 
       zoom={15} 
-      style={{ height: "100%", width: "100%", zIndex: 0 }}
+      style={{ position: "absolute", inset: 0, zIndex: 0 }}
       zoomControl={false}
     >
       <TileLayer

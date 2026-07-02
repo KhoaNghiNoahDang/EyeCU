@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+new_register_tsx = """import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   ArrowLeft,
@@ -39,7 +39,6 @@ function RegisterPage() {
   // Additional inputs
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
-  const [bhxhCode, setBhxhCode] = useState("");
   const [emergencyName, setEmergencyName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
 
@@ -83,7 +82,7 @@ function RegisterPage() {
       setFormError("Mật khẩu phải từ 6 ký tự trở lên");
       return;
     }
-    if (phone.replace(/\D/g, "").length < 9) {
+    if (phone.replace(/\\D/g, "").length < 9) {
       setFormError("Số điện thoại không hợp lệ");
       return;
     }
@@ -94,7 +93,6 @@ function RegisterPage() {
         ...extractedData,
         password,
         phone,
-        bhxh_code: bhxhCode,
         emergency_contact_name: emergencyName,
         emergency_contact_phone: emergencyPhone,
         face_base64: faceUrl
@@ -291,7 +289,6 @@ function RegisterPage() {
                     ["Họ và tên", extractedData.name],
                     ["Số CCCD", extractedData.cccd],
                     ["Ngày sinh", extractedData.dob],
-                    ["Giới tính", extractedData.gender],
                     ["Thường trú", extractedData.address],
                     ["Quê quán", extractedData.hometown],
                     ["Đặc điểm", extractedData.characteristics],
@@ -315,10 +312,6 @@ function RegisterPage() {
                   <div>
                     <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">SỐ ĐIỆN THOẠI *</label>
                     <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Số điện thoại liên hệ" className="w-full rounded-xl border-2 border-slate-100 px-3 py-2.5 text-sm outline-none focus:border-[#0A9BAD]" />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">MÃ BHYT / BHXH</label>
-                    <input type="text" value={bhxhCode} onChange={(e) => setBhxhCode(e.target.value)} placeholder="Nhập mã Bảo hiểm y tế" className="w-full rounded-xl border-2 border-slate-100 px-3 py-2.5 text-sm outline-none focus:border-[#0A9BAD]" />
                   </div>
                   <div className="pt-2">
                     <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">NGƯỜI LH KHẨN CẤP</label>
@@ -375,3 +368,9 @@ function RegisterPage() {
     </div>
   );
 }
+"""
+
+with open('src/routes/register.tsx', 'w', encoding='utf-8') as f:
+    f.write(new_register_tsx)
+
+print("Replaced register.tsx with flow 2!")

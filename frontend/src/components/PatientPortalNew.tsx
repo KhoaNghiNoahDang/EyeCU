@@ -16,6 +16,8 @@ interface ChatMsg {
   from: "bot" | "user";
   text: string;
   time: string;
+  buttons?: { title: string; payload?: string; payload_id?: string; color?: string }[];
+  images?: string[];
 }
 
 function getTimeNow() {
@@ -23,6 +25,18 @@ function getTimeNow() {
 }
 
 type ViewState = "home" | "health_record" | "record_lookup" | "community_qa" | "ask_question" | "invoice_list" | "digital_signature" | "hospital_map";
+
+function getAge(dobString?: string) {
+  if (!dobString) return "";
+  const parts = dobString.split("/");
+  if (parts.length === 3) {
+    const year = parseInt(parts[2], 10);
+    const currentYear = new Date().getFullYear();
+    if (!isNaN(year)) return `${currentYear - year} tuổi`;
+  }
+  return dobString;
+}
+
 
 export function PatientPortalNew({
   isInstallEligible,
@@ -39,12 +53,18 @@ export function PatientPortalNew({
   
   // Floating Bot Logic
   const [botOpen, setBotOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMsg[]>([
-    { from: "bot", text: "Tôi là trợ lý ảo AI, tôi có thể giúp gì được cho bạn?", time: getTimeNow() },
-  ]);
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [botTyping, setBotTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Ghi âm Voice
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  // Popup state
+  const [showEmergencyModal, setShowEmergencyModal] = useState(false);
 
   // PWA Installation States
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -108,21 +128,92 @@ export function PatientPortalNew({
   }, []);
 
   useEffect(() => {
+    if (botOpen && messages.length === 0) {
+      setBotTyping(true);
+      fetchApi("/patient/chat", { method: "POST", body: { message: "Xin chào" } })
+        .then((data) => {
+          setMessages([{ from: "bot", text: data.reply || "Xin chào, tôi là trợ lý AI. Tôi có thể giúp gì cho bạn?", time: getTimeNow(), buttons: data.buttons, images: data.images }]);
+          setBotTyping(false);
+        })
+        .catch(() => {
+          setMessages([{ from: "bot", text: "Xin chào, tôi là trợ lý AI. Tôi có thể giúp gì cho bạn?", time: getTimeNow() }]);
+          setBotTyping(false);
+        });
+    }
+  }, [botOpen, messages.length]);
+
+  useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, botTyping]);
 
-  const sendMessage = (textStr?: string) => {
+  const sendMessage = (textStr?: string, payloadStr?: string) => {
     const text = textStr || chatInput.trim();
     if (!text) return;
     setMessages((prev) => [...prev, { from: "user", text, time: getTimeNow() }]);
     if (!textStr) setChatInput("");
     setBotTyping(true);
-    fetchApi("/patient/chat", { method: "POST", body: { message: text } })
+    fetchApi("/patient/chat", { method: "POST", body: { message: payloadStr || text } })
       .then((data) => {
-        setMessages((prev) => [...prev, { from: "bot", text: data.reply || "Xin lỗi, tôi không thể trả lời lúc này.", time: getTimeNow() }]);
+        setMessages((prev) => [...prev, { from: "bot", text: data.reply || "Xin lỗi, tôi không thể trả lời lúc này.", time: getTimeNow(), buttons: data.buttons, images: data.images }]);
         setBotTyping(false);
       })
       .catch(() => setBotTyping(false));
+  };
+
+  const startRecording = () => {
+    try {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert("Trình duyệt của bạn không hỗ trợ nhận diện giọng nói (Web Speech API). Vui lòng dùng Chrome hoặc Safari.");
+        return;
+      }
+      
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'vi-VN';
+      
+      let finalTranscript = chatInput ? chatInput + " " : "";
+
+      recognition.onresult = (event: any) => {
+        let interimTranscript = '';
+        let currentFinal = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            currentFinal += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+        
+        finalTranscript += currentFinal;
+        setChatInput(finalTranscript + interimTranscript);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error("Lỗi nhận diện giọng nói:", event.error);
+        stopRecording();
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error("Lỗi khởi động micro:", err);
+      alert("Không thể khởi động ghi âm. Vui lòng cấp quyền.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (recognitionRef.current && isRecording) {
+      recognitionRef.current.stop();
+      setIsRecording(false);
+    }
   };
 
   // Main Navigation state
@@ -132,18 +223,24 @@ export function PatientPortalNew({
   const [botPos, setBotPos] = useState({ x: 0, y: 0 });
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
+  const dragStartCoords = useRef({ x: 0, y: 0 });
   const hasMoved = useRef(false);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     isDragging.current = true;
     hasMoved.current = false;
     dragStart.current = { x: e.clientX - botPos.x, y: e.clientY - botPos.y };
+    dragStartCoords.current = { x: e.clientX, y: e.clientY };
     e.currentTarget.setPointerCapture(e.pointerId);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!isDragging.current) return;
-    hasMoved.current = true;
+    const dx = e.clientX - dragStartCoords.current.x;
+    const dy = e.clientY - dragStartCoords.current.y;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      hasMoved.current = true;
+    }
     setBotPos({ x: e.clientX - dragStart.current.x, y: e.clientY - dragStart.current.y });
   };
 
@@ -367,17 +464,17 @@ export function PatientPortalNew({
           <div className="px-4 mt-4">
             <button 
               onClick={() => setIsScanningLab(true)}
-              className="flex w-full items-center gap-4 rounded-[20px] bg-[#122432] p-4 shadow-sm active:scale-95 transition-transform"
+              className="flex w-full items-center gap-4 rounded-[20px] bg-[#88E8F2] p-4 shadow-sm active:scale-95 transition-transform"
             >
-              <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[18px] bg-white/5">
-                <Camera className="h-7 w-7 text-[#88E8F2]" strokeWidth={1.5} />
+              <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[18px] bg-white/40">
+                <Camera className="h-7 w-7 text-[#0d1f2d]" strokeWidth={1.5} />
               </div>
               <div className="flex-1 text-left">
-                <p className="text-[17px] font-bold text-white tracking-wide">Quét phiếu xét nghiệm</p>
-                <p className="text-[13px] text-slate-400 mt-1">AI tự động bóc tách • Lưu vào hồ sơ</p>
+                <p className="text-[17px] font-bold text-[#0d1f2d] tracking-wide">Quét phiếu xét nghiệm</p>
+                <p className="text-[13px] text-slate-700 mt-1">AI tự động bóc tách • Lưu vào hồ sơ</p>
               </div>
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/5">
-                <ScanLine className="h-[22px] w-[22px] text-[#88E8F2]" strokeWidth={2} />
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/40">
+                <ScanLine className="h-[22px] w-[22px] text-[#0d1f2d]" strokeWidth={2} />
               </div>
             </button>
           </div>
@@ -385,9 +482,9 @@ export function PatientPortalNew({
           {/* 4. Map Location Banner */}
           <div className="px-4 mt-4">
              <button onClick={() => setCurrentView("hospital_map")} className="flex w-full items-center gap-4 rounded-2xl bg-white p-4 shadow-sm border border-slate-100 active:scale-95 transition-transform">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-50 overflow-hidden">
-                   <img src="https://maps.gstatic.com/tactile/map_icons/hospital_1x.png" alt="map" className="h-6 w-6 object-contain" />
-                </div>
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 overflow-hidden">
+                  <MapPin className="h-5 w-5 text-emerald-600" />
+               </div>
                 <div className="flex-1 text-left">
                    <p className="text-[14px] font-bold text-[#0d1f2d]">Trung tâm EyeCU</p>
                    <p className="text-[11px] text-slate-500 mt-0.5">Mở bản đồ bệnh viện</p>
@@ -422,7 +519,7 @@ export function PatientPortalNew({
   const renderHealthRecord = () => (
     <div className="flex-1 flex flex-col bg-[#88E8F2] overflow-hidden">
       {/* Top App Bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-[#0d1f2d] text-white pt-safe z-10 shrink-0 shadow-sm">
+      <div className="flex items-center justify-between px-4 py-3 bg-[#88E8F2] text-[#0d1f2d] pt-safe z-10 shrink-0 shadow-sm">
         <button onClick={() => setCurrentView("home")} className="p-1 active:scale-95">
           <ArrowLeft className="h-6 w-6" />
         </button>
@@ -436,13 +533,10 @@ export function PatientPortalNew({
         {/* Profile Card */}
         <div className="bg-white px-4 pt-6 pb-4 shadow-sm relative">
            <div className="flex flex-col gap-2 justify-center mb-4">
-             <button className="flex justify-center items-center gap-2 rounded-full border border-slate-200 px-4 py-1.5 text-sm font-medium text-[#0d1f2d] shadow-sm active:bg-slate-50">
-               <span className="text-slate-400">↓</span> Cập nhật kết quả
-             </button>
-             <button className="flex justify-center items-center gap-2 rounded-full bg-[#88E8F2] px-4 py-2 text-sm font-bold text-slate-900 shadow-sm active:scale-[0.98] transition-transform w-full">
-               <FileText className="w-4 h-4" /> Xét nghiệm API bóc tách hồ sơ
-             </button>
-           </div>
+              <button className="flex justify-center items-center gap-2 rounded-full border border-slate-200 px-4 py-1.5 text-sm font-medium text-[#0d1f2d] shadow-sm active:bg-slate-50 w-full">
+                <span className="text-slate-400">↓</span> Cập nhật kết quả
+              </button>
+            </div>
            
            <div className="flex items-start gap-3">
              <div className="h-16 w-16 shrink-0 rounded-full border border-slate-100 bg-white p-1 shadow-sm">
@@ -452,9 +546,9 @@ export function PatientPortalNew({
                <h2 className="text-[16px] font-bold text-[#0d1f2d] uppercase mb-1">{user?.name || "Bệnh nhân"}</h2>
                <span className="inline-block rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-600 mb-2">Ngoại trú</span>
                <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[13px] text-slate-600">
-                 <span>GT, tuổi</span><span className="font-medium text-[#0d1f2d]">Nữ, 20 tuổi</span>
-                 <span>Mã NB</span><span className="font-medium text-[#0d1f2d]">NT2606002632</span>
-                 <span>Mã HS</span><span className="font-medium text-[#0d1f2d]">TH2606041360</span>
+                 <span>GT, tuổi</span><span className="font-medium text-[#0d1f2d]">{user?.gender || "Nam"}, {getAge(user?.dob)}</span>
+                 <span>Mã NB</span><span className="font-medium text-[#0d1f2d]">NT{user?.id?.substring(0, 8).toUpperCase() || "2606002632"}</span>
+                 <span>Mã HS</span><span className="font-medium text-[#0d1f2d]">TH{user?.id?.substring(24).toUpperCase() || "2606041360"}</span>
                </div>
              </div>
              <div className="shrink-0 rounded-xl bg-white p-1 border border-slate-200 shadow-sm mt-1">
@@ -549,7 +643,7 @@ export function PatientPortalNew({
   // Render Community QA
   const renderCommunityQa = () => (
     <div className="flex-1 flex flex-col bg-[#f0f2f5] overflow-hidden relative">
-      <div className="flex items-center justify-between px-4 py-3 bg-[#0d1f2d] text-white pt-safe z-10 shrink-0 shadow-sm">
+      <div className="flex items-center justify-between px-4 py-3 bg-[#88E8F2] text-[#0d1f2d] pt-safe z-10 shrink-0 shadow-sm">
         <button onClick={() => setCurrentView("home")} className="p-1 active:scale-95">
           <ArrowLeft className="h-6 w-6" />
         </button>
@@ -610,7 +704,7 @@ export function PatientPortalNew({
   // Render Ask Question Form
   const renderAskQuestion = () => (
     <div className="flex-1 flex flex-col bg-white overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 bg-[#0d1f2d] text-white pt-safe z-10 shrink-0 shadow-sm">
+      <div className="flex items-center justify-between px-4 py-3 bg-[#88E8F2] text-[#0d1f2d] pt-safe z-10 shrink-0 shadow-sm">
         <button onClick={() => setCurrentView("community_qa")} className="p-1 active:scale-95">
           <ArrowLeft className="h-6 w-6" />
         </button>
@@ -725,7 +819,7 @@ export function PatientPortalNew({
   const renderRecordLookup = () => (
     <div className="flex-1 flex flex-col bg-[#88E8F2] overflow-hidden">
       {/* Top App Bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-[#0d1f2d] text-white pt-safe z-10 shrink-0 shadow-sm">
+      <div className="flex items-center justify-between px-4 py-3 bg-[#88E8F2] text-[#0d1f2d] pt-safe z-10 shrink-0 shadow-sm">
         <button onClick={() => setCurrentView("home")} className="p-1 active:scale-95">
           <ArrowLeft className="h-6 w-6" />
         </button>
@@ -880,7 +974,7 @@ export function PatientPortalNew({
   const renderInvoiceList = () => (
     <div className="flex-1 flex flex-col bg-[#f0f2f5] overflow-hidden relative">
       {/* Top App Bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-[#0d1f2d] text-white pt-safe z-10 shrink-0 shadow-sm">
+      <div className="flex items-center justify-between px-4 py-3 bg-[#88E8F2] text-[#0d1f2d] pt-safe z-10 shrink-0 shadow-sm">
         <button onClick={() => setCurrentView("home")} className="p-1 active:scale-95">
           <ArrowLeft className="h-6 w-6" />
         </button>
@@ -1001,7 +1095,7 @@ export function PatientPortalNew({
 
   const renderDigitalSignature = () => (
     <div className="flex-1 flex flex-col bg-[#f0f2f5] overflow-hidden relative">
-      <div className="flex items-center justify-between px-4 py-3 bg-[#0d1f2d] text-white pt-safe z-10 shrink-0 shadow-sm">
+      <div className="flex items-center justify-between px-4 py-3 bg-[#88E8F2] text-[#0d1f2d] pt-safe z-10 shrink-0 shadow-sm">
         <button onClick={() => setCurrentView("home")} className="p-1 active:scale-95">
           <ArrowLeft className="h-6 w-6" />
         </button>
@@ -1046,7 +1140,7 @@ export function PatientPortalNew({
         <span className="text-[17px] font-bold flex-1 text-center pr-8">Chọn bệnh viện tuyến đầu</span>
       </div>
 
-      <div className="flex-1 relative z-0">
+      <div className="flex-1 relative z-0 h-full w-full">
         {isMounted ? (
           <MapErrorBoundary>
             <Suspense fallback={<div className="w-full h-full bg-slate-100 animate-pulse" />}>
@@ -1057,7 +1151,7 @@ export function PatientPortalNew({
           <div className="w-full h-full bg-slate-100 animate-pulse" />
         )}
 
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-white rounded-2xl shadow-xl border border-slate-200 p-5 z-[10]">
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-white rounded-2xl shadow-xl border border-slate-200 p-5 z-[10]">
           <div className="flex justify-between items-center">
             <div>
               <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">BỆNH VIỆN ĐÃ CHỌN</p>
@@ -1260,11 +1354,11 @@ export function PatientPortalNew({
                <span className="text-[14px] text-slate-500 mt-1">{user?.phone || "Chưa cập nhật SĐT"}</span>
             </div>
          </div>
-         
+
          <div className="bg-white pt-4 pb-2 border-b border-slate-100 mt-1">
             <span className="px-4 text-[14px] font-medium text-slate-800">Tiện ích</span>
             <div className="flex mt-3">
-               <button onClick={() => alert('Thành viên gia đình')} className="flex-1 flex flex-col items-center gap-2 active:opacity-50">
+               <button onClick={() => setShowEmergencyModal(true)} className="flex-1 flex flex-col items-center gap-2 active:opacity-50">
                   <div className="text-[#0d1f2d]"><Users className="w-7 h-7" /></div>
                   <span className="text-[12px] text-center px-2 font-medium text-slate-700 leading-tight">Thành viên<br/>gia đình</span>
                </button>
@@ -1355,7 +1449,7 @@ export function PatientPortalNew({
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-white sm:items-center sm:py-4">
+    <div className="flex h-[100dvh] min-h-0 flex-col bg-white sm:items-center sm:py-4">
       <div className="relative flex h-full min-h-0 w-full max-w-none flex-col overflow-hidden bg-white sm:h-[min(92dvh,860px)] sm:max-w-[420px] sm:rounded-[2rem] sm:border sm:border-slate-200 sm:shadow-2xl">
         
         {activeTab === "home" ? (
@@ -1625,15 +1719,15 @@ export function PatientPortalNew({
         )}
 
         {/* Floating SmartBot */}
-        <div 
-          className="absolute z-[100] sm:right-6 touch-none"
-          style={{ 
-             bottom: '6rem', 
-             right: '1rem',
-             transform: `translate(${botPos.x}px, ${botPos.y}px)`
-          }}
-        >
-          {!botOpen && (
+        {!botOpen && (
+          <div 
+            className="absolute z-[100] sm:right-6 touch-none"
+            style={{ 
+               bottom: '6rem', 
+               right: '1rem',
+               transform: `translate(${botPos.x}px, ${botPos.y}px)`
+            }}
+          >
             <button
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
@@ -1646,10 +1740,12 @@ export function PatientPortalNew({
               {/* Optional glowing effect for the bot icon */}
               <div className="absolute inset-0 rounded-full bg-[#88E8F2] opacity-0 group-hover:opacity-10 transition-opacity pointer-events-none" />
             </button>
-          )}
+          </div>
+        )}
 
-          {botOpen && (
-            <div className="flex h-[400px] w-[300px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
+        {botOpen && (
+          <div className="fixed sm:absolute inset-0 z-[110] flex items-center justify-center bg-slate-900/40 p-4 animate-in fade-in duration-200">
+            <div className="flex h-[75dvh] max-h-[600px] w-full max-w-[360px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 duration-300">
               <div className="flex items-center gap-2 bg-[#88E8F2] px-4 py-3">
                 <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#0d1f2d]/10">
                   <Bot className="h-4 w-4 text-[#0d1f2d]" />
@@ -1672,7 +1768,28 @@ export function PatientPortalNew({
                     )}
                     <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${msg.from === "user" ? "rounded-br-sm bg-[#0d1f2d] text-white" : "rounded-bl-sm border border-slate-100 bg-white text-slate-800 shadow-sm"}`}>
                       <p className="text-[13px] leading-relaxed">{msg.text}</p>
-                      <p className={`mt-1 text-[9px] ${msg.from === "user" ? "text-white/60" : "text-slate-400"}`}>{msg.time}</p>
+                      {msg.from === "bot" && msg.buttons && msg.buttons.length > 0 && (
+                        <div className="mt-2.5 flex flex-wrap gap-1.5">
+                          {msg.buttons.map((btn, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => sendMessage(btn.title, btn.payload || btn.payload_id)}
+                              className="px-2.5 py-1.5 text-[11px] font-semibold rounded-[10px] border border-[#88E8F2] text-[#0d1f2d] bg-[#88E8F2]/10 hover:bg-[#88E8F2]/30 active:scale-95 transition-all text-left"
+                              style={{ backgroundColor: btn.color ? `${btn.color}30` : undefined, borderColor: btn.color }}
+                            >
+                              {btn.title}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {msg.from === "bot" && msg.images && msg.images.length > 0 && (
+                        <div className="mt-2.5 flex flex-col gap-2">
+                          {msg.images.map((url, idx) => (
+                            <img key={idx} src={url} alt="VNPT SmartBot Image" className="rounded-xl max-w-full h-auto object-contain border border-slate-200" />
+                          ))}
+                        </div>
+                      )}
+                      <p className={`mt-1.5 text-[9px] font-medium ${msg.from === "user" ? "text-white/60" : "text-slate-400"}`}>{msg.time}</p>
                     </div>
                   </div>
                 ))}
@@ -1691,20 +1808,43 @@ export function PatientPortalNew({
                 <div ref={chatEndRef} />
               </div>
               <div className="flex items-center gap-2 border-t border-slate-100 bg-white p-2">
-                <input
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                  placeholder="Hỏi trợ lý AI..."
-                  className="min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-4 py-2.5 text-[13px] text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#88E8F2]"
-                />
+                <button
+                  onClick={() => isRecording ? stopRecording() : startRecording()}
+                  className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition active:scale-95 ${
+                    isRecording ? "bg-red-500 animate-pulse text-white shadow-md" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                  title="Ghi âm"
+                >
+                  <Mic className="h-4 w-4" />
+                </button>
+                <div className="relative flex-1">
+                  <input
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                    placeholder={isTranscribing ? "Đang nhận diện giọng nói..." : (isRecording ? "Đang ghi âm..." : "Hỏi trợ lý AI...")}
+                    disabled={isTranscribing || isRecording}
+                    className="w-full min-w-0 rounded-full border border-slate-200 bg-slate-50 px-4 py-2.5 text-[13px] text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#88E8F2] disabled:opacity-50"
+                  />
+                  {isTranscribing && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <span className="flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#88E8F2] opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-[#88E8F2]"></span>
+                      </span>
+                    </div>
+                  )}
+                </div>
                 <button onClick={() => sendMessage()}
-                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#88E8F2] transition active:scale-95"
-                ><Send className="h-4 w-4 text-[#0d1f2d] ml-0.5" /></button>
+                  disabled={isTranscribing || isRecording || !chatInput.trim()}
+                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#88E8F2] transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Send className="h-4 w-4 text-[#0d1f2d] ml-0.5" />
+                </button>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* 6. Bottom Navigation Bar */}
         <div className="absolute bottom-0 left-0 right-0 z-50 flex h-[68px] items-center justify-between border-t border-slate-200 bg-white px-2 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
@@ -1732,7 +1872,7 @@ export function PatientPortalNew({
 
         {/* Lab Camera Modal */}
         {isScanningLab && (
-          <div className="absolute inset-0 z-[60] flex flex-col bg-slate-900 animate-in fade-in duration-200 pt-safe pb-safe">
+          <div className="fixed sm:absolute inset-0 z-[60] flex flex-col bg-slate-900 animate-in fade-in duration-200 pt-safe pb-safe touch-none overscroll-none">
             <div className="relative flex flex-1 items-center justify-center overflow-hidden">
               <video
                 ref={videoRef}
@@ -1814,6 +1954,61 @@ export function PatientPortalNew({
         onChange={handleFileSelectedLab}
       />
       </div>
+      
+      {/* Emergency Contact Modal */}
+      {showEmergencyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-slate-100 flex items-center gap-3 bg-blue-50/50">
+              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-[#0d1f2d] text-base">Liên hệ khẩn cấp</h3>
+                <p className="text-[13px] text-slate-500">Thông tin người liên hệ lúc cần thiết</p>
+              </div>
+            </div>
+            
+            <div className="p-5 space-y-4">
+              {user?.emergency_contact_name || user?.emergency_contact_phone ? (
+                <>
+                  <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                    <p className="text-xs font-bold text-slate-400 uppercase mb-1">Người liên hệ</p>
+                    <p className="text-sm font-semibold text-slate-800">{user.emergency_contact_name || "Trống"}</p>
+                  </div>
+                  <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-slate-400 uppercase mb-1">Số điện thoại</p>
+                      <p className="text-sm font-semibold text-slate-800">{user.emergency_contact_phone || "Trống"}</p>
+                    </div>
+                    {user.emergency_contact_phone && (
+                      <a href={`tel:${user.emergency_contact_phone}`} className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center active:bg-blue-200">
+                        <Phone className="w-5 h-5" />
+                      </a>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-6">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 mx-auto flex items-center justify-center mb-3">
+                    <Info className="w-6 h-6" />
+                  </div>
+                  <p className="text-[14px] text-slate-500 font-medium">Không có dữ liệu</p>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-100">
+              <button 
+                onClick={() => setShowEmergencyModal(false)}
+                className="w-full py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold active:bg-slate-300"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

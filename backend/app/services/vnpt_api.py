@@ -1,4 +1,5 @@
 import httpx
+import uuid
 from app.core.config import settings
 from app.services.dataset_reader import get_mock_json
 import base64
@@ -104,9 +105,15 @@ class VnptAPIClient:
             return None
 
     # ── eKYC: OCR CCCD ────────────────────────────────────────────
-    async def call_ekyc_ocr(self, hash_string: str) -> dict:
+    async def call_ekyc_ocr(self, hash_string: str, hash_back_string: str = None) -> dict:
         """Bóc tách thông tin từ ảnh CCCD (mặt trước + sau)."""
-        payload = {"img_front": hash_string, "step_id": 0, "type": 7}
+        payload = {"token": str(uuid.uuid4()),
+            "client_session": "eyecu-ocr",
+            "img_front": hash_string,
+            "step_id": 0,
+            "type": -1}
+        if hash_back_string:
+            payload["img_back"] = hash_back_string
         try:
             async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
                 resp = await client.post(
@@ -121,6 +128,11 @@ class VnptAPIClient:
                     "cccd": obj.get("id", ""),
                     "dob": obj.get("birth_day", ""),
                     "address": obj.get("recent_location", ""),
+                    "hometown": obj.get("origin_location", ""),
+                    "issue_date": obj.get("issue_date", ""),
+                    "issue_place": obj.get("issue_place", ""),
+                    "valid_until": obj.get("valid_date", ""),
+                    "characteristics": obj.get("characteristics", ""),
                     "raw": data,
                 }
         except Exception:
@@ -141,20 +153,22 @@ class VnptAPIClient:
                     "liveness": data.get("object", {}).get("liveness", "fail"),
                     "msg": data.get("object", {}).get("liveness_msg", ""),
                 }
-        except Exception:
-            return {"liveness": "success", "msg": "Người thật (fallback)"}
+        except Exception as e:
+            print(f"Lỗi Card Liveness: {e}")
+            return {"liveness": "fail", "msg": "Lỗi kết nối eKYC"}
 
     # ── eKYC: Face Liveness 2D (So khớp 1 ảnh) ─────────
     async def call_face_liveness_2d(self, face_img_hash: str) -> dict:
         """Xác thực khuôn mặt 2D (nhanh, 1 ảnh)."""
         payload = {
+            "token": str(uuid.uuid4()),
             "img": face_img_hash,
             "client_session": "eyecu-face-2d",
         }
         try:
             async with httpx.AsyncClient(timeout=5) as client:
                 resp = await client.post(
-                    "https://api.idg.vnpt.vn/ai/v1/web/face/liveness",
+                    "https://api.idg.vnpt.vn/ai/v1/face/liveness",
                     json=payload,
                     headers={
                         "Token-id": settings.VNPT_EKYC_TOKEN_ID,
@@ -169,8 +183,40 @@ class VnptAPIClient:
                     "liveness": data.get("object", {}).get("liveness", "fail"),
                     "msg": data.get("object", {}).get("liveness_msg", ""),
                 }
-        except Exception:
-            return {"liveness": "success", "msg": "FaceID 2D OK (fallback)"}
+        except Exception as e:
+            print(f"Lỗi Face Liveness: {e}")
+            return {"liveness": "fail", "msg": "Lỗi kết nối eKYC"}
+
+    # ── eKYC: Face Compare 1:1 ─────────
+    async def call_face_compare(self, img_hash_1: str, img_hash_2: str) -> dict:
+        """So khớp 2 khuôn mặt."""
+        payload = {
+            "token": str(uuid.uuid4()),
+            "img_front": img_hash_1,
+            "img_face": img_hash_2,
+            "client_session": "eyecu-face-compare",
+        }
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.post(
+                    "https://api.idg.vnpt.vn/ai/v1/face/compare",
+                    json=payload,
+                    headers={
+                        "Token-id": settings.VNPT_EKYC_TOKEN_ID,
+                        "Token-key": settings.VNPT_EKYC_TOKEN_KEY,
+                        "Authorization": f"{settings.VNPT_EKYC_ACCESS_TOKEN}",
+                    },
+                )
+                if resp.status_code != 200:
+                    raise Exception(f"API Error {resp.status_code}")
+                data = resp.json()
+                return {
+                    "match": data.get("object", {}).get("match", "False"),
+                    "prob": data.get("object", {}).get("prob", 0.0),
+                }
+        except Exception as e:
+            print(f"Lỗi Face Compare: {e}")
+            return {"match": "False", "prob": 0.0}
 
     # ── SmartVision: Nhận diện người ngã ─────────────────────────
     async def call_smartvision_detect_people(self, img_url: str) -> dict:
@@ -281,8 +327,9 @@ class VnptAPIClient:
         self, text: str, session_id: str = "patient_001"
     ) -> dict:
         """Trả lời câu hỏi y tế của bệnh nhân qua SmartBot."""
+        bot_id = getattr(settings, "VNPT_SMARTBOT_ID", "hackathon_bot")
         payload = {
-            "bot_id": "hackathon_bot",
+            "bot_id": bot_id,
             "sender_id": session_id,
             "text": text,
             "input_channel": "livechat",
@@ -296,12 +343,35 @@ class VnptAPIClient:
                     json=payload,
                     headers=_smartbot_headers(),
                 )
-                data = resp.json()
-                replies = data.get("data", [])
-                reply_text = replies[0].get("text", "") if replies else ""
-                return {"reply": reply_text, "raw": data}
-        except Exception:
-            return {"reply": "Tôi đã ghi nhận. Vui lòng chờ bác sĩ xử lý.", "raw": {}}
+                
+                text_response = resp.text
+                last_data = None
+                
+                for line in text_response.strip().split('\n'):
+                    line = line.strip()
+                    if line.startswith('data:'):
+                        try:
+                            import json
+                            last_data = json.loads(line[5:])
+                        except Exception:
+                            pass
+                
+                if last_data:
+                    try:
+                        reply_text = last_data["object"]["sb"]["card_data"][0]["text"]
+                        return {"reply": reply_text, "raw": last_data}
+                    except KeyError:
+                        return {"reply": "", "raw": {"error": "Lỗi bóc tách nội dung từ SmartBot", "raw": last_data}}
+                else:
+                    try:
+                        data = resp.json()
+                        replies = data.get("data", [])
+                        reply_text = replies[0].get("text", "") if replies else ""
+                        return {"reply": reply_text, "raw": data}
+                    except Exception:
+                        return {"reply": "", "raw": {"error": "Lỗi đọc phản hồi từ SmartBot: " + text_response}}
+        except Exception as e:
+            return {"reply": "", "raw": {"error": f"Lỗi gọi VNPT SmartBot: {str(e)}" }}
 
         # ── SmartVoice: Speech To Text ───────────────────────────────
 
