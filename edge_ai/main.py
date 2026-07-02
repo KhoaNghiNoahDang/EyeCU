@@ -36,7 +36,7 @@ def ws_reader(ws):
 def connect_ws():
     for attempt in range(5):
         try:
-            ws = websocket.create_connection(WS_BACKEND_URL, timeout=10)
+            ws = websocket.create_connection(WS_BACKEND_URL, timeout=60)
             print(f"[OK] WebSocket ket noi thanh cong: {WS_BACKEND_URL}")
             # Khoi tao luong doc du lieu rac (ping, broadcast loopback)
             threading.Thread(target=ws_reader, args=(ws,), daemon=True).start()
