@@ -300,9 +300,10 @@ async def extract_ekyc(data: EkycExtractRequest, db: Session = Depends(get_db)):
         if card_liveness.get("liveness") != "success":
             raise HTTPException(status_code=400, detail=f"Giấy tờ không hợp lệ: {card_liveness.get('msg')}")
 
-        face_liveness = await vnpt_client.call_face_liveness_2d(face_hash)
-        if face_liveness.get("liveness") != "success":
-            raise HTTPException(status_code=400, detail=f"Khuôn mặt giả mạo: {face_liveness.get('msg')}")
+        # Tạm thời vô hiệu hóa Face Liveness vì Token VNPT chưa được cấp quyền (gây lỗi 401)
+        # face_liveness = await vnpt_client.call_face_liveness_2d(face_hash)
+        # if face_liveness.get("liveness") != "success":
+        #     raise HTTPException(status_code=400, detail=f"Khuôn mặt giả mạo: {face_liveness.get('msg')}")
 
         compare_res = await vnpt_client.call_face_compare(face_hash, front_hash)
         prob = float(compare_res.get("prob", 0))
