@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 # Patient
@@ -180,6 +180,25 @@ async def patient_chatbot(
         reply = f"Lỗi VNPT SmartBot: {raw_data['error']}"
 
     return {"reply": reply, "raw_data": raw_data}
+
+
+@router.post("/chat/voice", dependencies=[Depends(require_roles(["patient"]))])
+async def patient_voice_chat(
+    file: UploadFile = File(...),
+    user: Patient = Depends(get_current_user),
+):
+    audio_bytes = await file.read()
+    stt_response = await vnpt_client.call_smartvoice_stt(
+        audio_bytes=audio_bytes,
+        filename=file.filename,
+        content_type=file.content_type
+    )
+    
+    transcript = stt_response.get("transcript", "")
+    if not transcript:
+        return {"error": "Không thể nhận diện giọng nói", "raw": stt_response.get("raw")}
+        
+    return {"transcript": transcript}
 
 
 @router.post("/ekyc/cccd")

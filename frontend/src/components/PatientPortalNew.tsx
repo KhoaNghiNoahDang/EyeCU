@@ -46,6 +46,12 @@ export function PatientPortalNew({
   const [botTyping, setBotTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  // Ghi âm Voice
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<BlobPart[]>([]);
+
   // PWA Installation States
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showIosPrompt, setShowIosPrompt] = useState(false);
@@ -123,6 +129,56 @@ export function PatientPortalNew({
         setBotTyping(false);
       })
       .catch(() => setBotTyping(false));
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      chunksRef.current = [];
+
+      mediaRecorderRef.current.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+
+      mediaRecorderRef.current.onstop = async () => {
+        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        stream.getTracks().forEach(track => track.stop());
+        
+        setIsTranscribing(true);
+        try {
+          const formData = new FormData();
+          formData.append('file', audioBlob, 'recording.webm');
+          const token = localStorage.getItem("token");
+          const res = await fetch(import.meta.env.VITE_API_URL + "/patient/chat/voice", {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${token}` },
+            body: formData
+          });
+          const data = await res.json();
+          if (data.transcript) {
+            setChatInput(prev => prev + (prev ? " " : "") + data.transcript);
+          }
+        } catch (err) {
+          console.error("Lỗi gửi audio:", err);
+        } finally {
+          setIsTranscribing(false);
+        }
+      };
+
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error("Lỗi truy cập micro:", err);
+      alert("Không thể truy cập Micro. Vui lòng cấp quyền.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
   };
 
   // Main Navigation state
@@ -1699,16 +1755,39 @@ export function PatientPortalNew({
                 <div ref={chatEndRef} />
               </div>
               <div className="flex items-center gap-2 border-t border-slate-100 bg-white p-2">
-                <input
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                  placeholder="Hỏi trợ lý AI..."
-                  className="min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-4 py-2.5 text-[13px] text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#88E8F2]"
-                />
+                <button
+                  onClick={() => isRecording ? stopRecording() : startRecording()}
+                  className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition active:scale-95 ${
+                    isRecording ? "bg-red-500 animate-pulse text-white shadow-md" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                  title="Ghi âm"
+                >
+                  <Mic className="h-4 w-4" />
+                </button>
+                <div className="relative flex-1">
+                  <input
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                    placeholder={isTranscribing ? "Đang nhận diện giọng nói..." : (isRecording ? "Đang ghi âm..." : "Hỏi trợ lý AI...")}
+                    disabled={isTranscribing || isRecording}
+                    className="w-full min-w-0 rounded-full border border-slate-200 bg-slate-50 px-4 py-2.5 text-[13px] text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#88E8F2] disabled:opacity-50"
+                  />
+                  {isTranscribing && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <span className="flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#88E8F2] opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-[#88E8F2]"></span>
+                      </span>
+                    </div>
+                  )}
+                </div>
                 <button onClick={() => sendMessage()}
-                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#88E8F2] transition active:scale-95"
-                ><Send className="h-4 w-4 text-[#0d1f2d] ml-0.5" /></button>
+                  disabled={isTranscribing || isRecording || !chatInput.trim()}
+                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#88E8F2] transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Send className="h-4 w-4 text-[#0d1f2d] ml-0.5" />
+                </button>
               </div>
             </div>
           </div>
