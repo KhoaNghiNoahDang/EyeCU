@@ -9,6 +9,14 @@ import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
   nitro: true,
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      }
+    }
+  },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this

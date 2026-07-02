@@ -116,6 +116,7 @@ import {
   Zap,
   Users,
   Camera,
+  ScanFace,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -759,7 +760,7 @@ function AmbientView({
   const [cameras, setCameras] = useState<Camera[]>([]);
   const [fallAlert, setFallAlert] = useState<{room: string; imageUrl: string; time: string} | null>(null);
 
-  const WS_URL = "wss://eyecu.onrender.com/api/ambient/ws/live";
+  const WS_URL = "ws://localhost:8000/api/ambient/ws/live";
 
   const handleSocketMessage = useCallback((msg: any) => {
     if (msg.type === "CAMERA_STREAM") {
@@ -8195,7 +8196,54 @@ function AdminStaffsTab() {
     employee_id: "",
     department_id: "",
     password: "",
+    face_base64: "",
   });
+
+  const [isCapturingFace, setIsCapturingFace] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  useEffect(() => {
+    if (isCapturingFace && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [isCapturingFace]);
+
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setIsCapturingFace(false);
+  };
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "user" }, width: { ideal: 320 }, height: { ideal: 240 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setIsCapturingFace(true);
+    } catch (e) {
+      alert("Không thể mở camera");
+    }
+  };
+
+  const captureFace = () => {
+    if (!videoRef.current) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    const base64Image = canvas.toDataURL("image/jpeg", 0.8);
+    setForm((s) => ({ ...s, face_base64: base64Image }));
+    stopCamera();
+  };
 
   const roleLabels: Record<string, string> = {
     admin: "Admin",
@@ -8227,6 +8275,7 @@ function AdminStaffsTab() {
         employee_id: "",
         department_id: "",
         password: "",
+        face_base64: "",
       });
     } catch (e) {
       console.error(e);
@@ -8243,7 +8292,10 @@ function AdminStaffsTab() {
           </h3>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => {
+            setShowForm(!showForm);
+            if (showForm) stopCamera();
+          }}
           className="text-[11px] font-bold tracking-wider uppercase font-geist text-white bg-[#0A9BAD] hover:bg-[#0891b2] px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
         >
           <Plus className="w-3 h-3" /> Thêm nhân viên
@@ -8337,7 +8389,40 @@ function AdminStaffsTab() {
               />
             </div>
           </div>
-          <div className="flex gap-2">
+          
+          <div className="mt-2 p-3 bg-white border border-slate-200 rounded-xl space-y-2">
+             <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+               Khuôn mặt đăng nhập (FaceID)
+             </label>
+             {!form.face_base64 && !isCapturingFace && (
+               <button onClick={startCamera} className="w-full border-2 border-dashed border-slate-300 rounded-lg py-4 text-xs font-bold text-slate-500 hover:text-[#0A9BAD] hover:border-[#0A9BAD] hover:bg-[#0A9BAD]/5 transition-all">
+                 <ScanFace className="w-5 h-5 mx-auto mb-1 opacity-60" /> Bật Camera quét mặt
+               </button>
+             )}
+             {isCapturingFace && (
+               <div className="relative w-full max-w-sm mx-auto overflow-hidden rounded-xl bg-black aspect-video border-2 border-[#0A9BAD] shadow-[0_0_15px_rgba(10,155,173,0.3)]">
+                  <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 border-[3px] border-[#0A9BAD]/30 m-4 rounded-lg"></div>
+                  <button onClick={captureFace} className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-[#0A9BAD] hover:bg-[#0891b2] text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg">
+                    Chụp ảnh
+                  </button>
+                  <button onClick={stopCamera} className="absolute top-2 right-2 bg-slate-900/50 text-white p-1.5 rounded-full hover:bg-red-500 transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+               </div>
+             )}
+             {form.face_base64 && (
+               <div className="flex gap-4 items-center">
+                 <img src={form.face_base64} alt="Face preview" className="w-20 h-20 object-cover rounded-xl border border-slate-200 shadow-sm" />
+                 <div className="flex flex-col gap-1">
+                   <p className="text-xs font-bold text-green-600 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Đã lấy dữ liệu khuôn mặt</p>
+                   <button onClick={() => setForm(s => ({...s, face_base64: ""}))} className="text-[10px] text-red-500 hover:text-red-700 text-left font-medium">Chụp lại</button>
+                 </div>
+               </div>
+             )}
+          </div>
+
+          <div className="flex gap-2 mt-4">
             <button
               onClick={handleAdd}
               disabled={!form.name.trim() || !form.cccd.trim() || !form.password.trim()}

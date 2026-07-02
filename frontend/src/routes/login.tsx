@@ -279,8 +279,8 @@ function SectionTitle({
 
 /* ─── STAFF FLOW ─── */
 function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode) => void }) {
-  const [step, setStep] = useState<"choose" | "scan" | "manual" | "identify" | "pick_shift">(
-    "choose",
+  const [step, setStep] = useState<"scan" | "manual" | "identify" | "pick_shift">(
+    "manual",
   );
   const [identifiedUser, setIdentifiedUser] = useState<AuthUser | null>(null);
   const [employeeId, setEmployeeId] = useState("");
@@ -335,19 +335,55 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
     };
   }, [step, stopCamera]);
 
-  const captureAndIdentify = useCallback(() => {
-    stopCamera();
-    setStep("identify");
-  }, [stopCamera]);
-
-  useEffect(() => {
-    return () => stopCamera();
-  }, [stopCamera]);
-
   const { data: staffList = [], isLoading: isLoadingStaff } = useQuery({
     queryKey: ["staff"],
     queryFn: () => fetchApi("/auth/staff"),
   });
+
+  const captureAndIdentify = useCallback(async () => {
+    if (!videoRef.current) return;
+    
+    // Capture image from video
+    const canvas = document.createElement("canvas");
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    const base64Image = canvas.toDataURL("image/jpeg", 0.8);
+
+    stopCamera();
+    setIsAuthenticating(true);
+    
+    try {
+      const res = await fetchApi("/auth/login/face/staff", {
+        method: "POST",
+        body: JSON.stringify({ face_base64: base64Image }),
+      });
+
+      if (res.access_token) {
+        sessionStorage.setItem("eyecu_token", res.access_token);
+        const me = await fetchApi("/auth/me");
+        setIdentifiedUser(me as AuthUser);
+        
+        // Nếu là Điều dưỡng thì vào thẳng ops, còn lại chọn ca
+        if (me.title === "ĐD.") {
+          onLogin(me as AuthUser, "ops");
+        } else {
+          setStep("pick_shift");
+        }
+      }
+    } catch (err: any) {
+      alert(err.message || "Không tìm thấy dữ liệu khuôn mặt. Vui lòng đăng nhập thủ công.");
+      setStep("manual");
+    } finally {
+      setIsAuthenticating(false);
+    }
+  }, [stopCamera, onLogin]);
+
+  useEffect(() => {
+    return () => stopCamera();
+  }, [stopCamera]);
 
   const handleManualLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -378,64 +414,7 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
     }
   };
 
-  /* STEP 0 — Choose Login Method */
-  if (step === "choose") {
-    return (
-      <div className="space-y-3 animate-in fade-in duration-300">
-        <SectionTitle
-          icon={Stethoscope}
-          title="Đăng nhập Nhân viên"
-          subtitle="Chọn phương thức xác thực"
-        />
-        {[
-          {
-            id: "scan" as const,
-            icon: ScanFace,
-            title: "Quét FaceID",
-            sub: "Sinh trắc học · Nhanh chóng & An toàn",
-            filled: true,
-          },
-          {
-            id: "manual" as const,
-            icon: Keyboard,
-            title: "Mã Nhân viên & Mật khẩu",
-            sub: "Đăng nhập thủ công bằng tài khoản",
-            filled: false,
-          },
-        ].map(({ id, icon: Icon, title, sub, filled }) => (
-          <button
-            key={id}
-            onClick={() => setStep(id)}
-            className="w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left group"
-            style={{ borderColor: "#f1f5f9" }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.borderColor = ACCENT;
-              (e.currentTarget as HTMLButtonElement).style.backgroundColor = `${ACCENT}08`;
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.borderColor = "#f1f5f9";
-              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
-            }}
-          >
-            <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110"
-              style={{ backgroundColor: filled ? `${ACCENT}18` : "#f8fafc" }}
-            >
-              <Icon className="w-5 h-5" style={{ color: filled ? ACCENT_DARK : "#94a3b8" }} />
-            </div>
-            <div className="flex-1">
-              <div className="font-bold text-slate-900 text-sm">{title}</div>
-              <div className="text-xs text-slate-400 mt-0.5">{sub}</div>
-            </div>
-            <ChevronRight
-              className="w-4 h-4 transition-transform group-hover:translate-x-0.5"
-              style={{ color: `${ACCENT_DARK}80` }}
-            />
-          </button>
-        ))}
-      </div>
-    );
-  }
+  /* STEP 0 — Choose Login Method removed */
 
   /* STEP 1A — FaceID scan (real camera) */
   if (step === "scan") {
@@ -514,11 +493,18 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
             </button>
             <button
               onClick={captureAndIdentify}
-              disabled={!cameraReady}
-              className="flex-1 rounded-xl py-2.5 text-sm font-bold text-slate-900 transition-all disabled:opacity-40"
+              disabled={!cameraReady || isAuthenticating}
+              className="flex-1 rounded-xl py-2.5 text-sm font-bold text-slate-900 transition-all disabled:opacity-40 flex items-center justify-center gap-2"
               style={{ backgroundColor: ACCENT }}
             >
-              Xác nhận khuôn mặt
+              {isAuthenticating ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-t-transparent border-slate-900 rounded-full animate-spin" />{" "}
+                  Đang xử lý...
+                </>
+              ) : (
+                "Xác nhận khuôn mặt"
+              )}
             </button>
           </div>
         )}
@@ -526,19 +512,19 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
     );
   }
 
-  /* STEP 1B — Manual Login */
+  /* STEP 1B — Manual Login + Fast Login */
   if (step === "manual") {
     return (
       <div className="flex flex-col text-center space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
         <SectionTitle
-          icon={Keyboard}
-          title="Đăng nhập Thủ công"
-          subtitle="Sử dụng Mã Nhân viên và Mật khẩu"
+          icon={Stethoscope}
+          title="Đăng nhập Nhân viên"
+          subtitle="Nhập thông tin tài khoản chuyên môn"
         />
 
         <form onSubmit={handleManualLogin} className="w-full flex flex-col gap-4 text-left">
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Mã Nhân viên</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">MÃ NHÂN VIÊN</label>
             <div className="relative">
               <UserCircle2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
@@ -546,14 +532,14 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
                 required
                 value={employeeId}
                 onChange={(e) => setEmployeeId(e.target.value)}
-                placeholder="VD: BS001"
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 text-sm uppercase focus:border-[#88E8F2] outline-none"
+                placeholder="Ví dụ: BS001"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 text-sm uppercase focus:border-[#0d1f2d] outline-none transition-colors"
                 disabled={isAuthenticating}
               />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Mật khẩu</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">MẬT KHẨU</label>
             <div className="relative">
               <Keyboard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
@@ -562,7 +548,7 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:border-[#88E8F2] outline-none"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:border-[#0d1f2d] outline-none transition-colors"
                 disabled={isAuthenticating}
               />
             </div>
@@ -570,12 +556,12 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
           <button
             type="submit"
             disabled={isAuthenticating || employeeId.length < 3 || password.length < 3}
-            className="mt-2 w-full py-2.5 rounded-lg text-sm font-bold text-slate-900 transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
-            style={{ backgroundColor: ACCENT }}
+            className="mt-2 w-full py-2.5 rounded-lg text-sm font-bold text-white transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 shadow-md"
+            style={{ backgroundColor: "#0d1f2d" }}
           >
             {isAuthenticating ? (
               <>
-                <span className="w-4 h-4 border-2 border-t-transparent border-slate-900 rounded-full animate-spin" />{" "}
+                <span className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin" />{" "}
                 Đang đăng nhập...
               </>
             ) : (
@@ -584,92 +570,33 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
           </button>
         </form>
 
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-slate-200" />
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-geist">Hoặc</span>
+          <div className="flex-1 h-px bg-slate-200" />
+        </div>
+
         <button
-          onClick={() => setStep("choose")}
-          className="flex items-center justify-center gap-1.5 text-xs text-slate-400 hover:text-slate-700 transition-colors mt-2"
+          type="button"
+          onClick={() => setStep("scan")}
+          className="group flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-all hover:border-slate-300 hover:shadow-md active:scale-[0.99]"
         >
-          <ArrowLeft className="w-3 h-3" /> Quay lại chọn phương thức khác
+          <div className="min-w-0 text-left leading-snug">
+            <p className="text-[13px] font-semibold text-slate-900">Đăng nhập nhanh bằng FaceID</p>
+            <p className="text-[11px] text-slate-500 font-geist">Xác thực sinh trắc học an toàn</p>
+          </div>
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110"
+            style={{ backgroundColor: `${ACCENT}18` }}
+          >
+            <ScanFace className="w-5 h-5" style={{ color: ACCENT_DARK }} />
+          </div>
         </button>
       </div>
     );
   }
 
-  /* STEP 2 — Pick staff */
-  if (step === "identify") {
-    return (
-      <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-        <SectionTitle
-          icon={ShieldCheck}
-          title="Xác thực thành công"
-          subtitle="Chọn tài khoản của bạn để tiếp tục"
-        />
-        <div className="space-y-2">
-          {isLoadingStaff ? (
-            <div className="text-center py-4 text-slate-400 text-sm">
-              Đang tải danh sách nhân viên...
-            </div>
-          ) : staffList.length === 0 ? (
-            <div className="text-center py-4 text-slate-400 text-sm">
-              Chưa có nhân viên nào trong hệ thống
-            </div>
-          ) : (
-            staffList.map((staff: AuthUser) => (
-              <button
-                key={staff.id}
-                onClick={() => {
-                  setIdentifiedUser(staff);
-                  if (staff.title === "ĐD.") {
-                    onLogin(staff, "ops");
-                  } else {
-                    setStep("pick_shift");
-                  }
-                }}
-                className="w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all text-left group hover:scale-[1.01]"
-                style={{ borderColor: "#f1f5f9" }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.borderColor = ACCENT;
-                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = `${ACCENT}0A`;
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.borderColor = "#f1f5f9";
-                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
-                }}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 border-2"
-                    style={{ borderColor: `${ACCENT}40`, backgroundColor: `${ACCENT}15` }}
-                  >
-                    {staff.avatar ? (
-                      <img
-                        src={staff.avatar}
-                        alt={staff.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <UserCircle2 className="w-5 h-5" style={{ color: ACCENT_DARK }} />
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-900 text-sm">
-                      {staff.title} {staff.name}
-                    </div>
-                    <div className="text-xs text-slate-400">{staff.department}</div>
-                  </div>
-                </div>
-                <ChevronRight
-                  className="w-4 h-4 transition-transform group-hover:translate-x-0.5"
-                  style={{ color: ACCENT_DARK }}
-                />
-              </button>
-            ))
-          )}
-        </div>
-      </div>
-    );
-  }
+  /* STEP 2 — Identify step removed */
 
   /* STEP 3 — Pick shift */
   const shifts: { mode: WorkMode; icon: typeof Eye; label: string; sub: string }[] = [

@@ -122,6 +122,7 @@ class StaffCreate(BaseModel):
     employee_id: str
     department_id: Optional[str] = None
     password: str
+    face_base64: Optional[str] = None
 
 @router.post("/staffs", dependencies=[Depends(require_roles(["admin"]))])
 def create_staff(data: StaffCreate, db: Session = Depends(get_db)):
@@ -145,7 +146,8 @@ def create_staff(data: StaffCreate, db: Session = Depends(get_db)):
         cccd=data.cccd,
         employee_id=data.employee_id,
         password_hash=data.password,
-        department_id=dept_id
+        department_id=dept_id,
+        face_base64=data.face_base64
     )
     db.add(new_staff)
     db.commit()

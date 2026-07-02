@@ -50,6 +50,7 @@ class Staff(SQLModel, table=True):
     department_id: Optional[uuid.UUID] = Field(
         default=None, foreign_key="departments.id"
     )
+    face_base64: Optional[str] = Field(default=None) # To store the registered face image
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
