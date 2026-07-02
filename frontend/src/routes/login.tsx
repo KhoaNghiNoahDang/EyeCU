@@ -834,15 +834,53 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
       />
 
       {isCapturingFace ? (
-        <div className="relative w-full max-w-sm mx-auto overflow-hidden rounded-xl bg-black aspect-video border-2 border-[#0A9BAD] shadow-lg">
-          <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-          <div className="absolute inset-0 border-[3px] border-[#0A9BAD]/30 m-4 rounded-lg"></div>
-          <button onClick={captureFaceAndLogin} className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-[#0A9BAD] hover:bg-[#0891b2] text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg">
-            Xác thực khuôn mặt
-          </button>
-          <button onClick={stopCamera} className="absolute top-2 right-2 bg-slate-900/50 text-white p-1.5 rounded-full hover:bg-red-500 transition-colors">
-            <X className="w-4 h-4" />
-          </button>
+        <div className="flex flex-col items-center text-center space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+          <div
+            className="relative w-40 h-40 mx-auto overflow-hidden rounded-full border-2"
+            style={{ borderColor: ACCENT }}
+          >
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="h-full w-full object-cover"
+            />
+            <div
+              className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2"
+              style={{
+                background: `linear-gradient(90deg, transparent, ${ACCENT}, transparent)`,
+                animation: "face-scan 2s ease-in-out infinite",
+              }}
+            />
+            <style>{`
+              @keyframes face-scan {
+                0%, 100% { transform: translateY(-30px); opacity: 0.4; }
+                50% { transform: translateY(30px); opacity: 1; }
+              }
+            `}</style>
+          </div>
+          <div>
+            <p className="font-bold text-slate-900">Đang nhận diện khuôn mặt</p>
+            <p className="text-xs text-slate-400 mt-1">Vui lòng đưa khuôn mặt vào giữa khung hình...</p>
+          </div>
+          <div className="flex gap-2 w-full">
+            <button
+              type="button"
+              onClick={stopCamera}
+              className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              <ArrowLeft className="w-3 h-3" /> Hủy
+            </button>
+            <button
+              type="button"
+              onClick={captureFaceAndLogin}
+              className="flex-1 rounded-xl py-2.5 text-sm font-bold text-slate-900 transition-all hover:opacity-90"
+              style={{ backgroundColor: ACCENT }}
+            >
+              Xác nhận khuôn mặt
+            </button>
+          </div>
         </div>
       ) : (
         <form onSubmit={handleLoginSubmit} className="space-y-3">
