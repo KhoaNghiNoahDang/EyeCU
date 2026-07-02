@@ -168,7 +168,7 @@ class VnptAPIClient:
         try:
             async with httpx.AsyncClient(timeout=5) as client:
                 resp = await client.post(
-                    "https://api.idg.vnpt.vn/ai/v1/web/face/liveness",
+                    "https://api.idg.vnpt.vn/ai/v1/face/liveness",
                     json=payload,
                     headers={
                         "Token-id": settings.VNPT_EKYC_TOKEN_ID,
