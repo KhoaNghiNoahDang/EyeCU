@@ -6488,7 +6488,7 @@ function PatientPortalView({
           },
         ]);
       } else {
-        throw new Error("Không trích xuất được thông tin");
+        throw new Error(res.message || "Không trích xuất được thông tin");
       }
     } catch (e: any) {
       console.error(e);

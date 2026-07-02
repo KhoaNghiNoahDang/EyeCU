@@ -317,6 +317,7 @@ class VnptAPIClient:
                     "https://api.idg.vnpt.vn/file-service/v1/addFile",
                     headers=headers,
                     files={"file": (filename, file_bytes, content_type)},
+                    data={"title": filename, "description": "EyeCU document"},
                 )
                 upload_data = upload_resp.json()
                 hash_string = upload_data.get("object", {}).get("hash")
