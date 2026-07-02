@@ -174,15 +174,12 @@ async def patient_chatbot(
     final_message = context + "Câu hỏi của tôi: " + data.message if context else data.message
     bot_response = await vnpt_client.call_smartbot_conversation(final_message)
 
-    reply = "Tôi chưa hiểu rõ câu hỏi, vui lòng thử lại."
-    if (
-        "data" in bot_response
-        and isinstance(bot_response["data"], list)
-        and len(bot_response["data"]) > 0
-    ):
-        reply = bot_response["data"][0].get("text", reply)
+    reply = bot_response.get("reply") or "Tôi chưa hiểu rõ câu hỏi, vui lòng thử lại."
+    raw_data = bot_response.get("raw", {})
+    if "error" in raw_data:
+        reply = f"Lỗi VNPT SmartBot: {raw_data['error']}"
 
-    return {"reply": reply, "raw_data": bot_response}
+    return {"reply": reply, "raw_data": raw_data}
 
 
 @router.post("/ekyc/cccd")

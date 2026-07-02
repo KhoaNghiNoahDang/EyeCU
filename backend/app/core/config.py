@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     VNPT_SMARTBOT_TOKEN_ID: str = ""
     VNPT_SMARTBOT_TOKEN_KEY: str = ""
     VNPT_SMARTBOT_ACCESS_TOKEN: str = ""
+    VNPT_SMARTBOT_ID: str = "hackathon_bot"
 
     # VNPT vnFace
     VNPT_VNFACE_ACCESS_TOKEN: str = ""

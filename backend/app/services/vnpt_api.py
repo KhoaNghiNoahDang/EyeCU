@@ -281,8 +281,9 @@ class VnptAPIClient:
         self, text: str, session_id: str = "patient_001"
     ) -> dict:
         """Trả lời câu hỏi y tế của bệnh nhân qua SmartBot."""
+        bot_id = getattr(settings, "VNPT_SMARTBOT_ID", "hackathon_bot")
         payload = {
-            "bot_id": "hackathon_bot",
+            "bot_id": bot_id,
             "sender_id": session_id,
             "text": text,
             "input_channel": "livechat",
@@ -300,8 +301,8 @@ class VnptAPIClient:
                 replies = data.get("data", [])
                 reply_text = replies[0].get("text", "") if replies else ""
                 return {"reply": reply_text, "raw": data}
-        except Exception:
-            return {"reply": "Tôi đã ghi nhận. Vui lòng chờ bác sĩ xử lý.", "raw": {}}
+        except Exception as e:
+            return {"reply": "", "raw": {"error": f"Lỗi gọi VNPT SmartBot: {str(e)}" }}
 
         # ── SmartVoice: Speech To Text ───────────────────────────────
 
