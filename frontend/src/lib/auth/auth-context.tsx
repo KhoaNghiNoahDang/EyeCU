@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 
 /* ─── Types ─── */
 export type WorkMode = "ops" | "clinician" | "patient" | "admin" | "ems";
@@ -58,13 +58,20 @@ function persistAuth(user: AuthUser | null, workMode: WorkMode | null, token?: s
 
 /* ─── Provider ─── */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState(() => {
+  const [isClient, setIsClient] = useState(false);
+  const [state, setState] = useState<{ user: AuthUser | null; workMode: WorkMode | null }>({
+    user: null,
+    workMode: null,
+  });
+
+  useEffect(() => {
+    setIsClient(true);
     const persisted = loadPersistedAuth();
-    return {
+    setState({
       user: persisted.user,
       workMode: persisted.workMode,
-    };
-  });
+    });
+  }, []);
 
   const login = useCallback((user: AuthUser, mode?: WorkMode, token?: string) => {
     const workMode = mode ?? (user.type === "patient" ? "patient" : null);

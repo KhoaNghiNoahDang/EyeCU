@@ -6,6 +6,7 @@ import { fetchApi } from "../lib/api/client";
 import { DEMO_PATIENT_CLINICAL, formatRecordDate, formatVnd } from "../lib/patient/clinical-data";
 import { lazy, Suspense } from "react";
 import { MapErrorBoundary } from "../components/MapErrorBoundary";
+import { PatientPortalNew } from "../components/PatientPortalNew";
 import { CENTRAL_HOSPITALS, getHospitalsByProvince, Hospital } from "../lib/hospitals";
 import { CccdCapture } from "../components/auth/CccdCapture";
 const gpsToSvg = (lat: number, lng: number) => {
@@ -576,7 +577,7 @@ function PatientRounds() {
             {activeView === "voice" && <VoiceView />}
             {activeView === "chatbot" && <ChatbotView />}
             {activeView === "patient" && (
-              <PatientPortalView
+              <PatientPortalNew
                 isInstallEligible={isInstallEligible}
                 showIosInstallHint={showIosInstallHint}
                 onInstallApp={handleInstallApp}
@@ -7407,6 +7408,10 @@ function EmsView() {
   const [showMissionSetup, setShowMissionSetup] = useState(false);
   const [plate, setPlate] = useState("");
   const [hospitalId, setHospitalId] = useState(CENTRAL_HOSPITALS[0].id.toString());
+  const [plateInput, setPlateInput] = useState("");
+  const [plateError, setPlateError] = useState("");
+  const [showPlateModal, setShowPlateModal] = useState(false);
+  const [plateConfirmed, setPlateConfirmed] = useState<string | null>(null);
   const groupedHospitals = getHospitalsByProvince();
 
   // State cho modal nhập biển số khi bật GPS
@@ -7508,83 +7513,62 @@ function EmsView() {
       setIsMissionStarted(false);
       realStartRef.current = null; // Reset
     } else {
-      // Mo modal nhap bien so truoc
+      // Bat dau GPS
       if (!navigator.geolocation) {
         alert("Trình duyệt không hỗ trợ định vị GPS.");
         return;
       }
-      setPlateInput("");
-      setPlateError("");
-      setShowPlateModal(true);
+      const savedPlate = plate.trim() || localStorage.getItem("ems_plate") || "";
+      if (!savedPlate) {
+        alert("Vui lòng thiết lập nhiệm vụ trước khi truyền GPS.");
+        return;
+      }
+      
+      setPlateConfirmed(savedPlate);
+      setIsBroadcasting(true);
+
+      // Lay vi tri lan dau tien -> gui GPS_START kem bien so
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          setGpsState({ lat: latitude, lng: longitude });
+          // GPS_START: dang ky bien so + toa do dau tien voi backend
+          send({
+            type: "GPS_START",
+            data: { plate: savedPlate, lat: latitude, lng: longitude },
+          });
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 8000 },
+      );
+
+      // Theo doi GPS lien tuc, moi lan cap nhat gui kem bien so
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          setGpsState({ lat: latitude, lng: longitude });
+          send({
+            type: "GPS_UPDATE",
+            data: { plate: savedPlate, ambulance_id: "current", lat: latitude, lng: longitude },
+          });
+        },
+        (err) => {
+          console.error("Lỗi GPS:", err);
+          if (err.code === 1) {
+            alert("Lỗi GPS: Bạn đã từ chối hoặc trình duyệt không có quyền truy cập vị trí.");
+            setIsBroadcasting(false);
+            setPlateConfirmed(null);
+          } else if (err.code === 2) {
+            console.warn("GPS: Tạm thời không tìm thấy vị trí.");
+          } else if (err.code === 3) {
+            console.warn("GPS: Quá thời gian lấy vị trí (Timeout), đang thử lại...");
+          }
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 },
+      );
     }
   };
 
-  // Sau khi tai xe nhap bien so va xac nhan -> bat dau GPS
-  const startGpsWithPlate = async () => {
-    const trimmed = plateInput.trim();
-    if (trimmed.length < 4) {
-      setPlateError("Vui lòng nhập ít nhất 4 ký tự biển số.");
-      return;
-    }
-    setPlateError("");
-    setShowPlateModal(false);
-    setPlateConfirmed(trimmed);
-    setIsBroadcasting(true);
-
-    // Bắt đầu nhiệm vụ trên backend để hiện vào hàng đợi LPR
-    try {
-      await fetchApi("/ems/start-mission", {
-        method: "POST",
-        body: { plate_number: trimmed, hospital_id: hospitalId },
-      });
-    } catch (err) {
-      console.error("Lỗi tạo mission:", err);
-    }
-
-    // Lay vi tri lan dau tien -> gui GPS_START kem bien so
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        setGpsState({ lat: latitude, lng: longitude });
-        // GPS_START: dang ky bien so + toa do dau tien voi backend
-        send({
-          type: "GPS_START",
-          data: { plate: trimmed, lat: latitude, lng: longitude },
-        });
-      },
-      () => {},
-      { enableHighAccuracy: true, timeout: 8000 },
-    );
-
-    // Theo doi GPS lien tuc, moi lan cap nhat gui kem bien so
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        setGpsState({ lat: latitude, lng: longitude });
-        send({
-          type: "GPS_UPDATE",
-          data: { plate: trimmed, ambulance_id: "current", lat: latitude, lng: longitude },
-        });
-      },
-      (err) => {
-        console.error("Lỗi GPS:", err);
-        if (err.code === 1) {
-          alert("Lỗi GPS: Bạn đã từ chối hoặc trình duyệt không có quyền truy cập vị trí.");
-          setIsBroadcasting(false);
-          setPlateConfirmed(null);
-        } else if (err.code === 2) {
-          console.warn("GPS: Tạm thời không tìm thấy vị trí.");
-        } else if (err.code === 3) {
-          console.warn("GPS: Quá thời gian lấy vị trí (Timeout), đang thử lại...");
-        }
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 },
-    );
-  };
-
-  useEffect(() => {
-    return () => {
-      if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
     };

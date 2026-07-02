@@ -1,4 +1,7 @@
 import asyncio
+import sys
+import subprocess
+import os
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from typing import List
 from pydantic import BaseModel
@@ -221,3 +224,87 @@ async def background_log_flusher():
             except Exception as e:
                 db.rollback()
                 print(f"[Ambient] Error flushing logs: {e}")
+
+# ==========================================
+# EDGE AI PROCESS MANAGEMENT
+# ==========================================
+edge_ai_process = None
+
+def install_requirements(edge_ai_dir: str):
+    req_file = os.path.join(edge_ai_dir, "requirements_edge.txt")
+    if os.path.exists(req_file):
+        print(f"[Ambient] Checking/installing edge AI requirements from {req_file}...")
+        try:
+            import cv2
+            import mediapipe
+            import websocket
+            import sklearn
+            import joblib
+            print("[Ambient] All Edge AI modules already installed!")
+        except ImportError:
+            print("[Ambient] Missing Edge AI modules. Running pip install...")
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", "-r", req_file],
+                check=True
+            )
+
+@router.post("/start-edge-ai")
+def start_edge_ai():
+    global edge_ai_process
+    try:
+        if edge_ai_process is not None and edge_ai_process.poll() is None:
+            return {"status": "already_running"}
+        
+        edge_ai_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../edge_ai"))
+        
+        try:
+            install_requirements(edge_ai_dir)
+        except Exception as e:
+            print(f"[Ambient] Failed to install requirements: {e}")
+            return {"status": "error", "message": f"Failed to install requirements: {e}"}
+
+        print(f"[Ambient] Starting main.py in {edge_ai_dir}...")
+        env = os.environ.copy()
+        env["ROOM_ID"] = "Unknown"
+        
+        # Determine correct python executable
+        python_exe = sys.executable
+        if "uvicorn" in python_exe or "gunicorn" in python_exe:
+            python_exe = os.path.join(os.path.dirname(sys.executable), "python")
+            if not os.path.exists(python_exe):
+                python_exe = "python3"
+
+        import platform
+        if platform.system() == "Darwin" and env.get("CAMERA_SOURCE", "0") == "0":
+            print("[Ambient] MacOS detected. Launching in Terminal to allow Camera access.")
+            apple_script = f'''
+            tell application "Terminal"
+                activate
+                do script "export ROOM_ID=Unknown && cd {edge_ai_dir} && {python_exe} main.py"
+            end tell
+            '''
+            edge_ai_process = subprocess.Popen(["osascript", "-e", apple_script])
+        else:
+            log_file = open(os.path.join(edge_ai_dir, "edge_ai.log"), "w")
+            edge_ai_process = subprocess.Popen(
+                [python_exe, "-u", "main.py"],
+                cwd=edge_ai_dir,
+                env=env,
+                stdout=log_file,
+                stderr=subprocess.STDOUT
+            )
+        return {"status": "started", "executable": python_exe}
+    except Exception as e:
+        import traceback
+        err_msg = traceback.format_exc()
+        return {"status": "error", "message": str(e), "traceback": err_msg}
+
+@router.post("/stop-edge-ai")
+def stop_edge_ai():
+    global edge_ai_process
+    if edge_ai_process is not None and edge_ai_process.poll() is None:
+        edge_ai_process.terminate()
+        edge_ai_process.wait()
+        edge_ai_process = None
+        return {"status": "stopped"}
+    return {"status": "not_running"}
