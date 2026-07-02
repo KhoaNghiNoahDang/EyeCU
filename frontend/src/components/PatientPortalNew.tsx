@@ -489,7 +489,7 @@ export function PatientPortalNew({
   const renderHealthRecord = () => (
     <div className="flex-1 flex flex-col bg-[#88E8F2] overflow-hidden">
       {/* Top App Bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-[#0d1f2d] text-white pt-safe z-10 shrink-0 shadow-sm">
+      <div className="flex items-center justify-between px-4 py-3 bg-[#88E8F2] text-[#0d1f2d] pt-safe z-10 shrink-0 shadow-sm">
         <button onClick={() => setCurrentView("home")} className="p-1 active:scale-95">
           <ArrowLeft className="h-6 w-6" />
         </button>
@@ -613,7 +613,7 @@ export function PatientPortalNew({
   // Render Community QA
   const renderCommunityQa = () => (
     <div className="flex-1 flex flex-col bg-[#f0f2f5] overflow-hidden relative">
-      <div className="flex items-center justify-between px-4 py-3 bg-[#0d1f2d] text-white pt-safe z-10 shrink-0 shadow-sm">
+      <div className="flex items-center justify-between px-4 py-3 bg-[#88E8F2] text-[#0d1f2d] pt-safe z-10 shrink-0 shadow-sm">
         <button onClick={() => setCurrentView("home")} className="p-1 active:scale-95">
           <ArrowLeft className="h-6 w-6" />
         </button>
@@ -674,7 +674,7 @@ export function PatientPortalNew({
   // Render Ask Question Form
   const renderAskQuestion = () => (
     <div className="flex-1 flex flex-col bg-white overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 bg-[#0d1f2d] text-white pt-safe z-10 shrink-0 shadow-sm">
+      <div className="flex items-center justify-between px-4 py-3 bg-[#88E8F2] text-[#0d1f2d] pt-safe z-10 shrink-0 shadow-sm">
         <button onClick={() => setCurrentView("community_qa")} className="p-1 active:scale-95">
           <ArrowLeft className="h-6 w-6" />
         </button>
@@ -789,7 +789,7 @@ export function PatientPortalNew({
   const renderRecordLookup = () => (
     <div className="flex-1 flex flex-col bg-[#88E8F2] overflow-hidden">
       {/* Top App Bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-[#0d1f2d] text-white pt-safe z-10 shrink-0 shadow-sm">
+      <div className="flex items-center justify-between px-4 py-3 bg-[#88E8F2] text-[#0d1f2d] pt-safe z-10 shrink-0 shadow-sm">
         <button onClick={() => setCurrentView("home")} className="p-1 active:scale-95">
           <ArrowLeft className="h-6 w-6" />
         </button>
@@ -944,7 +944,7 @@ export function PatientPortalNew({
   const renderInvoiceList = () => (
     <div className="flex-1 flex flex-col bg-[#f0f2f5] overflow-hidden relative">
       {/* Top App Bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-[#0d1f2d] text-white pt-safe z-10 shrink-0 shadow-sm">
+      <div className="flex items-center justify-between px-4 py-3 bg-[#88E8F2] text-[#0d1f2d] pt-safe z-10 shrink-0 shadow-sm">
         <button onClick={() => setCurrentView("home")} className="p-1 active:scale-95">
           <ArrowLeft className="h-6 w-6" />
         </button>
@@ -1065,7 +1065,7 @@ export function PatientPortalNew({
 
   const renderDigitalSignature = () => (
     <div className="flex-1 flex flex-col bg-[#f0f2f5] overflow-hidden relative">
-      <div className="flex items-center justify-between px-4 py-3 bg-[#0d1f2d] text-white pt-safe z-10 shrink-0 shadow-sm">
+      <div className="flex items-center justify-between px-4 py-3 bg-[#88E8F2] text-[#0d1f2d] pt-safe z-10 shrink-0 shadow-sm">
         <button onClick={() => setCurrentView("home")} className="p-1 active:scale-95">
           <ArrowLeft className="h-6 w-6" />
         </button>
