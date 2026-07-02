@@ -322,21 +322,13 @@ function PatientRounds() {
                 </button>
               )}
             </div>
-            {collapsed ? (
+            {collapsed && (
               <button
                 onClick={() => setCollapsed(false)}
                 className="w-full mt-5 py-2 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors"
                 aria-label="Expand sidebar"
               >
                 <ChevronRight className="w-4 h-4" />
-              </button>
-            ) : (
-              <button
-                className="w-full mt-5 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 text-slate-900 hover:opacity-90 transition"
-                style={{ backgroundColor: ACCENT }}
-              >
-                <Plus className="w-4 h-4" />
-                Tiếp nhận mới
               </button>
             )}
           </div>
@@ -7600,6 +7592,7 @@ function EmsView() {
 type AdminTab =
   | "overview"
   | "users"
+  | "staffs"
   | "departments"
   | "devices"
   | "ambulances"
@@ -7612,6 +7605,7 @@ type AdminTab =
 const ADMIN_TABS: { key: AdminTab; Icon: typeof Users; label: string }[] = [
   { key: "overview", Icon: Activity, label: "Tổng quan" },
   { key: "users", Icon: Users, label: "Người dùng" },
+  { key: "staffs", Icon: UserCheck, label: "Nhân viên" },
   { key: "departments", Icon: Bed, label: "Khoa phòng" },
   { key: "devices", Icon: Cpu, label: "Thiết bị" },
   { key: "ambulances", Icon: Ambulance, label: "Xe cấp cứu" },
@@ -7647,7 +7641,8 @@ function AdminDashboardView() {
       </div>
 
       {activeTab === "overview" && <AdminOverviewTab />}
-      {activeTab === "users" && <AdminUsersTab />}
+      {activeTab === "users" && <AdminPatientsTab />}
+      {activeTab === "staffs" && <AdminStaffsTab />}
       {activeTab === "departments" && <AdminDepartmentsTab />}
       {activeTab === "devices" && <AdminDevicesTab />}
       {activeTab === "ambulances" && <AdminAmbulancesTab />}
@@ -7662,17 +7657,28 @@ function AdminDashboardView() {
 
 /* ── Tab 0: Overview — Stats across all tables ── */
 function AdminOverviewTab() {
-  const stats = [
-    { label: "Users", value: "124", sub: "admin · clinician · ops · ems", color: "#0A9BAD" },
-    { label: "Departments", value: "14", sub: "Khoa phòng hoạt động", color: "#7C3AED" },
-    { label: "Devices (IoT)", value: "38", sub: "36 online · 2 offline", color: "#2563EB" },
-    { label: "Ambulances", value: "12", sub: "10 dispatched · 2 returning", color: "#EA580C" },
-    { label: "Patients Queue", value: "23", sub: "18 waiting · 5 in_treatment", color: "#DC2626" },
-    { label: "System Logs", value: "12", sub: "Cảnh báo hôm nay", color: "#DC2626" },
-    { label: "LPR Logs", value: "847", sub: "Nhận diện biển số / ngày", color: "#D97706" },
-    { label: "Medical Books", value: "56", sub: "Sổ khám active", color: "#16A34A" },
-    { label: "WebAuthn Creds", value: "89", sub: "Passkeys đã đăng ký", color: "#0891B2" },
-  ];
+  const [stats, setStats] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchApi("/admin/stats")
+      .then((data) => {
+        setStats(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) {
+    return <div className="text-center py-8 text-slate-400">Đang tải số liệu tổng quan...</div>;
+  }
+
+  if (!stats || stats.length === 0) {
+    return <div className="text-center py-8 text-slate-400">Không có dữ liệu thống kê.</div>;
+  }
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -7694,12 +7700,66 @@ function AdminOverviewTab() {
   );
 }
 
-/* ── Tab 1: users table ── */
-function AdminUsersTab() {
+/* ── Tab 1: patients table ── */
+function AdminPatientsTab() {
+  const [patients, setPatients] = useState<any[]>([]);
+  useEffect(() => {
+    fetchApi("/admin/tables/patients").then(setPatients).catch(console.error);
+  }, []);
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
+      <div className="px-5 py-4 border-b border-slate-200">
+        <h3 className="font-bold text-slate-900 flex items-center gap-2">
+          <Users className="w-5 h-5 text-[#0A9BAD]" /> Quản lý Bệnh nhân
+        </h3>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm text-left">
+          <thead className="text-[10px] text-slate-500 font-geist uppercase tracking-wider bg-slate-50 border-b border-slate-200">
+            <tr>
+              <th className="px-4 py-3">id</th>
+              <th className="px-4 py-3">name</th>
+              <th className="px-4 py-3">cccd</th>
+              <th className="px-4 py-3">phone</th>
+              <th className="px-4 py-3">bhxh_code</th>
+              <th className="px-4 py-3">emergency_contact</th>
+              <th className="px-4 py-3">created_at</th>
+            </tr>
+          </thead>
+          <tbody>
+            {patients.map((p) => (
+              <tr key={p.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                <td className="px-4 py-3 text-[11px] font-mono text-slate-400">{p.id}</td>
+                <td className="px-4 py-3 font-bold text-slate-900">{p.name}</td>
+                <td className="px-4 py-3 font-mono text-[13px] text-slate-700">{p.cccd}</td>
+                <td className="px-4 py-3 text-[13px] text-slate-600">{p.phone ?? "—"}</td>
+                <td className="px-4 py-3 text-[13px] text-slate-600">{p.bhxh_code ?? "—"}</td>
+                <td className="px-4 py-3 text-[12px] text-slate-500">
+                  {p.emergency_contact_name
+                    ? `${p.emergency_contact_name} · ${p.emergency_contact_phone}`
+                    : "—"}
+                </td>
+                <td className="px-4 py-3 text-[12px] text-slate-500 font-mono">{p.created_at}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ── Tab 1.5: staffs table ── */
+function AdminStaffsTab() {
   const [users, setUsers] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  
   useEffect(() => {
     fetchApi("/admin/tables/staffs").then(setUsers).catch(console.error);
+    fetchApi("/admin/tables/departments").then(setDepartments).catch(console.error);
   }, []);
+  
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -7707,10 +7767,7 @@ function AdminUsersTab() {
     cccd: "",
     employee_id: "",
     department_id: "",
-    phone: "",
-    bhxh_code: "",
-    emergency_contact_name: "",
-    emergency_contact_phone: "",
+    password: "",
   });
 
   const roleLabels: Record<string, string> = {
@@ -7718,39 +7775,36 @@ function AdminUsersTab() {
     clinician: "Bác sĩ/ĐD",
     ops: "Trực CC",
     ems: "EMS",
-    patient: "Bệnh nhân",
   };
   const roleColors: Record<string, string> = {
     admin: "bg-purple-100 text-purple-700",
     clinician: "bg-blue-100 text-blue-700",
     ops: "bg-orange-100 text-orange-700",
     ems: "bg-red-100 text-red-700",
-    patient: "bg-slate-100 text-slate-700",
   };
 
-  const handleAdd = () => {
-    if (!form.name.trim() || !form.cccd.trim()) return;
-    setUsers((prev) => [
-      ...prev,
-      {
-        ...form,
-        id: crypto.randomUUID(),
-        avatar_url: null,
-        created_at: new Date().toISOString().slice(0, 10),
-      },
-    ]);
-    setForm({
-      name: "",
-      role: "clinician",
-      cccd: "",
-      employee_id: "",
-      department_id: "",
-      phone: "",
-      bhxh_code: "",
-      emergency_contact_name: "",
-      emergency_contact_phone: "",
-    });
-    setShowForm(false);
+  const handleAdd = async () => {
+    if (!form.name.trim() || !form.cccd.trim() || !form.password.trim()) return;
+    try {
+      await fetchApi("/admin/staffs", {
+        method: "POST",
+        body: JSON.stringify(form)
+      });
+      const data = await fetchApi("/admin/tables/staffs");
+      setUsers(data);
+      setShowForm(false);
+      setForm({
+        name: "",
+        role: "clinician",
+        cccd: "",
+        employee_id: "",
+        department_id: "",
+        password: "",
+      });
+    } catch (e) {
+      console.error(e);
+      alert("Lỗi khi thêm nhân viên");
+    }
   };
 
   return (
@@ -7758,30 +7812,30 @@ function AdminUsersTab() {
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
         <div>
           <h3 className="font-bold text-slate-900 flex items-center gap-2">
-            <Cpu className="w-5 h-5 text-[#0A9BAD]" /> Thiết bị IoT / Camera
+            <UserCheck className="w-5 h-5 text-[#0A9BAD]" /> Quản lý Nhân viên
           </h3>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
           className="text-[11px] font-bold tracking-wider uppercase font-geist text-white bg-[#0A9BAD] hover:bg-[#0891b2] px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
         >
-          <Plus className="w-3 h-3" /> Thêm user
+          <Plus className="w-3 h-3" /> Thêm nhân viên
         </button>
       </div>
 
       {showForm && (
         <div className="px-5 py-4 bg-slate-50 border-b border-slate-200 space-y-3">
           <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-            Thêm user mới · Khớp schema PostgreSQL
+            Thêm nhân viên mới
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                name *
+                Tên nhân viên *
               </label>
               <input
                 type="text"
-                placeholder="Nguyễn Văn E"
+                placeholder="Nguyễn Văn A"
                 value={form.name}
                 onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]"
@@ -7789,23 +7843,22 @@ function AdminUsersTab() {
             </div>
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                role *
+                Vai trò (Role) *
               </label>
               <select
                 value={form.role}
                 onChange={(e) => setForm((s) => ({ ...s, role: e.target.value }))}
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2] bg-white"
               >
-                <option value="clinician">clinician</option>
-                <option value="admin">admin</option>
-                <option value="ops">ops</option>
-                <option value="ems">ems</option>
-                <option value="patient">patient</option>
+                <option value="clinician">Bác sĩ/ĐD (clinician)</option>
+                <option value="admin">Quản trị viên (admin)</option>
+                <option value="ops">Trực cấp cứu (ops)</option>
+                <option value="ems">Lái xe (ems)</option>
               </select>
             </div>
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                cccd *
+                CCCD *
               </label>
               <input
                 type="text"
@@ -7817,7 +7870,7 @@ function AdminUsersTab() {
             </div>
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                employee_id
+                Mã nhân viên
               </label>
               <input
                 type="text"
@@ -7829,84 +7882,30 @@ function AdminUsersTab() {
             </div>
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                department_id (FK)
+                Phòng ban
               </label>
               <select
                 value={form.department_id}
                 onChange={(e) => setForm((s) => ({ ...s, department_id: e.target.value }))}
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2] bg-white"
               >
-                <option value="">-- None --</option>
-                {[
-                  "Cấp cứu",
-                  "Tim mạch",
-                  "Thần kinh",
-                  "Lồng ngực",
-                  "Chấn thương",
-                  "Ngoại tổng hợp",
-                  "Khoa Nội",
-                  "Nội tiết",
-                  "Cơ Xương Khớp",
-                  "Thận",
-                  "Nhi",
-                  "Phụ sản",
-                  "Gây mê",
-                  "Tạo hình",
-                  "Hành chính",
-                ].map((d) => (
-                  <option key={d} value={d}>
-                    {d}
+                <option value="">-- Trống --</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
                   </option>
                 ))}
               </select>
             </div>
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                SĐT
+                Mật khẩu (Password) *
               </label>
               <input
-                type="text"
-                placeholder="0912 345 678"
-                value={form.phone}
-                onChange={(e) => setForm((s) => ({ ...s, phone: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                bhxh_code
-              </label>
-              <input
-                type="text"
-                placeholder="DN4015002345678"
-                value={form.bhxh_code}
-                onChange={(e) => setForm((s) => ({ ...s, bhxh_code: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                emergency_contact_name
-              </label>
-              <input
-                type="text"
-                placeholder="Nguyễn Thị F"
-                value={form.emergency_contact_name}
-                onChange={(e) => setForm((s) => ({ ...s, emergency_contact_name: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                emergency_contact_phone
-              </label>
-              <input
-                type="text"
-                placeholder="0987 654 321"
-                value={form.emergency_contact_phone}
-                onChange={(e) =>
-                  setForm((s) => ({ ...s, emergency_contact_phone: e.target.value }))
-                }
+                type="password"
+                placeholder="******"
+                value={form.password}
+                onChange={(e) => setForm((s) => ({ ...s, password: e.target.value }))}
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]"
               />
             </div>
@@ -7914,26 +7913,13 @@ function AdminUsersTab() {
           <div className="flex gap-2">
             <button
               onClick={handleAdd}
-              disabled={!form.name.trim() || !form.cccd.trim()}
+              disabled={!form.name.trim() || !form.cccd.trim() || !form.password.trim()}
               className="rounded-lg bg-[#0A9BAD] px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-[#0891b2] disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Lưu user
+              Lưu nhân viên
             </button>
             <button
-              onClick={() => {
-                setShowForm(false);
-                setForm({
-                  name: "",
-                  role: "clinician",
-                  cccd: "",
-                  employee_id: "",
-                  department_id: "",
-                  phone: "",
-                  bhxh_code: "",
-                  emergency_contact_name: "",
-                  emergency_contact_phone: "",
-                });
-              }}
+              onClick={() => setShowForm(false)}
               className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
             >
               Hủy
@@ -7952,7 +7938,6 @@ function AdminUsersTab() {
               <th className="px-4 py-3">cccd</th>
               <th className="px-4 py-3">employee_id</th>
               <th className="px-4 py-3">department_id</th>
-              <th className="px-4 py-3">emergency_contact</th>
               <th className="px-4 py-3">created_at</th>
             </tr>
           </thead>
@@ -7972,11 +7957,8 @@ function AdminUsersTab() {
                 <td className="px-4 py-3 font-mono text-[13px] text-slate-600">
                   {u.employee_id ?? "—"}
                 </td>
-                <td className="px-4 py-3 text-[13px] text-slate-600">{u.department_id ?? "—"}</td>
-                <td className="px-4 py-3 text-[12px] text-slate-500">
-                  {u.emergency_contact_name
-                    ? `${u.emergency_contact_name} · ${u.emergency_contact_phone}`
-                    : "—"}
+                <td className="px-4 py-3 text-[13px] text-slate-600">
+                  {u.department_id ? (departments.find(d => d.id === u.department_id)?.name || u.department_id) : "—"}
                 </td>
                 <td className="px-4 py-3 text-[12px] text-slate-500 font-mono">{u.created_at}</td>
               </tr>
@@ -7999,7 +7981,7 @@ function AdminDepartmentsTab() {
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
       <div className="px-5 py-4 border-b border-slate-200">
         <h3 className="font-bold text-slate-900 flex items-center gap-2">
-          <ScanLine className="w-5 h-5 text-[#0A9BAD]" /> Nhận diện Biển số
+          <Bed className="w-5 h-5 text-[#0A9BAD]" /> Danh sách Khoa phòng
         </h3>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-5">
@@ -8045,7 +8027,7 @@ function AdminDevicesTab() {
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
       <div className="px-5 py-4 border-b border-slate-200">
         <h3 className="font-bold text-slate-900 flex items-center gap-2">
-          <Cpu className="w-5 h-5 text-[#0A9BAD]" /> Bảng devices
+          <Cpu className="w-5 h-5 text-[#0A9BAD]" /> Quản lý Thiết bị
         </h3>
         <p className="text-[11px] text-slate-500 font-geist mt-0.5">
           id · device_type · name · location · status · ip_address
@@ -8110,7 +8092,7 @@ function AdminAmbulancesTab() {
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
       <div className="px-5 py-4 border-b border-slate-200">
         <h3 className="font-bold text-slate-900 flex items-center gap-2">
-          <AlertTriangle className="w-5 h-5 text-[#0A9BAD]" /> Nhật ký & Cảnh báo
+          <Ambulance className="w-5 h-5 text-[#0A9BAD]" /> Quản lý Xe cấp cứu
         </h3>
       </div>
       <div className="overflow-x-auto">
@@ -8166,7 +8148,7 @@ function AdminQueueTab() {
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
       <div className="px-5 py-4 border-b border-slate-200">
         <h3 className="font-bold text-slate-900 flex items-center gap-2">
-          <Shield className="w-5 h-5 text-[#0A9BAD]" /> Sinh trắc học (WebAuthn)
+          <List className="w-5 h-5 text-[#0A9BAD]" /> Danh sách bệnh nhân chờ khám
         </h3>
       </div>
       <div className="overflow-x-auto">
@@ -8236,7 +8218,7 @@ function AdminLogsTab() {
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
       <div className="px-5 py-4 border-b border-slate-200">
         <h3 className="font-bold text-slate-900 flex items-center gap-2">
-          <AlertTriangle className="w-5 h-5 text-[#0A9BAD]" /> Bảng system_logs
+          <AlertTriangle className="w-5 h-5 text-[#0A9BAD]" /> Nhật ký hệ thống
         </h3>
         <p className="text-[11px] text-slate-500 font-geist mt-0.5">
           id · log_type · device_id (FK) · description · is_alert · resolved_at · created_at
@@ -8307,7 +8289,7 @@ function AdminLprTab() {
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
       <div className="px-5 py-4 border-b border-slate-200">
         <h3 className="font-bold text-slate-900 flex items-center gap-2">
-          <ScanLine className="w-5 h-5 text-[#0A9BAD]" /> Bảng lpr_logs
+          <ScanLine className="w-5 h-5 text-[#0A9BAD]" /> Nhận diện biển số
         </h3>
         <p className="text-[11px] text-slate-500 font-geist mt-0.5">
           id · camera_id (FK) · plate_number · confidence · image_url · timestamp

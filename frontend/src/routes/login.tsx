@@ -1079,9 +1079,36 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
 }
 
 /* ─── ADMIN FLOW ─── */
-function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser) => void }) {
+function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string) => void }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+
+  const handleLogin = async () => {
+    if (!username || !password) return;
+    setIsAuthenticating(true);
+    try {
+      const body = new URLSearchParams();
+      body.append("username", username);
+      body.append("password", password);
+
+      const res = await fetchApi("/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      });
+
+      if (res.access_token) {
+        sessionStorage.setItem("eyecu_token", res.access_token);
+        const me = await fetchApi("/auth/me");
+        onLogin(me as AuthUser, res.access_token);
+      }
+    } catch (err: any) {
+      alert(err.message || "Đăng nhập thất bại");
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -1097,7 +1124,7 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser) => void }) {
             type: "text",
             value: username,
             onChange: setUsername,
-            placeholder: "Nhập mã nhân viên...",
+            placeholder: "VD: ADMIN001",
           },
           {
             label: "Mật khẩu",
@@ -1126,27 +1153,25 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser) => void }) {
                 (e.currentTarget as HTMLInputElement).style.borderColor = "#f1f5f9";
                 (e.currentTarget as HTMLInputElement).style.boxShadow = "none";
               }}
+              disabled={isAuthenticating}
             />
           </div>
         ))}
       </div>
       <button
-        onClick={() => {
-          if (username && password) {
-            onLogin({
-              id: "a1",
-              name: "Quản trị viên",
-              type: "staff",
-              title: "Admin",
-              department: "IT",
-            });
-          }
-        }}
-        disabled={!username || !password}
-        className="w-full py-2.5 rounded-xl font-bold text-sm transition-all text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed"
+        onClick={handleLogin}
+        disabled={!username || !password || isAuthenticating}
+        className="w-full py-2.5 rounded-xl font-bold text-sm transition-all text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         style={{ backgroundColor: ACCENT }}
       >
-        Đăng nhập
+        {isAuthenticating ? (
+          <>
+            <span className="w-4 h-4 border-2 border-t-transparent border-slate-900 rounded-full animate-spin" />{" "}
+            Đang đăng nhập...
+          </>
+        ) : (
+          "Đăng nhập"
+        )}
       </button>
     </div>
   );

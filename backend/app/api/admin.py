@@ -112,6 +112,46 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         },
     ]
 
+from pydantic import BaseModel
+from typing import Optional
+
+class StaffCreate(BaseModel):
+    name: str
+    role: str
+    cccd: str
+    employee_id: str
+    department_id: Optional[str] = None
+    password: str
+
+@router.post("/staffs", dependencies=[Depends(require_roles(["admin"]))])
+def create_staff(data: StaffCreate, db: Session = Depends(get_db)):
+    import uuid
+
+    # Validate dept if given
+    dept_id = None
+    if data.department_id:
+        try:
+            # check if department_id is a valid UUID
+            uuid.UUID(data.department_id)
+            dept = db.query(Department).filter(Department.id == data.department_id).first()
+            if dept:
+                dept_id = dept.id
+        except ValueError:
+            pass
+
+    new_staff = Staff(
+        name=data.name,
+        role=data.role,
+        cccd=data.cccd,
+        employee_id=data.employee_id,
+        password_hash=data.password,
+        department_id=dept_id
+    )
+    db.add(new_staff)
+    db.commit()
+    db.refresh(new_staff)
+    return {"status": "success", "id": str(new_staff.id)}
+
 
 @router.get("/tables/{table_name}", dependencies=[Depends(require_roles(["admin"]))])
 def get_table_data(table_name: str, db: Session = Depends(get_db)):
