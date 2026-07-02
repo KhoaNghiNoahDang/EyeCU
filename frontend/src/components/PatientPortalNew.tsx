@@ -16,7 +16,7 @@ interface ChatMsg {
   from: "bot" | "user";
   text: string;
   time: string;
-  buttons?: { title: string; payload: string; color?: string }[];
+  buttons?: { title: string; payload?: string; payload_id?: string; color?: string }[];
 }
 
 function getTimeNow() {
@@ -117,13 +117,13 @@ export function PatientPortalNew({
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, botTyping]);
 
-  const sendMessage = (textStr?: string) => {
+  const sendMessage = (textStr?: string, payloadStr?: string) => {
     const text = textStr || chatInput.trim();
     if (!text) return;
     setMessages((prev) => [...prev, { from: "user", text, time: getTimeNow() }]);
     if (!textStr) setChatInput("");
     setBotTyping(true);
-    fetchApi("/patient/chat", { method: "POST", body: { message: text } })
+    fetchApi("/patient/chat", { method: "POST", body: { message: payloadStr || text } })
       .then((data) => {
         setMessages((prev) => [...prev, { from: "bot", text: data.reply || "Xin lỗi, tôi không thể trả lời lúc này.", time: getTimeNow(), buttons: data.buttons }]);
         setBotTyping(false);
@@ -1744,7 +1744,7 @@ export function PatientPortalNew({
                           {msg.buttons.map((btn, idx) => (
                             <button
                               key={idx}
-                              onClick={() => sendMessage(btn.title)}
+                              onClick={() => sendMessage(btn.title, btn.payload || btn.payload_id)}
                               className="px-2.5 py-1.5 text-[11px] font-semibold rounded-[10px] border border-[#88E8F2] text-[#0d1f2d] bg-[#88E8F2]/10 hover:bg-[#88E8F2]/30 active:scale-95 transition-all text-left"
                               style={{ backgroundColor: btn.color ? `${btn.color}30` : undefined, borderColor: btn.color }}
                             >
