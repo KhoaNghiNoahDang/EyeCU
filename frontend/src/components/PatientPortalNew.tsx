@@ -49,8 +49,7 @@ export function PatientPortalNew({
   // Ghi âm Voice
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<BlobPart[]>([]);
+  const recognitionRef = useRef<any>(null);
 
   // PWA Installation States
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -131,52 +130,58 @@ export function PatientPortalNew({
       .catch(() => setBotTyping(false));
   };
 
-  const startRecording = async () => {
+  const startRecording = () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-      chunksRef.current = [];
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert("Trình duyệt của bạn không hỗ trợ nhận diện giọng nói (Web Speech API). Vui lòng dùng Chrome hoặc Safari.");
+        return;
+      }
+      
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'vi-VN';
+      
+      let finalTranscript = chatInput ? chatInput + " " : "";
 
-      mediaRecorderRef.current.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-
-      mediaRecorderRef.current.onstop = async () => {
-        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        stream.getTracks().forEach(track => track.stop());
+      recognition.onresult = (event: any) => {
+        let interimTranscript = '';
+        let currentFinal = '';
         
-        setIsTranscribing(true);
-        try {
-          const formData = new FormData();
-          formData.append('file', audioBlob, 'recording.webm');
-          const token = localStorage.getItem("token");
-          const res = await fetch(import.meta.env.VITE_API_URL + "/patient/chat/voice", {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${token}` },
-            body: formData
-          });
-          const data = await res.json();
-          if (data.transcript) {
-            setChatInput(prev => prev + (prev ? " " : "") + data.transcript);
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            currentFinal += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
           }
-        } catch (err) {
-          console.error("Lỗi gửi audio:", err);
-        } finally {
-          setIsTranscribing(false);
         }
+        
+        finalTranscript += currentFinal;
+        setChatInput(finalTranscript + interimTranscript);
       };
 
-      mediaRecorderRef.current.start();
+      recognition.onerror = (event: any) => {
+        console.error("Lỗi nhận diện giọng nói:", event.error);
+        stopRecording();
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
       setIsRecording(true);
     } catch (err) {
-      console.error("Lỗi truy cập micro:", err);
-      alert("Không thể truy cập Micro. Vui lòng cấp quyền.");
+      console.error("Lỗi khởi động micro:", err);
+      alert("Không thể khởi động ghi âm. Vui lòng cấp quyền.");
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
+    if (recognitionRef.current && isRecording) {
+      recognitionRef.current.stop();
       setIsRecording(false);
     }
   };
