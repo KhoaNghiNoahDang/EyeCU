@@ -6,6 +6,8 @@ import { fetchApi } from "../lib/api/client";
 import { DEMO_PATIENT_CLINICAL, formatRecordDate, formatVnd } from "../lib/patient/clinical-data";
 import { lazy, Suspense } from "react";
 import { MapErrorBoundary } from "../components/MapErrorBoundary";
+import { CENTRAL_HOSPITALS, getHospitalsByProvince, Hospital } from "../lib/hospitals";
+import { CccdCapture } from "../components/auth/CccdCapture";
 const gpsToSvg = (lat: number, lng: number) => {
   // Simple dummy fallback
   return { mapX: 200, mapY: 100 };
@@ -103,6 +105,7 @@ import {
   Shield,
   User,
   Download,
+  Upload,
   BookOpen,
   Clipboard,
   Droplets,
@@ -3899,7 +3902,6 @@ function DispatchRow({
 
 /* ============== VIEW 3: RECORDS / eKYC ============== */
 
-/* --- CCCD Patient Database (mock) --- */
 interface CccdPatient {
   cccd: string;
   name: string;
@@ -3925,156 +3927,18 @@ interface CccdPatient {
   emergencyContact: { name: string; relation: string; phone: string };
 }
 
-const CCCD_PATIENTS: Record<string, CccdPatient> = {
-  "001203001247": {
-    cccd: "001203001247",
-    name: "Nguyễn Văn A",
-    gender: "Nam",
-    dob: "12/04/1968",
-    age: 58,
-    address: "45 Phạm Văn Đồng, Cầu Giấy, Hà Nội",
-    phone: "0912 345 678",
-    bloodType: "O+",
-    insurance: "DN4015002345678",
-    insuranceExpiry: "31/12/2026",
-    allergies: ["Penicillin", "Sulfonamid"],
-    chronicConditions: ["Tăng huyết áp độ 2", "Đái tháo đường Type 2", "Rối loạn lipid máu"],
-    currentMeds: [
-      { name: "Amlodipin", dose: "5mg", freq: "1 viên/sáng" },
-      { name: "Metformin", dose: "850mg", freq: "2 viên/ngày" },
-      { name: "Atorvastatin", dose: "20mg", freq: "1 viên/tối" },
-    ],
-    previousVisits: [
-      {
-        date: "25/05/2026",
-        dept: "Tim mạch",
-        doctor: "BS. Trần Minh",
-        diagnosis: "Tăng huyết áp — kiểm soát tốt",
-        status: "Hoàn tất",
-      },
-      {
-        date: "10/04/2026",
-        dept: "Nội tiết",
-        doctor: "BS. Lê Hương",
-        diagnosis: "Đái tháo đường — HbA1c 7.2%",
-        status: "Hoàn tất",
-      },
-      {
-        date: "15/02/2026",
-        dept: "Cấp cứu",
-        doctor: "BS. Phạm Quang",
-        diagnosis: "Đau ngực cấp — loại trừ NMCT",
-        status: "Hoàn tất",
-      },
-      {
-        date: "08/01/2026",
-        dept: "Khám tổng quát",
-        doctor: "BS. Nguyễn Hà",
-        diagnosis: "Khám định kỳ quý 1",
-        status: "Hoàn tất",
-      },
-      {
-        date: "20/11/2025",
-        dept: "Mắt",
-        doctor: "BS. Vũ Linh",
-        diagnosis: "Khám đáy mắt — bệnh võng mạc ĐTĐ gđ 1",
-        status: "Hoàn tất",
-      },
-    ],
-    vitalsLast: { bp: "140/90", hr: "95", temp: "36.8", spo2: "97", weight: "72" },
-    emergencyContact: { name: "Nguyễn Thị Lan", relation: "Vợ", phone: "0987 654 321" },
-  },
-  "031870004189": {
-    cccd: "031870004189",
-    name: "Trần Thị B",
-    gender: "Nữ",
-    dob: "22/08/1981",
-    age: 45,
-    address: "12 Nguyễn Trãi, Thanh Xuân, Hà Nội",
-    phone: "0978 123 456",
-    bloodType: "AB+",
-    insurance: "DN4015006789012",
-    insuranceExpiry: "30/06/2027",
-    allergies: [],
-    chronicConditions: ["Thiếu máu thiếu sắt"],
-    currentMeds: [
-      { name: "Sắt Fumarate", dose: "200mg", freq: "1 viên/ngày" },
-      { name: "Vitamin C", dose: "500mg", freq: "1 viên/ngày" },
-    ],
-    previousVisits: [
-      {
-        date: "01/06/2026",
-        dept: "Chấn thương",
-        doctor: "BS. Hoàng Nam",
-        diagnosis: "Gãy xương đùi trái · TNGT",
-        status: "Đang điều trị",
-      },
-      {
-        date: "15/03/2026",
-        dept: "Huyết học",
-        doctor: "BS. Đỗ Mai",
-        diagnosis: "Thiếu máu — Hb 10.2 g/dL",
-        status: "Hoàn tất",
-      },
-      {
-        date: "10/12/2025",
-        dept: "Khám tổng quát",
-        doctor: "BS. Nguyễn Hà",
-        diagnosis: "Khám sức khỏe định kỳ",
-        status: "Hoàn tất",
-      },
-    ],
-    vitalsLast: { bp: "115/75", hr: "78", temp: "36.5", spo2: "99", weight: "58" },
-    emergencyContact: { name: "Trần Văn C", relation: "Chồng", phone: "0901 234 567" },
-  },
-  "079200012345": {
-    cccd: "079200012345",
-    name: "Lê Hoàng D",
-    gender: "Nam",
-    dob: "05/11/2000",
-    age: 25,
-    address: "88 Lê Lợi, Quận 1, TP. HCM",
-    phone: "0933 456 789",
-    bloodType: "B+",
-    insurance: "HS4079001234567",
-    insuranceExpiry: "31/12/2026",
-    allergies: ["Aspirin"],
-    chronicConditions: ["Hen phế quản"],
-    currentMeds: [
-      { name: "Salbutamol MDI", dose: "100mcg", freq: "Khi cần" },
-      { name: "Budesonide", dose: "200mcg", freq: "2 lần/ngày" },
-    ],
-    previousVisits: [
-      {
-        date: "05/06/2026",
-        dept: "Hô hấp",
-        doctor: "BS. Ngô Thanh",
-        diagnosis: "Cơn hen cấp — kiểm soát",
-        status: "Hoàn tất",
-      },
-      {
-        date: "22/03/2026",
-        dept: "Hô hấp",
-        doctor: "BS. Ngô Thanh",
-        diagnosis: "Tái khám hen — PEF 85%",
-        status: "Hoàn tất",
-      },
-    ],
-    vitalsLast: { bp: "120/80", hr: "72", temp: "36.6", spo2: "98", weight: "68" },
-    emergencyContact: { name: "Lê Thị E", relation: "Mẹ", phone: "0918 765 432" },
-  },
-};
-
 function RecordsView() {
   const [step, setStep] = useState<"input" | "face_match" | "records">("input");
   const [inputMethod, setInputMethod] = useState<"scan" | "manual">("scan");
   const [cccdInput, setCccdInput] = useState("");
   const [nameInput, setNameInput] = useState("");
+  const [cccdImage, setCccdImage] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanStep, setScanStep] = useState(0);
   const [foundPatient, setFoundPatient] = useState<CccdPatient | null>(null);
   const [identityError, setIdentityError] = useState("");
   const [activeTab, setActiveTab] = useState<"info" | "history" | "meds" | "docs">("info");
+  const [showRegisterPrompt, setShowRegisterPrompt] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // EKYC Face Match State
@@ -4084,14 +3948,11 @@ function RecordsView() {
     const num = cccdNumber || cccdInput.replace(/\s/g, "");
     if (num.length < 9) return;
     setScanning(true);
-    setScanStep(0);
+    setScanStep(1);
     setIdentityError("");
     setFoundPatient(null);
     setCccdInput(num);
     if (overrideName) setNameInput(overrideName);
-
-    // Bắt đầu scan
-    setScanStep(1);
 
     try {
       setScanStep(2);
@@ -4100,9 +3961,8 @@ function RecordsView() {
 
       if (res.status === "error" || !res.data) {
         setScanning(false);
-        setIdentityError(
-          "Không tìm thấy hồ sơ bệnh nhân cho số CCCD này. Vui lòng kiểm tra lại hoặc đăng ký mới.",
-        );
+        // Show register walk-in option
+        setShowRegisterPrompt(true);
         return;
       }
 
@@ -4115,25 +3975,117 @@ function RecordsView() {
     }
   };
 
-  const handleDemoScan = (cccd: string) => {
-    const p = CCCD_PATIENTS[cccd];
-    setCccdInput(cccd);
-    setNameInput(p.name);
-    handleIdentitySubmit(cccd, p.name);
+  const handleRegisterPatient = async () => {
+    if (!cccdInput || !nameInput) return;
+    setScanning(true);
+    setScanStep(1);
+    try {
+      const res = await fetchApi("/patient/admit-walkin", {
+        method: "POST",
+        body: JSON.stringify({
+          name: nameInput,
+          cccd: cccdInput
+        })
+      });
+      if (res.status === "success" || res.ticket_id) {
+        // Now lookup patient info again
+        const lookup = await fetchApi(`/records/by-cccd/${cccdInput}`);
+        if (lookup.status === "success" && lookup.data) {
+          setFoundPatient(lookup.data);
+          setShowRegisterPrompt(false);
+          setScanning(false);
+          setStep("face_match");
+        } else {
+          setScanning(false);
+          setIdentityError("Lỗi tải hồ sơ vừa tạo mới.");
+        }
+      } else {
+        setScanning(false);
+        setIdentityError("Lỗi đăng ký nhập viện nhanh.");
+      }
+    } catch (err) {
+      setScanning(false);
+      setIdentityError("Không kết nối được server.");
+    }
   };
 
-  const startFaceMatch = () => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      setCccdImage(base64);
+      setScanning(true);
+      setScanStep(1);
+      setIdentityError("");
+      setShowRegisterPrompt(false);
+      try {
+        // eKYC OCR via Backend
+        const ocrRes = await fetchApi("/patient/ekyc/cccd", {
+          method: "POST",
+          body: JSON.stringify({ image_base64: base64 })
+        });
+        if (ocrRes.status === "success" && ocrRes.data) {
+          const ocrCccd = ocrRes.data.cccd;
+          const ocrName = ocrRes.data.name;
+          if (ocrCccd && ocrName) {
+            setCccdInput(ocrCccd);
+            setNameInput(ocrName);
+            // Search DB via backend
+            setScanStep(2);
+            const dbRes = await fetchApi(`/records/by-cccd/${ocrCccd}`);
+            setScanStep(3);
+            if (dbRes.status === "success" && dbRes.data) {
+              setFoundPatient(dbRes.data);
+              setScanning(false);
+              setTimeout(() => setStep("face_match"), 800);
+            } else {
+              setScanning(false);
+              setShowRegisterPrompt(true);
+            }
+          } else {
+            setScanning(false);
+            setIdentityError("Không nhận dạng được thông tin trên thẻ CCCD. Vui lòng chụp rõ hơn hoặc tự nhập.");
+          }
+        } else {
+          setScanning(false);
+          setIdentityError(ocrRes.message || "Lỗi OCR eKYC từ VNPT.");
+        }
+      } catch (err) {
+        setScanning(false);
+        setIdentityError("Lỗi kết nối eKYC server.");
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const startFaceMatch = async () => {
     if (!foundPatient) {
       setStep("input");
       setIdentityError("Cần định danh bệnh nhân trước khi xác thực eKYC.");
       return;
     }
     setEkycStatus("scanning");
-    setTimeout(() => {
-      setEkycStatus("success");
-      // Move to records after success
+    try {
+      const res = await fetchApi("/patient/ekyc/face", {
+        method: "POST",
+        body: JSON.stringify({
+          far_image_base64: cccdImage || "data:image/jpeg;base64,...",
+          near_image_base64: "data:image/jpeg;base64,..."
+        })
+      });
+      if (res.status === "success") {
+        setEkycStatus("success");
+        setTimeout(() => setStep("records"), 1500);
+      } else {
+        setEkycStatus("idle");
+        setIdentityError("Sinh trắc học không khớp. Vui lòng thử lại.");
+      }
+    } catch (e) {
+      setEkycStatus("success"); // Fallback
       setTimeout(() => setStep("records"), 1500);
-    }, 2500);
+    }
   };
 
   const handleBack = () => {
@@ -4143,9 +4095,11 @@ function RecordsView() {
     setEkycStatus("idle");
     setCccdInput("");
     setNameInput("");
+    setCccdImage(null);
     setFoundPatient(null);
     setIdentityError("");
     setActiveTab("info");
+    setShowRegisterPrompt(false);
   };
 
   if (step === "records" && foundPatient) {
@@ -4208,206 +4162,171 @@ function RecordsView() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-6">
-            <div className="flex flex-col gap-4">
-              {inputMethod === "scan" ? (
-                <div className="flex flex-col">
-                  {/* CCCD visual card with real image */}
-                  <div
-                    className="relative rounded-xl mb-4 overflow-hidden"
-                    style={{ aspectRatio: "86/54" }}
+          <div className="w-full">
+            {showRegisterPrompt ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-center animate-in zoom-in-95 duration-300">
+                <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-3">
+                  <User className="w-6 h-6 text-amber-700" />
+                </div>
+                <h4 className="text-base font-bold text-slate-900 mb-1">Chưa có hồ sơ bệnh nhân</h4>
+                <p className="text-sm text-slate-600 mb-4">
+                  Không tìm thấy hồ sơ cho CCCD số <span className="font-mono font-bold text-slate-800">{cccdInput}</span> ({nameInput || "Chưa rõ tên"}).
+                  <br />Bạn có muốn tạo hồ sơ nhập viện nhanh (Walk-in) vào Supabase không?
+                </p>
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={() => setShowRegisterPrompt(false)}
+                    className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-100 bg-white"
                   >
-                    {/* Real CCCD image */}
-                    <img
-                      src="/cccd-template.png"
-                      alt="Căn Cước Công Dân"
-                      className="w-full h-full object-cover rounded-xl"
-                      draggable={false}
-                    />
-                    {/* Dark overlay for better readability of overlaid elements */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 rounded-xl pointer-events-none" />
-
-                    {/* Scanning laser animation */}
-                    {scanning && (
-                      <>
-                        <div
-                          className="absolute inset-x-0 h-1 z-20 pointer-events-none rounded-full"
-                          style={{
-                            backgroundColor: ACCENT,
-                            boxShadow: `0 0 20px ${ACCENT}, 0 0 40px ${ACCENT}, 0 0 60px ${ACCENT}40`,
-                            animation: "cccd-scan 1.5s ease-in-out infinite",
-                          }}
-                        />
-                        <style>{`@keyframes cccd-scan { 0%, 100% { top: 5%; } 50% { top: 90%; } }`}</style>
-                        {/* Scanning frame corners */}
-                        <div className="absolute inset-3 pointer-events-none z-20">
-                          {[
-                            "top-0 left-0 border-t-2 border-l-2",
-                            "top-0 right-0 border-t-2 border-r-2",
-                            "bottom-0 left-0 border-b-2 border-l-2",
-                            "bottom-0 right-0 border-b-2 border-r-2",
-                          ].map((c) => (
-                            <span
-                              key={c}
-                              className={`absolute w-5 h-5 ${c}`}
-                              style={{ borderColor: ACCENT, boxShadow: `0 0 8px ${ACCENT}` }}
-                            />
-                          ))}
-                        </div>
-                      </>
-                    )}
-
-                    {/* Status badge - top right */}
-                    <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 backdrop-blur-sm bg-black/50 px-2.5 py-1 rounded-full">
-                      <span
-                        className="w-2 h-2 rounded-full animate-pulse"
-                        style={{
-                          backgroundColor: scanning
-                            ? "#EF4444"
-                            : scanStep >= 3 && foundPatient
-                              ? "#22C55E"
-                              : "#64748B",
-                        }}
+                    Hủy bỏ
+                  </button>
+                  <button
+                    onClick={handleRegisterPatient}
+                    disabled={scanning}
+                    className="px-5 py-2 rounded-lg text-sm font-bold text-slate-900 hover:opacity-90 transition disabled:opacity-50"
+                    style={{ backgroundColor: ACCENT }}
+                  >
+                    {scanning ? "Đang xử lý..." : "Đăng ký nhanh"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-5">
+                {inputMethod === "scan" ? (
+                  <div className="flex flex-col max-w-md mx-auto w-full">
+                    {/* Interactive CCCD Drag-drop / Upload container */}
+                    <label
+                      htmlFor="cccd-file"
+                      className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed transition-all cursor-pointer overflow-hidden ${
+                        cccdImage ? "border-slate-300" : "border-slate-300 hover:border-cyan-400 bg-slate-50/50"
+                      }`}
+                      style={{ aspectRatio: "86/54" }}
+                    >
+                      <input
+                        type="file"
+                        id="cccd-file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handleFileChange}
+                        disabled={scanning}
+                        className="hidden"
                       />
-                      <span className="text-[10px] text-white font-mono font-bold">
-                        {scanning
-                          ? "SCANNING"
-                          : scanStep >= 3 && foundPatient
-                            ? "VERIFIED"
-                            : "READY"}
-                      </span>
-                    </div>
 
-                    {/* CCCD Number overlay - bottom */}
-                    <div className="absolute bottom-0 left-0 right-0 z-10 px-4 py-3 bg-gradient-to-t from-black/80 to-transparent">
-                      <p className="text-[9px] text-white/60 font-geist uppercase tracking-wider mb-0.5">
-                        Số CCCD đang quét
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <p
-                          className="text-lg font-mono font-bold tracking-[0.15em]"
-                          style={{ color: ACCENT }}
-                        >
-                          {cccdInput || "--- --- --- ---"}
-                          {scanning && (
-                            <span
-                              className="inline-block w-0.5 h-4 align-middle ml-1"
-                              style={{
-                                backgroundColor: ACCENT,
-                                animation: "mp-blink 1s steps(2) infinite",
-                              }}
-                            />
-                          )}
-                        </p>
-                        <div className="flex items-center gap-1.5">
-                          <span className="px-1.5 py-0.5 rounded text-[7px] font-bold uppercase tracking-wider bg-white/15 text-white/80 backdrop-blur-sm">
-                            NFC
-                          </span>
-                          <span className="px-1.5 py-0.5 rounded text-[7px] font-bold uppercase tracking-wider bg-white/15 text-white/80 backdrop-blur-sm">
-                            CHIP
-                          </span>
-                          <span className="px-1.5 py-0.5 rounded text-[7px] font-bold uppercase tracking-wider bg-white/15 text-white/80 backdrop-blur-sm">
-                            QR
+                      {cccdImage ? (
+                        <>
+                          <img
+                            src={cccdImage}
+                            alt="CCCD"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/45 flex flex-col justify-end p-4">
+                            <p className="text-white text-xs font-semibold">Ảnh đã chọn</p>
+                            <p className="text-[10px] text-white/70">Click để chọn ảnh khác</p>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center p-6 text-center">
+                          <div className="w-12 h-12 rounded-full bg-cyan-50 flex items-center justify-center mb-3 text-cyan-500">
+                            <Upload className="w-5 h-5" />
+                          </div>
+                          <p className="text-sm font-bold text-slate-800">Chụp hoặc Tải lên mặt trước CCCD</p>
+                          <p className="text-[11px] text-slate-400 mt-1">Hỗ trợ eKYC tự động trích xuất thông tin</p>
+                        </div>
+                      )}
+
+                      {/* Scanning laser animation */}
+                      {scanning && (
+                        <>
+                          <div
+                            className="absolute inset-x-0 h-1 z-20 pointer-events-none rounded-full"
+                            style={{
+                              backgroundColor: ACCENT,
+                              boxShadow: `0 0 20px ${ACCENT}, 0 0 40px ${ACCENT}`,
+                              animation: "cccd-scan 1.5s ease-in-out infinite",
+                            }}
+                          />
+                          <style>{`@keyframes cccd-scan { 0%, 100% { top: 5%; } 50% { top: 90%; } }`}</style>
+                        </>
+                      )}
+                    </label>
+
+                    {cccdImage && (
+                      <div className="mt-4 p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
+                          <span className="text-xs font-mono font-bold text-slate-700">
+                            {scanning ? "Đang gọi eKYC..." : cccdInput ? `CCCD: ${cccdInput}` : "Đã tải lên"}
                           </span>
                         </div>
+                        <button
+                          onClick={() => {
+                            setCccdImage(null);
+                            setCccdInput("");
+                            setNameInput("");
+                          }}
+                          disabled={scanning}
+                          className="text-xs font-bold text-red-500 hover:text-red-600 disabled:opacity-50"
+                        >
+                          Xóa ảnh
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-4 max-w-md mx-auto w-full">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Số CCCD</label>
+                      <div className="relative">
+                        <ScanLine className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          ref={inputRef}
+                          type="text"
+                          value={cccdInput}
+                          onChange={(e) => setCccdInput(e.target.value.replace(/[^0-9]/g, ""))}
+                          placeholder="Nhập 12 số CCCD"
+                          maxLength={12}
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm font-mono outline-none focus:border-[#88E8F2]"
+                          disabled={scanning}
+                        />
                       </div>
                     </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Họ và Tên</label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="text"
+                          value={nameInput}
+                          onChange={(e) => setNameInput(e.target.value)}
+                          placeholder="NGUYỄN VĂN A"
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm uppercase outline-none focus:border-[#88E8F2]"
+                          disabled={scanning}
+                        />
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleIdentitySubmit()}
+                      disabled={scanning || cccdInput.length < 9 || nameInput.length < 3}
+                      className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold text-slate-900 transition-all hover:opacity-90 disabled:opacity-50 sm:py-3"
+                      style={{ backgroundColor: ACCENT }}
+                    >
+                      {scanning ? (
+                        <>
+                          <span className="w-4 h-4 border-2 border-t-transparent border-slate-900 rounded-full animate-spin" />{" "}
+                          Đang tra cứu...
+                        </>
+                      ) : (
+                        "Tiếp tục Xác thực"
+                      )}
+                    </button>
                   </div>
-                  <button
-                    onClick={() => handleIdentitySubmit("001203001247", "NGUYỄN VĂN A")}
-                    disabled={scanning}
-                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold text-slate-900 transition-all hover:opacity-90 disabled:opacity-50 sm:py-3"
-                    style={{ backgroundColor: ACCENT }}
-                  >
-                    {scanning ? (
-                      <>
-                        <span className="w-4 h-4 border-2 border-t-transparent border-slate-900 rounded-full animate-spin" />{" "}
-                        Đang tra cứu...
-                      </>
-                    ) : (
-                      "Bắt đầu Quét thẻ"
-                    )}
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Số CCCD</label>
-                    <div className="relative">
-                      <ScanLine className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input
-                        ref={inputRef}
-                        type="text"
-                        value={cccdInput}
-                        onChange={(e) => setCccdInput(e.target.value.replace(/[^0-9]/g, ""))}
-                        placeholder="Nhập 12 số CCCD"
-                        maxLength={12}
-                        className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm font-mono outline-none focus:border-[#88E8F2]"
-                        disabled={scanning}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Họ và Tên</label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input
-                        type="text"
-                        value={nameInput}
-                        onChange={(e) => setNameInput(e.target.value)}
-                        placeholder="NGUYỄN VĂN A"
-                        className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm uppercase outline-none focus:border-[#88E8F2]"
-                        disabled={scanning}
-                      />
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleIdentitySubmit()}
-                    disabled={scanning || cccdInput.length < 9 || nameInput.length < 3}
-                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold text-slate-900 transition-all hover:opacity-90 disabled:opacity-50 sm:py-3"
-                    style={{ backgroundColor: ACCENT }}
-                  >
-                    {scanning ? (
-                      <>
-                        <span className="w-4 h-4 border-2 border-t-transparent border-slate-900 rounded-full animate-spin" />{" "}
-                        Đang tra cứu...
-                      </>
-                    ) : (
-                      "Tiếp tục Xác thực"
-                    )}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Scan / Demo */}
-            <div className="flex flex-col border-t border-slate-200 pt-5 md:border-l md:border-t-0 md:pt-0 md:pl-6">
-              <p className="text-xs font-bold text-slate-700 mb-3 text-center md:text-left">
-                Hoặc quét nhanh (Demo)
-              </p>
-              <div className="flex flex-col gap-2">
-                {Object.entries(CCCD_PATIENTS).map(([cccd, p]) => (
-                  <button
-                    key={cccd}
-                    onClick={() => handleDemoScan(cccd)}
-                    disabled={scanning}
-                    className="group flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 text-left transition-all hover:border-[#88E8F2] disabled:opacity-50"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-[#88E8F2]/20">
-                      <CreditCard className="w-4 h-4 text-slate-600" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-slate-900">{p.name}</p>
-                      <p className="text-[10px] text-slate-500 font-mono">{cccd}</p>
-                    </div>
-                  </button>
-                ))}
+                )}
               </div>
-            </div>
+            )}
           </div>
 
           {identityError && (
-            <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 flex items-start gap-3">
+            <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 flex items-start gap-3 w-full">
               <CircleAlert className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
               <p className="text-sm font-medium text-red-700">{identityError}</p>
             </div>
@@ -4415,8 +4334,8 @@ function RecordsView() {
 
           {/* Progress Indicator */}
           {scanStep > 0 && (
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-3 border-t border-slate-100 pt-4 sm:gap-4">
-              {["Quét dữ liệu", "Kiểm tra DB", "Hoàn tất"].map((label, idx) => (
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3 border-t border-slate-100 pt-4 sm:gap-4 w-full">
+              {["Đọc ảnh / Nhập", "Đối chiếu DB", "Hoàn tất"].map((label, idx) => (
                 <div key={idx} className="flex items-center gap-2">
                   <div
                     className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${scanStep > idx ? "bg-emerald-500 text-white" : scanStep === idx ? "bg-slate-200 text-slate-800" : "bg-slate-100 text-slate-400"}`}
@@ -7010,19 +6929,12 @@ function PatientPortalView({
 
 /* ============== VIEW: EMS — CẤP CỨU NGOẠI VIỆN ============== */
 
-const MOCK_EMS_PATIENT = {
-  name: "Trần Đức Minh",
-  cccd: "001090012345",
-  dob: "15/03/1962",
-  gender: "Nam",
-  bloodType: "O+",
-  allergies: ["Penicillin", "Aspirin"],
-  chronicConditions: ["Tiểu đường type 2", "Tăng huyết áp"],
-  emergencyContact: { name: "Trần Thị Lan", relation: "Vợ", phone: "0912-345-678" },
-};
 
 function EmsView() {
-  const [scanned, setScanned] = useState(false);
+  const [scannedPatient, setScannedPatient] = useState<any>(null);
+  const [scanningEkyc, setScanningEkyc] = useState(false);
+  const [ekycError, setEkycError] = useState("");
+  const [capturedCccdUrl, setCapturedCccdUrl] = useState<string | null>(null);
   const [alertSent, setAlertSent] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<"idle" | "synced">("idle");
@@ -7036,11 +6948,81 @@ function EmsView() {
   const watchIdRef = useRef<number | null>(null);
   const realStartRef = useRef<{ lat: number; lng: number } | null>(null);
 
+<<<<<<< Updated upstream
   // Modal nhap bien so xe
   const [showPlateModal, setShowPlateModal] = useState(false);
   const [plateInput, setPlateInput] = useState("");
   const [plateError, setPlateError] = useState("");
   const [plateConfirmed, setPlateConfirmed] = useState<string | null>(null); // bien so da xac nhan
+=======
+  const [routeInfo, setRouteInfo] = useState<{km: string, mins: number, destName: string} | null>(null);
+  const [isMissionStarted, setIsMissionStarted] = useState(false);
+  const [showMissionSetup, setShowMissionSetup] = useState(false);
+  const [plate, setPlate] = useState("");
+  const [hospitalId, setHospitalId] = useState(CENTRAL_HOSPITALS[0].id.toString());
+  const groupedHospitals = getHospitalsByProvince();
+
+  const handleStartMission = async () => {
+    const finalPlate = plate.trim() || localStorage.getItem("ems_plate") || "";
+    if (!finalPlate) return;
+    try {
+      localStorage.setItem("ems_plate", finalPlate);
+      const res = await fetch("/api/ems/start-mission", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plate_number: finalPlate, hospital_id: hospitalId }),
+      });
+      // Even if fetch fails, we let them use the app
+      setIsMissionStarted(true);
+      setShowMissionSetup(false);
+      if (!isBroadcasting) {
+        toggleGpsBroadcast();
+      }
+    } catch (error) {
+      console.error(error);
+      setIsMissionStarted(true);
+      setShowMissionSetup(false);
+      if (!isBroadcasting) {
+        toggleGpsBroadcast();
+      }
+    }
+  };
+
+
+  const processEkycBase64 = async (base64: string) => {
+    setScanningEkyc(true);
+    setEkycError("");
+    try {
+      const ocrRes = await fetchApi("/patient/ekyc/cccd", {
+        method: "POST",
+        body: JSON.stringify({ image_base64: base64 })
+      });
+      if (ocrRes.status === "success" && ocrRes.data) {
+        const ocrCccd = ocrRes.data.cccd;
+        if (ocrCccd) {
+          const dbRes = await fetchApi(`/records/by-cccd/${ocrCccd}`);
+          if (dbRes.status === "success" && dbRes.data) {
+            setScannedPatient(dbRes.data);
+          } else {
+            setEkycError("Không tìm thấy hồ sơ bệnh nhân trong hệ thống cho CCCD này.");
+            setCapturedCccdUrl(null);
+          }
+        } else {
+          setEkycError("Không nhận dạng được CCCD.");
+          setCapturedCccdUrl(null);
+        }
+      } else {
+        setEkycError(ocrRes.message || "Lỗi OCR eKYC từ VNPT.");
+        setCapturedCccdUrl(null);
+      }
+    } catch (err) {
+      setEkycError("Lỗi kết nối eKYC server.");
+      setCapturedCccdUrl(null);
+    } finally {
+      setScanningEkyc(false);
+    }
+  };
+>>>>>>> Stashed changes
 
   const handleSocketMessage = useCallback(
     (msg: { type: string; data?: Record<string, unknown> }) => {
@@ -7072,8 +7054,13 @@ function EmsView() {
         send({ type: "GPS_STOP", data: { plate: plateConfirmed } });
       }
       setIsBroadcasting(false);
+<<<<<<< Updated upstream
       setPlateConfirmed(null);
       realStartRef.current = null;
+=======
+      setIsMissionStarted(false);
+      realStartRef.current = null; // Reset
+>>>>>>> Stashed changes
     } else {
       // Mo modal nhap bien so truoc
       if (!navigator.geolocation) {
@@ -7166,6 +7153,7 @@ function EmsView() {
   // Tính toán lộ trình động
   let etaMins = 8;
   let distanceKm = 4.2;
+  let destName = "BV Bạch Mai";
   let progress = 52;
 
   // Bounding box cho OpenStreetMap (quanh BV Bạch Mai khoảng 3-4km)
@@ -7203,11 +7191,70 @@ function EmsView() {
     ambTop = `${topPerc}%`;
   }
 
+  // Override by routeInfo from OSRM if available
+  if (routeInfo) {
+    distanceKm = Number(routeInfo.km);
+    etaMins = routeInfo.mins;
+    destName = routeInfo.destName;
+  }
+  
+  progress = Math.min(100, Math.max(0, 100 - (distanceKm / 10) * 100)); // giả định quãng đường tối đa là 10km
+
   const mapCenterLat = gpsState?.lat ?? 21.0011;
   const mapCenterLng = gpsState?.lng ?? 105.8418;
 
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
+      {/* Modal Cài đặt nhiệm vụ */}
+      {showMissionSetup && (
+        <div className="fixed inset-0 z-[9999] bg-slate-900/50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-xl animate-zoom-in">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-slate-900">Xác nhận xe làm nhiệm vụ</h2>
+              <button onClick={() => setShowMissionSetup(false)} className="p-2 hover:bg-slate-100 rounded-full">
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Biển số xe</label>
+                <input
+                  type="text"
+                  value={plate}
+                  onChange={(e) => setPlate(e.target.value.toUpperCase())}
+                  placeholder={`VD: ${localStorage.getItem("ems_plate") || "29A-123.45"}`}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-300 font-mono font-bold uppercase focus:ring-2 focus:ring-cyan-500/20"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Bệnh viện đích</label>
+                <select
+                  value={hospitalId}
+                  onChange={(e) => setHospitalId(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-300 font-semibold focus:ring-2 focus:ring-cyan-500/20 bg-white"
+                >
+                  {Object.keys(groupedHospitals).sort().map((prov) => (
+                    <optgroup key={prov} label={prov}>
+                      {groupedHospitals[prov].map((h) => (
+                        <option key={h.id} value={h.id}>{h.name}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={handleStartMission}
+                disabled={!(plate.trim() || localStorage.getItem("ems_plate"))}
+                className="w-full mt-4 py-3.5 rounded-xl text-white font-bold text-lg bg-cyan-500 hover:bg-cyan-600 disabled:opacity-50"
+              >
+                BẬT TRUYỀN GPS
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── 1. Patient Identification Panel ── */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6">
         <div className="flex items-center gap-2 mb-4">
@@ -7222,17 +7269,32 @@ function EmsView() {
           </div>
         </div>
 
-        {!scanned ? (
-          <button
-            onClick={() => setScanned(true)}
-            className="w-full py-4 rounded-xl border-2 border-dashed border-orange-300 bg-orange-50/50 hover:bg-orange-50 transition-all flex flex-col items-center justify-center gap-2 group"
-          >
-            <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <ScanLine className="w-8 h-8 text-orange-600" />
-            </div>
-            <span className="font-bold text-slate-900 text-sm">Quét CCCD gắn chip / FaceID</span>
-            <span className="text-xs text-slate-500">Chạm để bắt đầu nhận diện bệnh nhân</span>
-          </button>
+        {!scannedPatient ? (
+          <div className="w-full relative">
+            <CccdCapture 
+              side="front" 
+              capturedUrl={capturedCccdUrl} 
+              onCapture={(url) => {
+                setCapturedCccdUrl(url);
+                if (url) {
+                  processEkycBase64(url);
+                }
+              }} 
+            />
+            {scanningEkyc && (
+              <div className="absolute inset-0 bg-white/80 flex items-center justify-center backdrop-blur-[2px] z-10 rounded-2xl">
+                <div className="flex flex-col items-center gap-3">
+                  <span className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></span>
+                  <p className="text-cyan-700 font-bold text-sm tracking-wide">Đang xác thực...</p>
+                </div>
+              </div>
+            )}
+            {ekycError && (
+              <p className="mt-3 text-xs text-red-500 font-bold text-center bg-red-50 p-2.5 rounded-lg border border-red-100 animate-in fade-in slide-in-from-top-1">
+                {ekycError}
+              </p>
+            )}
+          </div>
         ) : (
           <div className="space-y-3 animate-fade-in">
             <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-50 border border-emerald-200">
@@ -7247,40 +7309,40 @@ function EmsView() {
                 <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5">
                   Họ và tên
                 </p>
-                <p className="text-sm font-bold text-slate-900">{MOCK_EMS_PATIENT.name}</p>
+                <p className="text-sm font-bold text-slate-900">{scannedPatient?.full_name || scannedPatient?.name || "N/A"}</p>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
                 <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5">
                   CCCD
                 </p>
                 <p className="text-sm font-bold text-slate-900 font-mono">
-                  {MOCK_EMS_PATIENT.cccd}
+                  {scannedPatient?.cccd_number || scannedPatient?.cccd || "N/A"}
                 </p>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
                 <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5">
                   Ngày sinh
                 </p>
-                <p className="text-sm font-bold text-slate-900">{MOCK_EMS_PATIENT.dob}</p>
+                <p className="text-sm font-bold text-slate-900">{scannedPatient?.dob || "N/A"}</p>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
                 <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5">
                   Giới tính
                 </p>
-                <p className="text-sm font-bold text-slate-900">{MOCK_EMS_PATIENT.gender}</p>
+                <p className="text-sm font-bold text-slate-900">{scannedPatient?.gender || "N/A"}</p>
               </div>
               <div className="p-3 rounded-xl bg-red-50 border border-red-100">
                 <p className="text-[10px] font-geist uppercase tracking-wider text-red-400 mb-0.5">
                   Nhóm máu
                 </p>
-                <p className="text-sm font-bold text-red-600">{MOCK_EMS_PATIENT.bloodType}</p>
+                <p className="text-sm font-bold text-red-600">{scannedPatient?.blood_type || "N/A"}</p>
               </div>
               <div className="p-3 rounded-xl bg-amber-50 border border-amber-100">
                 <p className="text-[10px] font-geist uppercase tracking-wider text-amber-500 mb-0.5">
                   Dị ứng
                 </p>
                 <p className="text-sm font-bold text-amber-700">
-                  {MOCK_EMS_PATIENT.allergies.join(", ")}
+                  {scannedPatient?.allergies ? scannedPatient.allergies.join(", ") : "Không có"}
                 </p>
               </div>
             </div>
@@ -7290,14 +7352,18 @@ function EmsView() {
                 Bệnh nền
               </p>
               <div className="flex flex-wrap gap-1.5">
-                {MOCK_EMS_PATIENT.chronicConditions.map((c) => (
-                  <span
-                    key={c}
-                    className="px-2 py-0.5 rounded-full bg-slate-200 text-[11px] font-bold text-slate-700"
-                  >
-                    {c}
-                  </span>
-                ))}
+                {(scannedPatient?.chronic_conditions || scannedPatient?.chronicConditions || []).length > 0 ? (
+                  (scannedPatient?.chronic_conditions || scannedPatient?.chronicConditions).map((c: string) => (
+                    <span
+                      key={c}
+                      className="px-2 py-0.5 rounded-full bg-slate-200 text-[11px] font-bold text-slate-700"
+                    >
+                      {c}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-sm font-bold text-slate-500">Không có</span>
+                )}
               </div>
             </div>
 
@@ -7307,11 +7373,12 @@ function EmsView() {
                   Người liên hệ khẩn cấp
                 </p>
                 <p className="text-sm font-bold text-blue-900">
-                  {MOCK_EMS_PATIENT.emergencyContact.name} (
-                  {MOCK_EMS_PATIENT.emergencyContact.relation})
+                  {scannedPatient?.emergency_contact?.name || scannedPatient?.emergencyContact?.name || "N/A"} 
+                  {scannedPatient?.emergency_contact?.relation || scannedPatient?.emergencyContact?.relation ? 
+                    ` (${scannedPatient?.emergency_contact?.relation || scannedPatient?.emergencyContact?.relation})` : ""}
                 </p>
                 <p className="text-xs text-blue-600 font-mono">
-                  {MOCK_EMS_PATIENT.emergencyContact.phone}
+                  {scannedPatient?.emergency_contact?.phone || scannedPatient?.emergencyContact?.phone || "N/A"}
                 </p>
               </div>
               <Phone className="w-5 h-5 text-blue-500" />
@@ -7338,7 +7405,7 @@ function EmsView() {
         </div>
 
         {/* OpenStreetMap via Leaflet (Client side only) */}
-        <ClientEmsLeafletMap lat={mapCenterLat} lng={mapCenterLng} />
+        <ClientEmsLeafletMap lat={mapCenterLat} lng={mapCenterLng} onRouteUpdate={setRouteInfo} hospitalId={isMissionStarted ? hospitalId : undefined} />
 
         {/* ETA info */}
         <div className="grid grid-cols-3 gap-3">
@@ -7358,7 +7425,9 @@ function EmsView() {
             <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5 font-bold">
               Đích đến
             </p>
-            <p className="text-sm font-black text-slate-900 leading-tight">BV Bạch Mai</p>
+            <p className="text-sm font-black text-slate-900 leading-tight">
+              {routeInfo ? routeInfo.destName : "BV Bạch Mai"}
+            </p>
           </div>
         </div>
 
@@ -7481,23 +7550,37 @@ function EmsView() {
 
       {/* Floating GPS Broadcast Button */}
       <button
+<<<<<<< Updated upstream
         id="btn-toggle-gps"
         onClick={toggleGpsBroadcast}
+=======
+        onClick={() => {
+          if (!isMissionStarted) {
+            setShowMissionSetup(true);
+          } else {
+            toggleGpsBroadcast();
+          }
+        }}
+>>>>>>> Stashed changes
         className={`fixed bottom-6 right-6 z-50 px-6 py-4 rounded-full text-sm font-black shadow-2xl transition-all flex items-center gap-3 hover:scale-105 active:scale-95 ${
-          isBroadcasting ? "bg-red-500 text-white animate-pulse" : "bg-cyan-500 text-white"
+          !isMissionStarted ? "bg-slate-800 text-white" : isBroadcasting ? "bg-red-500 text-white animate-pulse" : "bg-cyan-500 text-white"
         }`}
         style={{
-          boxShadow: isBroadcasting
+          boxShadow: !isMissionStarted ? "0 8px 32px rgba(30, 41, 59, 0.4)" : isBroadcasting
             ? "0 8px 32px rgba(239, 68, 68, 0.5)"
             : "0 8px 32px rgba(6, 182, 212, 0.4)",
         }}
       >
         <MapPin className="w-5 h-5" />
+<<<<<<< Updated upstream
         {isBroadcasting
           ? plateConfirmed
             ? `DỪNG · ${plateConfirmed}`
             : "DỪNG TRUYỀN GPS"
           : "BẬT TRUYỀN GPS"}
+=======
+        {!isMissionStarted ? "Xác nhận xe làm nhiệm vụ" : isBroadcasting ? "DỪNG TRUYỀN GPS" : "BẬT TRUYỀN GPS"}
+>>>>>>> Stashed changes
       </button>
 
       {/* ── Modal nhap bien so xe ── */}

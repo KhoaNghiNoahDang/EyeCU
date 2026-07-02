@@ -224,3 +224,11 @@ class Incident(SQLModel, table=True):
     description: Optional[str] = None
     status: str = Field(default="pending", max_length=20)  # pending, resolved
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class EmsMission(SQLModel, table=True):
+    __tablename__ = "ems_missions"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    plate_number: str = Field(max_length=20, index=True)
+    hospital_id: Optional[str] = Field(default=None, max_length=50)
+    status: str = Field(default="active", max_length=20)  # active, arrived, completed
+    created_at: datetime = Field(default_factory=datetime.utcnow)

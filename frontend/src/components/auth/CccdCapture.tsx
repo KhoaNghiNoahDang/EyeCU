@@ -135,7 +135,7 @@ export function CccdCapture({ side, capturedUrl, onCapture }: CccdCaptureProps) 
 
       {!error && !capturedUrl && (
         <p className="text-center text-[11px] text-slate-500">
-          Đặt CCCD phẳng, đủ ánh sáng · Avoid glare
+          Đặt CCCD phẳng, đủ ánh sáng
         </p>
       )}
 
