@@ -132,18 +132,24 @@ export function PatientPortalNew({
   const [botPos, setBotPos] = useState({ x: 0, y: 0 });
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
+  const dragStartCoords = useRef({ x: 0, y: 0 });
   const hasMoved = useRef(false);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     isDragging.current = true;
     hasMoved.current = false;
     dragStart.current = { x: e.clientX - botPos.x, y: e.clientY - botPos.y };
+    dragStartCoords.current = { x: e.clientX, y: e.clientY };
     e.currentTarget.setPointerCapture(e.pointerId);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!isDragging.current) return;
-    hasMoved.current = true;
+    const dx = e.clientX - dragStartCoords.current.x;
+    const dy = e.clientY - dragStartCoords.current.y;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      hasMoved.current = true;
+    }
     setBotPos({ x: e.clientX - dragStart.current.x, y: e.clientY - dragStart.current.y });
   };
 
