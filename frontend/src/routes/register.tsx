@@ -39,6 +39,7 @@ function RegisterPage() {
   // Additional inputs
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
+  const [bhxhCode, setBhxhCode] = useState("");
   const [emergencyName, setEmergencyName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
 
@@ -93,6 +94,7 @@ function RegisterPage() {
         ...extractedData,
         password,
         phone,
+        bhxh_code: bhxhCode,
         emergency_contact_name: emergencyName,
         emergency_contact_phone: emergencyPhone,
         face_base64: faceUrl
@@ -313,6 +315,10 @@ function RegisterPage() {
                   <div>
                     <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">SỐ ĐIỆN THOẠI *</label>
                     <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Số điện thoại liên hệ" className="w-full rounded-xl border-2 border-slate-100 px-3 py-2.5 text-sm outline-none focus:border-[#0A9BAD]" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">MÃ BHYT / BHXH</label>
+                    <input type="text" value={bhxhCode} onChange={(e) => setBhxhCode(e.target.value)} placeholder="Nhập mã Bảo hiểm y tế" className="w-full rounded-xl border-2 border-slate-100 px-3 py-2.5 text-sm outline-none focus:border-[#0A9BAD]" />
                   </div>
                   <div className="pt-2">
                     <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">NGƯỜI LH KHẨN CẤP</label>
