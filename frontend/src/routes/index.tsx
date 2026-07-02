@@ -6962,7 +6962,7 @@ function PatientPortalView({
   };
 
   return (
-    <div className="flex h-full min-h-0 justify-center bg-slate-50 sm:items-center sm:px-4 sm:py-4">
+    <div className="flex h-[100dvh] min-h-0 justify-center bg-slate-50 sm:items-center sm:px-4 sm:py-4">
       <input
         ref={fileInputRef}
         type="file"

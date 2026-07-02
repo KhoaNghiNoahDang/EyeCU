@@ -1355,7 +1355,7 @@ export function PatientPortalNew({
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-white sm:items-center sm:py-4">
+    <div className="flex h-[100dvh] min-h-0 flex-col bg-white sm:items-center sm:py-4">
       <div className="relative flex h-full min-h-0 w-full max-w-none flex-col overflow-hidden bg-white sm:h-[min(92dvh,860px)] sm:max-w-[420px] sm:rounded-[2rem] sm:border sm:border-slate-200 sm:shadow-2xl">
         
         {activeTab === "home" ? (
