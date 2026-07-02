@@ -72,8 +72,8 @@ export function WebAuthnFaceStep({
         setDone(true);
         onSuccess();
       }
-    } catch (err) {
-      setError(err instanceof WebAuthnError ? err.message : "Xác thực thất bại");
+    } catch (err: any) {
+      setError(err instanceof WebAuthnError ? err.message : `Lỗi: ${err.message || String(err)}`);
     } finally {
       setLoading(false);
     }
