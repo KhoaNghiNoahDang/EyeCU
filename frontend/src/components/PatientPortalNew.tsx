@@ -40,9 +40,7 @@ export function PatientPortalNew({
   
   // Floating Bot Logic
   const [botOpen, setBotOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMsg[]>([
-    { from: "bot", text: "Tôi là trợ lý ảo AI, tôi có thể giúp gì được cho bạn?", time: getTimeNow() },
-  ]);
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [botTyping, setBotTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -112,6 +110,21 @@ export function PatientPortalNew({
     const t = setTimeout(() => setBotOpen(true), 1500);
     return () => clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    if (botOpen && messages.length === 0) {
+      setBotTyping(true);
+      fetchApi("/patient/chat", { method: "POST", body: { message: "Xin chào" } })
+        .then((data) => {
+          setMessages([{ from: "bot", text: data.reply || "Xin chào, tôi là trợ lý AI. Tôi có thể giúp gì cho bạn?", time: getTimeNow(), buttons: data.buttons }]);
+          setBotTyping(false);
+        })
+        .catch(() => {
+          setMessages([{ from: "bot", text: "Xin chào, tôi là trợ lý AI. Tôi có thể giúp gì cho bạn?", time: getTimeNow() }]);
+          setBotTyping(false);
+        });
+    }
+  }, [botOpen, messages.length]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
