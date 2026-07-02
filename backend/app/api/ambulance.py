@@ -102,12 +102,40 @@ async def background_db_updater():
 from app.services.vnpt_api import vnpt_client
 
 
+from app.api.ambient import ambient_manager
+from fastapi import Depends
+from sqlalchemy.orm import Session
+from app.db.database import get_db
+from app.db.models import Ambulance, LprLog
+
 @router.post("/lpr")
-async def simulate_ambulance_gate(img_url: str = "dummy_image_hash_from_addFile"):
+async def simulate_ambulance_gate(
+    img_url: str = "dummy_image_hash_from_addFile",
+    db: Session = Depends(get_db)
+):
     vision_result = await vnpt_client.call_smartvision_detect_vehicle(img_url)
 
     plate = "51A-999.11"
     if "object" in vision_result and "license_plate" in vision_result["object"]:
         plate = vision_result["object"]["license_plate"]
 
-    return {"status": "Arrived", "plate": plate, "raw_data": vision_result}
+    ambulance = db.query(Ambulance).filter(Ambulance.plate_number == plate).first()
+    
+    if ambulance:
+        lpr_log = LprLog(
+            camera_id="cam_gate_01",
+            plate_number=plate,
+        )
+        db.add(lpr_log)
+        db.commit()
+
+        await ambient_manager.broadcast({
+            "type": "GATE_ARRIVED",
+            "data": {
+                "plate": plate,
+                "ambulance_id": str(ambulance.id),
+                "driver": ambulance.driver_name,
+            }
+        })
+
+    return {"status": "Arrived", "plate": plate, "matched": bool(ambulance), "raw_data": vision_result}

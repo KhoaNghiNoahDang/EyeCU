@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, ComponentType } from "react";
 import { useAuth, type WorkMode } from "../lib/auth/auth-context";
 import { useEyeCUSocket } from "../hooks/useEyeCUSocket";
 import { fetchApi } from "../lib/api/client";
@@ -11,42 +11,45 @@ const gpsToSvg = (lat: number, lng: number) => {
   return { mapX: 200, mapY: 100 };
 };
 
-const LazyRealAmbulanceMap = lazy(() =>
-  import("../components/MapComponents").then((m) => ({ default: m.RealAmbulanceMap })),
-);
-const LazyEmsLeafletMap = lazy(() =>
-  import("../components/MapComponents").then((m) => ({ default: m.EmsLeafletMap })),
-);
 
 function ClientAmbulanceMap(props: any) {
-  const [isMounted, setIsMounted] = useState(false);
-  useEffect(() => setIsMounted(true), []);
-  if (!isMounted) return <div className="absolute inset-0 bg-slate-100 animate-pulse" />;
+  const [MapComp, setMapComp] = useState<ComponentType<any> | null>(null);
+
+  useEffect(() => {
+    import("../components/MapComponents").then((m) => {
+      setMapComp(() => m.RealAmbulanceMap);
+    });
+  }, []);
+
+  if (!MapComp) {
+    return <div className="absolute inset-0 bg-slate-100 animate-pulse" />;
+  }
+
   return (
     <MapErrorBoundary>
-      <Suspense fallback={<div className="absolute inset-0 bg-slate-100 animate-pulse" />}>
-        <LazyRealAmbulanceMap {...props} />
-      </Suspense>
+      <MapComp {...props} />
     </MapErrorBoundary>
   );
 }
 
 function ClientEmsLeafletMap(props: any) {
-  const [isMounted, setIsMounted] = useState(false);
-  useEffect(() => setIsMounted(true), []);
-  if (!isMounted)
+  const [MapComp, setMapComp] = useState<ComponentType<any> | null>(null);
+
+  useEffect(() => {
+    import("../components/MapComponents").then((m) => {
+      setMapComp(() => m.EmsLeafletMap);
+    });
+  }, []);
+
+  if (!MapComp) {
     return (
       <div className="relative w-full h-[240px] rounded-xl bg-[#e5e5e5] animate-pulse mb-4 z-0" />
     );
+  }
+
   return (
     <MapErrorBoundary>
-      <Suspense
-        fallback={
-          <div className="relative w-full h-[240px] rounded-xl bg-[#e5e5e5] animate-pulse mb-4 z-0" />
-        }
-      >
-        <LazyEmsLeafletMap {...props} />
-      </Suspense>
+      <MapComp {...props} />
     </MapErrorBoundary>
   );
 }
@@ -571,7 +574,11 @@ function PatientRounds() {
                 setHighlightedRoom={setHighlightedRoom}
               />
             )}
-            {activeView === "ambulance" && <AmbulanceView />}
+            {activeView === "ambulance" && (
+              <MapErrorBoundary>
+                <AmbulanceView />
+              </MapErrorBoundary>
+            )}
             {activeView === "records" && <RecordsView />}
             {activeView === "voice" && <VoiceView />}
             {activeView === "chatbot" && <ChatbotView />}
@@ -3336,7 +3343,7 @@ function AmbulanceView() {
           return {
             id: d.id,
             plate: d.plate,
-            status: d.status || "available",
+            status: ["critical", "urgent", "standby"].includes(d.status) ? d.status : "standby",
             patient: "Đang cập nhật...",
             diagnosis: "Đang cập nhật...",
             etaSeconds: 300,
@@ -3364,10 +3371,10 @@ function AmbulanceView() {
     time: string;
   } | null>(null);
 
-  const showToast = (msg: string) => {
+  const showToast = useCallback((msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(""), 4000);
-  };
+  }, []);
 
   // Ket noi WebSocket de nhan cap nhat GPS va su kien cong vien theo thoi gian thuc
   const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
@@ -3398,7 +3405,8 @@ function AmbulanceView() {
       }
       if (msg.type === "GATE_ARRIVED" && msg.data) {
         const { plate } = msg.data as { plate: string };
-        showToast(`Xe ${plate} da den cong - Barrier tu dong mo`);
+        setLprPlate(plate);
+        showToast(`Xe ${plate} đã đến cổng - Barrier tự động mở`);
       }
       if (msg.type === "CAMERA_STREAM") {
         window.dispatchEvent(
@@ -7021,6 +7029,12 @@ function EmsView() {
   const watchIdRef = useRef<number | null>(null);
   const realStartRef = useRef<{ lat: number; lng: number } | null>(null);
 
+  // Modal nhap bien so xe
+  const [showPlateModal, setShowPlateModal] = useState(false);
+  const [plateInput, setPlateInput] = useState("");
+  const [plateError, setPlateError] = useState("");
+  const [plateConfirmed, setPlateConfirmed] = useState<string | null>(null); // bien so da xac nhan
+
   const handleSocketMessage = useCallback(
     (msg: { type: string; data?: Record<string, unknown> }) => {
       if (msg.type === "FAST_TRACK_SYNC") setSyncStatus("synced");
@@ -7038,45 +7052,84 @@ function EmsView() {
 
   const { send } = useEyeCUSocket({ url: WS_URL, onMessage: handleSocketMessage });
 
+  // Khi an nut BẬT TRUYỀN GPS -> hien modal nhap bien so
   const toggleGpsBroadcast = () => {
     if (isBroadcasting) {
+      // Dung GPS
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
       }
+      // Gui GPS_STOP kem bien so de backend xoa session
+      if (plateConfirmed) {
+        send({ type: "GPS_STOP", data: { plate: plateConfirmed } });
+      }
       setIsBroadcasting(false);
-      realStartRef.current = null; // Reset
+      setPlateConfirmed(null);
+      realStartRef.current = null;
     } else {
+      // Mo modal nhap bien so truoc
       if (!navigator.geolocation) {
         alert("Trình duyệt không hỗ trợ định vị GPS.");
         return;
       }
-      setIsBroadcasting(true);
-
-      watchIdRef.current = navigator.geolocation.watchPosition(
-        (pos) => {
-          const { latitude, longitude } = pos.coords;
-
-          setGpsState({ lat: latitude, lng: longitude });
-          send({
-            type: "GPS_UPDATE",
-            data: { ambulance_id: "current", lat: latitude, lng: longitude },
-          });
-        },
-        (err) => {
-          console.error("Lỗi GPS:", err);
-          if (err.code === 1) {
-            alert("Lỗi GPS: Bạn đã từ chối hoặc trình duyệt không có quyền truy cập vị trí.");
-            setIsBroadcasting(false);
-          } else if (err.code === 2) {
-            console.warn("GPS: Tạm thời không tìm thấy vị trí.");
-          } else if (err.code === 3) {
-            console.warn("GPS: Quá thời gian lấy vị trí (Timeout), đang thử lại...");
-          }
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 },
-      );
+      setPlateInput("");
+      setPlateError("");
+      setShowPlateModal(true);
     }
+  };
+
+  // Sau khi tai xe nhap bien so va xac nhan -> bat dau GPS
+  const startGpsWithPlate = () => {
+    const trimmed = plateInput.trim();
+    if (trimmed.length < 4) {
+      setPlateError("Vui lòng nhập ít nhất 4 ký tự biển số.");
+      return;
+    }
+    setPlateError("");
+    setShowPlateModal(false);
+    setPlateConfirmed(trimmed);
+    setIsBroadcasting(true);
+
+    // Lay vi tri lan dau tien -> gui GPS_START kem bien so
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setGpsState({ lat: latitude, lng: longitude });
+        // GPS_START: dang ky bien so + toa do dau tien voi backend
+        send({
+          type: "GPS_START",
+          data: { plate: trimmed, lat: latitude, lng: longitude },
+        });
+      },
+      () => {},
+      { enableHighAccuracy: true, timeout: 8000 },
+    );
+
+    // Theo doi GPS lien tuc, moi lan cap nhat gui kem bien so
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setGpsState({ lat: latitude, lng: longitude });
+        send({
+          type: "GPS_UPDATE",
+          data: { plate: trimmed, ambulance_id: "current", lat: latitude, lng: longitude },
+        });
+      },
+      (err) => {
+        console.error("Lỗi GPS:", err);
+        if (err.code === 1) {
+          alert("Lỗi GPS: Bạn đã từ chối hoặc trình duyệt không có quyền truy cập vị trí.");
+          setIsBroadcasting(false);
+          setPlateConfirmed(null);
+        } else if (err.code === 2) {
+          console.warn("GPS: Tạm thời không tìm thấy vị trí.");
+        } else if (err.code === 3) {
+          console.warn("GPS: Quá thời gian lấy vị trí (Timeout), đang thử lại...");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 },
+    );
   };
 
   useEffect(() => {
@@ -7421,6 +7474,7 @@ function EmsView() {
 
       {/* Floating GPS Broadcast Button */}
       <button
+        id="btn-toggle-gps"
         onClick={toggleGpsBroadcast}
         className={`fixed bottom-6 right-6 z-50 px-6 py-4 rounded-full text-sm font-black shadow-2xl transition-all flex items-center gap-3 hover:scale-105 active:scale-95 ${
           isBroadcasting ? "bg-red-500 text-white animate-pulse" : "bg-cyan-500 text-white"
@@ -7432,8 +7486,89 @@ function EmsView() {
         }}
       >
         <MapPin className="w-5 h-5" />
-        {isBroadcasting ? "DỪNG TRUYỀN GPS" : "BẬT TRUYỀN GPS"}
+        {isBroadcasting
+          ? plateConfirmed
+            ? `DỪNG · ${plateConfirmed}`
+            : "DỪNG TRUYỀN GPS"
+          : "BẬT TRUYỀN GPS"}
       </button>
+
+      {/* ── Modal nhap bien so xe ── */}
+      {showPlateModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden"
+            style={{ border: "2px solid #06b6d4" }}
+          >
+            {/* Header */}
+            <div
+              className="px-6 py-4 flex items-center gap-3"
+              style={{ background: "linear-gradient(135deg, #0891b2, #06b6d4)" }}
+            >
+              <MapPin className="w-6 h-6 text-white flex-shrink-0" />
+              <div>
+                <p className="text-white font-black text-base leading-tight">Bật Truyền GPS</p>
+                <p className="text-cyan-100 text-xs">Nhập biển số xe để bệnh viện nhận diện</p>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5">
+              <label className="block text-sm font-bold text-slate-700 mb-2">
+                Biển số xe cấp cứu
+              </label>
+              <input
+                id="input-plate-number"
+                type="text"
+                autoFocus
+                value={plateInput}
+                onChange={(e) => {
+                  setPlateInput(e.target.value.toUpperCase());
+                  setPlateError("");
+                }}
+                onKeyDown={(e) => e.key === "Enter" && startGpsWithPlate()}
+                placeholder="VD: 51A-999.11 hoặc nhập 5 số cuối"
+                className="w-full px-4 py-3 rounded-xl border-2 text-base font-mono font-bold tracking-widest text-center uppercase transition-all outline-none"
+                style={{
+                  borderColor: plateError ? "#ef4444" : "#06b6d4",
+                  background: "#f0fdff",
+                  color: "#0e7490",
+                }}
+                maxLength={12}
+              />
+              {plateError && (
+                <p className="text-red-500 text-xs mt-1 text-center">{plateError}</p>
+              )}
+              <p className="text-slate-400 text-xs mt-2 text-center leading-relaxed">
+                Biển số sẽ được gửi tới bệnh viện để hệ thống camera<br />
+                nhận diện xe cấp cứu và mở cổng tự động.
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 pb-5 flex gap-3">
+              <button
+                id="btn-cancel-plate"
+                onClick={() => setShowPlateModal(false)}
+                className="flex-1 py-3 rounded-xl border-2 border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all active:scale-95"
+              >
+                Hủy
+              </button>
+              <button
+                id="btn-confirm-plate"
+                onClick={startGpsWithPlate}
+                className="flex-2 flex-1 py-3 rounded-xl font-black text-sm text-white transition-all hover:opacity-90 active:scale-95"
+                style={{ background: "linear-gradient(135deg, #0891b2, #06b6d4)", boxShadow: "0 4px 16px rgba(6,182,212,0.4)" }}
+              >
+                ✓ Bật GPS &amp; Gửi Biển Số
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

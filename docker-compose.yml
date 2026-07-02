@@ -1,31 +1,43 @@
-version: "3.9"
-
 services:
-  # ── BACKEND (FastAPI) ──────────────────────────────────────────
+  # ── BACKEND (FastAPI + Uvicorn) ─────────────────────────────────
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: eyecu_backend
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app          # Hot-reload: sửa code là tự reload ngay
+      # Hot-reload: thay đổi code Python → uvicorn tự reload
+      - ./backend:/app
     env_file:
       - ./backend/.env
-      # Bỏ override DATABASE_URL ở đây để container nhận biến này từ backend/.env (trỏ tới Supabase)
-    depends_on: []
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
-  # ── FRONTEND (React/Vite) ──────────────────────────────────────
+  # ── FRONTEND (Vite Dev Server) ───────────────────────────────────
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
     container_name: eyecu_frontend
     ports:
-      - "5173:8080"
+      - "5173:5173"
     volumes:
+      # Hot-reload: thay đổi code React → Vite tự reload
       - ./frontend:/app
-      - /app/node_modules        # Giữ node_modules trong container, không mount từ host
+      # Giữ node_modules bên trong container, không ghi đè từ host Windows
+      - /app/node_modules
     environment:
+      # Backend chạy trên host machine port 8000
       - VITE_API_URL=http://localhost:8000/api
+      - VITE_WS_URL=ws://localhost:8000
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
