@@ -7414,11 +7414,6 @@ function EmsView() {
   const [plateConfirmed, setPlateConfirmed] = useState<string | null>(null);
   const groupedHospitals = getHospitalsByProvince();
 
-  // State cho modal nhập biển số khi bật GPS
-  const [plateConfirmed, setPlateConfirmed] = useState<string | null>(null);
-  const [plateInput, setPlateInput] = useState("");
-  const [plateError, setPlateError] = useState("");
-  const [showPlateModal, setShowPlateModal] = useState(false);
 
   const handleStartMission = async () => {
     const finalPlate = plate.trim() || localStorage.getItem("ems_plate") || "";
@@ -7569,6 +7564,9 @@ function EmsView() {
     }
   };
 
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
     };
