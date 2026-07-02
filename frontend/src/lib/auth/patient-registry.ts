@@ -87,12 +87,32 @@ export function getPatientQrUrl(patient: RegisteredPatient): string {
   return `${window.location.origin}/scan?t=${patient.qrToken}`;
 }
 
-export function updatePatientCredentialId(cccd: string, credentialId: string): RegisteredPatient {
+export function updatePatientCredentialId(cccd: string, credentialId: string, pendingData?: any): RegisteredPatient {
   const all = loadAll();
   const idx = all.findIndex((p) => p.cccd === cccd.trim());
   if (idx === -1) {
-    const availableCccds = all.map(p => `"${p.cccd}"`).join(", ");
-    throw new Error(`Không tìm thấy bệnh nhân. CCCD cần tìm: "${cccd.trim()}". Các CCCD có sẵn: ${availableCccds}`);
+    if (!pendingData) {
+      const availableCccds = all.map(p => `"${p.cccd}"`).join(", ");
+      throw new Error(`Không tìm thấy bệnh nhân. CCCD cần tìm: "${cccd.trim()}". Các CCCD có sẵn: ${availableCccds}`);
+    }
+    const patient: RegisteredPatient = {
+      id: pendingData.id || crypto.randomUUID(),
+      cccd: pendingData.cccd,
+      name: pendingData.name,
+      phone: pendingData.phone,
+      bhxh_code: pendingData.bhxh_code || null,
+      avatar_url: pendingData.avatar_url || null,
+      credentialId,
+      qrToken: pendingData.qrToken || crypto.randomUUID().replace(/-/g, "").slice(0, 16),
+      cccdFrontUrl: pendingData.cccdFrontUrl || null,
+      cccdBackUrl: pendingData.cccdBackUrl || null,
+      emergency_contact_name: pendingData.emergency_contact_name || null,
+      emergency_contact_phone: pendingData.emergency_contact_phone || null,
+      createdAt: pendingData.createdAt || new Date().toISOString(),
+    };
+    all.push(patient);
+    saveAll(all);
+    return patient;
   }
   all[idx]!.credentialId = credentialId;
   saveAll(all);

@@ -867,7 +867,7 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
 
   const handleRegisterSuccess = (credentialId?: string) => {
     if (!pendingPatient || !credentialId) return;
-    updatePatientCredentialId(pendingPatient.cccd, credentialId);
+    updatePatientCredentialId(pendingPatient.cccd, credentialId, pendingPatient);
     onLogin(toAuthUser({ ...pendingPatient, credentialId }), (pendingPatient as any).access_token);
   };
 
