@@ -111,7 +111,7 @@ class VnptAPIClient:
             "client_session": "eyecu-ocr",
             "img_front": hash_string,
             "step_id": 0,
-            "type": 7}
+            "type": -1}
         if hash_back_string:
             payload["img_back"] = hash_back_string
         try:
