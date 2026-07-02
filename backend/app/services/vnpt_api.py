@@ -308,6 +308,7 @@ class VnptAPIClient:
             async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
                 # 1. Upload file using SmartReader headers
                 headers = _smartreader_headers()
+                headers.pop("Content-Type", None)
                 content_type = "image/jpeg"
                 if filename.lower().endswith(".pdf"):
                      content_type = "application/pdf"
@@ -324,6 +325,7 @@ class VnptAPIClient:
                     return {"text": "", "raw": upload_data}
 
                 # 2. Call OCR/Scan
+                headers["Content-Type"] = "application/json"
                 headers["mac-address"] = "WEB-001"
                 payload = {
                     "file_hash": hash_string,
