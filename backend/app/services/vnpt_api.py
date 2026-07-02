@@ -1,4 +1,5 @@
 import httpx
+import uuid
 from app.core.config import settings
 from app.services.dataset_reader import get_mock_json
 import base64
@@ -106,7 +107,11 @@ class VnptAPIClient:
     # ── eKYC: OCR CCCD ────────────────────────────────────────────
     async def call_ekyc_ocr(self, hash_string: str, hash_back_string: str = None) -> dict:
         """Bóc tách thông tin từ ảnh CCCD (mặt trước + sau)."""
-        payload = {"img_front": hash_string, "step_id": 0, "type": 7}
+        payload = {"token": str(uuid.uuid4()),
+            "client_session": "eyecu-ocr",
+            "img_front": hash_string,
+            "step_id": 0,
+            "type": 7}
         if hash_back_string:
             payload["img_back"] = hash_back_string
         try:
@@ -156,6 +161,7 @@ class VnptAPIClient:
     async def call_face_liveness_2d(self, face_img_hash: str) -> dict:
         """Xác thực khuôn mặt 2D (nhanh, 1 ảnh)."""
         payload = {
+            "token": str(uuid.uuid4()),
             "img": face_img_hash,
             "client_session": "eyecu-face-2d",
         }
@@ -185,6 +191,7 @@ class VnptAPIClient:
     async def call_face_compare(self, img_hash_1: str, img_hash_2: str) -> dict:
         """So khớp 2 khuôn mặt."""
         payload = {
+            "token": str(uuid.uuid4()),
             "img_front": img_hash_1,
             "img_face": img_hash_2,
             "client_session": "eyecu-face-compare",
