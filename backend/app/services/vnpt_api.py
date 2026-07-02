@@ -297,10 +297,33 @@ class VnptAPIClient:
                     json=payload,
                     headers=_smartbot_headers(),
                 )
-                data = resp.json()
-                replies = data.get("data", [])
-                reply_text = replies[0].get("text", "") if replies else ""
-                return {"reply": reply_text, "raw": data}
+                
+                text_response = resp.text
+                last_data = None
+                
+                for line in text_response.strip().split('\n'):
+                    line = line.strip()
+                    if line.startswith('data:'):
+                        try:
+                            import json
+                            last_data = json.loads(line[5:])
+                        except Exception:
+                            pass
+                
+                if last_data:
+                    try:
+                        reply_text = last_data["object"]["sb"]["card_data"][0]["text"]
+                        return {"reply": reply_text, "raw": last_data}
+                    except KeyError:
+                        return {"reply": "", "raw": {"error": "Lỗi bóc tách nội dung từ SmartBot", "raw": last_data}}
+                else:
+                    try:
+                        data = resp.json()
+                        replies = data.get("data", [])
+                        reply_text = replies[0].get("text", "") if replies else ""
+                        return {"reply": reply_text, "raw": data}
+                    except Exception:
+                        return {"reply": "", "raw": {"error": "Lỗi đọc phản hồi từ SmartBot: " + text_response}}
         except Exception as e:
             return {"reply": "", "raw": {"error": f"Lỗi gọi VNPT SmartBot: {str(e)}" }}
 
