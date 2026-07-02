@@ -6948,13 +6948,6 @@ function EmsView() {
   const watchIdRef = useRef<number | null>(null);
   const realStartRef = useRef<{ lat: number; lng: number } | null>(null);
 
-<<<<<<< Updated upstream
-  // Modal nhap bien so xe
-  const [showPlateModal, setShowPlateModal] = useState(false);
-  const [plateInput, setPlateInput] = useState("");
-  const [plateError, setPlateError] = useState("");
-  const [plateConfirmed, setPlateConfirmed] = useState<string | null>(null); // bien so da xac nhan
-=======
   const [routeInfo, setRouteInfo] = useState<{km: string, mins: number, destName: string} | null>(null);
   const [isMissionStarted, setIsMissionStarted] = useState(false);
   const [showMissionSetup, setShowMissionSetup] = useState(false);
@@ -7022,7 +7015,6 @@ function EmsView() {
       setScanningEkyc(false);
     }
   };
->>>>>>> Stashed changes
 
   const handleSocketMessage = useCallback(
     (msg: { type: string; data?: Record<string, unknown> }) => {
@@ -7054,13 +7046,8 @@ function EmsView() {
         send({ type: "GPS_STOP", data: { plate: plateConfirmed } });
       }
       setIsBroadcasting(false);
-<<<<<<< Updated upstream
-      setPlateConfirmed(null);
-      realStartRef.current = null;
-=======
       setIsMissionStarted(false);
       realStartRef.current = null; // Reset
->>>>>>> Stashed changes
     } else {
       // Mo modal nhap bien so truoc
       if (!navigator.geolocation) {
@@ -7550,10 +7537,6 @@ function EmsView() {
 
       {/* Floating GPS Broadcast Button */}
       <button
-<<<<<<< Updated upstream
-        id="btn-toggle-gps"
-        onClick={toggleGpsBroadcast}
-=======
         onClick={() => {
           if (!isMissionStarted) {
             setShowMissionSetup(true);
@@ -7561,7 +7544,6 @@ function EmsView() {
             toggleGpsBroadcast();
           }
         }}
->>>>>>> Stashed changes
         className={`fixed bottom-6 right-6 z-50 px-6 py-4 rounded-full text-sm font-black shadow-2xl transition-all flex items-center gap-3 hover:scale-105 active:scale-95 ${
           !isMissionStarted ? "bg-slate-800 text-white" : isBroadcasting ? "bg-red-500 text-white animate-pulse" : "bg-cyan-500 text-white"
         }`}
@@ -7572,15 +7554,7 @@ function EmsView() {
         }}
       >
         <MapPin className="w-5 h-5" />
-<<<<<<< Updated upstream
-        {isBroadcasting
-          ? plateConfirmed
-            ? `DỪNG · ${plateConfirmed}`
-            : "DỪNG TRUYỀN GPS"
-          : "BẬT TRUYỀN GPS"}
-=======
         {!isMissionStarted ? "Xác nhận xe làm nhiệm vụ" : isBroadcasting ? "DỪNG TRUYỀN GPS" : "BẬT TRUYỀN GPS"}
->>>>>>> Stashed changes
       </button>
 
       {/* ── Modal nhap bien so xe ── */}

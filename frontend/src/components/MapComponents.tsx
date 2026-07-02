@@ -1,11 +1,6 @@
-<<<<<<< Updated upstream
 "use client";
-import { useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
-=======
 import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from "react-leaflet";
->>>>>>> Stashed changes
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { getNearestHospital, CENTRAL_HOSPITALS, getHospitalsByProvince, Hospital } from "../lib/hospitals";
