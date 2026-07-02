@@ -181,15 +181,25 @@ async def patient_chatbot(
         reply = f"Lỗi VNPT SmartBot: {raw_data['error']}"
 
     buttons = []
+    texts = []
+    images = []
     try:
         if "object" in raw_data and "sb" in raw_data["object"] and "card_data" in raw_data["object"]["sb"]:
             for card in raw_data["object"]["sb"]["card_data"]:
+                if "text" in card and card["text"]:
+                    texts.append(card["text"])
                 if "buttons" in card and card["buttons"]:
                     buttons.extend(card["buttons"])
+                if "image_url" in card and card["image_url"]:
+                    images.append(card["image_url"])
+                elif "url" in card and card.get("type") == "image":
+                    images.append(card["url"])
+            if texts:
+                reply = "\n\n".join(texts)
     except Exception:
         pass
 
-    return {"reply": reply, "raw_data": raw_data, "buttons": buttons}
+    return {"reply": reply, "raw_data": raw_data, "buttons": buttons, "images": images}
 
 
 @router.post("/chat/voice", dependencies=[Depends(require_roles(["patient"]))])

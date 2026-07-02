@@ -17,6 +17,7 @@ interface ChatMsg {
   text: string;
   time: string;
   buttons?: { title: string; payload?: string; payload_id?: string; color?: string }[];
+  images?: string[];
 }
 
 function getTimeNow() {
@@ -128,7 +129,7 @@ export function PatientPortalNew({
       setBotTyping(true);
       fetchApi("/patient/chat", { method: "POST", body: { message: "Xin chào" } })
         .then((data) => {
-          setMessages([{ from: "bot", text: data.reply || "Xin chào, tôi là trợ lý AI. Tôi có thể giúp gì cho bạn?", time: getTimeNow(), buttons: data.buttons }]);
+          setMessages([{ from: "bot", text: data.reply || "Xin chào, tôi là trợ lý AI. Tôi có thể giúp gì cho bạn?", time: getTimeNow(), buttons: data.buttons, images: data.images }]);
           setBotTyping(false);
         })
         .catch(() => {
@@ -150,7 +151,7 @@ export function PatientPortalNew({
     setBotTyping(true);
     fetchApi("/patient/chat", { method: "POST", body: { message: payloadStr || text } })
       .then((data) => {
-        setMessages((prev) => [...prev, { from: "bot", text: data.reply || "Xin lỗi, tôi không thể trả lời lúc này.", time: getTimeNow(), buttons: data.buttons }]);
+        setMessages((prev) => [...prev, { from: "bot", text: data.reply || "Xin lỗi, tôi không thể trả lời lúc này.", time: getTimeNow(), buttons: data.buttons, images: data.images }]);
         setBotTyping(false);
       })
       .catch(() => setBotTyping(false));
@@ -1775,6 +1776,13 @@ export function PatientPortalNew({
                             >
                               {btn.title}
                             </button>
+                          ))}
+                        </div>
+                      )}
+                      {msg.from === "bot" && msg.images && msg.images.length > 0 && (
+                        <div className="mt-2.5 flex flex-col gap-2">
+                          {msg.images.map((url, idx) => (
+                            <img key={idx} src={url} alt="VNPT SmartBot Image" className="rounded-xl max-w-full h-auto object-contain border border-slate-200" />
                           ))}
                         </div>
                       )}

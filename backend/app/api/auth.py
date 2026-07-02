@@ -237,6 +237,7 @@ def get_me(
         "hometown": getattr(current_user, "hometown", None),
         "emergency_contact_name": getattr(current_user, "emergency_contact_name", None),
         "emergency_contact_phone": getattr(current_user, "emergency_contact_phone", None),
+        "bhxh_code": getattr(current_user, "bhxh_code", None),
     }
 
 
@@ -363,6 +364,7 @@ class FinalizeRegisterRequest(BaseModel):
     gender: str = ""
     password: str
     phone: str
+    bhxh_code: str = ""
     emergency_contact_name: str
     emergency_contact_phone: str
     face_base64: str
@@ -378,6 +380,7 @@ async def finalize_ekyc(data: FinalizeRegisterRequest, db: Session = Depends(get
             name=data.name,
             password_hash=data.password,
             phone=data.phone,
+            bhxh_code=data.bhxh_code,
             emergency_contact_name=data.emergency_contact_name,
             emergency_contact_phone=data.emergency_contact_phone,
             cccd=data.cccd,
