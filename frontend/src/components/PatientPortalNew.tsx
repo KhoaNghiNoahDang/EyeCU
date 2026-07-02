@@ -191,6 +191,9 @@ export function PatientPortalNew({
 
   // Camera / Scan logic
   const [isScanning, setIsScanning] = useState(false);
+  const [isScanningLab, setIsScanningLab] = useState(false);
+  const [isAnalyzingLab, setIsAnalyzingLab] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -223,10 +226,76 @@ export function PatientPortalNew({
   };
 
   useEffect(() => {
-    if (!isScanning) { stopCamera(); return; }
+    if (!isScanning && !isScanningLab) { stopCamera(); return; }
     void startCamera();
     return () => stopCamera();
-  }, [isScanning]);
+  }, [isScanning, isScanningLab]);
+
+  const runLabAnalysis = async (imageDataUrl?: string) => {
+    if (!imageDataUrl) return;
+    setIsAnalyzingLab(true);
+
+    try {
+      const res = await fetchApi("/patient/scan-document", {
+        method: "POST",
+        body: { image_base64: imageDataUrl },
+      });
+      
+      setIsAnalyzingLab(false);
+      setIsScanningLab(false);
+      stopCamera();
+      
+      if (res.status === "success") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            from: "bot",
+            text: `Mình đã nhận được tài liệu của bạn (VNPT bóc tách thành công). Bạn muốn mình giải thích chỉ số hay đơn thuốc này như thế nào?`,
+            time: getTimeNow(),
+          },
+        ]);
+        setBotOpen(true);
+      } else {
+        throw new Error(res.message || "Không trích xuất được thông tin");
+      }
+    } catch (e: any) {
+      console.error(e);
+      setIsAnalyzingLab(false);
+      setIsScanningLab(false);
+      stopCamera();
+      alert("Quét tài liệu thất bại: " + e.message);
+    }
+  };
+
+  const handleCaptureLab = () => {
+    const video = videoRef.current;
+    if (video && video.videoWidth > 0) {
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(video, 0, 0);
+        const imageDataUrl = canvas.toDataURL("image/jpeg", 0.9);
+        runLabAnalysis(imageDataUrl);
+        return;
+      }
+    }
+    runLabAnalysis();
+  };
+
+  const handleFileSelectedLab = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        runLabAnalysis(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+    event.target.value = "";
+  };
 
   // Ask Question Form logic
   const [askGender, setAskGender] = useState<"Nam" | "Nữ">("Nữ");
@@ -297,7 +366,7 @@ export function PatientPortalNew({
           {/* OCR Banner */}
           <div className="px-4 mt-4">
             <button 
-              onClick={() => alert("Chức năng quét phiếu xét nghiệm đang được phát triển")}
+              onClick={() => setIsScanningLab(true)}
               className="flex w-full items-center gap-4 rounded-[20px] bg-[#122432] p-4 shadow-sm active:scale-95 transition-transform"
             >
               <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[18px] bg-white/5">
@@ -1660,7 +1729,93 @@ export function PatientPortalNew({
             )
           })}
         </div>
+        </div>
+
+        {/* Lab Camera Modal */}
+        {isScanningLab && (
+          <div className="absolute inset-0 z-[60] flex flex-col bg-slate-900 animate-in fade-in duration-200 pt-safe pb-safe">
+            <div className="relative flex flex-1 items-center justify-center overflow-hidden">
+              <video
+                ref={videoRef}
+                playsInline
+                muted
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+              {cameraError && (
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/90 p-6 text-center">
+                  <Camera className="mb-4 h-12 w-12 text-red-400" />
+                  <p className="text-white font-medium">{cameraError}</p>
+                  <button
+                    onClick={() => { setIsScanningLab(false); stopCamera(); }}
+                    className="mt-6 rounded-full bg-white/20 px-6 py-2.5 font-medium text-white transition active:bg-white/30"
+                  >
+                    Đóng
+                  </button>
+                </div>
+              )}
+              {/* Cutout Mask with 4 panels for true backdrop blur outside */}
+              <div className="pointer-events-none absolute inset-0 z-10 flex flex-col">
+                <div className="w-full h-6 bg-slate-900/60 backdrop-blur-md" />
+                <div className="flex flex-1">
+                  <div className="w-6 h-full bg-slate-900/60 backdrop-blur-md" />
+                  <div className="flex-1 relative rounded-3xl border-2 border-dashed border-[#88E8F2] flex items-center justify-center">
+                    <div className="absolute inset-0 shadow-[0_0_0_999px_rgba(15,23,42,0.1)] rounded-3xl pointer-events-none" />
+                    <p className="px-4 text-center text-sm font-medium text-white opacity-100 drop-shadow-lg">
+                      Đưa giấy xét nghiệm vào khung
+                    </p>
+                    {isAnalyzingLab && (
+                      <div className="absolute left-0 right-0 h-1 bg-[#88E8F2] shadow-[0_0_20px_#88E8F2] animate-scan" />
+                    )}
+                  </div>
+                  <div className="w-6 h-full bg-slate-900/60 backdrop-blur-md" />
+                </div>
+                <div className="w-full h-6 bg-slate-900/60 backdrop-blur-md" />
+              </div>
+            </div>
+            <div className="flex h-36 shrink-0 items-center justify-around bg-black px-6">
+              <button
+                onClick={() => { setIsScanningLab(false); stopCamera(); }}
+                className="px-4 py-2 font-medium text-white opacity-80"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleCaptureLab}
+                disabled={isAnalyzingLab}
+                className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-[#88E8F2] p-1.5 transition-transform active:scale-95 disabled:opacity-60"
+              >
+                <div className={`h-full w-full rounded-full bg-white ${isAnalyzingLab ? "animate-pulse bg-[#88E8F2]" : ""}`} />
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="rounded-full bg-white/10 px-3 py-2 text-[11px] font-semibold text-white"
+              >
+                Thư viện
+              </button>
+            </div>
+            {isAnalyzingLab && (
+              <div className="absolute inset-0 z-[70] flex flex-col items-center justify-center bg-slate-900/90 backdrop-blur-md">
+                <ScanLine className="mb-6 h-20 w-20 animate-pulse text-[#88E8F2]" />
+                <h3 className="text-xl font-bold tracking-tight text-white">Đang phân tích tài liệu...</h3>
+                <p className="mt-2 font-mono text-sm uppercase tracking-widest text-[#88E8F2]">VNPT SmartReader AI</p>
+              </div>
+            )}
+            <style>{`
+              @keyframes scan { 0% { top: 0%; } 50% { top: 100%; } 100% { top: 0%; } }
+              .animate-scan { animation: scan 2s linear infinite; }
+            `}</style>
+          </div>
+        )}
+
       </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFileSelectedLab}
+      />
     </div>
   );
 }
