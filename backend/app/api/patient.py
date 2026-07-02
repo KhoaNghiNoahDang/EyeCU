@@ -166,13 +166,14 @@ async def patient_chatbot(
     recent_doc = db.query(SmartReaderDoc).filter(SmartReaderDoc.patient_id == user.id).order_by(SmartReaderDoc.uploaded_at.desc()).first()
     
     context = ""
-    if recent_doc and recent_doc.extracted_data:
-        import json
-        context_str = json.dumps(recent_doc.extracted_data, ensure_ascii=False)
-        context = f"Thông tin hồ sơ y tế/đơn thuốc/xét nghiệm gần nhất của tôi: {context_str}. "
+    if data.message.strip().lower() not in ["xin chào", "xin chao", "hello", "hi", "chào", "bắt đầu"]:
+        if recent_doc and recent_doc.extracted_data:
+            import json
+            context_str = json.dumps(recent_doc.extracted_data, ensure_ascii=False)
+            context = f"Thông tin hồ sơ y tế/đơn thuốc/xét nghiệm gần nhất của tôi: {context_str}. "
         
     final_message = context + "Câu hỏi của tôi: " + data.message if context else data.message
-    bot_response = await vnpt_client.call_smartbot_conversation(final_message)
+    bot_response = await vnpt_client.call_smartbot_conversation(final_message, session_id=f"patient_{user.id}")
 
     reply = bot_response.get("reply") or "Tôi chưa hiểu rõ câu hỏi, vui lòng thử lại."
     raw_data = bot_response.get("raw", {})
