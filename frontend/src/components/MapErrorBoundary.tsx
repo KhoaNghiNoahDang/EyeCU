@@ -10,6 +10,9 @@ export class MapErrorBoundary extends React.Component<
     this.state = { hasError: false, error: null };
   }
   static getDerivedStateFromError(error: Error) {
+    if (error.message.includes("Failed to fetch dynamically imported module") || error.message.includes("Importing a module script failed")) {
+      window.location.reload();
+    }
     return { hasError: true, error };
   }
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {

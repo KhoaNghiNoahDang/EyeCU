@@ -20,6 +20,13 @@ function MapUpdater({ center }: { center: [number, number] }) {
   useEffect(() => {
     map.flyTo(center, 15, { duration: 1.5 });
   }, [center[0], center[1], map]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      map.invalidateSize();
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [map]);
   return null;
 }
 
