@@ -104,9 +104,11 @@ class VnptAPIClient:
             return None
 
     # ── eKYC: OCR CCCD ────────────────────────────────────────────
-    async def call_ekyc_ocr(self, hash_string: str) -> dict:
+    async def call_ekyc_ocr(self, hash_string: str, hash_back_string: str = None) -> dict:
         """Bóc tách thông tin từ ảnh CCCD (mặt trước + sau)."""
         payload = {"img_front": hash_string, "step_id": 0, "type": 7}
+        if hash_back_string:
+            payload["img_back"] = hash_back_string
         try:
             async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
                 resp = await client.post(
@@ -121,6 +123,11 @@ class VnptAPIClient:
                     "cccd": obj.get("id", ""),
                     "dob": obj.get("birth_day", ""),
                     "address": obj.get("recent_location", ""),
+                    "hometown": obj.get("origin_location", ""),
+                    "issue_date": obj.get("issue_date", ""),
+                    "issue_place": obj.get("issue_place", ""),
+                    "valid_until": obj.get("valid_date", ""),
+                    "characteristics": obj.get("characteristics", ""),
                     "raw": data,
                 }
         except Exception:

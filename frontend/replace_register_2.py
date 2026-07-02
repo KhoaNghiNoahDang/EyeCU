@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+new_register_tsx = """import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   ArrowLeft,
@@ -82,7 +82,7 @@ function RegisterPage() {
       setFormError("Mật khẩu phải từ 6 ký tự trở lên");
       return;
     }
-    if (phone.replace(/\D/g, "").length < 9) {
+    if (phone.replace(/\\D/g, "").length < 9) {
       setFormError("Số điện thoại không hợp lệ");
       return;
     }
@@ -368,3 +368,9 @@ function RegisterPage() {
     </div>
   );
 }
+"""
+
+with open('src/routes/register.tsx', 'w', encoding='utf-8') as f:
+    f.write(new_register_tsx)
+
+print("Replaced register.tsx with flow 2!")

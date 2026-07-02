@@ -32,6 +32,15 @@ class Patient(SQLModel, table=True):
     avatar_url: Optional[str] = Field(default=None, max_length=255)
     cccd_front_url: Optional[str] = Field(default=None, max_length=255)
     cccd_back_url: Optional[str] = Field(default=None, max_length=255)
+    password_hash: Optional[str] = Field(default=None, max_length=255)
+    face_base64: Optional[str] = Field(default=None)
+    dob: Optional[str] = Field(default=None, max_length=20)
+    address: Optional[str] = Field(default=None)
+    hometown: Optional[str] = Field(default=None)
+    issue_date: Optional[str] = Field(default=None, max_length=20)
+    issue_place: Optional[str] = Field(default=None)
+    valid_until: Optional[str] = Field(default=None, max_length=20)
+    characteristics: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     @property
