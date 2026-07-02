@@ -123,9 +123,58 @@ async def trigger_patient_sos(user: Patient = Depends(get_current_user)):
     return {"status": "SOS_SENT"}
 
 
+class ScanDocumentRequest(BaseModel):
+    image_base64: str
+
+@router.post("/scan-document", dependencies=[Depends(require_roles(["patient"]))])
+async def scan_document(
+    data: ScanDocumentRequest,
+    user: Patient = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    import base64
+    try:
+        b64_str = data.image_base64.split(",")[1] if "," in data.image_base64 else data.image_base64
+        file_bytes = base64.b64decode(b64_str)
+        
+        hash_str = await vnpt_client.upload_file(file_bytes, "doc.jpg")
+        if not hash_str:
+            return {"status": "error", "message": "Lỗi upload ảnh lên VNPT"}
+            
+        ocr_data = await vnpt_client.call_smartreader_ocr(hash_str)
+        
+        from app.db.models import SmartReaderDoc
+        doc = SmartReaderDoc(
+            patient_id=user.id,
+            doc_type="medical_record",
+            image_url="uploaded_doc.jpg",
+            extracted_data=ocr_data
+        )
+        db.add(doc)
+        db.commit()
+        
+        return {"status": "success", "data": ocr_data}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 @router.post("/chat", dependencies=[Depends(require_roles(["patient"]))])
-async def patient_chatbot(data: ChatRequest):
-    bot_response = await vnpt_client.call_smartbot_conversation(data.message)
+async def patient_chatbot(
+    data: ChatRequest,
+    user: Patient = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    from app.db.models import SmartReaderDoc
+    recent_doc = db.query(SmartReaderDoc).filter(SmartReaderDoc.patient_id == user.id).order_by(SmartReaderDoc.uploaded_at.desc()).first()
+    
+    context = ""
+    if recent_doc and recent_doc.extracted_data:
+        import json
+        context_str = json.dumps(recent_doc.extracted_data, ensure_ascii=False)
+        context = f"Thông tin hồ sơ y tế/đơn thuốc/xét nghiệm gần nhất của tôi: {context_str}. "
+        
+    final_message = context + "Câu hỏi của tôi: " + data.message if context else data.message
+    bot_response = await vnpt_client.call_smartbot_conversation(final_message)
 
     reply = "Tôi chưa hiểu rõ câu hỏi, vui lòng thử lại."
     if (

@@ -6490,9 +6490,10 @@ function PatientPortalView({
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
+          width: { ideal: 1920, max: 3840 },
+          height: { ideal: 1080, max: 2160 },
+          advanced: [{ focusMode: "continuous" }]
+        } as any,
         audio: false,
       });
       streamRef.current = stream;
@@ -6514,34 +6515,39 @@ function PatientPortalView({
     return () => stopCamera();
   }, [isScanning]);
 
-  const runLabAnalysis = (_imageDataUrl?: string) => {
+  const runLabAnalysis = async (imageDataUrl?: string) => {
+    if (!imageDataUrl) return;
     setIsAnalyzing(true);
-    setTimeout(() => {
+
+    try {
+      const res = await fetchApi("/patient/scan-document", {
+        method: "POST",
+        body: { image_base64: imageDataUrl },
+      });
+      
       setIsAnalyzing(false);
       setIsScanning(false);
       stopCamera();
-
-      setHighlightLab(true);
-      setLabResults((prev) =>
-        prev.map((lab) =>
-          lab.name === "Glucose" ? { ...lab, value: "8.5", status: "high" } : lab,
-        ),
-      );
-
-      setBotTyping(true);
-      setTimeout(() => {
-        setBotTyping(false);
+      
+      if (res.status === "success") {
         setMessages((prev) => [
           ...prev,
           {
             from: "bot",
-            text: "Mình vừa nhận và cập nhật được kết quả xét nghiệm mới. Chỉ số Glucose của bạn đã tăng nhẹ lên 8.5 mmol/L. Bạn chú ý hạn chế ăn tinh bột nhé ạ!",
+            text: `Mình đã nhận được tài liệu của bạn (VNPT bóc tách thành công). Bạn muốn mình giải thích chỉ số hay đơn thuốc này như thế nào?`,
             time: getTimeNow(),
           },
         ]);
-        setTimeout(() => setHighlightLab(false), 3000);
-      }, 1500);
-    }, 2500);
+      } else {
+        throw new Error("Không trích xuất được thông tin");
+      }
+    } catch (e: any) {
+      console.error(e);
+      setIsAnalyzing(false);
+      setIsScanning(false);
+      stopCamera();
+      alert("Quét tài liệu thất bại: " + e.message);
+    }
   };
 
   const handleCapture = () => {

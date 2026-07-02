@@ -10,7 +10,6 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
   return (
@@ -37,9 +36,6 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-  useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -113,13 +109,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       {
         property: "og:image",
-        content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/fc51a1c5-3b06-456c-a43b-2dc4f36e3f35/id-preview-846c1fa8--df2e1bc2-28d3-4842-a652-1556e4989903.lovable.app-1780819003471.png",
+        content: "/apple-touch-icon.png",
       },
       {
         name: "twitter:image",
-        content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/fc51a1c5-3b06-456c-a43b-2dc4f36e3f35/id-preview-846c1fa8--df2e1bc2-28d3-4842-a652-1556e4989903.lovable.app-1780819003471.png",
+        content: "/apple-touch-icon.png",
       },
     ],
     links: [
@@ -141,10 +135,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       // iOS requires PNG apple-touch-icon (SVG not supported on older iOS Safari)
       { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
       // Fallback for older iOS
-      { rel: "apple-touch-icon", href: "/apple-touch-icon.svg" },
-      { rel: "mask-icon", href: "/masked-icon.svg", color: "#88E8F2" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      { rel: "mask-icon", href: "/apple-touch-icon.png", color: "#88E8F2" },
       // iOS Splash screens (covers iPhone SE through iPhone 15 Pro Max)
-      { rel: "apple-touch-startup-image", href: "/apple-touch-icon.svg" },
+      { rel: "apple-touch-startup-image", href: "/apple-touch-icon.png" },
       // Performance: preconnect to backend
       { rel: "dns-prefetch", href: "https://ekyc.vnpt.vn" },
     ],

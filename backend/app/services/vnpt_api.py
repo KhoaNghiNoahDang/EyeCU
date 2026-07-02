@@ -17,36 +17,44 @@ def _ekyc_headers() -> dict:
 
 
 def _smartvision_headers() -> dict:
+    token = str(settings.VNPT_SMARTVISION_ACCESS_TOKEN)
+    auth_header = token if token.startswith("Bearer") else f"Bearer {token[7:].strip() if token.lower().startswith('bearer ') else token}"
     return {
         "Token-id": settings.VNPT_SMARTVISION_TOKEN_ID,
         "Token-key": settings.VNPT_SMARTVISION_TOKEN_KEY,
+        "Authorization": auth_header,
         "Content-Type": "application/json",
     }
 
 
 def _smartbot_headers() -> dict:
     token = str(settings.VNPT_SMARTBOT_ACCESS_TOKEN)
+    auth_header = token if token.startswith("Bearer") else f"Bearer {token[7:].strip() if token.lower().startswith('bearer ') else token}"
     return {
         "Token-id": settings.VNPT_SMARTBOT_TOKEN_ID,
         "Token-key": settings.VNPT_SMARTBOT_TOKEN_KEY,
-        "Authorization": token if token.lower().startswith("bearer") else f"Bearer {token}",
+        "Authorization": auth_header,
         "Content-Type": "application/json",
     }
 
 
 def _smartvoice_headers() -> dict:
     token = str(settings.VNPT_SMARTVOICE_ACCESS_TOKEN)
+    auth_header = token if token.startswith("Bearer") else f"Bearer {token[7:].strip() if token.lower().startswith('bearer ') else token}"
     return {
         "Token-id": settings.VNPT_SMARTVOICE_TOKEN_ID,
         "Token-key": settings.VNPT_SMARTVOICE_TOKEN_KEY,
-        "Authorization": token if token.lower().startswith("bearer") else f"Bearer {token}",
+        "Authorization": auth_header,
     }
 
 
 def _smartreader_headers() -> dict:
+    token = str(settings.VNPT_SMARTREADER_ACCESS_TOKEN)
+    auth_header = token if token.startswith("Bearer") else f"Bearer {token[7:].strip() if token.lower().startswith('bearer ') else token}"
     return {
         "Token-id": settings.VNPT_SMARTREADER_TOKEN_ID,
         "Token-key": settings.VNPT_SMARTREADER_TOKEN_KEY,
+        "Authorization": auth_header,
         "Content-Type": "application/json",
     }
 
