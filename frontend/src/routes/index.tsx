@@ -5483,7 +5483,7 @@ function SignedEMRView({ soapeData, onClose }: { soapeData: any; onClose: () => 
         if (!element) return;
         
         // Hide actions temporarily
-        const actions = element.querySelector(".print\\\\:hidden") as HTMLElement;
+        const actions = element.querySelector(".print\\:hidden") as HTMLElement;
         if (actions) actions.style.display = "none";
 
         // Use html-to-image which supports modern CSS via foreignObject
