@@ -1046,7 +1046,7 @@ export function PatientPortalNew({
         <span className="text-[17px] font-bold flex-1 text-center pr-8">Chọn bệnh viện tuyến đầu</span>
       </div>
 
-      <div className="flex-1 relative z-0">
+      <div className="flex-1 relative z-0 h-full w-full">
         {isMounted ? (
           <MapErrorBoundary>
             <Suspense fallback={<div className="w-full h-full bg-slate-100 animate-pulse" />}>

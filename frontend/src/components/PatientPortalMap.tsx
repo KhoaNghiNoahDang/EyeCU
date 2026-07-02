@@ -5,8 +5,16 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { Hospital } from "../lib/hospitals";
 
-// No icon fix
+import iconUrl from "leaflet/dist/images/marker-icon.png";
+import iconShadow from "leaflet/dist/images/marker-shadow.png";
 
+let DefaultIcon = L.icon({
+  iconUrl,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41]
+});
+L.Marker.prototype.options.icon = DefaultIcon;
 function MapUpdater({ center }: { center: [number, number] }) {
   const map = useMap();
   useEffect(() => {
