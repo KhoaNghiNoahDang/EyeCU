@@ -57,6 +57,8 @@ class Staff(SQLModel, table=True):
     name: str = Field(max_length=100)
     employee_id: str = Field(max_length=20, unique=True)
     password_hash: str = Field(max_length=255)
+    phone: Optional[str] = Field(default=None, max_length=20)
+    dob: Optional[str] = Field(default=None, max_length=20)
     department_id: Optional[uuid.UUID] = Field(
         default=None, foreign_key="departments.id"
     )
