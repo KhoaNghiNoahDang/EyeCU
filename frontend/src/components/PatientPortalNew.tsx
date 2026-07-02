@@ -1631,15 +1631,15 @@ export function PatientPortalNew({
         )}
 
         {/* Floating SmartBot */}
-        <div 
-          className="absolute z-[100] sm:right-6 touch-none"
-          style={{ 
-             bottom: '6rem', 
-             right: '1rem',
-             transform: `translate(${botPos.x}px, ${botPos.y}px)`
-          }}
-        >
-          {!botOpen && (
+        {!botOpen && (
+          <div 
+            className="absolute z-[100] sm:right-6 touch-none"
+            style={{ 
+               bottom: '6rem', 
+               right: '1rem',
+               transform: `translate(${botPos.x}px, ${botPos.y}px)`
+            }}
+          >
             <button
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
@@ -1652,10 +1652,12 @@ export function PatientPortalNew({
               {/* Optional glowing effect for the bot icon */}
               <div className="absolute inset-0 rounded-full bg-[#88E8F2] opacity-0 group-hover:opacity-10 transition-opacity pointer-events-none" />
             </button>
-          )}
+          </div>
+        )}
 
-          {botOpen && (
-            <div className="flex h-[400px] w-[300px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
+        {botOpen && (
+          <div className="fixed sm:absolute inset-0 z-[110] flex items-center justify-center bg-slate-900/40 p-4 animate-in fade-in duration-200">
+            <div className="flex h-[75dvh] max-h-[600px] w-full max-w-[360px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 duration-300">
               <div className="flex items-center gap-2 bg-[#88E8F2] px-4 py-3">
                 <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#0d1f2d]/10">
                   <Bot className="h-4 w-4 text-[#0d1f2d]" />
@@ -1709,8 +1711,8 @@ export function PatientPortalNew({
                 ><Send className="h-4 w-4 text-[#0d1f2d] ml-0.5" /></button>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* 6. Bottom Navigation Bar */}
         <div className="absolute bottom-0 left-0 right-0 z-50 flex h-[68px] items-center justify-between border-t border-slate-200 bg-white px-2 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
