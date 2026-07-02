@@ -63,6 +63,9 @@ export function PatientPortalNew({
   const [isTranscribing, setIsTranscribing] = useState(false);
   const recognitionRef = useRef<any>(null);
 
+  // Popup state
+  const [showEmergencyModal, setShowEmergencyModal] = useState(false);
+
   // PWA Installation States
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showIosPrompt, setShowIosPrompt] = useState(false);
@@ -1352,24 +1355,10 @@ export function PatientPortalNew({
             </div>
          </div>
 
-         <div className="bg-white px-4 py-3 border-b border-slate-100 mt-1">
-            <span className="text-[14px] font-medium text-slate-800 block mb-2">Liên hệ khẩn cấp</span>
-            <div className="text-[14px] text-slate-600">
-              {user?.emergency_contact_name || user?.emergency_contact_phone ? (
-                <>
-                  <p>Người liên hệ: <span className="font-medium text-[#0d1f2d]">{user.emergency_contact_name || "---"}</span></p>
-                  <p>SĐT khẩn cấp: <span className="font-medium text-[#0d1f2d]">{user.emergency_contact_phone || "---"}</span></p>
-                </>
-              ) : (
-                <p className="text-slate-400 italic">Không có dữ liệu</p>
-              )}
-            </div>
-         </div>
-         
          <div className="bg-white pt-4 pb-2 border-b border-slate-100 mt-1">
             <span className="px-4 text-[14px] font-medium text-slate-800">Tiện ích</span>
             <div className="flex mt-3">
-               <button onClick={() => alert('Thành viên gia đình')} className="flex-1 flex flex-col items-center gap-2 active:opacity-50">
+               <button onClick={() => setShowEmergencyModal(true)} className="flex-1 flex flex-col items-center gap-2 active:opacity-50">
                   <div className="text-[#0d1f2d]"><Users className="w-7 h-7" /></div>
                   <span className="text-[12px] text-center px-2 font-medium text-slate-700 leading-tight">Thành viên<br/>gia đình</span>
                </button>
@@ -1965,6 +1954,61 @@ export function PatientPortalNew({
         onChange={handleFileSelectedLab}
       />
       </div>
+      
+      {/* Emergency Contact Modal */}
+      {showEmergencyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-slate-100 flex items-center gap-3 bg-blue-50/50">
+              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-[#0d1f2d] text-base">Liên hệ khẩn cấp</h3>
+                <p className="text-[13px] text-slate-500">Thông tin người liên hệ lúc cần thiết</p>
+              </div>
+            </div>
+            
+            <div className="p-5 space-y-4">
+              {user?.emergency_contact_name || user?.emergency_contact_phone ? (
+                <>
+                  <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                    <p className="text-xs font-bold text-slate-400 uppercase mb-1">Người liên hệ</p>
+                    <p className="text-sm font-semibold text-slate-800">{user.emergency_contact_name || "Trống"}</p>
+                  </div>
+                  <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-slate-400 uppercase mb-1">Số điện thoại</p>
+                      <p className="text-sm font-semibold text-slate-800">{user.emergency_contact_phone || "Trống"}</p>
+                    </div>
+                    {user.emergency_contact_phone && (
+                      <a href={`tel:${user.emergency_contact_phone}`} className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center active:bg-blue-200">
+                        <Phone className="w-5 h-5" />
+                      </a>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-6">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 mx-auto flex items-center justify-center mb-3">
+                    <Info className="w-6 h-6" />
+                  </div>
+                  <p className="text-[14px] text-slate-500 font-medium">Không có dữ liệu</p>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-100">
+              <button 
+                onClick={() => setShowEmergencyModal(false)}
+                className="w-full py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold active:bg-slate-300"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
