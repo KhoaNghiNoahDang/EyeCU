@@ -1732,7 +1732,7 @@ export function PatientPortalNew({
 
         {/* Lab Camera Modal */}
         {isScanningLab && (
-          <div className="absolute inset-0 z-[60] flex flex-col bg-slate-900 animate-in fade-in duration-200 pt-safe pb-safe">
+          <div className="fixed sm:absolute inset-0 z-[60] flex flex-col bg-slate-900 animate-in fade-in duration-200 pt-safe pb-safe touch-none overscroll-none">
             <div className="relative flex flex-1 items-center justify-center overflow-hidden">
               <video
                 ref={videoRef}
