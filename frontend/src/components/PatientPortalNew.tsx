@@ -1729,7 +1729,6 @@ export function PatientPortalNew({
             )
           })}
         </div>
-        </div>
 
         {/* Lab Camera Modal */}
         {isScanningLab && (
@@ -1806,8 +1805,6 @@ export function PatientPortalNew({
             `}</style>
           </div>
         )}
-
-      </div>
       <input
         ref={fileInputRef}
         type="file"
@@ -1816,6 +1813,7 @@ export function PatientPortalNew({
         className="hidden"
         onChange={handleFileSelectedLab}
       />
+      </div>
     </div>
   );
 }
