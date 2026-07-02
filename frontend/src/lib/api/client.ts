@@ -1,8 +1,4 @@
-<<<<<<< Updated upstream
 const API_URL = import.meta.env.VITE_API_URL || "https://eyecu.onrender.com/api";
-=======
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
->>>>>>> Stashed changes
 
 export async function fetchApi(endpoint: string, options: RequestInit = {}) {
   const token = sessionStorage.getItem("eyecu_token");

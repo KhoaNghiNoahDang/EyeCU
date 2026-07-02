@@ -816,21 +816,6 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
   };
 
   const handleVneidClick = () => {
-<<<<<<< Updated upstream
-    setFormError(null);
-    const demo = findPatientByCccdAndPhone("001200948618", "0365801600");
-    if (demo) {
-      if (!demo.credentialId) {
-        setPendingPatient(demo);
-        setStep("no_credential");
-        return;
-      }
-      setPendingPatient(demo);
-      setStep("vneid_face");
-    } else {
-      setFormError("Không tìm thấy tài khoản demo");
-    }
-=======
     // VNeID dummy login for now, as required
     onLogin({
       id: "p-vneid",
@@ -838,7 +823,6 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
       type: "patient",
       cccd: "001203001247",
     }, "dummy_token");
->>>>>>> Stashed changes
   };
 
   return (
@@ -849,30 +833,6 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
         subtitle="Hệ thống quản lý và chăm sóc sức khỏe nhãn khoa EyeCU"
       />
 
-<<<<<<< Updated upstream
-      <form onSubmit={handleLoginSubmit} className="space-y-3">
-        <div>
-          <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
-            Số CCCD
-          </label>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={cccd}
-            onChange={(e) => setCccd(e.target.value.replace(/\D/g, "").slice(0, 12))}
-            placeholder="Ví dụ: 001200948618"
-            className="w-full rounded-xl border-2 px-3 py-2.5 text-sm outline-none transition-all"
-            style={{ borderColor: "#f1f5f9" }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = ACCENT;
-              e.currentTarget.style.boxShadow = `0 0 0 3px ${ACCENT}20`;
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = "#f1f5f9";
-              e.currentTarget.style.boxShadow = "none";
-            }}
-          />
-=======
       {isCapturingFace ? (
         <div className="relative w-full max-w-sm mx-auto overflow-hidden rounded-xl bg-black aspect-video border-2 border-[#0A9BAD] shadow-lg">
           <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
@@ -883,7 +843,6 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
           <button onClick={stopCamera} className="absolute top-2 right-2 bg-slate-900/50 text-white p-1.5 rounded-full hover:bg-red-500 transition-colors">
             <X className="w-4 h-4" />
           </button>
->>>>>>> Stashed changes
         </div>
       ) : (
         <form onSubmit={handleLoginSubmit} className="space-y-3">
