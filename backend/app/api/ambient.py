@@ -92,26 +92,31 @@ ambient_manager = ConnectionManager()
 
 
 @router.websocket("/ws/live")
-async def websocket_ambient_endpoint(
-    websocket: WebSocket, db: Session = Depends(get_db)
-):
+async def websocket_ambient_endpoint(websocket: WebSocket):
     await ambient_manager.connect(websocket)
     try:
         while True:
             data = await websocket.receive_json()
 
             if data.get("type") == "FALL_DETECTED":
-                incident = Incident(
-                    room_code=data.get("room_id", "Unknown"),
-                    severity=data.get("severity", "critical"),
-                    description=data.get("description", "AI Camera: Phat hien te nga"),
-                    status="pending",
-                )
-                db.add(incident)
-                db.commit()
+                try:
+                    with Session(engine) as session:
+                        incident = Incident(
+                            room_code=data.get("room_id", "Unknown"),
+                            severity=data.get("severity", "critical"),
+                            description=data.get("description", "AI Camera: Phat hien te nga"),
+                            status="pending",
+                        )
+                        session.add(incident)
+                        session.commit()
+                except Exception as e:
+                    print(f"[Ambient WS] Error saving incident to DB: {e}")
 
             await ambient_manager.broadcast(data)
     except WebSocketDisconnect:
+        ambient_manager.disconnect(websocket)
+    except Exception as e:
+        print(f"[Ambient WS] Unexpected error: {e}")
         ambient_manager.disconnect(websocket)
 
 
