@@ -366,6 +366,10 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode,
       if (res.access_token) {
         sessionStorage.setItem("eyecu_token", res.access_token);
         const me = await fetchApi("/auth/me");
+        if (me.role === "admin") {
+          sessionStorage.removeItem("eyecu_token");
+          throw new Error("Tài khoản quản trị không thể đăng nhập tại đây");
+        }
         setIdentifiedUser(me as AuthUser);
         
         // Nếu là Điều dưỡng thì vào thẳng ops, còn lại chọn ca
@@ -1027,9 +1031,91 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
 
 /* ─── ADMIN FLOW ─── */
 function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string) => void }) {
+  const [step, setStep] = useState<"manual" | "scan">("manual");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+
+  const stopCamera = useCallback(() => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+  }, []);
+
+  useEffect(() => {
+    if (step !== "scan") return;
+    let cancelled = false;
+
+    async function startCamera() {
+      setCameraError(null);
+      setCameraReady(false);
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "user" }, width: { ideal: 320 }, height: { ideal: 240 } },
+          audio: false,
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+          setCameraReady(true);
+        }
+      } catch {
+        if (!cancelled) setCameraError("Không mở được camera.");
+      }
+    }
+
+    void startCamera();
+    return () => {
+      cancelled = true;
+      stopCamera();
+    };
+  }, [step, stopCamera]);
+
+  const captureAndIdentify = useCallback(async () => {
+    if (!videoRef.current) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    const base64Image = canvas.toDataURL("image/jpeg", 0.8);
+
+    stopCamera();
+    setIsAuthenticating(true);
+    
+    try {
+      const res = await fetchApi("/auth/login/face/staff", {
+        method: "POST",
+        body: JSON.stringify({ face_base64: base64Image }),
+      });
+
+      if (res.access_token) {
+        sessionStorage.setItem("eyecu_token", res.access_token);
+        const me = await fetchApi("/auth/me");
+        if (me.role !== "admin") {
+          sessionStorage.removeItem("eyecu_token");
+          throw new Error("Tài khoản này không có quyền quản trị");
+        }
+        onLogin(me as AuthUser, res.access_token);
+      }
+    } catch (err: any) {
+      alert(err.message || "Không nhận diện được khuôn mặt");
+      setStep("manual");
+    } finally {
+      setIsAuthenticating(false);
+    }
+  }, [onLogin, stopCamera]);
 
   const handleLogin = async () => {
     if (!username || !password) return;
@@ -1048,6 +1134,10 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string)
       if (res.access_token) {
         sessionStorage.setItem("eyecu_token", res.access_token);
         const me = await fetchApi("/auth/me");
+        if (me.role !== "admin") {
+          sessionStorage.removeItem("eyecu_token");
+          throw new Error("Tài khoản này không có quyền quản trị");
+        }
         onLogin(me as AuthUser, res.access_token);
       }
     } catch (err: any) {
@@ -1056,6 +1146,76 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string)
       setIsAuthenticating(false);
     }
   };
+
+  if (step === "scan") {
+    return (
+      <div className="space-y-4">
+        <SectionTitle
+          icon={Settings}
+          title="Đăng nhập FaceID Quản trị"
+          subtitle="Nhận diện khuôn mặt..."
+        />
+        <div className="flex flex-col items-center text-center space-y-5 animate-in fade-in duration-300">
+          <div
+            className="relative w-40 h-40 mx-auto overflow-hidden rounded-full border-2"
+            style={{ borderColor: ACCENT }}
+          >
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="h-full w-full object-cover"
+            />
+            {cameraReady && !isAuthenticating && (
+              <div
+                className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2"
+                style={{
+                  background: `linear-gradient(90deg, transparent, ${ACCENT}, transparent)`,
+                  animation: "face-scan 2s ease-in-out infinite",
+                }}
+              />
+            )}
+            <style>{`
+              @keyframes face-scan {
+                0%, 100% { transform: translateY(-30px); opacity: 0.4; }
+                50% { transform: translateY(30px); opacity: 1; }
+              }
+            `}</style>
+          </div>
+          <div>
+            <p className="font-bold text-slate-900">
+              {isAuthenticating ? "Đang xử lý..." : "Đang mở camera"}
+            </p>
+            {cameraError ? (
+              <p className="text-xs text-red-500 mt-1">{cameraError}</p>
+            ) : (
+              <p className="text-xs text-slate-400 mt-1">Đưa mặt vào giữa khung...</p>
+            )}
+          </div>
+          <div className="flex gap-2 w-full">
+            <button
+              onClick={() => {
+                stopCamera();
+                setStep("manual");
+              }}
+              className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={captureAndIdentify}
+              disabled={!cameraReady || isAuthenticating}
+              className="flex-1 rounded-xl py-2.5 text-sm font-bold text-slate-900 transition-all hover:opacity-90 disabled:opacity-50"
+              style={{ backgroundColor: ACCENT }}
+            >
+              Quét khuôn mặt
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -1105,20 +1265,46 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string)
           </div>
         ))}
       </div>
+      
+      <div className="flex gap-2 w-full mt-2">
+        <button
+          onClick={handleLogin}
+          disabled={!username || !password || isAuthenticating}
+          className="w-full py-2.5 rounded-lg font-bold text-sm transition-all text-white disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md"
+          style={{ backgroundColor: "#0d1f2d" }}
+        >
+          {isAuthenticating ? (
+            <>
+              <span className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin" />{" "}
+              Đang đăng nhập...
+            </>
+          ) : (
+            "Đăng nhập"
+          )}
+        </button>
+      </div>
+
+      <div className="flex items-center gap-3 mt-4">
+        <div className="flex-1 h-px bg-slate-200" />
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-geist">Hoặc</span>
+        <div className="flex-1 h-px bg-slate-200" />
+      </div>
+
       <button
-        onClick={handleLogin}
-        disabled={!username || !password || isAuthenticating}
-        className="w-full py-2.5 rounded-xl font-bold text-sm transition-all text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-        style={{ backgroundColor: ACCENT }}
+        type="button"
+        onClick={() => setStep("scan")}
+        className="group flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-all hover:border-slate-300 hover:shadow-md active:scale-[0.99] mt-2"
       >
-        {isAuthenticating ? (
-          <>
-            <span className="w-4 h-4 border-2 border-t-transparent border-slate-900 rounded-full animate-spin" />{" "}
-            Đang đăng nhập...
-          </>
-        ) : (
-          "Đăng nhập"
-        )}
+        <div className="min-w-0 text-left leading-snug">
+          <p className="text-[13px] font-semibold text-slate-900">Đăng nhập nhanh bằng FaceID</p>
+          <p className="text-[11px] text-slate-500 font-geist">Xác thực sinh trắc học an toàn</p>
+        </div>
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110"
+          style={{ backgroundColor: `${ACCENT}18` }}
+        >
+          <ScanFace className="w-5 h-5" style={{ color: ACCENT_DARK }} />
+        </div>
       </button>
     </div>
   );
