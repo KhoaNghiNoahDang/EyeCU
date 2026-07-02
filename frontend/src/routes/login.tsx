@@ -235,7 +235,7 @@ function LoginPage() {
             {activeTab === "staff" ? (
               <StaffLoginFlow onLogin={(u, m) => login(u, m)} />
             ) : activeTab === "patient" ? (
-              <PatientLoginFlow onLogin={(u) => login(u)} />
+              <PatientLoginFlow onLogin={(u, token) => login(u, "patient", token)} />
             ) : (
               <AdminLoginFlow onLogin={(u) => login(u, "admin")} />
             )}
@@ -799,7 +799,7 @@ function VNeidLoginButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser) => void }) {
+function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string) => void }) {
   const [step, setStep] = useState<
     "form" | "face" | "vneid_face" | "register_face" | "no_credential"
   >("form");
@@ -826,13 +826,14 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser) => void }) {
       if (!res) throw new Error("Not found");
       
       const localFound = findPatientByCccdAndPhone(cccd, phone);
-      const pending = {
+      const pending: any = {
         cccd: res.cccd,
         name: res.name,
         phone: res.phone || phone,
         bhxh_code: res.bhxh_code,
         avatar_url: res.avatar_url,
         credentialId: localFound?.credentialId,
+        access_token: res.access_token,
       };
 
       setPendingPatient(pending as RegisteredPatient);
@@ -867,7 +868,7 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser) => void }) {
   const handleRegisterSuccess = (credentialId?: string) => {
     if (!pendingPatient || !credentialId) return;
     updatePatientCredentialId(pendingPatient.cccd, credentialId);
-    onLogin(toAuthUser({ ...pendingPatient, credentialId }));
+    onLogin(toAuthUser({ ...pendingPatient, credentialId }), (pendingPatient as any).access_token);
   };
 
   if (step === "no_credential" && pendingPatient) {
@@ -900,7 +901,7 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser) => void }) {
           </button>
           <button
             type="button"
-            onClick={() => onLogin(toAuthUser(pendingPatient))}
+            onClick={() => onLogin(toAuthUser(pendingPatient), (pendingPatient as any).access_token)}
             className="w-full rounded-xl py-2.5 text-sm font-bold text-slate-500 transition-all hover:text-slate-700 border border-slate-200"
           >
             Bỏ qua, vào thẳng
@@ -941,7 +942,7 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser) => void }) {
         credentialId={pendingPatient.credentialId}
         title="Quét FaceID eKYC"
         subtitle="WebAuthn · So khớp sinh trắc đã đăng ký"
-        onSuccess={() => onLogin(toAuthUser(pendingPatient))}
+        onSuccess={() => onLogin(toAuthUser(pendingPatient), (pendingPatient as any).access_token)}
         onBack={() => {
           setPendingPatient(null);
           setStep("form");
@@ -977,6 +978,7 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser) => void }) {
                   type: "patient",
                   cccd: "001203001247",
                 },
+            (pendingPatient as any)?.access_token
           )
         }
         onBack={() => setStep("form")}

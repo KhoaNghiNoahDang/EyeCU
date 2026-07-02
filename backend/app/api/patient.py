@@ -14,7 +14,7 @@ from app.db.models import (
     HospitalFeeItem,
     Department,
 )
-from app.core.security import require_roles, get_current_user
+from app.core.security import require_roles, get_current_user, create_access_token
 from app.api.ambient import ambient_manager
 from app.services.vnpt_api import vnpt_client
 
@@ -38,11 +38,13 @@ def lookup_patient(cccd: str, phone: str, db: Session = Depends(get_db)):
         # Try with leading 0 stripped
         if stored_phone.lstrip("0") != input_phone.lstrip("0"):
             raise HTTPException(status_code=404, detail="Số điện thoại không khớp với tài khoản")
+    access_token = create_access_token(subject=patient.id, role="patient")
     return {
         "id": str(patient.id),
         "cccd": patient.cccd,
         "name": patient.name,
         "phone": patient.phone,
+        "access_token": access_token,
     }
 
 
