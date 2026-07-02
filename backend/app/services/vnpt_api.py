@@ -148,8 +148,9 @@ class VnptAPIClient:
                     "liveness": data.get("object", {}).get("liveness", "fail"),
                     "msg": data.get("object", {}).get("liveness_msg", ""),
                 }
-        except Exception:
-            return {"liveness": "success", "msg": "Người thật (fallback)"}
+        except Exception as e:
+            print(f"Lỗi Card Liveness: {e}")
+            return {"liveness": "fail", "msg": "Lỗi kết nối eKYC"}
 
     # ── eKYC: Face Liveness 2D (So khớp 1 ảnh) ─────────
     async def call_face_liveness_2d(self, face_img_hash: str) -> dict:
@@ -176,8 +177,9 @@ class VnptAPIClient:
                     "liveness": data.get("object", {}).get("liveness", "fail"),
                     "msg": data.get("object", {}).get("liveness_msg", ""),
                 }
-        except Exception:
-            return {"liveness": "success", "msg": "FaceID 2D OK (fallback)"}
+        except Exception as e:
+            print(f"Lỗi Face Liveness: {e}")
+            return {"liveness": "fail", "msg": "Lỗi kết nối eKYC"}
 
     # ── eKYC: Face Compare 1:1 ─────────
     async def call_face_compare(self, img_hash_1: str, img_hash_2: str) -> dict:
@@ -202,12 +204,12 @@ class VnptAPIClient:
                     raise Exception(f"API Error {resp.status_code}")
                 data = resp.json()
                 return {
-                    "match": data.get("object", {}).get("match", "true"),
-                    "prob": data.get("object", {}).get("prob", 100.0),
+                    "match": data.get("object", {}).get("match", "False"),
+                    "prob": data.get("object", {}).get("prob", 0.0),
                 }
-        except Exception:
-            # Fallback for hackathon demo
-            return {"match": "true", "prob": 99.9}
+        except Exception as e:
+            print(f"Lỗi Face Compare: {e}")
+            return {"match": "False", "prob": 0.0}
 
     # ── SmartVision: Nhận diện người ngã ─────────────────────────
     async def call_smartvision_detect_people(self, img_url: str) -> dict:
