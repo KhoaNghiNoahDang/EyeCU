@@ -5480,27 +5480,59 @@ function SignedEMRView({ soapeData, onClose }: { soapeData: any; onClose: () => 
     const executeSave = () => {
       try {
         const element = document.getElementById("emr-document");
-        const opt = {
-          margin: [10, 10, 10, 10],
-          filename: "Benh_An_Dien_Tu.pdf",
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, logging: false },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        };
-        (window as any).html2pdf().set(opt).from(element).save().catch((err: any) => {
-          alert("Lỗi khi tải PDF: " + err.toString());
-        });
+        if (!element) return;
+        
+        // Hide actions temporarily
+        const actions = element.querySelector(".print\\\\:hidden") as HTMLElement;
+        if (actions) actions.style.display = "none";
+
+        // Use html-to-image which supports modern CSS via foreignObject
+        (window as any).htmlToImage.toPng(element, { quality: 0.95, pixelRatio: 2, backgroundColor: '#ffffff' })
+          .then((dataUrl: string) => {
+            if (actions) actions.style.display = ""; // restore
+            
+            const { jsPDF } = (window as any).jspdf;
+            const pdf = new jsPDF({
+              orientation: "portrait",
+              unit: "mm",
+              format: "a4"
+            });
+            
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (element.clientHeight * pdfWidth) / element.clientWidth;
+            
+            pdf.addImage(dataUrl, "PNG", 0, 0, pdfWidth, pdfHeight);
+            pdf.save("Benh_An_Dien_Tu.pdf");
+          })
+          .catch((err: any) => {
+            if (actions) actions.style.display = "";
+            alert("Lỗi khi tải PDF: " + err.toString());
+          });
       } catch (err: any) {
         alert("Có lỗi xảy ra: " + err.toString());
       }
     };
 
-    if (!(window as any).html2pdf) {
-      const script = document.createElement("script");
-      script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
-      script.onload = () => executeSave();
-      script.onerror = () => alert("Không thể tải thư viện tạo PDF. Vui lòng kiểm tra mạng.");
-      document.body.appendChild(script);
+    const loadScript = (src: string) => {
+      return new Promise((resolve, reject) => {
+        if (document.querySelector(`script[src="${src}"]`)) return resolve(true);
+        const script = document.createElement("script");
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    };
+
+    if (!(window as any).htmlToImage || !(window as any).jspdf) {
+      Promise.all([
+        loadScript("https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"),
+        loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js")
+      ]).then(() => {
+        executeSave();
+      }).catch(() => {
+        alert("Không thể tải thư viện tạo PDF. Vui lòng kiểm tra mạng.");
+      });
     } else {
       executeSave();
     }

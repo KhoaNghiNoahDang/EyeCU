@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  .parent { visibility: hidden; position: relative; left: 100px; top: 100px; }
+  .child { visibility: visible; position: fixed; left: 0; top: 0; background: red; width: 100px; height: 100px; }
+</style>
+</head>
+<body>
+  <div>Hidden text</div>
+  <div class="parent">
+    <div class="child">Visible text</div>
+  </div>
+</body>
+</html>
