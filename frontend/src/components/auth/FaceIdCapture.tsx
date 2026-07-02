@@ -39,8 +39,8 @@ export function FaceIdCapture({ onCapture, capturedUrl }: FaceIdCaptureProps) {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: "user" },
-            width: { ideal: 320 },
-            height: { ideal: 240 },
+            width: { min: 640, ideal: 1280, max: 1920 },
+            height: { min: 480, ideal: 720, max: 1080 },
           },
           audio: false,
         });
@@ -70,12 +70,28 @@ export function FaceIdCapture({ onCapture, capturedUrl }: FaceIdCaptureProps) {
     const video = videoRef.current;
     if (!video || !ready) return;
     const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    
+    // Capture at 1024px max — balanced for VNPT face recognition quality
+    const MAX_DIM = 1024;
+    let width = video.videoWidth;
+    let height = video.videoHeight;
+    if (width > MAX_DIM || height > MAX_DIM) {
+      if (width > height) {
+        height = Math.floor(height * (MAX_DIM / width));
+        width = MAX_DIM;
+      } else {
+        width = Math.floor(width * (MAX_DIM / height));
+        height = MAX_DIM;
+      }
+    }
+    
+    canvas.width = width;
+    canvas.height = height;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.drawImage(video, 0, 0);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+    ctx.drawImage(video, 0, 0, width, height);
+    // Quality 0.88 — enough for VNPT face matching without payload too large
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
     stopCamera();
     onCapture(dataUrl);
   };

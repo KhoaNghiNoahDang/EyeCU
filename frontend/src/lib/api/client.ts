@@ -7,12 +7,18 @@ export async function fetchApi(endpoint: string, options: RequestInit = {}) {
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
+  let body = options.body;
+
   if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
+    if (body && typeof body === "object") {
+      body = JSON.stringify(body);
+    }
   }
 
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
+    body,
     headers,
   });
 

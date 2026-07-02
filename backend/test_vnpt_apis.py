@@ -1,12 +1,14 @@
 import os
 import sys
 import requests
+import json
+import uuid
 from dotenv import load_dotenv
 
 sys.stdout.reconfigure(encoding='utf-8')
-load_dotenv()
+load_dotenv(override=True)
 
-print("=== BẮT ĐẦU KIỂM THỬ LẠI KẾT NỐI 6 API VNPT ===")
+print("=== BẮT ĐẦU KIỂM THỬ KẾT NỐI 6 API VNPT ===")
 
 def print_result(api_name, success, detail):
     status = " THÀNH CÔNG" if success else " THẤT BẠI"
@@ -76,65 +78,26 @@ def test_smartbot():
     safe_req("POST", url, headers=headers, json=payload, api_name="SmartBot")
 
 def test_smartvoice():
-    import sys
-    sys.path.append('./app/grpc_proto')
-    try:
-        import grpc
-        import vnpt_asr_pb2
-        import vnpt_asr_pb2_grpc
-        import vnpt_audio_pb2
-    except ImportError as e:
-        print_result("SmartVoice", False, f"Missing gRPC libs or proto compiled files: {e}")
-        return
-
-    # Endpoint host cho gRPC (Thường gRPC dùng domain:port, không có https:// hay /path)
-    # Tuy nhiên VNPT STT đôi khi Gateway nằm ở path cụ thể nếu dùng gRPC-Web hoặc Envoy. 
-    # Nhưng chuẩn gRPC native thì thường là host:443. Dựa trên URL cũ: api.idg.vnpt.vn
-    host = "api.idg.vnpt.vn:443"
+    url = "https://api.idg.vnpt.vn/stt-service/v1/grpc/standard"
     
     token = os.getenv("VNPT_SMARTVOICE_ACCESS_TOKEN")
-    if token and "Bearer" not in token:
-        token = f"Bearer {token}"
+    if token and token.lower().startswith("bearer"):
+        auth_header = token
+    else:
+        auth_header = f"Bearer {token}"
         
-    metadata = (
-        ("authorization", token),
-        ("token-id", os.getenv("VNPT_SMARTVOICE_TOKEN_ID")),
-        ("token-key", os.getenv("VNPT_SMARTVOICE_TOKEN_KEY")),
-    )
-
-    try:
-        credentials = grpc.ssl_channel_credentials()
-        channel = grpc.secure_channel(host, credentials)
-        stub = vnpt_asr_pb2_grpc.VnptSpeechRecognitionStub(channel)
-
-        config = vnpt_asr_pb2.RecognitionConfig(
-            encoding=vnpt_audio_pb2.LINEAR_PCM,
-            sample_rate_hertz=16000,
-            language_code="vi-VN",
-            max_alternatives=1,
-            enable_automatic_punctuation=False
-        )
-        streaming_config = vnpt_asr_pb2.StreamingRecognitionConfig(config=config, interim_results=True)
-        
-        # Generator for streaming request
-        def request_generator():
-            yield vnpt_asr_pb2.StreamingRecognizeRequest(streaming_config=streaming_config)
-            # Dummy PCM audio chunk (just zeros)
-            dummy_chunk = b'\x00' * 2048
-            yield vnpt_asr_pb2.StreamingRecognizeRequest(audio_content=dummy_chunk)
-
-        # Gửi streaming request lên server
-        responses = stub.StreamingRecognize(request_generator(), metadata=metadata, timeout=10)
-        
-        # Đọc response đầu tiên để xác nhận kết nối thành công
-        for response in responses:
-            print_result("SmartVoice(gRPC)", True, f"Kết nối gRPC thành công! Phản hồi Streaming: OK")
-            break
-            
-    except grpc.RpcError as e:
-        print_result("SmartVoice(gRPC)", False, f"gRPC Error: {e.code().name} - {e.details()}")
-    except Exception as e:
-        print_result("SmartVoice(gRPC)", False, f"Error: {str(e)}")
+    headers = {
+        "Authorization": auth_header,
+        "Token-id": os.getenv("VNPT_SMARTVOICE_TOKEN_ID"),
+        "Token-key": os.getenv("VNPT_SMARTVOICE_TOKEN_KEY"),
+    }
+    
+    dummy_wav = b"RIFF\x24\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80\x3e\x00\x00\x00\x7d\x00\x00\x02\x00\x10\x00data\x00\x00\x00\x00"
+    files = {"audioFile": ("audio.wav", dummy_wav, "audio/wav")}
+    
+    data = {"clientSession": str(uuid.uuid4())}
+    
+    safe_req("POST", url, headers=headers, files=files, data=data, api_name="SmartVoice(STT)")
 
 def test_vnface():
     token = os.getenv("VNPT_VNFACE_ACCESS_TOKEN")
@@ -147,10 +110,14 @@ def test_vnface():
     }
     safe_req("GET", url, headers=headers, api_name="VNFace")
 
-test_smartreader()
-test_ekyc()
-test_smartvision()
-test_smartbot()
-test_smartvoice()
-test_vnface()
-print("===============================================")
+def main():
+    test_smartreader()
+    test_ekyc()
+    test_smartvision()
+    test_smartbot()
+    test_smartvoice()
+    test_vnface()
+    print("===============================================")
+
+if __name__ == "__main__":
+    main()

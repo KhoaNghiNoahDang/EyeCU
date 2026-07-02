@@ -39,8 +39,8 @@ export function CccdCapture({ side, capturedUrl, onCapture }: CccdCaptureProps) 
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: "environment" },
-            width: { ideal: 320 },
-            height: { ideal: 240 },
+            width: { min: 1280, ideal: 1920, max: 3840 },
+            height: { min: 720, ideal: 1080, max: 2160 },
           },
           audio: false,
         });
@@ -70,12 +70,19 @@ export function CccdCapture({ side, capturedUrl, onCapture }: CccdCaptureProps) 
     const video = videoRef.current;
     if (!video || !ready) return;
     const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    
+    // Capture at full video resolution for VNPT eKYC API quality
+    // VNPT requires clear, high-resolution CCCD images
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+    
+    canvas.width = width;
+    canvas.height = height;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.drawImage(video, 0, 0);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+    ctx.drawImage(video, 0, 0, width, height);
+    // Quality 0.92 for optimal clarity vs. file size balance for VNPT API
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
     stopCamera();
     onCapture(dataUrl);
   };

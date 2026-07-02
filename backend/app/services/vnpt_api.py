@@ -25,18 +25,21 @@ def _smartvision_headers() -> dict:
 
 
 def _smartbot_headers() -> dict:
+    token = str(settings.VNPT_SMARTBOT_ACCESS_TOKEN)
     return {
         "Token-id": settings.VNPT_SMARTBOT_TOKEN_ID,
         "Token-key": settings.VNPT_SMARTBOT_TOKEN_KEY,
+        "Authorization": token if token.lower().startswith("bearer") else f"Bearer {token}",
         "Content-Type": "application/json",
     }
 
 
 def _smartvoice_headers() -> dict:
+    token = str(settings.VNPT_SMARTVOICE_ACCESS_TOKEN)
     return {
         "Token-id": settings.VNPT_SMARTVOICE_TOKEN_ID,
         "Token-key": settings.VNPT_SMARTVOICE_TOKEN_KEY,
-        "Content-Type": "application/json",
+        "Authorization": token if token.lower().startswith("bearer") else f"Bearer {token}",
     }
 
 
@@ -131,6 +134,8 @@ class VnptAPIClient:
                         "Authorization": f"{settings.VNPT_EKYC_ACCESS_TOKEN}",
                     },
                 )
+                if resp.status_code != 200:
+                    raise Exception(f"API Error {resp.status_code}")
                 data = resp.json()
                 return {
                     "liveness": data.get("object", {}).get("liveness", "fail"),
@@ -199,31 +204,41 @@ class VnptAPIClient:
         # ── SmartVoice: Speech To Text ───────────────────────────────
 
     async def call_smartvoice_stt(
-        self, audio_bytes: bytes, filename: str = "audio.wav"
+        self, audio_bytes: bytes, filename: str = "audio.wav", content_type: str = "audio/wav"
     ) -> dict:
         """Chuyển file âm thanh thành văn bản."""
+        import uuid
         try:
-            async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
+            async with httpx.AsyncClient(timeout=60.0) as client:
                 resp = await client.post(
-                    "https://api.idg.vnpt.vn/stt-service/v1/grpc/standard",
+                    "https://api.idg.vnpt.vn/stt-service/v3/standard",
                     headers=_smartvoice_headers(),
-                    files={
-                        "file": (
-                            filename,
-                            audio_bytes,
-                            "audio/wav",
-                        )
-                    },
+                    files={"audioFile": (filename, audio_bytes, content_type)},
+                    data={"clientSession": str(uuid.uuid4())}
                 )
                 data = resp.json()
+                
+                # Bóc tách transcript từ STT
+                results = data.get("object", {}).get("results", [])
+                transcript = ""
+                for res in results:
+                    # Tùy theo cấu trúc trả về thực tế của VNPT, 
+                    # thường là 'transcript' hoặc 'text' hoặc 'sentence'
+                    if "transcript" in res:
+                        transcript += str(res.get("transcript", "")) + " "
+                    elif "text" in res:
+                        transcript += str(res.get("text", "")) + " "
+                    elif "sentence" in res:
+                        transcript += str(res.get("sentence", "")) + " "
+                        
                 return {
-                    "transcript": data.get("transcript", ""),
+                    "transcript": transcript.strip(),
                     "raw": data,
                 }
-        except Exception:
+        except Exception as e:
             return {
                 "transcript": "",
-                "raw": {},
+                "raw": {"error": str(e)},
             }  # ── SmartReader: OCR tài liệu
 
         # ── SmartReader: OCR tài liệu ───────────────────────────────

@@ -810,7 +810,7 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser) => void }) {
   const [formError, setFormError] = useState<string | null>(null);
   const [pendingPatient, setPendingPatient] = useState<RegisteredPatient | null>(null);
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
@@ -823,20 +823,31 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser) => void }) {
       return;
     }
 
-    const found = findPatientByCccdAndPhone(cccd, phone);
-    if (!found) {
-      setFormError("Chưa tìm thấy tài khoản. Vui lòng đăng ký trước.");
-      return;
-    }
+    try {
+      const res = await fetchApi(`/patient/lookup?cccd=${cccd}&phone=${phone}`);
+      if (!res) throw new Error("Not found");
+      
+      const localFound = findPatientByCccdAndPhone(cccd, phone);
+      const pending = {
+        cccd: res.cccd,
+        name: res.name,
+        phone: res.phone || phone,
+        bhxh_code: res.bhxh_code,
+        avatar_url: res.avatar_url,
+        credentialId: localFound?.credentialId,
+      };
 
-    if (!found.credentialId) {
-      setPendingPatient(found);
-      setStep("no_credential");
-      return;
-    }
+      setPendingPatient(pending as RegisteredPatient);
 
-    setPendingPatient(found);
-    setStep("face");
+      if (!pending.credentialId) {
+        setStep("no_credential");
+        return;
+      }
+
+      setStep("face");
+    } catch (err: any) {
+      setFormError("Chưa tìm thấy tài khoản. Vui lòng kiểm tra lại thông tin hoặc đăng ký mới.");
+    }
   };
 
   const handleVneidClick = () => {

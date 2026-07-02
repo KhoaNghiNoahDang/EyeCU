@@ -5307,117 +5307,401 @@ const TRANSCRIPT_FULL =
   "Bệnh nhân nam sáu mươi hai tuổi, vào viện vì đau ngực và khó thở. Khám lâm sàng huyết áp một trăm bốn mươi trên chín mươi, mạch chín mươi lăm. Chẩn đoán theo dõi tăng huyết áp độ hai kèm đau thắt ngực. Y lệnh Amlodipin năm miligam uống một viên mỗi sáng, theo dõi nhịp tim trong bốn mươi tám giờ.";
 
 function VoiceView() {
-  const [recording, setRecording] = useState(true);
+  const [recording, setRecording] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const [soapeData, setSoapeData] = useState<any>(null);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [showSignedEMR, setShowSignedEMR] = useState(false);
 
-  useEffect(() => {
-    if (!recording) return;
-    setTranscript("");
-    let i = 0;
-    const id = setInterval(() => {
-      i += 2;
-      setTranscript(TRANSCRIPT_FULL.slice(0, i));
-      if (i >= TRANSCRIPT_FULL.length) clearInterval(id);
-    }, 50);
-    return () => clearInterval(id);
-  }, [recording]);
+  const recognitionRef = useRef<any>(null);
+  const finalTranscriptRef = useRef<string>("");
 
-  const L = transcript.length;
+  const startRecording = async () => {
+    try {
+      setErrorMsg("");
+      setLiveTranscript("");
+      setTranscript("");
+      setSoapeData(null);
+      finalTranscriptRef.current = "";
+
+      const SpeechRecognition =
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+      if (!SpeechRecognition) {
+        setErrorMsg("Trình duyệt không hỗ trợ nhận dạng giọng nói. Vui lòng dùng Google Chrome.");
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.lang = "vi-VN";
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onresult = (event: any) => {
+        let interim = "";
+        let final = "";
+        for (let i = 0; i < event.results.length; i++) {
+          const result = event.results[i];
+          if (result.isFinal) {
+            final += result[0].transcript + " ";
+          } else {
+            interim += result[0].transcript;
+          }
+        }
+        finalTranscriptRef.current = final;
+        setLiveTranscript(final + interim);
+      };
+
+      recognition.onerror = (event: any) => {
+        if (event.error === "not-allowed") {
+          setErrorMsg("Bạn cần cấp quyền microphone cho trình duyệt.");
+        } else {
+          setErrorMsg(`Lỗi nhận dạng: ${event.error}`);
+        }
+        setRecording(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+      setRecording(true);
+    } catch (err) {
+      setErrorMsg("Không thể khởi động nhận dạng giọng nói. Vui lòng dùng Chrome.");
+    }
+  };
+
+  const stopRecording = async () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    setRecording(false);
+
+    const finalText = finalTranscriptRef.current.trim() || liveTranscript.trim();
+    if (!finalText) {
+      setErrorMsg("Không nhận được văn bản. Hãy thử nói to và rõ hơn.");
+      return;
+    }
+
+    setTranscript(finalText);
+    setIsProcessing(true);
+
+    try {
+      const res = await fetchApi("/voice/soape", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript: finalText, patient_id: "P-123" }),
+      });
+      if (res.success) {
+        setSoapeData(res.soape);
+      } else {
+        setErrorMsg(res.message || "Lỗi khi phân tích SOAPE");
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Lỗi kết nối máy chủ");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
-      {/* LEFT: Recording + transcript */}
-      <div className="flex min-h-[520px] flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6 lg:h-[620px]">
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h3 className="text-lg font-medium text-slate-900">Ghi âm Lâm sàng</h3>
-          <span
-            className="flex w-fit items-center gap-1 rounded px-2 py-1 text-[10px] uppercase tracking-wider text-slate-900 font-geist"
-            style={{ backgroundColor: recording ? ACCENT : "#F1F5F9" }}
-          >
-            {recording && <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />}
-            {recording ? "Đang ghi" : "Tạm dừng"}
-          </span>
-        </div>
+    <>
+      {showSignedEMR ? (
+        <SignedEMRView soapeData={soapeData} onClose={() => setShowSignedEMR(false)} />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
+          {/* LEFT: Recording + transcript */}
+          <div className="flex min-h-[520px] flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6 lg:h-[620px]">
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="text-lg font-medium text-slate-900">Ghi âm Lâm sàng</h3>
+              <span
+                className="flex w-fit items-center gap-1 rounded px-2 py-1 text-[10px] uppercase tracking-wider text-slate-900 font-geist transition-colors duration-300"
+                style={{ backgroundColor: recording ? ACCENT : "#F1F5F9" }}
+              >
+                {recording && <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />}
+                {recording ? "Đang ghi" : "Sẵn sàng"}
+              </span>
+            </div>
 
-        <div className="flex flex-col items-center justify-center py-2">
-          <Waveform active={recording} />
-          <div
-            className="mt-3 flex max-w-full items-center gap-2 rounded-full border-2 px-3 py-1.5"
-            style={{ borderColor: ACCENT, backgroundColor: "#EAFBFE" }}
-          >
-            <BadgeCheck className="w-4 h-4" style={{ color: "#0891B2" }} />
-            <span className="text-[10px] font-bold uppercase tracking-wide text-slate-900 font-geist sm:text-[11px] sm:tracking-wider">
-              AI Voice NLU · Tiếng Việt
-            </span>
-          </div>
-          <p className="mt-2 text-[11px] font-geist uppercase tracking-wider text-slate-500">
-            BS. Văn Ngữ · Phòng 103
-          </p>
-          <button
-            onClick={() => setRecording((r) => !r)}
-            className="mt-3 flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-slate-900 transition hover:opacity-90 sm:px-6"
-            style={{ backgroundColor: ACCENT }}
-          >
-            {recording ? <StopCircle className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-            {recording ? "Dừng ghi" : "Bắt đầu lại"}
-          </button>
-        </div>
-
-        <div className="mt-3 border-t border-slate-200 pt-3 flex-1 overflow-auto scrollbar-hide">
-          <p className="text-[10px] font-geist uppercase tracking-wider text-slate-500 mb-1">
-            Phiên âm thô (raw speech)
-          </p>
-          <p className="text-sm text-slate-800 italic leading-relaxed">
-            "{transcript}
-            {recording && L < TRANSCRIPT_FULL.length && (
-              <span className="inline-block w-0.5 h-4 bg-slate-800 ml-0.5 animate-pulse align-middle" />
+            <div className="flex flex-col items-center justify-center py-2 relative">
+              <Waveform active={recording} />
+              <div
+                className="mt-3 flex max-w-full items-center gap-2 rounded-full border-2 px-3 py-1.5"
+                style={{ borderColor: ACCENT, backgroundColor: "#EAFBFE" }}
+              >
+                <BadgeCheck className="w-4 h-4" style={{ color: "#0891B2" }} />
+                <span className="text-[10px] font-bold uppercase tracking-wide text-slate-900 font-geist sm:text-[11px] sm:tracking-wider">
+                  AI Voice NLU · Tiếng Việt
+                </span>
+              </div>
+              <p className="mt-2 text-[11px] font-geist uppercase tracking-wider text-slate-500">
+                BS. Văn Ngữ · Phòng 103
+              </p>
+              
+              {!recording ? (
+                 <button
+                  onClick={startRecording}
+                  disabled={isProcessing}
+                  className="mt-3 flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-slate-900 transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed sm:px-6"
+                  style={{ backgroundColor: ACCENT }}
+                >
+                  <Play className="w-4 h-4" /> Bắt đầu thu
+                </button>
+              ) : (
+                <button
+                  onClick={stopRecording}
+                  className="mt-3 flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90 animate-pulse sm:px-6"
+                  style={{ backgroundColor: "#ef4444" }}
+                >
+                  <StopCircle className="w-4 h-4" /> Dừng & Xử lý
+                </button>
+              )}
+            </div>
+            
+            {errorMsg && (
+              <div className="mt-2 bg-red-50 text-red-600 p-2 rounded-md text-xs font-medium text-center">
+                {errorMsg}
+              </div>
             )}
-            "
-          </p>
+
+            <div className="mt-3 border-t border-slate-200 pt-3 flex-1 overflow-auto scrollbar-hide">
+              <p className="text-[10px] font-geist uppercase tracking-wider text-slate-500 mb-1">
+                Phiên âm thô (raw speech)
+              </p>
+              {isProcessing ? (
+                 <div className="flex items-center text-slate-400 space-x-2 mt-4">
+                   <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" />
+                   <span className="text-sm">Đang phân tích SOAPE qua AI...</span>
+                 </div>
+              ) : (
+                 <p className="text-sm text-slate-800 italic leading-relaxed whitespace-pre-wrap">
+                   {recording ? (liveTranscript || "Đang lắng nghe...") : (transcript || "Chưa có dữ liệu...")}
+                 </p>
+              )}
+            </div>
+          </div>
+
+          {/* RIGHT: SOAPE Form */}
+          <div className="flex min-h-[520px] flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6 lg:h-[620px]">
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="text-lg font-medium text-slate-900">EMR · Mẫu SOAPE</h3>
+              <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-slate-500 font-geist">
+                <Cpu className="w-3 h-3" style={{ color: ACCENT }} /> AI Parser · Trực tiếp
+              </span>
+            </div>
+            <div className="space-y-3 flex-1 overflow-auto scrollbar-hide">
+              <EMRField
+                label="Lý do vào viện (S — Subjective)"
+                value={soapeData?.subjective}
+                filled={!!soapeData}
+                isProcessing={isProcessing}
+              />
+              <EMRField
+                label="Khám lâm sàng (O — Objective)"
+                value={soapeData?.objective}
+                filled={!!soapeData}
+                isProcessing={isProcessing}
+              />
+              <EMRField
+                label="Chẩn đoán (A — Assessment)"
+                value={soapeData?.assessment}
+                filled={!!soapeData}
+                isProcessing={isProcessing}
+              />
+              <EMRField
+                label="Xử trí / Y lệnh (P — Plan)"
+                value={soapeData?.plan}
+                filled={!!soapeData}
+                isProcessing={isProcessing}
+              />
+              <EMRField
+                label="Đánh giá lại (E — Evaluation)"
+                value={soapeData?.evaluation}
+                filled={!!soapeData}
+                isProcessing={isProcessing}
+              />
+            </div>
+            <button
+              className="mt-4 rounded-lg py-3 text-sm font-bold text-slate-900 transition hover:opacity-90 disabled:opacity-50 flex items-center justify-center space-x-2"
+              style={{ backgroundColor: ACCENT }}
+              disabled={!soapeData || isProcessing}
+              onClick={() => setShowSignedEMR(true)}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              <span>Xác nhận và Ký số</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function SignedEMRView({ soapeData, onClose }: { soapeData: any; onClose: () => void }) {
+  const dateStr = new Date().toLocaleString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour12: false,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const handleSavePDF = () => {
+    const executeSave = () => {
+      try {
+        const element = document.getElementById("emr-document");
+        const opt = {
+          margin: [10, 10, 10, 10],
+          filename: "Benh_An_Dien_Tu.pdf",
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        };
+        (window as any).html2pdf().set(opt).from(element).save().catch((err: any) => {
+          alert("Lỗi khi tải PDF: " + err.toString());
+        });
+      } catch (err: any) {
+        alert("Có lỗi xảy ra: " + err.toString());
+      }
+    };
+
+    if (!(window as any).html2pdf) {
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+      script.onload = () => executeSave();
+      script.onerror = () => alert("Không thể tải thư viện tạo PDF. Vui lòng kiểm tra mạng.");
+      document.body.appendChild(script);
+    } else {
+      executeSave();
+    }
+  };
+
+  return (
+    <div className="mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto w-full pb-20">
+      <div id="emr-document" className="rounded-2xl shadow-xl border overflow-hidden print:shadow-none print:border-none" style={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0" }}>
+        {/* Hospital Header */}
+        <div className="border-b p-8 flex justify-between items-start" style={{ backgroundColor: "#f8fafc", borderColor: "#e2e8f0" }}>
+          <div className="flex items-center space-x-4">
+            <div className="w-16 h-16 rounded-xl flex items-center justify-center shadow-inner" style={{ backgroundColor: "#2563eb" }}>
+              <span className="font-bold text-2xl tracking-tighter" style={{ color: "#ffffff" }}>EyeCU</span>
+            </div>
+            <div>
+              <h1 className="text-2xl font-black tracking-tight uppercase" style={{ color: "#0f172a" }}>Bệnh viện Đa Khoa EyeCU</h1>
+              <p className="text-sm mt-1" style={{ color: "#64748b" }}>123 Đường Y Tế, Phường Sức Khoẻ, TP.Hồ Chí Minh</p>
+              <p className="text-sm" style={{ color: "#64748b" }}>Điện thoại: 1900 1234 — Website: eyecu.vn</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <h2 className="text-xl font-bold uppercase tracking-widest" style={{ color: "#1e293b" }}>Bệnh án điện tử</h2>
+            <p className="font-mono text-sm mt-1" style={{ color: "#64748b" }}>Mã BA: EMR-{Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}</p>
+            <p className="text-sm" style={{ color: "#64748b" }}>Ngày: {dateStr.split(' ')[1]}</p>
+          </div>
+        </div>
+
+        {/* Patient Info */}
+        <div className="p-8 border-b" style={{ backgroundColor: "#ffffff", borderColor: "#f1f5f9" }}>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div>
+              <p className="text-xs uppercase tracking-widest font-bold mb-1" style={{ color: "#94a3b8" }}>Họ tên người bệnh</p>
+              <p className="text-lg font-bold uppercase" style={{ color: "#1e293b" }}>Nguyễn Văn A</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-widest font-bold mb-1" style={{ color: "#94a3b8" }}>Tuổi</p>
+              <p className="text-lg font-bold" style={{ color: "#1e293b" }}>45</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-widest font-bold mb-1" style={{ color: "#94a3b8" }}>Giới tính</p>
+              <p className="text-lg font-bold" style={{ color: "#1e293b" }}>Nam</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-widest font-bold mb-1" style={{ color: "#94a3b8" }}>Mã BN</p>
+              <p className="text-lg font-mono font-bold" style={{ color: "#1e293b" }}>P-12345</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Clinical Notes (SOAPE) */}
+        <div className="p-8 space-y-8" style={{ backgroundColor: "#ffffff" }}>
+          <Section icon="S" title="Lý do vào viện (Subjective)" content={soapeData?.subjective} />
+          <Section icon="O" title="Khám lâm sàng (Objective)" content={soapeData?.objective} />
+          <Section icon="A" title="Chẩn đoán (Assessment)" content={soapeData?.assessment} highlight />
+          <Section icon="P" title="Y lệnh & Xử trí (Plan)" content={soapeData?.plan} />
+          <Section icon="E" title="Đánh giá lại (Evaluation)" content={soapeData?.evaluation} />
+        </div>
+
+        {/* Footer & Signature */}
+        <div className="p-8 flex justify-between items-end border-t" style={{ backgroundColor: "#f8fafc", borderColor: "#e2e8f0" }}>
+          <div className="text-xs max-w-xs" style={{ color: "#94a3b8" }}>
+            Bệnh án điện tử được ký số và lưu trữ theo chuẩn HL7 FHIR. Bản in chỉ có giá trị tham khảo.
+          </div>
+          <div className="text-center relative">
+            {/* Digital Signature Badge */}
+            <div className="absolute -top-12 -left-12 rotate-[-15deg] opacity-80 print:opacity-100">
+              <div className="border-4 rounded-full w-28 h-28 flex items-center justify-center p-1 relative shadow-sm backdrop-blur-sm" style={{ borderColor: "#ef4444", backgroundColor: "rgba(255,255,255,0.5)" }}>
+                <div className="border rounded-full w-full h-full flex flex-col items-center justify-center font-bold tracking-tighter" style={{ borderColor: "#ef4444", color: "#dc2626" }}>
+                  <span className="text-[10px] uppercase">Ký số hợp lệ</span>
+                  <svg className="w-5 h-5 my-0.5" style={{ color: "#dc2626" }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+                  <span className="text-[8px] font-mono">{dateStr.split(' ')[0]}</span>
+                </div>
+              </div>
+            </div>
+            
+            <p className="font-bold mb-6 relative z-10" style={{ color: "#1e293b" }}>BÁC SĨ ĐIỀU TRỊ</p>
+            <div className="font-[cursive] text-4xl mb-4 opacity-90 relative z-10 select-none" style={{ color: "#1e40af" }}>Văn Ngữ</div>
+            <p className="font-bold uppercase tracking-widest relative z-10" style={{ color: "#0f172a" }}>BS. VĂN NGỮ</p>
+            <p className="text-sm mt-1 relative z-10" style={{ color: "#64748b" }}>Chứng chỉ: CCHN-12345/BYT</p>
+          </div>
         </div>
       </div>
 
-      {/* RIGHT: SOAPE Form */}
-      <div className="flex min-h-[520px] flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6 lg:h-[620px]">
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h3 className="text-lg font-medium text-slate-900">EMR · Mẫu SOAPE</h3>
-          <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-slate-500 font-geist">
-            <Cpu className="w-3 h-3" style={{ color: ACCENT }} /> AI Parser · Trực tiếp
-          </span>
-        </div>
-        <div className="space-y-3 flex-1 overflow-auto scrollbar-hide">
-          <EMRField
-            label="Lý do vào viện (S — Subjective)"
-            value="Đau ngực, khó thở"
-            filled={L > 60}
-          />
-          <EMRField
-            label="Khám lâm sàng (O — Objective)"
-            value="HA: 140/90 mmHg · Mạch: 95 lần/phút"
-            filled={L > 140}
-          />
-          <EMRField
-            label="Chẩn đoán (A — Assessment)"
-            value="TD: Tăng huyết áp độ 2 / Đau thắt ngực"
-            filled={L > 210}
-          />
-          <EMRField
-            label="Xử trí / Y lệnh (P — Plan)"
-            value="Amlodipin 5mg · 1 viên/sáng · TD nhịp tim 48h"
-            filled={L > 280}
-          />
-          <EMRField
-            label="Đánh giá lại (E — Evaluation)"
-            value="Tái khám sau 7 ngày"
-            filled={L >= TRANSCRIPT_FULL.length}
-          />
-        </div>
-        <button
-          className="mt-4 rounded-lg py-2.5 text-sm font-bold text-slate-900 transition hover:opacity-90"
-          style={{ backgroundColor: ACCENT }}
+      {/* Actions */}
+      <div className="mt-8 flex justify-center space-x-4 print:hidden">
+        <button 
+          onClick={onClose}
+          className="px-6 py-2.5 rounded-full border-2 font-bold transition-all active:scale-95"
+          style={{ borderColor: "#e2e8f0", color: "#475569", backgroundColor: "transparent" }}
         >
-          Xác nhận và Ký số
+          Quay lại
         </button>
+        <button 
+          onClick={handleSavePDF}
+          className="px-6 py-2.5 rounded-full font-bold transition-all active:scale-95 shadow-md hover:shadow-lg flex items-center space-x-2"
+          style={{ backgroundColor: "#1e293b", color: "#ffffff" }}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+          <span>Lưu PDF</span>
+        </button>
+        <button 
+          onClick={() => window.print()}
+          className="px-6 py-2.5 rounded-full font-bold transition-all active:scale-95 shadow-md hover:shadow-lg flex items-center space-x-2"
+          style={{ backgroundColor: ACCENT, color: "#0f172a" }}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+          <span>In bệnh án</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Section({ icon, title, content, highlight = false }: { icon: string; title: string; content?: string; highlight?: boolean }) {
+  if (!content || content === "Chưa có thông tin") return null;
+  return (
+    <div className="flex items-start space-x-4">
+      <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0" 
+           style={{ backgroundColor: highlight ? "#fee2e2" : "#f1f5f9", color: highlight ? "#b91c1c" : "#475569" }}>
+        {icon}
+      </div>
+      <div>
+        <h3 className="font-bold text-sm uppercase tracking-wider mb-1" style={{ color: highlight ? "#b91c1c" : "#94a3b8" }}>
+          {title}
+        </h3>
+        <p className="leading-relaxed text-lg" style={{ color: "#1e293b" }}>{content}</p>
       </div>
     </div>
   );
@@ -5458,16 +5742,22 @@ function Waveform({ active }: { active: boolean }) {
   );
 }
 
-function EMRField({ label, value, filled }: { label: string; value: string; filled: boolean }) {
+function EMRField({ label, value, filled, isProcessing }: { label: string; value?: string; filled: boolean; isProcessing?: boolean }) {
   return (
     <div
       className="border border-slate-200 rounded-lg p-3 transition-colors"
       style={filled ? { borderColor: ACCENT } : undefined}
     >
       <p className="text-[10px] font-geist uppercase tracking-wider text-slate-500">{label}</p>
-      <p className={`text-sm mt-1 ${filled ? "text-slate-900 font-medium" : "text-slate-300"}`}>
-        {filled ? value : "— đang chờ —"}
-      </p>
+      {isProcessing ? (
+        <div className="animate-pulse flex space-x-2 mt-2">
+          <div className="h-4 w-3/4 bg-slate-200 rounded"></div>
+        </div>
+      ) : (
+        <p className={`text-sm mt-1 ${filled ? "text-slate-900 font-medium whitespace-pre-wrap" : "text-slate-300"}`}>
+          {filled ? value : "— đang chờ —"}
+        </p>
+      )}
     </div>
   );
 }
@@ -5732,7 +6022,7 @@ function PatientClinicalSheet({
 }) {
   if (!active) return null;
 
-  const record = data.latestRecord;
+  const record = data?.latestRecord;
 
   const titles: Record<PatientServiceKey, string> = {
     record: "Phiếu khám bệnh",
@@ -5769,175 +6059,226 @@ function PatientClinicalSheet({
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {active === "record" && (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-4">
-                <div className="mb-3 flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-[10px] font-geist uppercase tracking-wider text-blue-600">
-                      EMR #{record.id.slice(-8).toUpperCase()}
-                    </p>
-                    <p className="text-sm font-bold text-slate-900">{record.department}</p>
+              {!record ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50">
+                    <Receipt className="h-7 w-7 text-blue-300" />
                   </div>
-                  {record.is_signed && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">
-                      <BadgeCheck className="h-3 w-3" />
-                      SmartCA
-                    </span>
-                  )}
+                  <p className="text-sm font-semibold text-slate-700">Chưa có phiếu khám</p>
+                  <p className="mt-1 text-xs text-slate-400">Bạn chưa có lần khám nào được ghi nhận trong hệ thống.</p>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="rounded-xl bg-white/80 p-2.5">
-                    <p className="text-slate-400">Ngày khám</p>
-                    <p className="font-semibold text-slate-900">
-                      {formatRecordDate(record.created_at)}
-                    </p>
+              ) : (
+                <>
+                  <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-4">
+                    <div className="mb-3 flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-[10px] font-geist uppercase tracking-wider text-blue-600">
+                          EMR #{record.id?.slice(-8).toUpperCase() ?? "—"}
+                        </p>
+                        <p className="text-sm font-bold text-slate-900">{record.department ?? "—"}</p>
+                      </div>
+                      {record.is_signed && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">
+                          <BadgeCheck className="h-3 w-3" />
+                          SmartCA
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-xl bg-white/80 p-2.5">
+                        <p className="text-slate-400">Ngày khám</p>
+                        <p className="font-semibold text-slate-900">
+                          {formatRecordDate(record.created_at)}
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-white/80 p-2.5">
+                        <p className="text-slate-400">Bác sĩ</p>
+                        <p className="font-semibold text-slate-900">{record.doctor_name ?? "—"}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="rounded-xl bg-white/80 p-2.5">
-                    <p className="text-slate-400">Bác sĩ</p>
-                    <p className="font-semibold text-slate-900">{record.doctor_name}</p>
+                  <div className="space-y-3">
+                    <div className="rounded-xl border border-slate-100 p-3">
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Triệu chứng
+                      </p>
+                      <p className="text-sm leading-relaxed text-slate-700">{record.symptoms ?? "—"}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-100 p-3">
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Chẩn đoán
+                      </p>
+                      <p className="text-sm font-semibold text-slate-900">{record.diagnosis ?? "—"}</p>
+                    </div>
+                    {record.notes && (
+                      <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3">
+                        <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                          Ghi chú
+                        </p>
+                        <p className="text-sm text-amber-900">{record.notes}</p>
+                      </div>
+                    )}
                   </div>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div className="rounded-xl border border-slate-100 p-3">
-                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Triệu chứng
-                  </p>
-                  <p className="text-sm leading-relaxed text-slate-700">{record.symptoms}</p>
-                </div>
-                <div className="rounded-xl border border-slate-100 p-3">
-                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Chẩn đoán
-                  </p>
-                  <p className="text-sm font-semibold text-slate-900">{record.diagnosis}</p>
-                </div>
-                {record.notes && (
-                  <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3">
-                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-amber-700">
-                      Ghi chú
-                    </p>
-                    <p className="text-sm text-amber-900">{record.notes}</p>
-                  </div>
-                )}
-              </div>
+                </>
+              )}
             </div>
           )}
 
           {active === "prescription" && (
             <div className="space-y-3">
-              <div className="rounded-xl border border-violet-100 bg-violet-50/60 p-3">
-                <p className="text-[10px] font-geist uppercase tracking-wider text-violet-600">
-                  record_id · {record.id}
-                </p>
-                <p className="mt-1 text-sm text-slate-600">
-                  {data.medications.length} loại thuốc · Kê ngày{" "}
-                  {formatRecordDate(record.created_at)}
-                </p>
-              </div>
-              {data.medications.map((med) => (
-                <div
-                  key={med.id}
-                  className="flex gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm"
-                >
-                  <div
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-                    style={{ backgroundColor: "#7C3AED18" }}
-                  >
-                    <Pill className="h-5 w-5 text-violet-600" />
+              {!data?.medications?.length ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-violet-50">
+                    <Pill className="h-7 w-7 text-violet-300" />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-slate-900">{med.medicine_name}</p>
-                    <p className="mt-0.5 text-sm text-slate-600">{med.dosage}</p>
-                    {med.instructions && (
-                      <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
-                        {med.instructions}
-                      </p>
-                    )}
-                  </div>
+                  <p className="text-sm font-semibold text-slate-700">Chưa có đơn thuốc</p>
+                  <p className="mt-1 text-xs text-slate-400">Bác sĩ chưa kê đơn thuốc nào cho bạn.</p>
                 </div>
-              ))}
+              ) : (
+                <>
+                  <div className="rounded-xl border border-violet-100 bg-violet-50/60 p-3">
+                    <p className="text-[10px] font-geist uppercase tracking-wider text-violet-600">
+                      record_id · {record?.id ?? "—"}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {data.medications.length} loại thuốc{record ? ` · Kê ngày ${formatRecordDate(record.created_at)}` : ""}
+                    </p>
+                  </div>
+                  {data.medications.map((med) => (
+                    <div
+                      key={med.id}
+                      className="flex gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm"
+                    >
+                      <div
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                        style={{ backgroundColor: "#7C3AED18" }}
+                      >
+                        <Pill className="h-5 w-5 text-violet-600" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-slate-900">{med.medicine_name}</p>
+                        <p className="mt-0.5 text-sm text-slate-600">{med.dosage}</p>
+                        {med.instructions && (
+                          <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                            {med.instructions}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
           )}
 
           {active === "followup" && (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-4">
-                <div className="mb-3 flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-amber-600" />
-                  <p className="text-sm font-bold text-slate-900">Lịch hẹn tái khám</p>
+              {!data?.followUp ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-amber-50">
+                    <Calendar className="h-7 w-7 text-amber-300" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-700">Chưa có lịch tái khám</p>
+                  <p className="mt-1 text-xs text-slate-400">Bác sĩ chưa đặt lịch hẹn tái khám cho bạn.</p>
                 </div>
-                <p className="text-2xl font-bold text-amber-700">
-                  {data.followUp.date}
-                  <span className="ml-2 text-base font-semibold text-slate-600">
-                    · {data.followUp.time}
-                  </span>
-                </p>
-                <p className="mt-2 text-sm text-slate-700">{data.followUp.department}</p>
-              </div>
-              <div className="rounded-xl border border-slate-100 p-3">
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Từ clinical_records.notes
-                </p>
-                <p className="text-sm leading-relaxed text-slate-700">{data.followUp.note}</p>
-              </div>
-              <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
-                <Clock className="h-4 w-4 shrink-0 text-slate-400" />
-                BHYT: {data.bhxh_code ?? "—"} · Bệnh nhân: {data.patientName}
-              </div>
+              ) : (
+                <>
+                  <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-4">
+                    <div className="mb-3 flex items-center gap-2">
+                      <Calendar className="h-5 w-5 text-amber-600" />
+                      <p className="text-sm font-bold text-slate-900">Lịch hẹn tái khám</p>
+                    </div>
+                    <p className="text-2xl font-bold text-amber-700">
+                      {data.followUp.date}
+                      <span className="ml-2 text-base font-semibold text-slate-600">
+                        · {data.followUp.time}
+                      </span>
+                    </p>
+                    <p className="mt-2 text-sm text-slate-700">{data.followUp.department}</p>
+                  </div>
+                  {data.followUp.note && (
+                    <div className="rounded-xl border border-slate-100 p-3">
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Từ clinical_records.notes
+                      </p>
+                      <p className="text-sm leading-relaxed text-slate-700">{data.followUp.note}</p>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
+                    <Clock className="h-4 w-4 shrink-0 text-slate-400" />
+                    BHYT: {data.bhxh_code ?? "—"} · Bệnh nhân: {data.patientName}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
           {active === "fees" && (
             <div className="space-y-4">
-              <div
-                className={`rounded-2xl border p-4 ${
-                  data.fees.status === "paid"
-                    ? "border-emerald-200 bg-emerald-50/70"
-                    : "border-amber-200 bg-amber-50/70"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-bold text-slate-900">Tổng viện phí lượt khám</p>
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${
+              {!data?.fees ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-green-50">
+                    <FileText className="h-7 w-7 text-green-300" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-700">Chưa có thông tin viện phí</p>
+                  <p className="mt-1 text-xs text-slate-400">Chưa có hóa đơn viện phí nào trong hệ thống.</p>
+                </div>
+              ) : (
+                <>
+                  <div
+                    className={`rounded-2xl border p-4 ${
                       data.fees.status === "paid"
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-amber-100 text-amber-700"
+                        ? "border-emerald-200 bg-emerald-50/70"
+                        : "border-amber-200 bg-amber-50/70"
                     }`}
                   >
-                    {data.fees.status === "paid" ? "Đã thanh toán" : "Chưa thanh toán"}
-                  </span>
-                </div>
-                <p className="mt-2 text-2xl font-bold text-slate-900">
-                  {formatVnd(data.fees.total)}
-                </p>
-                {data.fees.paid_at && (
-                  <p className="mt-1 text-xs text-slate-500">
-                    Thanh toán lúc{" "}
-                    {new Date(data.fees.paid_at).toLocaleString("vi-VN", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                {data.fees.items.map((item) => (
-                  <div
-                    key={item.name}
-                    className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2.5"
-                  >
-                    <span className="text-sm text-slate-700">{item.name}</span>
-                    <span className="text-sm font-semibold text-slate-900">
-                      {formatVnd(item.amount)}
-                    </span>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-bold text-slate-900">Tổng viện phí lượt khám</p>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${
+                          data.fees.status === "paid"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {data.fees.status === "paid" ? "Đã thanh toán" : "Chưa thanh toán"}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-2xl font-bold text-slate-900">
+                      {formatVnd(data.fees.total)}
+                    </p>
+                    {data.fees.paid_at && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        Thanh toán lúc{" "}
+                        {new Date(data.fees.paid_at).toLocaleString("vi-VN", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    )}
                   </div>
-                ))}
-              </div>
-              <p className="text-[10px] text-slate-400">
-                Liên kết record_id: {data.fees.record_id}
-              </p>
+                  {data.fees.items?.length > 0 && (
+                    <div className="space-y-2">
+                      {data.fees.items.map((item) => (
+                        <div
+                          key={item.name}
+                          className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2.5"
+                        >
+                          <span className="text-sm text-slate-700">{item.name}</span>
+                          <span className="text-sm font-semibold text-slate-900">
+                            {formatVnd(item.amount)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-[10px] text-slate-400">
+                    Liên kết record_id: {data.fees.record_id ?? "—"}
+                  </p>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -6005,7 +6346,7 @@ function PatientPortalView({
   const [messages, setMessages] = useState<ChatMsg[]>([
     {
       from: "bot",
-      text: "Xin chào bạn Nguyễn Văn A! Mình là trợ lý AI EyeCU. Bạn vừa có kết quả xét nghiệm sinh hóa mới. Bạn muốn mình giải thích chỉ số nào không ạ? ",
+      text: `Xin chào bạn ${user?.name || "Bệnh nhân"}! Mình là trợ lý AI EyeCU. Bạn vừa có kết quả xét nghiệm sinh hóa mới. Bạn muốn mình giải thích chỉ số nào không ạ?`,
       time: getTimeNow(),
     },
   ]);
@@ -6029,7 +6370,17 @@ function PatientPortalView({
   const [activeService, setActiveService] = useState<PatientServiceKey | null>(null);
 
   // Default mock fallback if loading or no records
-  const clinicalData = clinical || DEMO_PATIENT_CLINICAL;
+  const clinicalData = clinical || {
+    is_empty: true,
+    patientId: user?.id || "",
+    patientName: user?.name || "",
+    cccd: user?.cccd || "",
+    bhxh_code: null,
+    latestRecord: null,
+    medications: [],
+    followUp: null,
+    fees: null,
+  };
 
   const tiles: {
     key: PatientServiceKey;
@@ -6043,15 +6394,17 @@ function PatientPortalView({
       key: "record",
       Icon: Receipt,
       label: "Phiếu khám bệnh",
-      sub: `${formatRecordDate(clinicalData.latestRecord.created_at)} · ${clinicalData.latestRecord.doctor_name}`,
+      sub: clinicalData.latestRecord
+        ? `${formatRecordDate(clinicalData.latestRecord.created_at)} · ${clinicalData.latestRecord.doctor_name}`
+        : "Chưa có thông tin",
       color: "#2563EB",
-      badge: clinicalData.latestRecord.is_signed ? "Ký số" : undefined,
+      badge: clinicalData.latestRecord?.is_signed ? "Ký số" : undefined,
     },
     {
       key: "prescription",
       Icon: Pill,
       label: "Đơn thuốc điện tử",
-      sub: `${clinicalData.medications.length} loại · Hẹn giờ uống`,
+      sub: `${clinicalData.medications?.length || 0} loại · Hẹn giờ uống`,
       color: "#7C3AED",
     },
     {
@@ -6324,7 +6677,7 @@ function PatientPortalView({
                   EyeCU
                 </p>
                 <h2 className="text-lg font-bold text-slate-900 leading-tight break-words">
-                  Xin chào bạn Nguyễn Văn A
+                  Xin chào bạn {user?.name || "Bệnh nhân"}
                 </h2>
                 <p className="text-[11px] text-slate-500">Hôm nay bạn cảm thấy thế nào ạ?</p>
               </div>

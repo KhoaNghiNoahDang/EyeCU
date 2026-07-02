@@ -20,12 +20,12 @@ services:
     build: ./frontend
     container_name: eyecu_frontend
     ports:
-      - "5173:5173"
+      - "5173:8080"
     volumes:
       - ./frontend:/app
       - /app/node_modules        # Giữ node_modules trong container, không mount từ host
     environment:
-      - VITE_API_URL=http://localhost:8000
+      - VITE_API_URL=http://localhost:8000/api
     depends_on:
       - backend
     restart: unless-stopped
