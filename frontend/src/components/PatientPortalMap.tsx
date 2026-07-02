@@ -20,7 +20,7 @@ export default function PatientPortalMap({ selectedHospital }: { selectedHospita
     <MapContainer 
       center={[selectedHospital.latitude, selectedHospital.longitude]} 
       zoom={15} 
-      style={{ height: "100%", width: "100%", zIndex: 0 }}
+      style={{ position: "absolute", inset: 0, zIndex: 0 }}
       zoomControl={false}
     >
       <TileLayer

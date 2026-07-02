@@ -385,9 +385,9 @@ export function PatientPortalNew({
           {/* 4. Map Location Banner */}
           <div className="px-4 mt-4">
              <button onClick={() => setCurrentView("hospital_map")} className="flex w-full items-center gap-4 rounded-2xl bg-white p-4 shadow-sm border border-slate-100 active:scale-95 transition-transform">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-50 overflow-hidden">
-                   <img src="https://maps.gstatic.com/tactile/map_icons/hospital_1x.png" alt="map" className="h-6 w-6 object-contain" />
-                </div>
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 overflow-hidden">
+                  <MapPin className="h-5 w-5 text-emerald-600" />
+               </div>
                 <div className="flex-1 text-left">
                    <p className="text-[14px] font-bold text-[#0d1f2d]">Trung tâm EyeCU</p>
                    <p className="text-[11px] text-slate-500 mt-0.5">Mở bản đồ bệnh viện</p>
