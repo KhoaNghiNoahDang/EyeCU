@@ -63,12 +63,20 @@ def main():
 
         bboxes = detect_person_bbox(frame)
         if not bboxes:
+            # Khong co ai trong phong -> phat live stream nguyen ban (khong lo lo rieng tu vi phong trong)
+            now = time.time()
+            if now - last_stream_time >= 0.1:
+                try:
+                    ws_queue.put_nowait((send_camera_stream, (ws, ROOM_ID, frame.copy())))
+                    last_stream_time = now
+                except queue.Full:
+                    pass
             continue
 
-        import numpy as np
-        # Nguoi dung muon giu phong canh that, khong dung nen den nua
-        display_frame = frame.copy()
-
+        # Buoc 1: Kiem tra xem co ai bi nga khong
+        is_falling = False
+        all_results = []
+        
         for bbox in bboxes:
             landmarks_info = get_landmarks(frame, bbox)
             if landmarks_info is None:
@@ -76,29 +84,37 @@ def main():
                 
             results, shape = landmarks_info
             features = extract_features(results, shape)
+            all_results.append(results)
             
-            # 1. TRANG THAI BINH THUONG: Chi ve khung xuong tren nen den (Privacy tuyet doi, cuc nhe)
-            display_frame = draw_skeleton(display_frame, results)
-            
-            # 2. KIEM TRA TE NGA
             if features is not None and predict_fall(features):
-                now = time.time()
-                if now - last_alert >= FALL_COOLDOWN_SECONDS:
-                    print(f"[ALERT] TE NGA tai phong {ROOM_ID}!")
+                is_falling = True
+
+        # Buoc 2: Xu ly rieng tu va hien thi
+        if is_falling:
+            # KHI NGA: Khung xuong BIEN MAT, nguoi benh HIEN LEN nhung bi lam HOI MO (light blur) de kiem tra chan thuong
+            display_frame = anonymize_body(frame, blur_level='light')
+            # KHONG VE khung xuong (bo qua buoc ve)
+        else:
+            # TRANG THAI BINH THUONG: Nguoi benh bi che khuat hoan toan (heavy blur/den), CHI HIEN KHUNG XUONG + Phong canh that
+            display_frame = anonymize_body(frame, blur_level='heavy')
+            # Ve khung xuong len tren cung
+            for results in all_results:
+                display_frame = draw_skeleton(display_frame, results)
+            
+        # Buoc 4: Gui canh bao (Neu can)
+        if is_falling:
+            now = time.time()
+            if now - last_alert >= FALL_COOLDOWN_SECONDS:
+                print(f"[ALERT] TE NGA tai phong {ROOM_ID}!")
+                try:
+                    ws_queue.put_nowait((send_fall_alert, (ws, ROOM_ID, display_frame.copy())))
+                    last_alert = now
+                except queue.Full:
+                    pass
                     
-                    # CHI lam mo anh vao khoanh khac bi nga (tiet kiem 99% CPU)
-                    alert_frame = anonymize_body(frame)
-                    alert_frame = draw_skeleton(alert_frame, results)
-                    
-                    try:
-                        ws_queue.put_nowait((send_fall_alert, (ws, ROOM_ID, alert_frame.copy())))
-                        last_alert = now
-                    except queue.Full:
-                        pass
-                    
-        # 3. LIVE STREAMING (Chi gui khung xuong tren nen den)
+        # Buoc 5: LIVE STREAMING
         now = time.time()
-        if now - last_stream_time >= 0.1:  # 10 FPS
+        if now - last_stream_time >= 0.1: # 10 FPS
             try:
                 # Nhet vao queue. Neu mang cham, queue day -> bo qua frame nay de chong lag
                 ws_queue.put_nowait((send_camera_stream, (ws, ROOM_ID, display_frame.copy())))

@@ -33,10 +33,11 @@ def _get_segmenter():
     return _segmenter
 
 
-def anonymize_body(frame: np.ndarray) -> np.ndarray:
+def anonymize_body(frame: np.ndarray, blur_level: str = 'heavy') -> np.ndarray:
     """
-    Lam mo toan bo co the nguoi trong frame.
-    Skeleton van giu nguyen giup y ta phan biet tu the (nam/ngoi/nga).
+    Lam mo hoac che khuat co the nguoi trong frame, giu nguyen phong canh.
+    - 'heavy': Lam mo rat manh hoac to mau den de an hoan toan nguoi (chi hien khung xuong).
+    - 'light': Lam mo nhe de thay hinh anh nguoi benh.
     """
     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
@@ -46,7 +47,14 @@ def anonymize_body(frame: np.ndarray) -> np.ndarray:
         return frame
 
     mask = result.category_mask.numpy_view()
-    mask = np.squeeze(mask)  # Remove any extra dimension (e.g., from (H, W, 1) to (H, W))
-    blurred = cv2.GaussianBlur(frame, (99, 99), 30)
-    condition = np.stack((mask,) * 3, axis=-1) == 0
-    return np.where(condition, blurred, frame)
+    mask = np.squeeze(mask)  # (H, W)
+    condition = np.stack((mask,) * 3, axis=-1) < 0.1 # Nguoi la mask == 0
+
+    if blur_level == 'heavy':
+        # Privacy tuyet doi: To mau den hoan toan len co the nguoi benh (tao thanh bong den)
+        black_silhouette = np.zeros_like(frame)
+        return np.where(condition, black_silhouette, frame) 
+    else:
+        # Lam mo nhe de van thay hinh dang nguoi benh (giam thieu canh bao nham)
+        blurred = cv2.GaussianBlur(frame, (21, 21), 10)
+        return np.where(condition, blurred, frame)
