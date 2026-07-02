@@ -531,8 +531,8 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
                 type="text"
                 required
                 value={employeeId}
-                onChange={(e) => setEmployeeId(e.target.value)}
-                placeholder="Ví dụ: BS001"
+                onChange={(e) => setEmployeeId(e.target.value.toUpperCase())}
+                placeholder="Ví dụ: BS-1000"
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 text-sm uppercase focus:border-[#0d1f2d] outline-none transition-colors"
                 disabled={isAuthenticating}
               />
@@ -778,7 +778,7 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
 
   const handleVneidClick = () => {
     setFormError(null);
-    const demo = findPatientByCccdAndPhone("001203001247", "0912345678");
+    const demo = findPatientByCccdAndPhone("001200948618", "0365801600");
     if (demo) {
       if (!demo.credentialId) {
         setPendingPatient(demo);
@@ -931,7 +931,7 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
             inputMode="numeric"
             value={cccd}
             onChange={(e) => setCccd(e.target.value.replace(/\D/g, "").slice(0, 12))}
-            placeholder="001203001247"
+            placeholder="Ví dụ: 001200948618"
             className="w-full rounded-xl border-2 px-3 py-2.5 text-sm outline-none transition-all"
             style={{ borderColor: "#f1f5f9" }}
             onFocus={(e) => {
