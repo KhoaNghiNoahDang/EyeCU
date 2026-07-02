@@ -816,13 +816,8 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
   };
 
   const handleVneidClick = () => {
-    // VNeID dummy login for now, as required
-    onLogin({
-      id: "p-vneid",
-      name: "Bệnh nhân VNeID",
-      type: "patient",
-      cccd: "001203001247",
-    }, "dummy_token");
+    // Tạm thời chưa kết nối VNeID nên dùng eKYC quét khuôn mặt
+    startCamera();
   };
 
   return (
