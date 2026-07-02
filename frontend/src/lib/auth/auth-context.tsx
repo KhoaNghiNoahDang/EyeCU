@@ -17,6 +17,8 @@ export interface AuthUser {
   phone?: string;
   gender?: string;
   dob?: string;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
   staffCode?: string;
 }
 

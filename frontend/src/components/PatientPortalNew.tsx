@@ -1351,6 +1351,20 @@ export function PatientPortalNew({
                <span className="text-[14px] text-slate-500 mt-1">{user?.phone || "Chưa cập nhật SĐT"}</span>
             </div>
          </div>
+
+         <div className="bg-white px-4 py-3 border-b border-slate-100 mt-1">
+            <span className="text-[14px] font-medium text-slate-800 block mb-2">Liên hệ khẩn cấp</span>
+            <div className="text-[14px] text-slate-600">
+              {user?.emergency_contact_name || user?.emergency_contact_phone ? (
+                <>
+                  <p>Người liên hệ: <span className="font-medium text-[#0d1f2d]">{user.emergency_contact_name || "---"}</span></p>
+                  <p>SĐT khẩn cấp: <span className="font-medium text-[#0d1f2d]">{user.emergency_contact_phone || "---"}</span></p>
+                </>
+              ) : (
+                <p className="text-slate-400 italic">Không có dữ liệu</p>
+              )}
+            </div>
+         </div>
          
          <div className="bg-white pt-4 pb-2 border-b border-slate-100 mt-1">
             <span className="px-4 text-[14px] font-medium text-slate-800">Tiện ích</span>
