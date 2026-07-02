@@ -237,9 +237,9 @@ function LoginPage() {
             {activeTab === "staff" ? (
               <StaffLoginFlow onLogin={(u, m) => login(u, m)} />
             ) : activeTab === "patient" ? (
-              <PatientLoginFlow onLogin={(u, token) => login(u, "patient", token)} />
+              <PatientLoginFlow onLogin={(u, _token) => login(u, "patient")} />
             ) : (
-              <AdminLoginFlow onLogin={(u) => login(u, "admin")} />
+              <AdminLoginFlow onLogin={(u, _token) => login(u, "admin")} />
             )}
           </div>
 
@@ -280,7 +280,7 @@ function SectionTitle({
 }
 
 /* ─── STAFF FLOW ─── */
-function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode) => void }) {
+function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode, token?: string) => void }) {
   const [step, setStep] = useState<"scan" | "manual" | "identify" | "pick_shift">(
     "manual",
   );
@@ -476,7 +476,7 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
           <button
             onClick={() => {
               setCameraError(null);
-              setStep("choose");
+              setStep("pick_shift");
             }}
             className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-700 transition-colors mt-2"
           >
@@ -487,7 +487,7 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode)
             <button
               onClick={() => {
                 stopCamera();
-                setStep("choose");
+                setStep("pick_shift");
               }}
               className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
             >

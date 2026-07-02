@@ -5,8 +5,8 @@ const ACCENT = "#88E8F2";
 
 interface CccdCaptureProps {
   side: "front" | "back";
-  capturedUrl: string | null;
   onCapture: (dataUrl: string) => void;
+  capturedUrl?: string | null;
 }
 
 export function CccdCapture({ side, capturedUrl, onCapture }: CccdCaptureProps) {

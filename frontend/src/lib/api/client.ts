@@ -1,6 +1,10 @@
 const API_URL = import.meta.env.VITE_API_URL || "https://eyecu.onrender.com/api";
 
-export async function fetchApi(endpoint: string, options: RequestInit = {}) {
+interface CustomRequestInit extends Omit<RequestInit, 'body'> {
+  body?: any;
+}
+
+export async function fetchApi(endpoint: string, options: CustomRequestInit = {}) {
   const token = sessionStorage.getItem("eyecu_token");
 
   const headers = new Headers(options.headers || {});

@@ -6,7 +6,7 @@ const ACCENT_DARK = "#0A9BAD";
 
 interface FaceIdCaptureProps {
   onCapture: (dataUrl: string) => void;
-  capturedUrl: string | null;
+  capturedUrl?: string | null;
 }
 
 export function FaceIdCapture({ onCapture, capturedUrl }: FaceIdCaptureProps) {
