@@ -16,7 +16,7 @@ from app.db.models import Patient, Staff
 # ─────────────────────────────────────────────
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
-
+#
 # ─────────────────────────────────────────────
 # Schema dữ liệu nằm bên trong JWT Token
 # ─────────────────────────────────────────────
