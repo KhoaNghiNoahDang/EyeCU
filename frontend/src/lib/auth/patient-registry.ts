@@ -90,7 +90,10 @@ export function getPatientQrUrl(patient: RegisteredPatient): string {
 export function updatePatientCredentialId(cccd: string, credentialId: string): RegisteredPatient {
   const all = loadAll();
   const idx = all.findIndex((p) => p.cccd === cccd.trim());
-  if (idx === -1) throw new Error("Không tìm thấy bệnh nhân");
+  if (idx === -1) {
+    const availableCccds = all.map(p => `"${p.cccd}"`).join(", ");
+    throw new Error(`Không tìm thấy bệnh nhân. CCCD cần tìm: "${cccd.trim()}". Các CCCD có sẵn: ${availableCccds}`);
+  }
   all[idx]!.credentialId = credentialId;
   saveAll(all);
   return all[idx]!;
