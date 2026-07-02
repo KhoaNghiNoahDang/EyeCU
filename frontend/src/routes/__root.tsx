@@ -132,9 +132,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "manifest", href: "/manifest.webmanifest" },
-      // iOS requires PNG apple-touch-icon (SVG not supported on older iOS Safari)
+      { rel: "icon", type: "image/png", href: "/apple-touch-icon.png" },
       { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
-      // Fallback for older iOS
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
       { rel: "mask-icon", href: "/apple-touch-icon.png", color: "#88E8F2" },
       // iOS Splash screens (covers iPhone SE through iPhone 15 Pro Max)

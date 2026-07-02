@@ -17,7 +17,7 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["apple-touch-icon.svg", "apple-touch-icon.png", "masked-icon.svg", "pwa-icon.svg"],
+      includeAssets: ["apple-touch-icon.png"],
       manifest: {
         id: "/",
         name: "EyeCU Ambient Clinical OS",
@@ -35,21 +35,9 @@ export default defineConfig({
         icons: [
           {
             src: "apple-touch-icon.png",
-            sizes: "180x180",
+            sizes: "any",
             type: "image/png",
-            purpose: "any",
-          },
-          {
-            src: "pwa-icon.svg",
-            sizes: "any",
-            type: "image/svg+xml",
-            purpose: "any",
-          },
-          {
-            src: "masked-icon.svg",
-            sizes: "any",
-            type: "image/svg+xml",
-            purpose: "maskable",
+            purpose: "any maskable",
           },
         ],
       },
