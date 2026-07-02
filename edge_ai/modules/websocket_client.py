@@ -22,9 +22,11 @@ def send_fall_alert(ws: websocket.WebSocket, room_id: str, blurred_frame: np.nda
     ws.send(json.dumps(payload))
 
 def send_camera_stream(ws: websocket.WebSocket, room_id: str, frame: np.ndarray):
+    # Resize frame de giam thieu bang thong mang (Chi can gui 480x270)
+    small_frame = cv2.resize(frame, (480, 270))
     payload = {
         "type": "CAMERA_STREAM",
         "room_id": room_id,
-        "image_base64": encode_frame_base64(frame, quality=40),
+        "image_base64": encode_frame_base64(small_frame, quality=40),
     }
     ws.send(json.dumps(payload))

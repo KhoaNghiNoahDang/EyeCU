@@ -756,6 +756,32 @@ function AmbientView({
   const [fullscreen, setFullscreen] = useState<Camera | null>(null);
 
   const [cameras, setCameras] = useState<Camera[]>([]);
+  const [fallAlert, setFallAlert] = useState<{room: string; imageUrl: string; time: string} | null>(null);
+
+  const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
+  const WS_URL = (import.meta.env.VITE_WS_URL ?? `ws://${host}:8000`) + "/api/ambient/ws/live";
+
+  const handleSocketMessage = useCallback((msg: any) => {
+    if (msg.type === "CAMERA_STREAM") {
+      window.dispatchEvent(
+        new CustomEvent("camera-stream", {
+          detail: { room: msg.room_id, image: msg.image_base64 },
+        })
+      );
+    }
+    if (msg.type === "FALL_DETECTED") {
+      setFallAlert({
+        room: msg.room_id || "Unknown",
+        imageUrl: msg.blurred_image_base64 || "",
+        time: new Date().toLocaleTimeString(),
+      });
+      try {
+        new Audio("/alert.mp3").play().catch(() => {});
+      } catch (e) {}
+    }
+  }, []);
+
+  useEyeCUSocket({ url: WS_URL, onMessage: handleSocketMessage });
 
   useEffect(() => {
     fetchApi("/ambient/devices")
@@ -767,7 +793,10 @@ function AmbientView({
           label: d.name,
           dept: "internal", // Mock dept for demo based on device
         }));
-        setCameras(mapped as Camera[]);
+        
+        // Trộn data từ DB với ALL_CAMERAS để demo đẹp mắt và đảm bảo Phòng 101 có mặt
+        const combined = [...mapped, ...ALL_CAMERAS.filter(c => !mapped.find(m => m.room === c.room))];
+        setCameras(combined as Camera[]);
       })
       .catch(() => setCameras(ALL_CAMERAS));
   }, []);
@@ -959,6 +988,45 @@ function AmbientView({
       <PrivacyCameraFeed />
 
       {fullscreen && <CameraModal cam={fullscreen} onClose={() => setFullscreen(null)} />}
+
+      {fallAlert && (
+        <div className="fixed top-20 right-6 z-[999] bg-red-950 text-white p-5 rounded-2xl shadow-2xl flex flex-col gap-3 animate-fade-in border border-red-500 max-w-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-6 h-6 text-red-500 animate-pulse" />
+              <h3 className="font-bold text-lg text-red-400 uppercase tracking-widest">
+                Cảnh báo cấp cứu
+              </h3>
+            </div>
+            <button onClick={() => setFallAlert(null)} className="text-gray-400 hover:text-white">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <p className="text-sm font-medium text-slate-300">
+            Phát hiện bệnh nhân ngã tại <span className="font-bold text-red-300">{fallAlert.room}</span> lúc {fallAlert.time}
+          </p>
+          {fallAlert.imageUrl && (
+            <div className="relative rounded-lg overflow-hidden border-2 border-red-900/50">
+              <img src={fallAlert.imageUrl} alt="Blurred fall evidence" className="w-full h-auto" />
+              <div className="absolute inset-0 bg-red-500/10 animate-pulse" />
+            </div>
+          )}
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={() => setFallAlert(null)}
+              className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-semibold transition"
+            >
+              Bỏ qua (Giả)
+            </button>
+            <button
+              onClick={() => setFallAlert(null)}
+              className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-semibold shadow-lg shadow-red-500/20 transition"
+            >
+              Cấp cứu
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
