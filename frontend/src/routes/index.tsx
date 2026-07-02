@@ -758,7 +758,7 @@ function AmbientView({
   const [cameras, setCameras] = useState<Camera[]>([]);
   const [fallAlert, setFallAlert] = useState<{room: string; imageUrl: string; time: string} | null>(null);
 
-  const WS_URL = import.meta.env.VITE_WS_URL ? (import.meta.env.VITE_WS_URL + "/api/ambient/ws/live") : "wss://eyecu.onrender.com/api/ambient/ws/live";
+  const WS_URL = "wss://eyecu.onrender.com/api/ambient/ws/live";
 
   const handleSocketMessage = useCallback((msg: any) => {
     if (msg.type === "CAMERA_STREAM") {
