@@ -25,6 +25,18 @@ function getTimeNow() {
 
 type ViewState = "home" | "health_record" | "record_lookup" | "community_qa" | "ask_question" | "invoice_list" | "digital_signature" | "hospital_map";
 
+function getAge(dobString?: string) {
+  if (!dobString) return "";
+  const parts = dobString.split("/");
+  if (parts.length === 3) {
+    const year = parseInt(parts[2], 10);
+    const currentYear = new Date().getFullYear();
+    if (!isNaN(year)) return `${currentYear - year} tuổi`;
+  }
+  return dobString;
+}
+
+
 export function PatientPortalNew({
   isInstallEligible,
   showIosInstallHint,
@@ -530,9 +542,9 @@ export function PatientPortalNew({
                <h2 className="text-[16px] font-bold text-[#0d1f2d] uppercase mb-1">{user?.name || "Bệnh nhân"}</h2>
                <span className="inline-block rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-600 mb-2">Ngoại trú</span>
                <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[13px] text-slate-600">
-                 <span>GT, tuổi</span><span className="font-medium text-[#0d1f2d]">Nữ, 20 tuổi</span>
-                 <span>Mã NB</span><span className="font-medium text-[#0d1f2d]">NT2606002632</span>
-                 <span>Mã HS</span><span className="font-medium text-[#0d1f2d]">TH2606041360</span>
+                 <span>GT, tuổi</span><span className="font-medium text-[#0d1f2d]">{user?.gender || "Nam"}, {getAge(user?.dob)}</span>
+                 <span>Mã NB</span><span className="font-medium text-[#0d1f2d]">NT{user?.id?.substring(0, 8).toUpperCase() || "2606002632"}</span>
+                 <span>Mã HS</span><span className="font-medium text-[#0d1f2d]">TH{user?.id?.substring(24).toUpperCase() || "2606041360"}</span>
                </div>
              </div>
              <div className="shrink-0 rounded-xl bg-white p-1 border border-slate-200 shadow-sm mt-1">

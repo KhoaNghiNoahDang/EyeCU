@@ -289,6 +289,7 @@ function RegisterPage() {
                     ["Họ và tên", extractedData.name],
                     ["Số CCCD", extractedData.cccd],
                     ["Ngày sinh", extractedData.dob],
+                    ["Giới tính", extractedData.gender],
                     ["Thường trú", extractedData.address],
                     ["Quê quán", extractedData.hometown],
                     ["Đặc điểm", extractedData.characteristics],

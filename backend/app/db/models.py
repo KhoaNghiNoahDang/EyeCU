@@ -37,6 +37,7 @@ class Patient(SQLModel, table=True):
     dob: Optional[str] = Field(default=None, max_length=20)
     address: Optional[str] = Field(default=None)
     hometown: Optional[str] = Field(default=None)
+    gender: Optional[str] = Field(default=None, max_length=10)
     issue_date: Optional[str] = Field(default=None, max_length=20)
     issue_place: Optional[str] = Field(default=None)
     valid_until: Optional[str] = Field(default=None, max_length=20)

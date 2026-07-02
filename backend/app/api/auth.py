@@ -230,6 +230,13 @@ def get_me(
         "employeeCode": getattr(current_user, "employee_id", None),
         "role": current_user.role,
         "cccd": current_user.cccd,
+        "phone": getattr(current_user, "phone", None),
+        "gender": getattr(current_user, "gender", None),
+        "dob": getattr(current_user, "dob", None),
+        "address": getattr(current_user, "address", None),
+        "hometown": getattr(current_user, "hometown", None),
+        "emergency_contact_name": getattr(current_user, "emergency_contact_name", None),
+        "emergency_contact_phone": getattr(current_user, "emergency_contact_phone", None),
     }
 
 
@@ -331,6 +338,7 @@ async def extract_ekyc(data: EkycExtractRequest, db: Session = Depends(get_db)):
                 "issue_place": ocr_res.get("issue_place"),
                 "valid_until": ocr_res.get("valid_until"),
                 "characteristics": ocr_res.get("characteristics"),
+                "gender": ocr_res.get("gender", ocr_res.get("sex")),
             },
             "hashes": {
                 "face_base64": data.face_base64
@@ -352,6 +360,7 @@ class FinalizeRegisterRequest(BaseModel):
     issue_place: str
     valid_until: str
     characteristics: str
+    gender: str = ""
     password: str
     phone: str
     emergency_contact_name: str
@@ -375,6 +384,7 @@ async def finalize_ekyc(data: FinalizeRegisterRequest, db: Session = Depends(get
             dob=data.dob,
             address=data.address,
             hometown=data.hometown,
+            gender=data.gender,
             issue_date=data.issue_date,
             issue_place=data.issue_place,
             valid_until=data.valid_until,
