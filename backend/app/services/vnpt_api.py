@@ -308,7 +308,10 @@ class VnptAPIClient:
             async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
                 # 1. Upload file using SmartReader headers
                 headers = _smartreader_headers()
+<<<<<<< Updated upstream
                 headers.pop("Content-Type", None)
+=======
+>>>>>>> Stashed changes
                 content_type = "image/jpeg"
                 if filename.lower().endswith(".pdf"):
                      content_type = "application/pdf"
@@ -317,7 +320,10 @@ class VnptAPIClient:
                     "https://api.idg.vnpt.vn/file-service/v1/addFile",
                     headers=headers,
                     files={"file": (filename, file_bytes, content_type)},
+<<<<<<< Updated upstream
                     data={"title": filename, "description": "EyeCU document"},
+=======
+>>>>>>> Stashed changes
                 )
                 upload_data = upload_resp.json()
                 hash_string = upload_data.get("object", {}).get("hash")
@@ -326,7 +332,10 @@ class VnptAPIClient:
                     return {"text": "", "raw": upload_data}
 
                 # 2. Call OCR/Scan
+<<<<<<< Updated upstream
                 headers["Content-Type"] = "application/json"
+=======
+>>>>>>> Stashed changes
                 headers["mac-address"] = "WEB-001"
                 payload = {
                     "file_hash": hash_string,
