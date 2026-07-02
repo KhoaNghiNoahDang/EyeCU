@@ -434,17 +434,17 @@ export function PatientPortalNew({
           <div className="px-4 mt-4">
             <button 
               onClick={() => setIsScanningLab(true)}
-              className="flex w-full items-center gap-4 rounded-[20px] bg-[#122432] p-4 shadow-sm active:scale-95 transition-transform"
+              className="flex w-full items-center gap-4 rounded-[20px] bg-[#88E8F2] p-4 shadow-sm active:scale-95 transition-transform"
             >
-              <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[18px] bg-white/5">
-                <Camera className="h-7 w-7 text-[#88E8F2]" strokeWidth={1.5} />
+              <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[18px] bg-white/40">
+                <Camera className="h-7 w-7 text-[#0d1f2d]" strokeWidth={1.5} />
               </div>
               <div className="flex-1 text-left">
-                <p className="text-[17px] font-bold text-white tracking-wide">Quét phiếu xét nghiệm</p>
-                <p className="text-[13px] text-slate-400 mt-1">AI tự động bóc tách • Lưu vào hồ sơ</p>
+                <p className="text-[17px] font-bold text-[#0d1f2d] tracking-wide">Quét phiếu xét nghiệm</p>
+                <p className="text-[13px] text-slate-700 mt-1">AI tự động bóc tách • Lưu vào hồ sơ</p>
               </div>
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/5">
-                <ScanLine className="h-[22px] w-[22px] text-[#88E8F2]" strokeWidth={2} />
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/40">
+                <ScanLine className="h-[22px] w-[22px] text-[#0d1f2d]" strokeWidth={2} />
               </div>
             </button>
           </div>
