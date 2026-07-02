@@ -60,9 +60,13 @@ def test_smartvision():
 
 def test_smartbot():
     url = "https://assistant-stream.vnpt.vn/v1/conversation"
-    token = os.getenv("VNPT_SMARTBOT_ACCESS_TOKEN")
+    token = os.getenv("VNPT_SMARTBOT_ACCESS_TOKEN") or ""
+    if token.lower().startswith("bearer"):
+        auth_header = token if token.startswith("Bearer") else f"Bearer {token[7:]}".strip()
+    else:
+        auth_header = f"Bearer {token}"
     headers = {
-        "Authorization": token if token and "Bearer" in str(token) else f"Bearer {token}",
+        "Authorization": auth_header,
         "Token-id": os.getenv("VNPT_SMARTBOT_TOKEN_ID"),
         "Token-key": os.getenv("VNPT_SMARTBOT_TOKEN_KEY"),
         "Content-Type": "application/json",
@@ -78,11 +82,11 @@ def test_smartbot():
     safe_req("POST", url, headers=headers, json=payload, api_name="SmartBot")
 
 def test_smartvoice():
-    url = "https://api.idg.vnpt.vn/stt-service/v1/grpc/standard"
+    url = "https://api.idg.vnpt.vn/stt-service/v3/standard"
     
-    token = os.getenv("VNPT_SMARTVOICE_ACCESS_TOKEN")
-    if token and token.lower().startswith("bearer"):
-        auth_header = token
+    token = os.getenv("VNPT_SMARTVOICE_ACCESS_TOKEN") or ""
+    if token.lower().startswith("bearer"):
+        auth_header = token if token.startswith("Bearer") else f"Bearer {token[7:]}".strip()
     else:
         auth_header = f"Bearer {token}"
         
