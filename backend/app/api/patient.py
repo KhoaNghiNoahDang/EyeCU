@@ -179,7 +179,16 @@ async def patient_chatbot(
     if "error" in raw_data:
         reply = f"Lỗi VNPT SmartBot: {raw_data['error']}"
 
-    return {"reply": reply, "raw_data": raw_data}
+    buttons = []
+    try:
+        if "object" in raw_data and "sb" in raw_data["object"] and "card_data" in raw_data["object"]["sb"]:
+            for card in raw_data["object"]["sb"]["card_data"]:
+                if "buttons" in card and card["buttons"]:
+                    buttons.extend(card["buttons"])
+    except Exception:
+        pass
+
+    return {"reply": reply, "raw_data": raw_data, "buttons": buttons}
 
 
 @router.post("/chat/voice", dependencies=[Depends(require_roles(["patient"]))])

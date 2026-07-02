@@ -16,6 +16,7 @@ interface ChatMsg {
   from: "bot" | "user";
   text: string;
   time: string;
+  buttons?: { title: string; payload: string; color?: string }[];
 }
 
 function getTimeNow() {
@@ -124,7 +125,7 @@ export function PatientPortalNew({
     setBotTyping(true);
     fetchApi("/patient/chat", { method: "POST", body: { message: text } })
       .then((data) => {
-        setMessages((prev) => [...prev, { from: "bot", text: data.reply || "Xin lỗi, tôi không thể trả lời lúc này.", time: getTimeNow() }]);
+        setMessages((prev) => [...prev, { from: "bot", text: data.reply || "Xin lỗi, tôi không thể trả lời lúc này.", time: getTimeNow(), buttons: data.buttons }]);
         setBotTyping(false);
       })
       .catch(() => setBotTyping(false));
@@ -1738,7 +1739,21 @@ export function PatientPortalNew({
                     )}
                     <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${msg.from === "user" ? "rounded-br-sm bg-[#0d1f2d] text-white" : "rounded-bl-sm border border-slate-100 bg-white text-slate-800 shadow-sm"}`}>
                       <p className="text-[13px] leading-relaxed">{msg.text}</p>
-                      <p className={`mt-1 text-[9px] ${msg.from === "user" ? "text-white/60" : "text-slate-400"}`}>{msg.time}</p>
+                      {msg.from === "bot" && msg.buttons && msg.buttons.length > 0 && (
+                        <div className="mt-2.5 flex flex-wrap gap-1.5">
+                          {msg.buttons.map((btn, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => sendMessage(btn.title)}
+                              className="px-2.5 py-1.5 text-[11px] font-semibold rounded-[10px] border border-[#88E8F2] text-[#0d1f2d] bg-[#88E8F2]/10 hover:bg-[#88E8F2]/30 active:scale-95 transition-all text-left"
+                              style={{ backgroundColor: btn.color ? `${btn.color}30` : undefined, borderColor: btn.color }}
+                            >
+                              {btn.title}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <p className={`mt-1.5 text-[9px] font-medium ${msg.from === "user" ? "text-white/60" : "text-slate-400"}`}>{msg.time}</p>
                     </div>
                   </div>
                 ))}
