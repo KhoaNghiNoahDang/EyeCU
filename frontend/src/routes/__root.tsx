@@ -140,6 +140,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "apple-touch-startup-image", href: "/apple-touch-icon.png" },
       // Performance: preconnect to backend
       { rel: "dns-prefetch", href: "https://ekyc.vnpt.vn" },
+      // SmartUX: preconnect to VNPT tracking CDN
+      { rel: "dns-prefetch", href: "https://console-smartux.vnpt.vn" },
+      { rel: "preconnect", href: "https://console-smartux.vnpt.vn" },
     ],
   }),
   shellComponent: RootShell,
@@ -153,6 +156,48 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        {/* VNPT SmartUX — UX Tracking SDK */}
+        <script
+          type="text/javascript"
+          dangerouslySetInnerHTML={{
+            __html: `
+              var VNPT = VNPT || {};
+              VNPT.q = VNPT.q || [];
+
+              VNPT.app_key = '3d4e11b8bb1194a02ffbad65aca9e0dad528be55';
+              VNPT.url = 'https://console-smartux.vnpt.vn';
+
+              VNPT.q.push(['track_sessions']);
+              VNPT.q.push(['track_pageview']);
+              VNPT.q.push(['track_clicks']);
+              VNPT.q.push(['track_scrolls']);
+              VNPT.q.push(['track_errors']);
+              VNPT.q.push(['track_links']);
+              VNPT.q.push(['track_forms']);
+              VNPT.q.push(['collect_from_forms']);
+
+              (function () {
+                var paths = [
+                  'https://console-smartux.vnpt.vn/sdk/web/core-track.js',
+                  'https://console-smartux.vnpt.vn/sdk/web/minify.min.js'
+                ];
+                for (var i = 0; i < paths.length; i++) {
+                  (function(idx) {
+                    var cly = document.createElement('script');
+                    cly.type = 'text/javascript';
+                    cly.async = true;
+                    cly.src = paths[idx];
+                    cly.onload = idx === 0
+                      ? function () { VNPT.init(); }
+                      : function () { window.minify = require('html-minifier').minify; };
+                    var s = document.getElementsByTagName('script')[0];
+                    s.parentNode.insertBefore(cly, s);
+                  })(i);
+                }
+              })();
+            `,
+          }}
+        />
       </head>
       <body>
         {children}
