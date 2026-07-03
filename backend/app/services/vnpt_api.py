@@ -127,6 +127,7 @@ class VnptAPIClient:
                     "name": obj.get("name", ""),
                     "cccd": obj.get("id", ""),
                     "dob": obj.get("birth_day", ""),
+                    "gender": obj.get("sex", "") or obj.get("gender", ""),
                     "address": obj.get("recent_location", ""),
                     "hometown": obj.get("origin_location", ""),
                     "issue_date": obj.get("issue_date", ""),

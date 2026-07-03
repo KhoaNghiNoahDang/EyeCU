@@ -133,6 +133,8 @@ async def login_face_staff(data: FaceStaffLogin, db: Session = Depends(get_db)):
             "role": matched_user.role,
             "name": matched_user.name
         }
+    except HTTPException as he:
+        raise he
     except Exception as e:
         print(f"Lỗi FaceID: {str(e)}")
         raise HTTPException(status_code=500, detail="Lỗi khi nhận diện khuôn mặt")

@@ -190,3 +190,45 @@ Văn bản thô: "{transcript}"
         "soape": soape_json,
         "raw_reply": reply_text
     }
+
+
+from fastapi.responses import StreamingResponse
+import io
+
+@router.post("/pre-alert")
+async def transcribe_pre_alert(audio: UploadFile = File(...)):
+    audio_bytes = await audio.read()
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as tmp_in:
+        tmp_in.write(audio_bytes)
+        tmp_in_path = tmp_in.name
+    tmp_out_path = tmp_in_path + ".wav"
+    try:
+        subprocess.run(
+            ["ffmpeg", "-y", "-i", tmp_in_path, "-ac", "1", "-ar", "16000", tmp_out_path],
+            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
+        with open(tmp_out_path, "rb") as f:
+            wav_bytes = f.read()
+    except Exception:
+        wav_bytes = audio_bytes
+    finally:
+        if os.path.exists(tmp_in_path):
+            os.remove(tmp_in_path)
+        if os.path.exists(tmp_out_path):
+            os.remove(tmp_out_path)
+            
+    stt_result = await vnpt_client.call_smartvoice_stt(
+        wav_bytes, 
+        filename="record.wav", 
+        content_type="audio/wav"
+    )
+    transcript = stt_result.get("transcript", "")
+    return {"status": "success", "transcript": transcript}
+
+@router.get("/tts")
+async def text_to_speech(text: str):
+    try:
+        audio_data = await vnpt_client.call_smartvoice_tts(text)
+        return StreamingResponse(io.BytesIO(audio_data), media_type="audio/wav")
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
