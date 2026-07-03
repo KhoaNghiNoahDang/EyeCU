@@ -48,13 +48,17 @@ async def smartbot_webhook_tracuu_lich(request: Request, db: Session = Depends(g
                                 "type": "postback",
                                 "title": "Có",
                                 "payload": "?ic_bot_button_Dat_lich_kham",
-                                "button_variables": []
+                                "button_variables": [
+                                    {"variableName": "hanh_dong_tra_cuu", "value": "co_dat_lich"}
+                                ]
                             },
                             {
                                 "type": "postback",
                                 "title": "Không",
                                 "payload": "?ic_bot_button_Khong_Dat_Lich",
-                                "button_variables": []
+                                "button_variables": [
+                                    {"variableName": "hanh_dong_tra_cuu", "value": "khong_dat_lich"}
+                                ]
                             }
                         ]
                     }]
