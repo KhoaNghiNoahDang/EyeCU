@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useAuth } from "../lib/auth/auth-context";
 import { fetchApi, API_URL } from "../lib/api/client";
-import { User, LogIn, Calendar, FileText, Settings, Heart, Bell, MessageCircle, MapPin, Menu, X, ArrowLeft, ArrowRight, ShieldCheck, ChevronRight, Mic, Send, Phone, ClipboardList, ScanFace, FileSignature, Info, LogOut, Copy, Download, Eye, Map as MapIcon, Trash2, CalendarClock, Lock, Globe, Users, Activity, Search, Stethoscope, Receipt, Home, Bot, Star, Camera, ScanLine, Share, PlusSquare, Volume2, VolumeX, Loader2, Scan } from "lucide-react";
+import { User, LogIn, Calendar, FileText, Settings, Heart, Bell, MessageCircle, MapPin, Menu, X, ArrowLeft, ArrowRight, ShieldCheck, ChevronRight, Mic, Send, Phone, ClipboardList, ScanFace, FileSignature, Info, LogOut, Copy, Download, Eye, Map as MapIcon, Trash2, CalendarClock, Lock, Globe, Users, Activity, Search, Stethoscope, Receipt, Home, Bot, Star, Camera, ScanLine, Share, PlusSquare, Volume2, VolumeX, Loader2, Scan, BriefcaseMedical } from "lucide-react";
 import { getHospitalsByProvince, CENTRAL_HOSPITALS, Hospital } from "../lib/hospitals";
 import { MapErrorBoundary } from "./MapErrorBoundary";
 import { VitalSignsView } from "./health-record/VitalSignsView";
@@ -809,31 +809,38 @@ export function PatientPortalNew({
         {/* Services List as Accordion */}
            <div className="bg-slate-50 mt-4 pt-2 flex-1 shadow-[0_-4px_10px_rgba(0,0,0,0.02)] min-h-screen">
               {[
+                { id: "file_results", icon: BriefcaseMedical, label: "File Kết Quả", Component: FileResultsView },
                 { id: "record_summary", icon: Stethoscope, label: "Kết quả khám", Component: RecordSummaryView },
                 { id: "vital_signs", icon: Heart, label: "Sinh hiệu", Component: VitalSignsView },
                 { id: "lab_results", icon: Activity, label: "Kết quả xét nghiệm", Component: LabResultsView },
                 { id: "imaging_results", icon: FileText, label: "Kết quả CĐHA và thăm dò chức năng", Component: ImagingResultsView },
                 { id: "medications", icon: Receipt, label: "Thuốc", Component: MedicationsView },
                 { id: "admin_info", icon: FileText, label: "Thông tin hành chính", Component: AdminInfoView },
-                { id: "file_results", icon: FileText, label: "File kết quả", Component: FileResultsView },
               ].map((item, i) => {
                  const isExpanded = expandedSection === item.id;
+                 const isSpecial = item.id === "file_results";
                  return (
-                   <div key={i} className="border-b border-slate-200/60 last:border-0 bg-white">
+                   <div key={i} className={`border-b border-slate-200/60 last:border-0 ${isSpecial ? "mx-4 mt-2 mb-4 bg-white rounded-xl overflow-hidden shadow-sm border border-slate-200" : "bg-white"}`}>
                      <button 
                         onClick={() => setExpandedSection(isExpanded ? null : item.id)} 
-                        className={`flex w-full items-center justify-between px-4 py-4 text-left transition-colors duration-200 ${isExpanded ? "bg-[#88E8F2]" : "bg-white active:bg-slate-50"}`}
+                        className={`flex w-full items-center justify-between px-4 py-4 text-left transition-colors duration-200 ${
+                           isSpecial
+                             ? "bg-[#88E8F2] text-[#0d1f2d]"
+                             : isExpanded 
+                               ? "bg-[#88E8F2]" 
+                               : "bg-white active:bg-slate-50"
+                        }`}
                      >
                         <div className="flex items-center gap-3">
-                           <item.icon className={`h-5 w-5 ${isExpanded ? "text-[#0d1f2d]" : "text-[#0d1f2d]"}`} strokeWidth={1.5} />
-                           <span className={`text-[15px] font-semibold ${isExpanded ? "text-[#0d1f2d]" : "text-[#0d1f2d]"}`}>{item.label}</span>
+                           <item.icon className="h-5 w-5 text-[#0d1f2d]" strokeWidth={1.5} />
+                           <span className="text-[15px] font-semibold text-[#0d1f2d]">{item.label}</span>
                         </div>
-                        <ChevronRight className={`h-5 w-5 transition-transform duration-200 ${isExpanded ? "rotate-90 text-[#0d1f2d]" : "text-slate-400"}`} />
+                        <ChevronRight className={`h-5 w-5 transition-transform duration-200 ${isExpanded ? "rotate-90" : ""} ${isSpecial ? "text-[#0d1f2d]" : "text-slate-400"}`} />
                      </button>
                      
                      {/* Accordion Content */}
                      {isExpanded && (
-                       <div className="border-t border-[#88E8F2]/30 animate-in slide-in-from-top-2 duration-200">
+                       <div className={`animate-in slide-in-from-top-2 duration-200 ${isSpecial ? "bg-white p-2" : "border-t border-[#88E8F2]/30"}`}>
                           <item.Component data={clinicalBundle} user={user} onBack={() => setExpandedSection(null)} />
                        </div>
                      )}

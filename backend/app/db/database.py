@@ -3,7 +3,7 @@ from app.core.config import settings
 
 # Supabase connection uses postgresql://, which SQLAlchemy handles fine.
 # We ensure we have pool pre-ping to handle connection drops.
-engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
+engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True, pool_size=5, max_overflow=5)
 
 # Alias de tuong thich voi code dung Base.metadata.create_all()
 Base = SQLModel
