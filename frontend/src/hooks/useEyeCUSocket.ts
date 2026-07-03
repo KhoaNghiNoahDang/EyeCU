@@ -12,7 +12,8 @@ export type SocketMessageType =
   | "OCR_RESULT_SYNC"
   | "FACE_VERIFY_SUCCESS"
   | "FALL_DETECTED"
-  | "QA_ANSWERED";
+  | "QA_ANSWERED"
+  | "APPOINTMENT_BOOKED";
 
 export interface SocketMessage {
   type: SocketMessageType;

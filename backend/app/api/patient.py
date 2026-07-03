@@ -700,6 +700,60 @@ class AppointmentCreate(BaseModel):
     booking_date: str
     booking_time: str
     reason: str = ""
+    doctor_id: Optional[str] = None  # None = chọn ngẫu nhiên
+
+# ─── GET Departments ──────────────────────────────────────────────
+@router.get("/departments")
+def get_departments(db: Session = Depends(get_db)):
+    """Trả về danh sách chuyên khoa từ DB."""
+    from app.db.models import Department
+    depts = db.query(Department).order_by(Department.name).all()
+    return {"departments": [{"id": str(d.id), "name": d.name, "description": d.description} for d in depts]}
+
+# ─── GET Doctors by Department ────────────────────────────────────
+@router.get("/doctors")
+def get_doctors(department_id: Optional[str] = None, db: Session = Depends(get_db)):
+    """Trả về danh sách bác sĩ (clinician) theo khoa."""
+    from app.db.models import Staff
+    import uuid as _uuid
+    query = db.query(Staff).filter(Staff.role == "clinician")
+    if department_id:
+        try:
+            dept_uuid = _uuid.UUID(department_id)
+            query = query.filter(Staff.department_id == dept_uuid)
+        except ValueError:
+            pass
+    doctors = query.all()
+    return {"doctors": [
+        {
+            "id": str(d.id),
+            "name": d.name.strip(),
+            "department_id": str(d.department_id) if d.department_id else None,
+        }
+        for d in doctors
+    ]}
+
+# ─── GET Booked Slots for a Doctor on a Date ──────────────────────
+@router.get("/appointments/booked-slots")
+def get_booked_slots(
+    doctor_id: str,
+    date: str,
+    db: Session = Depends(get_db),
+):
+    """Trả về danh sách slot giờ đã bị đặt cho bác sĩ trong ngày."""
+    from app.db.models import Appointment
+    import uuid as _uuid
+    try:
+        doc_uuid = _uuid.UUID(doctor_id)
+    except ValueError:
+        return {"booked_slots": []}
+    apts = db.query(Appointment).filter(
+        Appointment.doctor_id == doc_uuid,
+        Appointment.booking_date == date,
+        Appointment.status != "cancelled"
+    ).all()
+    slots = [a.booking_time for a in apts if a.booking_time]
+    return {"booked_slots": slots}
 
 class AvatarUpdate(BaseModel):
     avatar_base64: str
@@ -718,18 +772,87 @@ class ConsentSign(BaseModel):
     form_id: str
     
 @router.post("/appointments")
-def create_appointment(req: AppointmentCreate, user = Depends(get_current_user), db: Session = Depends(get_db)):
-    from app.db.models import Appointment
+async def create_appointment_portal(req: AppointmentCreate, user = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Tạo lịch khám từ bệnh nhân portal. Sau khi tạo, broadcast WS cho bác sĩ."""
+    from app.db.models import Appointment, Staff, Department
+    from app.api.ambient import ambient_manager
+    import uuid as _uuid, random as _random
+
+    # Xác định bác sĩ
+    doctor_id = None
+    doctor_name = "Bác sĩ"
+    if req.doctor_id and req.doctor_id != "random":
+        try:
+            doc = db.query(Staff).filter(Staff.id == _uuid.UUID(req.doctor_id)).first()
+            if doc:
+                doctor_id = doc.id
+                doctor_name = doc.name.strip()
+        except ValueError:
+            pass
+    
+    if doctor_id is None:
+        # Chọn ngỪu nhiên từ department
+        try:
+            dept_uuid = _uuid.UUID(req.department_id)
+            candidates = db.query(Staff).filter(
+                Staff.role == "clinician",
+                Staff.department_id == dept_uuid
+            ).all()
+        except ValueError:
+            candidates = []
+        if not candidates:
+            # Fallback: bất kỳ clinician nào
+            candidates = db.query(Staff).filter(Staff.role == "clinician").all()
+        if candidates:
+            chosen = _random.choice(candidates)
+            doctor_id = chosen.id
+            doctor_name = chosen.name.strip()
+
+    # Lấy tên khoa
+    dept_name = "Khám Tổng Quát"
+    try:
+        dept_uuid = _uuid.UUID(req.department_id)
+        dept = db.query(Department).filter(Department.id == dept_uuid).first()
+        if dept:
+            dept_name = dept.name
+    except ValueError:
+        pass
+
+    # Tạo appointment
     app_obj = Appointment(
         patient_id=user.id,
-        department_id=req.department_id,
+        department_id=_uuid.UUID(req.department_id) if req.department_id else None,
+        doctor_id=doctor_id,
         booking_date=req.booking_date,
         booking_time=req.booking_time,
-        reason=req.reason
+        reason=req.reason,
+        status="confirmed"
     )
     db.add(app_obj)
     db.commit()
-    return {"status": "success", "appointment_id": str(app_obj.id)}
+
+    # Broadcast real-time cho bác sĩ được chỉ định
+    patient_name = getattr(user, "full_name", None) or getattr(user, "name", "Bệnh nhân")
+    await ambient_manager.broadcast({
+        "type": "APPOINTMENT_BOOKED",
+        "data": {
+            "appointment_id": str(app_obj.id),
+            "doctor_id": str(doctor_id) if doctor_id else None,
+            "doctor_name": doctor_name,
+            "patient_name": patient_name,
+            "department": dept_name,
+            "date": req.booking_date,
+            "time": req.booking_time,
+            "reason": req.reason or "Khám bệnh",
+        }
+    })
+    return {
+        "status": "success",
+        "appointment_id": str(app_obj.id),
+        "doctor_name": doctor_name,
+        "doctor_id": str(doctor_id) if doctor_id else None,
+        "department": dept_name,
+    }
 
 @router.get("/appointments")
 def get_appointments(user = Depends(get_current_user), db: Session = Depends(get_db)):

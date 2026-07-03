@@ -231,6 +231,90 @@ function PatientRounds() {
   const [isInstallEligible, setIsInstallEligible] = useState(false);
   const [showIosInstallHint, setShowIosInstallHint] = useState(false);
 
+  // ── Clinician Notification Bell (APPOINTMENT_BOOKED via WebSocket) ──────
+  interface ClinicNotif {
+    id: string;
+    text: string;
+    detail: string;
+    ts: string;
+    read: boolean;
+  }
+  const [clinicNotifs, setClinicNotifs] = useState<ClinicNotif[]>([]);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifUnread = clinicNotifs.filter(n => !n.read).length;
+
+  // ── TTS helper ────────────────────────────────────────────────────────
+  const speakText = (text: string) => {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = "vi-VN";
+    utter.rate = 0.95;
+    utter.pitch = 1.0;
+    utter.volume = 1.0;
+    // Ưu tiên voice tiếng Việt nếu có
+    const voices = window.speechSynthesis.getVoices();
+    const viVoice = voices.find(v => v.lang.startsWith("vi")) || voices.find(v => v.lang.startsWith("en"));
+    if (viVoice) utter.voice = viVoice;
+    window.speechSynthesis.speak(utter);
+  };
+
+  // ── WebSocket listener cho APPOINTMENT_BOOKED ───────────────────────────
+  useEffect(() => {
+    if (workMode !== "clinician") return; // Chỉ clinician mới nghe
+    const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
+    const WS_BASE = (import.meta.env.VITE_WS_URL ?? `ws://${host}:8000`);
+    const wsUrl = WS_BASE + "/api/ambient/ws/live";
+    let ws: WebSocket | null = null;
+    let pingTimer: ReturnType<typeof setInterval> | null = null;
+    let reconnTimer: ReturnType<typeof setTimeout> | null = null;
+    let dead = false;
+
+    const connect = () => {
+      ws = new WebSocket(wsUrl);
+      ws.onopen = () => {
+        pingTimer = setInterval(() => {
+          if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "ping" }));
+        }, 20000);
+      };
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === "APPOINTMENT_BOOKED" && msg.data) {
+            const d = msg.data;
+            // Chỉ hiển thị khi bác sĩ login == bác sĩ được chỉ định
+            if (d.doctor_id && user?.id && d.doctor_id !== user.id) return;
+            const dateStr = d.date ? new Date(d.date + "T00:00:00").toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }) : d.date;
+            const notif: ClinicNotif = {
+              id: d.appointment_id || Date.now().toString(),
+              text: `Lịch khám mới — ${d.department}`,
+              detail: `Bệnh nhân: ${d.patient_name} · Ngày ${dateStr} lúc ${d.time}`,
+              ts: new Date().toISOString(),
+              read: false,
+            };
+            setClinicNotifs(prev => [notif, ...prev]);
+            // Text-to-Speech thông báo
+            const speech = `Thông báo lịch khám mới. Bệnh nhân ${d.patient_name} đặt lịch khám ${d.department}, ngày ${dateStr}, lúc ${d.time}. Lý do: ${d.reason || "khám bệnh"}.`;
+            // Delay 500ms để browser sẵn sàng
+            setTimeout(() => speakText(speech), 500);
+          }
+        } catch {}
+      };
+      ws.onclose = () => {
+        if (pingTimer) clearInterval(pingTimer);
+        if (!dead) reconnTimer = setTimeout(connect, 5000);
+      };
+    };
+    connect();
+    return () => {
+      dead = true;
+      if (pingTimer) clearInterval(pingTimer);
+      if (reconnTimer) clearTimeout(reconnTimer);
+      if (ws) { ws.onclose = null; ws.close(); }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workMode, user?.id]);
+
   // Re-sync activeView if workMode changes
   useEffect(() => {
     if (workMode && roleConfig[workMode] && !roleConfig[workMode].views.includes(activeView)) {
@@ -444,11 +528,65 @@ function PatientRounds() {
             </span>
             <button
               type="button"
-              className="rounded-full p-1.5 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-800"
+              onClick={() => {
+                setNotifOpen(o => !o);
+                setProfileMenuOpen(false);
+              }}
+              className="relative rounded-full p-1.5 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-800"
               aria-label="Thông báo"
             >
               <Bell className="h-4 w-4" />
+              {notifUnread > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white leading-none">
+                  {notifUnread > 9 ? "9+" : notifUnread}
+                </span>
+              )}
             </button>
+
+            {/* Notification Dropdown */}
+            {notifOpen && (
+              <div className="absolute right-12 top-[calc(100%+0.5rem)] z-50 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl" style={{maxHeight: '420px'}}>
+                <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                  <p className="font-semibold text-slate-800 text-[14px]">Thông báo lịch khám</p>
+                  {clinicNotifs.length > 0 && (
+                    <button
+                      onClick={() => { setClinicNotifs([]); setNotifOpen(false); }}
+                      className="text-[11px] text-slate-400 hover:text-red-500"
+                    >
+                      Xóa tất cả
+                    </button>
+                  )}
+                </div>
+                <div className="overflow-y-auto" style={{maxHeight: '340px'}}>
+                  {clinicNotifs.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+                      <Bell className="h-8 w-8 mb-2 opacity-20" />
+                      <span className="text-[13px]">Chưa có thông báo nào</span>
+                    </div>
+                  ) : (
+                    clinicNotifs.map((n) => (
+                      <button
+                        key={n.id}
+                        onClick={() => setClinicNotifs(prev => prev.map(x => x.id === n.id ? {...x, read: true} : x))}
+                        className={`w-full text-left flex gap-3 px-4 py-3 border-b border-slate-50 hover:bg-slate-50 transition-colors ${
+                          n.read ? "" : "bg-blue-50/50"
+                        }`}
+                      >
+                        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cyan-100">
+                          <Bell className="h-4 w-4 text-cyan-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-semibold text-slate-800 leading-snug">{n.text}</p>
+                          <p className="text-[12px] text-slate-500 mt-0.5 leading-snug">{n.detail}</p>
+                          <p className="text-[10px] text-slate-400 mt-1">{new Date(n.ts).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</p>
+                        </div>
+                        {!n.read && <span className="mt-1.5 h-2 w-2 rounded-full bg-blue-500 shrink-0" />}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="relative">
               <button

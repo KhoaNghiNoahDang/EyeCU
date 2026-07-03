@@ -719,7 +719,111 @@ export function PatientPortalNew({
   const [askQuestionText, setAskQuestionText] = useState("");
   const [submittingQuestion, setSubmittingQuestion] = useState(false);
 
+  // ── Appointment Booking State ─────────────────────────────────────────
+  const [bookStep, setBookStep] = useState(1);
+  const [deptsList, setDeptsList] = useState<{id:string; name:string}[]>([]);
+  const [selectedDeptId, setSelectedDeptId] = useState<string|null>(null);
+  const [selectedDeptName, setSelectedDeptName] = useState<string>("");
+  const [doctorsList, setDoctorsList] = useState<{id:string; name:string}[]>([]);
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string>("random");
+  const [selectedDoctorName, setSelectedDoctorName] = useState<string>("Bác sĩ ngẫu nhiên");
+  const [bookingTime, setBookingTime] = useState<string|null>(null);
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [bookSuccess, setBookSuccess] = useState<{doctorName:string; dept:string; date:string; time:string}|null>(null);
   const [submittingBooking, setSubmittingBooking] = useState(false);
+  const [bookingDate, setBookingDate] = useState<string>(""); // Date picker
+
+  // Tạo time slots: 08:00 → 16:30, mỗi 30 phút
+  const TIME_SLOTS: string[] = [];
+  for (let h = 8; h <= 16; h++) {
+    TIME_SLOTS.push(`${String(h).padStart(2,'0')}:00`);
+    if (h < 17) TIME_SLOTS.push(`${String(h).padStart(2,'0')}:30`);
+  }
+
+  const openBookingModal = async () => {
+    setBookStep(1);
+    setSelectedDeptId(null); setSelectedDeptName("");
+    setSelectedDoctorId("random"); setSelectedDoctorName("Bác sĩ ngẫu nhiên");
+    setBookingTime(null); setBookingDate(""); setBookedSlots([]);
+    setBookSuccess(null);
+    setShowBookingModal(true);
+    // Fetch departments
+    try {
+      const data = await fetchApi("/patient/departments");
+      setDeptsList(data.departments || []);
+    } catch { setDeptsList([]); }
+  };
+
+  const handleSelectDept = async (id: string, name: string) => {
+    setSelectedDeptId(id); setSelectedDeptName(name);
+    setSelectedDoctorId("random"); setSelectedDoctorName("Bác sĩ ngẫu nhiên");
+    setBookStep(2);
+    try {
+      const data = await fetchApi(`/patient/doctors?department_id=${id}`);
+      setDoctorsList(data.doctors || []);
+    } catch { setDoctorsList([]); }
+  };
+
+  const handleSelectDoctor = (id: string, name: string) => {
+    setSelectedDoctorId(id); setSelectedDoctorName(name);
+    setBookStep(3);
+  };
+
+  // Khi bấm sang step 3, fetch booked slots nếu đã có ngày và bác sĩ cụ thể
+  useEffect(() => {
+    if (bookStep === 3 && bookingDate && selectedDoctorId !== "random") {
+      fetchApi(`/patient/appointments/booked-slots?doctor_id=${selectedDoctorId}&date=${bookingDate}`)
+        .then(d => setBookedSlots(d.booked_slots || []))
+        .catch(() => setBookedSlots([]));
+    }
+  }, [bookStep, bookingDate, selectedDoctorId]);
+
+  const handleDateChange = async (date: string) => {
+    setBookingDate(date);
+    setBookingTime(null);
+    if (selectedDoctorId !== "random" && date) {
+      try {
+        const d = await fetchApi(`/patient/appointments/booked-slots?doctor_id=${selectedDoctorId}&date=${date}`);
+        setBookedSlots(d.booked_slots || []);
+      } catch { setBookedSlots([]); }
+    } else {
+      setBookedSlots([]);
+    }
+  };
+
+  const handleBookingSubmit = async () => {
+    if (!selectedDeptId || !bookingDate || !bookingTime) {
+      alert("Vui lòng chọn đủ thông tin.");
+      return;
+    }
+    setSubmittingBooking(true);
+    try {
+      const res = await fetchApi("/patient/appointments", {
+        method: "POST",
+        body: JSON.stringify({
+          department_id: selectedDeptId,
+          doctor_id: selectedDoctorId === "random" ? null : selectedDoctorId,
+          booking_date: bookingDate,
+          booking_time: bookingTime,
+          reason: "Khám bệnh"
+        }),
+      });
+      const data = await fetchApi("/patient/appointments");
+      setAppointments(data.appointments || []);
+      setBookSuccess({
+        doctorName: res.doctor_name || selectedDoctorName,
+        dept: selectedDeptName,
+        date: bookingDate,
+        time: bookingTime,
+      });
+      setBookStep(4);
+    } catch (err) {
+      console.error(err);
+      alert("Đã có lỗi xảy ra khi đặt lịch");
+    } finally {
+      setSubmittingBooking(false);
+    }
+  };
 
   const handleSignConsent = async (formId: string) => {
     try {
@@ -736,35 +840,7 @@ export function PatientPortalNew({
     }
   };
 
-  const handleBookingSubmit = async () => {
-    if (!bookingSpecialty || !bookingDate) {
-      alert("Vui lòng chọn chuyên khoa và ngày khám.");
-      return;
-    }
-    setSubmittingBooking(true);
-    try {
-      await fetchApi("/patient/appointments", {
-        method: "POST",
-        body: JSON.stringify({
-          department_id: bookingSpecialty,
-          booking_date: bookingDate,
-          booking_time: "08:00", // Default or you can add a time selector
-          reason: "Khám bệnh"
-        }),
-      });
-      const data = await fetchApi("/patient/appointments");
-      setAppointments(data.appointments || []);
-      alert(`Đã đặt lịch khám chuyên khoa ${bookingSpecialty} vào ngày ${bookingDate} thành công!`);
-      setShowBookingModal(false);
-      setBookingSpecialty(null);
-      setBookingDate("");
-    } catch (err) {
-      console.error(err);
-      alert("Đã có lỗi xảy ra khi đặt lịch");
-    } finally {
-      setSubmittingBooking(false);
-    }
-  };
+  // (handleBookingSubmit nằm ở trên, line ~792)
 
   const handleAskSubmit = async () => {
     if (!askSpecialty || askQuestionText.length < 50) {
@@ -817,7 +893,7 @@ export function PatientPortalNew({
             <div className="grid grid-cols-2 gap-3">
               {/* Primary Button */}
               <button 
-                onClick={() => setShowBookingModal(true)}
+                onClick={() => openBookingModal()}
                 className="flex items-center gap-3 rounded-2xl bg-[#88E8F2] p-4 text-[#0d1f2d] shadow-md active:scale-95 transition-transform"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/40">
@@ -1428,9 +1504,7 @@ export function PatientPortalNew({
 
   // Booking logic
   const [showBookingModal, setShowBookingModal] = useState(false);
-  const [bookingSpecialty, setBookingSpecialty] = useState<string | null>(null);
-  const [bookingDate, setBookingDate] = useState<string>("");
-  const [showBookingSpecialties, setShowBookingSpecialties] = useState(false);
+  // bookingDate, bookingSpecialty đã chuyển lên phần Booking State (~line 733)
 
   const handleCopy = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -2489,79 +2563,212 @@ export function PatientPortalNew({
         {/* Booking Appointment Modal */}
         {showBookingModal && (
           <div className="absolute inset-0 z-[60] flex flex-col justify-end bg-black/60 animate-in fade-in duration-200">
-            <div className="flex-1 w-full" onClick={() => setShowBookingModal(false)} />
-            <div className="bg-white rounded-t-3xl flex flex-col max-h-[85%] animate-in slide-in-from-bottom-full duration-300 shadow-2xl">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-                <span className="text-[18px] font-bold text-slate-800">Đặt lịch khám</span>
-                <button onClick={() => setShowBookingModal(false)} className="p-1 active:bg-slate-100 rounded-full">
-                  <X className="h-6 w-6 text-slate-500" />
-                </button>
-              </div>
-              
-              <div className="p-6 overflow-y-auto pb-24">
-                <div className="mb-6">
-                  <label className="block text-[14px] font-bold text-slate-700 mb-2">1. Chọn chuyên khoa</label>
-                  <button 
-                    onClick={() => setShowBookingSpecialties(true)}
-                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 active:bg-slate-100"
-                  >
-                    <span className={`text-[15px] ${bookingSpecialty ? "text-[#0d1f2d] font-medium" : "text-slate-400"}`}>
-                      {bookingSpecialty || "Nhấn để chọn chuyên khoa"}
-                    </span>
-                    <ChevronRight className="h-5 w-5 text-slate-400" />
+            <div className="flex-1 w-full" onClick={() => { if(bookStep !== 4) setShowBookingModal(false); }} />
+            <div className="bg-white rounded-t-3xl flex flex-col max-h-[90%] animate-in slide-in-from-bottom-full duration-300 shadow-2xl">
+
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  {bookStep > 1 && bookStep < 4 && (
+                    <button onClick={() => setBookStep(s => s-1)} className="p-1 rounded-full active:bg-slate-100">
+                      <ArrowLeft className="h-5 w-5 text-slate-600" />
+                    </button>
+                  )}
+                  <span className="text-[17px] font-bold text-slate-800">
+                    {bookStep === 1 && "Chọn chuyên khoa"}
+                    {bookStep === 2 && "Chọn bác sĩ"}
+                    {bookStep === 3 && "Chọn ngày & giờ"}
+                    {bookStep === 4 && "Đặt lịch thành công!"}
+                  </span>
+                </div>
+                {bookStep < 4 && (
+                  <button onClick={() => setShowBookingModal(false)} className="p-1 active:bg-slate-100 rounded-full">
+                    <X className="h-6 w-6 text-slate-400" />
                   </button>
-                </div>
-
-                <div className="mb-8">
-                  <label className="block text-[14px] font-bold text-slate-700 mb-2">2. Chọn ngày khám</label>
-                  <div className="relative">
-                    <input 
-                      type="date"
-                      value={bookingDate}
-                      onChange={(e) => setBookingDate(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-[15px] font-medium text-[#0d1f2d] outline-none focus:border-[#88E8F2] focus:ring-1 focus:ring-[#88E8F2]"
-                    />
-                  </div>
-                </div>
-
-                <button 
-                  onClick={handleBookingSubmit}
-                  disabled={submittingBooking}
-                  className="w-full rounded-full bg-[#88E8F2] py-4 text-[16px] font-bold text-[#0d1f2d] shadow-lg active:scale-95 transition-transform disabled:opacity-50"
-                >
-                  {submittingBooking ? "Đang xử lý..." : "Xác nhận đặt lịch"}
-                </button>
+                )}
               </div>
-            </div>
 
-            {/* Nested Specialty Selector */}
-            {showBookingSpecialties && (
-              <div className="absolute inset-0 z-[70] flex flex-col justify-end bg-black/50 animate-in fade-in duration-200">
-                <div className="flex-1 w-full" onClick={() => setShowBookingSpecialties(false)} />
-                <div className="bg-white rounded-t-2xl flex flex-col h-[60%] animate-in slide-in-from-bottom-full duration-300">
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-                    <span className="text-[16px] font-bold text-slate-800">Chọn chuyên khoa</span>
-                    <button onClick={() => setShowBookingSpecialties(false)} className="p-1 active:bg-slate-100 rounded-full">
-                      <X className="h-5 w-5 text-slate-500" />
+              {/* Step indicators */}
+              {bookStep < 4 && (
+                <div className="flex gap-1.5 px-5 py-3 border-b border-slate-50">
+                  {[1,2,3].map(s => (
+                    <div key={s} className={`flex-1 h-1.5 rounded-full transition-all ${
+                      s <= bookStep ? "bg-[#88E8F2]" : "bg-slate-200"
+                    }`} />
+                  ))}
+                </div>
+              )}
+
+              <div className="flex-1 overflow-y-auto pb-safe">
+
+                {/* ── Step 1: Chọn chuyên khoa ───────────────────── */}
+                {bookStep === 1 && (
+                  <div className="p-4">
+                    {deptsList.length === 0 ? (
+                      <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 className="h-6 w-6 animate-spin" /></div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        {deptsList.map(d => (
+                          <button
+                            key={d.id}
+                            onClick={() => handleSelectDept(d.id, d.name)}
+                            className="flex flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-white p-4 active:bg-[#88E8F2]/30 active:border-[#88E8F2] transition-all shadow-sm text-center"
+                          >
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-50">
+                              <Stethoscope className="h-5 w-5 text-[#0d1f2d]" />
+                            </div>
+                            <span className="text-[12px] font-semibold text-slate-700 leading-tight">{d.name.replace("Khoa ", "")}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Step 2: Chọn bác sĩ ──────────────────────────── */}
+                {bookStep === 2 && (
+                  <div className="p-4 flex flex-col gap-3">
+                    <p className="text-[13px] text-slate-500 mb-1">Chuyên khoa: <span className="font-semibold text-slate-800">{selectedDeptName}</span></p>
+
+                    {/* Chọn ngẫu nhiên */}
+                    <button
+                      onClick={() => handleSelectDoctor("random", "Bác sĩ ngẫu nhiên")}
+                      className="flex items-center gap-4 rounded-2xl border-2 border-[#88E8F2] bg-cyan-50 p-4 active:bg-[#88E8F2]/40 transition-all"
+                    >
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#0d1f2d]">
+                        <Users className="h-6 w-6 text-[#88E8F2]" />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-bold text-[#0d1f2d]">Bác sĩ ngẫu nhiên</p>
+                        <p className="text-[12px] text-slate-500">Hệ thống tự phân công bác sĩ phù hợp nhất</p>
+                      </div>
+                    </button>
+
+                    {/* Danh sách bác sĩ cụ thể */}
+                    {doctorsList.length > 0 && (
+                      <>
+                        <p className="text-[12px] font-bold text-slate-400 uppercase tracking-wider mt-1">Hoặc chọn bác sĩ</p>
+                        {doctorsList.map(doc => (
+                          <button
+                            key={doc.id}
+                            onClick={() => handleSelectDoctor(doc.id, doc.name)}
+                            className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 active:bg-slate-50 transition-all"
+                          >
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-100">
+                              <User className="h-6 w-6 text-slate-500" />
+                            </div>
+                            <div className="text-left">
+                              <p className="font-bold text-slate-800">{doc.name}</p>
+                              <p className="text-[12px] text-slate-400">Bác sĩ chuyên khoa</p>
+                            </div>
+                          </button>
+                        ))}
+                      </>
+                    )}
+                    {doctorsList.length === 0 && (
+                      <p className="text-center text-[13px] text-slate-400 py-4">Không tìm thấy bác sĩ nào trong khoa. Hệ thống sẽ tự động phân công.</p>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Step 3: Chọn ngày & giờ ─────────────────────── */}
+                {bookStep === 3 && (
+                  <div className="p-4">
+                    <p className="text-[13px] text-slate-500 mb-3">
+                      Bác sĩ: <span className="font-semibold text-slate-800">{selectedDoctorName}</span>
+                    </p>
+
+                    {/* Date picker */}
+                    <div className="mb-5">
+                      <label className="block text-[13px] font-bold text-slate-600 mb-2">Chọn ngày khám</label>
+                      <input
+                        type="date"
+                        value={bookingDate}
+                        min={new Date().toISOString().split("T")[0]}
+                        max={new Date(Date.now() + 30*24*60*60*1000).toISOString().split("T")[0]}
+                        onChange={e => handleDateChange(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-[15px] font-medium text-[#0d1f2d] outline-none focus:border-[#88E8F2] focus:ring-1 focus:ring-[#88E8F2]"
+                      />
+                    </div>
+
+                    {/* Time slots grid */}
+                    {bookingDate && (
+                      <div>
+                        <label className="block text-[13px] font-bold text-slate-600 mb-2">Chọn giờ khám</label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {TIME_SLOTS.map(slot => {
+                            const isBooked = bookedSlots.includes(slot);
+                            const isSelected = bookingTime === slot;
+                            return (
+                              <button
+                                key={slot}
+                                disabled={isBooked}
+                                onClick={() => !isBooked && setBookingTime(slot)}
+                                className={`rounded-xl py-3 text-[14px] font-semibold border transition-all ${
+                                  isBooked
+                                    ? "bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed line-through"
+                                    : isSelected
+                                    ? "bg-[#0d1f2d] text-white border-[#0d1f2d] shadow-lg"
+                                    : "bg-white text-slate-700 border-slate-200 active:bg-[#88E8F2]/40"
+                                }`}
+                              >
+                                {slot}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Confirm button */}
+                    {bookingTime && bookingDate && (
+                      <button
+                        onClick={handleBookingSubmit}
+                        disabled={submittingBooking}
+                        className="mt-6 w-full rounded-full bg-[#88E8F2] py-4 text-[16px] font-bold text-[#0d1f2d] shadow-lg active:scale-95 transition-transform disabled:opacity-50"
+                      >
+                        {submittingBooking ? "Đang xử lý..." : `Xác nhận đặt lịch · ${bookingTime}`}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Step 4: Thành công ─────────────────────────────── */}
+                {bookStep === 4 && bookSuccess && (
+                  <div className="flex flex-col items-center justify-center p-8 gap-4">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-50 border-4 border-emerald-200">
+                      <CheckCircle2 className="h-10 w-10 text-emerald-500" />
+                    </div>
+                    <h2 className="text-[20px] font-bold text-slate-800 text-center">Đặt lịch thành công!</h2>
+                    <div className="w-full bg-slate-50 rounded-2xl p-4 flex flex-col gap-2">
+                      <div className="flex justify-between text-[14px]">
+                        <span className="text-slate-500">Chuyên khoa</span>
+                        <span className="font-semibold text-slate-800">{bookSuccess.dept}</span>
+                      </div>
+                      <div className="flex justify-between text-[14px]">
+                        <span className="text-slate-500">Bác sĩ</span>
+                        <span className="font-semibold text-slate-800">{bookSuccess.doctorName}</span>
+                      </div>
+                      <div className="flex justify-between text-[14px]">
+                        <span className="text-slate-500">Ngày khám</span>
+                        <span className="font-semibold text-slate-800">{new Date(bookSuccess.date + "T00:00:00").toLocaleDateString("vi-VN", {day:"2-digit",month:"2-digit",year:"numeric"})}</span>
+                      </div>
+                      <div className="flex justify-between text-[14px]">
+                        <span className="text-slate-500">Giờ khám</span>
+                        <span className="font-semibold text-[#0d1f2d] text-[16px]">{bookSuccess.time}</span>
+                      </div>
+                    </div>
+                    <p className="text-[12px] text-slate-400 text-center">Vui lòng đến đúng giờ. Bác sĩ sẽ nhận thông báo ngay lập tức.</p>
+                    <button
+                      onClick={() => { setShowBookingModal(false); setBookStep(1); }}
+                      className="w-full rounded-full bg-[#0d1f2d] py-4 text-[16px] font-bold text-white active:scale-95 transition-transform"
+                    >
+                      Hoàn tất
                     </button>
                   </div>
-                  <div className="flex-1 overflow-y-auto pb-safe">
-                    {specialtiesList.map((spec) => (
-                      <button 
-                        key={spec}
-                        onClick={() => {
-                          setBookingSpecialty(spec);
-                          setShowBookingSpecialties(false);
-                        }}
-                        className="w-full text-left px-4 py-4 border-b border-slate-100 active:bg-slate-50 text-[15px] text-slate-700 font-medium"
-                      >
-                        {spec}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         )}
 
