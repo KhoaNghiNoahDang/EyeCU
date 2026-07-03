@@ -44,6 +44,7 @@ def lookup_patient(cccd: str, phone: str, db: Session = Depends(get_db)):
         "cccd": patient.cccd,
         "name": patient.name,
         "phone": patient.phone,
+        "avatar": patient.avatar_url,
         "access_token": access_token,
     }
 
@@ -581,6 +582,15 @@ class AppointmentCreate(BaseModel):
     booking_time: str
     reason: str = ""
 
+class AvatarUpdate(BaseModel):
+    avatar_base64: str
+
+@router.post("/avatar")
+def update_avatar(req: AvatarUpdate, user: Patient = Depends(get_current_user), db: Session = Depends(get_db)):
+    user.avatar_url = req.avatar_base64
+    db.commit()
+    return {"status": "success"}
+
 class QuestionCreate(BaseModel):
     department: str
     question: str
@@ -748,7 +758,7 @@ def get_doctor_schedules(db: Session = Depends(get_db)):
             doctors_dict[staff.id] = {
                 "id": str(staff.id),
                 "name": staff.name,
-                "img": staff.face_base64 or "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop" # Default fallback
+                "img": staff.face_base64 or "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%239ca3af'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>" # Default fallback
             }
             
     return {"doctors": list(doctors_dict.values())}

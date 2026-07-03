@@ -333,6 +333,45 @@ export function PatientPortalNew({
   const [faceIdEnabled, setFaceIdEnabled] = useState(false);
   const [language, setLanguage] = useState<"vi" | "en">("vi");
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%239ca3af'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>";
+
+  const handleBookFollowUp = async (fId: string) => {
+    try {
+      const res = await fetchApi(`/patient/follow-ups/${fId}/book`, { method: "POST", body: {} });
+      if (res.status === "success") {
+        alert("Đặt khám thành công!");
+        fetchApi("/patient/follow-ups").then(data => setFollowUps(data.follow_ups || []));
+        fetchApi("/patient/appointments").then(data => setAppointments(data.appointments || []));
+      } else {
+        alert(res.error || "Có lỗi xảy ra");
+      }
+    } catch(e) {
+      console.error(e);
+      alert("Có lỗi xảy ra khi kết nối");
+    }
+  };
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const base64 = ev.target?.result as string;
+      try {
+        const res = await fetchApi("/patient/avatar", { method: "POST", body: { avatar_base64: base64 } });
+        if (res.status === "success") {
+          alert("Cập nhật ảnh đại diện thành công, vui lòng tải lại trang.");
+          window.location.reload();
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   
   const handleFaceIdToggle = async () => {
     if (!faceIdEnabled) {
@@ -693,23 +732,35 @@ export function PatientPortalNew({
         </div>
 
         {/* Next Appointment Card */}
-        <div className="mx-4 mt-4 bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-           <div className="flex">
-             <div className="flex flex-col items-center justify-center border-r border-slate-100 px-4 py-3 min-w-[72px]">
-                <span className="text-3xl font-bold text-[#0d1f2d] leading-none">14</span>
-                <span className="text-[11px] font-medium text-blue-600 mt-1">06/2026</span>
-             </div>
-             <div className="flex flex-col justify-center flex-1 px-3 py-2">
-                <p className="text-[13px] font-bold text-red-600 mb-1">[Lịch hẹn tái khám] <span className="text-[#0d1f2d]">Nội tiết</span></p>
-                <p className="text-[12px] text-slate-600">Khám bệnh theo yêu cầu</p>
-             </div>
-             <div className="flex items-center px-3">
-                <button className="rounded-full bg-[#0d1f2d] px-4 py-2 text-[13px] font-bold text-white shadow-sm active:scale-95">
-                  Đặt khám
-                </button>
-             </div>
-           </div>
-        </div>
+        {(() => {
+          const upcomingFollowUp = followUps.find(f => f.status !== "booked");
+          if (!upcomingFollowUp) return null;
+          
+          const parts = upcomingFollowUp.date.split("-"); // "YYYY-MM-DD"
+          const day = parts[2] || "00";
+          const monthYear = parts[1] + "/" + parts[0];
+          return (
+            <div className="mx-4 mt-4 bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+               <div className="flex">
+                 <div className="flex flex-col items-center justify-center border-r border-slate-100 px-4 py-3 min-w-[72px]">
+                    <span className="text-3xl font-bold text-[#0d1f2d] leading-none">{day}</span>
+                    <span className="text-[11px] font-medium text-blue-600 mt-1">{monthYear}</span>
+                 </div>
+                 <div className="flex flex-col justify-center flex-1 px-3 py-2">
+                    <p className="text-[13px] font-bold text-red-600 mb-1">[Lịch hẹn tái khám] <span className="text-[#0d1f2d]">{upcomingFollowUp.department}</span></p>
+                    <p className="text-[12px] text-slate-600">{upcomingFollowUp.note || "Khám bệnh theo yêu cầu"}</p>
+                 </div>
+                 <div className="flex items-center px-3">
+                    <button 
+                      onClick={() => handleBookFollowUp(upcomingFollowUp.id)}
+                      className="rounded-full bg-[#0d1f2d] px-4 py-2 text-[13px] font-bold text-white shadow-sm active:scale-95">
+                      Đặt khám
+                    </button>
+                 </div>
+               </div>
+            </div>
+          );
+        })()}
 
         {showFiles ? (
            /* Files Accordion */
@@ -1615,8 +1666,21 @@ export function PatientPortalNew({
       
       <div className="flex-1 overflow-y-auto overscroll-contain pb-24">
          <div className="bg-white p-4 flex items-center gap-4 border-b border-slate-100">
-            <div className="w-16 h-16 rounded-full border border-slate-200 overflow-hidden shrink-0 p-1">
-               <img src="/logo.png" alt="logo" className="w-full h-full object-cover" />
+            <div 
+              className="w-16 h-16 rounded-full border border-slate-200 overflow-hidden shrink-0 p-1 relative cursor-pointer group"
+              onClick={() => avatarInputRef.current?.click()}
+            >
+               <img src={user?.avatar || DEFAULT_AVATAR} alt="avatar" className="w-full h-full rounded-full object-cover" />
+               <div className="absolute inset-0 bg-black/40 hidden group-hover:flex items-center justify-center rounded-full">
+                  <span className="text-white text-[10px] font-medium">Thay ảnh</span>
+               </div>
+               <input 
+                  type="file" 
+                  ref={avatarInputRef} 
+                  className="hidden" 
+                  accept="image/*"
+                  onChange={handleAvatarUpload}
+               />
             </div>
             <div className="flex flex-col">
                <span className="text-[16px] font-bold text-slate-800 uppercase">{user?.name || "BỆNH NHÂN"}</span>
