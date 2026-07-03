@@ -1,4 +1,4 @@
-﻿import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useRef, useCallback, ComponentType } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth, type WorkMode } from "../lib/auth/auth-context";
@@ -149,6 +149,7 @@ type ViewKey =
 const navItems: { key: ViewKey; Icon: typeof Eye; label: string }[] = [
   { key: "ambient", Icon: Eye, label: "Giám sát Không gian" },
   { key: "ambulance", Icon: Ambulance, label: "Điều phối Cấp cứu" },
+  { key: "history", Icon: HistoryIcon, label: "Lịch sử Cấp cứu" },
   { key: "records", Icon: ScanLine, label: "Hồ sơ Bệnh nhân" },
   { key: "voice", Icon: Mic, label: "Bệnh án Giọng nói" },
   { key: "chatbot", Icon: Bot, label: "Trợ lý AI Bệnh nhân" },
@@ -577,6 +578,7 @@ function PatientRounds() {
                 <AmbulanceView />
               </MapErrorBoundary>
             )}
+            {activeView === "history" && <HistoryView />}
             {activeView === "records" && <RecordsView />}
             {activeView === "voice" && <VoiceView />}
             {activeView === "chatbot" && <ChatbotView />}
@@ -2921,9 +2923,9 @@ function LprScanner({
               ? "bg-amber-50 border-amber-400 text-amber-700"
               : "border-slate-200 text-slate-600 hover:bg-slate-50"
           }`}
-          title="Nhập biển số trực tiếp (demo)"
+          title="Nhập thủ công"
         >
-          ⚡ Demo
+          ⚡ Nhập thủ công
         </button>
       </div>
 
@@ -3802,19 +3804,7 @@ function HistoryView() {
 
   return (
     <div className="flex-1 flex flex-col p-6 max-h-screen overflow-hidden bg-slate-50/50">
-      <div className="flex items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 font-geist tracking-tight flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center text-white shadow-lg shadow-slate-900/20">
-              <HistoryIcon className="w-5 h-5" />
-            </div>
-            Lịch sử Điều phối Cấp cứu
-          </h1>
-          <p className="text-slate-500 font-medium mt-1 ml-13 flex items-center gap-2">
-            Theo dõi các ca cấp cứu ngoại viện đã hoàn thành
-          </p>
-        </div>
-      </div>
+      
       
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex-1 flex flex-col">
         <div className="flex flex-wrap justify-between items-center px-4 py-3 border-b border-slate-100 gap-2">
@@ -3833,6 +3823,7 @@ function HistoryView() {
           <table className="w-full text-sm text-left min-w-[1000px]">
             <thead className="text-[10px] text-slate-500 font-geist uppercase tracking-wider bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
               <tr>
+                <th className="px-3 py-3 whitespace-nowrap">Ngày tháng</th>
                 <th className="px-3 py-3 whitespace-nowrap">Biển số xe</th>
                 <th className="px-3 py-3 whitespace-nowrap">Tên bệnh nhân</th>
                 <th className="px-3 py-3 whitespace-nowrap">Giới tính</th>
@@ -3848,8 +3839,9 @@ function HistoryView() {
             <tbody>
               {historyRecords.length === 0 ? (
                 <tr><td colSpan={10} className="px-4 py-8 text-center text-slate-400">Chưa có ca cấp cứu nào hoàn thành</td></tr>
-              ) : historyRecords.map((rec, idx) => (
+              ) : Array.from(new Map(historyRecords.map(item => [item.plate, item])).values()).map((rec, idx) => (
                 <tr key={`${rec.plate}-${idx}`} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80 transition-colors">
+                  <td className="px-3 py-3 whitespace-nowrap text-slate-500 text-xs">{rec.completed_at ? new Date(rec.completed_at).toLocaleDateString("vi-VN") : "—"}</td>
                   <td className="px-3 py-3"><span className="font-mono font-bold text-slate-600 text-[13px]">{rec.plate}</span></td>
                   <td className="px-3 py-3"><span className="font-semibold text-slate-600">{rec.patient_name || "—"}</span></td>
                   <td className="px-3 py-3 font-mono text-[12px] text-slate-500">{rec.bhxh_code || "—"}</td>
@@ -7849,6 +7841,9 @@ function EmsView() {
   const [manualGender, setManualGender] = useState("");
   const [manualAgeRange, setManualAgeRange] = useState("");
   const [manualName, setManualName] = useState("");
+  const [manualEmergencyContact, setManualEmergencyContact] = useState("");
+  const [manualChronic, setManualChronic] = useState("");
+  const [manualAllergies, setManualAllergies] = useState("");
 
 
   const alertTypes = ["Nhoi mau co tim", "Dot quy", "Chan thuong nang", "Ngo doc"];
@@ -8120,6 +8115,24 @@ function EmsView() {
       setIsBroadcasting(false);
       setIsMissionStarted(false);
       realStartRef.current = null; // Reset
+      setPlate("");
+      setPlateInput("");
+      setPlateConfirmed(null);
+      setScannedPatient(null);
+      setManualName("");
+      setManualGender("");
+      setManualAgeRange("");
+      setManualEmergencyContact("");
+      setManualChronic("");
+      setManualAllergies("");
+      setPreAlertText("");
+      setCapturedCccdUrl(null);
+      setAlertSent(false);
+      setSelectedAlert(null);
+      setGpsState(null);
+      setRouteInfo(null);
+      setSyncStatus("idle");
+      setHospitalAck(false);
     } else {
       // Bat dau GPS
       if (!navigator.geolocation) {
@@ -8517,41 +8530,6 @@ function EmsView() {
         </div>
       </div>
 
-      {/* ── 3. Communication Panel ── */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-            <Radio className="w-4 h-4 text-blue-600" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-slate-900">Liên lạc Khẩn cấp</h3>
-            <p className="text-[11px] text-slate-500 font-geist">Kết nối trực tiếp · VoIP mã hóa</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <button className="flex items-center gap-3 p-4 rounded-xl border-2 border-slate-100 hover:border-[#88E8F2] hover:bg-[#88E8F2]/5 transition-all group text-left">
-            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0">
-              <Phone className="w-6 h-6 text-emerald-600" />
-            </div>
-            <div>
-              <span className="font-bold text-slate-900 text-sm block"> Gọi Người thân</span>
-              <span className="text-xs text-slate-500">Liên hệ người thân bệnh nhân</span>
-            </div>
-          </button>
-
-          <button className="flex items-center gap-3 p-4 rounded-xl border-2 border-slate-100 hover:border-[#88E8F2] hover:bg-[#88E8F2]/5 transition-all group text-left">
-            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0">
-              <Radio className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <span className="font-bold text-slate-900 text-sm block">Liên lạc Kíp trực BV</span>
-              <span className="text-xs text-slate-500">Kết nối trực tiếp phòng Cấp cứu</span>
-            </div>
-          </button>
-        </div>
-      </div>
-
       {/* ── 1. Patient Identification Panel ── */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6">
         <div className="flex items-center gap-2 mb-4">
@@ -8642,11 +8620,42 @@ function EmsView() {
                   <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Khoảng tuổi</label>
                   <input type="text" value={manualAgeRange} onChange={e => setManualAgeRange(e.target.value)} placeholder="VD: 20-30, 40-50" className="w-full px-3 py-2 rounded-lg border border-slate-300" />
                 </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Liên hệ khẩn cấp</label>
+                  <input type="text" value={manualEmergencyContact} onChange={e => setManualEmergencyContact(e.target.value)} placeholder="Tên & SĐT người thân" className="w-full px-3 py-2 rounded-lg border border-slate-300" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Bệnh nền</label>
+                  <input type="text" value={manualChronic} onChange={e => setManualChronic(e.target.value)} placeholder="VD: Cao huyết áp..." className="w-full px-3 py-2 rounded-lg border border-slate-300" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Dị ứng thuốc</label>
+                  <input type="text" value={manualAllergies} onChange={e => setManualAllergies(e.target.value)} placeholder="VD: Kháng sinh..." className="w-full px-3 py-2 rounded-lg border border-slate-300" />
+                </div>
                 <button
                   className="w-full py-2 bg-cyan-500 text-white font-bold rounded-lg mt-2"
                   onClick={() => {
-                    const fakePatient = { name: manualName, gender: manualGender, age: manualAgeRange, cccd: null, chronic_conditions: [], allergies: [] };
-                    setScannedPatient({ full_name: manualName, gender: manualGender, dob: null, cccd_number: null, chronic_conditions: [], allergies: [] });
+                    const c_cond = manualChronic.trim() ? manualChronic.split(',').map(s=>s.trim()) : ["Không"];
+                    const c_allergy = manualAllergies.trim() ? manualAllergies.split(',').map(s=>s.trim()) : ["Không"];
+                    const e_contact = manualEmergencyContact.trim() || "Không";
+                    const fakePatient = { 
+                      name: manualName, 
+                      gender: manualGender, 
+                      age: manualAgeRange, 
+                      cccd: null, 
+                      chronic_conditions: c_cond, 
+                      allergies: c_allergy,
+                      emergencyContactName: e_contact
+                    };
+                    setScannedPatient({ 
+                      full_name: manualName, 
+                      gender: manualGender, 
+                      dob: null, 
+                      cccd_number: null, 
+                      chronic_conditions: c_cond, 
+                      allergies: c_allergy,
+                      emergencyContactName: e_contact
+                    });
                     sendPatientUpdate(fakePatient);
                   }}
                 >Xác nhận</button>
