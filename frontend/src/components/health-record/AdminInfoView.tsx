@@ -3,11 +3,12 @@ import { ArrowLeft, User, Phone, MapPin, CreditCard } from "lucide-react";
 
 interface Props {
   onBack: () => void;
-  data: any;
+  data?: any;
+  user?: any;
 }
 
-export function AdminInfoView({ onBack, data }: Props) {
-  const p = data || {};
+export function AdminInfoView({ onBack, data, user }: Props) {
+  const p = user || data || {};
 
   return (
     <div className="p-4 space-y-4 bg-white">
@@ -18,7 +19,7 @@ export function AdminInfoView({ onBack, data }: Props) {
                   <User className="h-4 w-4 text-slate-400" />
                   <div className="flex-1">
                       <p className="text-xs text-slate-500">Họ và tên</p>
-                      <p className="text-sm font-semibold text-[#0d1f2d]">{p.patientName || "--"}</p>
+                      <p className="text-sm font-semibold text-[#0d1f2d]">{p.name || p.patientName || "--"}</p>
                   </div>
               </div>
               <div className="flex items-center gap-3">

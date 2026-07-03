@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useAuth } from "../lib/auth/auth-context";
 import { fetchApi, API_URL } from "../lib/api/client";
-import { User, LogIn, Calendar, FileText, Settings, Heart, Bell, MessageCircle, MapPin, Menu, X, ArrowLeft, ArrowRight, ShieldCheck, ChevronRight, Mic, Send, Phone, ClipboardList, ScanFace, FileSignature, Info, LogOut, Copy, Download, Eye, Map as MapIcon, Trash2, CalendarClock, Lock, Globe, Users, Activity, Search, Stethoscope, Receipt, Home, Bot, Star, Camera, ScanLine, Share, PlusSquare, Volume2, VolumeX, Loader2 } from "lucide-react";
+import { User, LogIn, Calendar, FileText, Settings, Heart, Bell, MessageCircle, MapPin, Menu, X, ArrowLeft, ArrowRight, ShieldCheck, ChevronRight, Mic, Send, Phone, ClipboardList, ScanFace, FileSignature, Info, LogOut, Copy, Download, Eye, Map as MapIcon, Trash2, CalendarClock, Lock, Globe, Users, Activity, Search, Stethoscope, Receipt, Home, Bot, Star, Camera, ScanLine, Share, PlusSquare, Volume2, VolumeX, Loader2, Scan } from "lucide-react";
 import { getHospitalsByProvince, CENTRAL_HOSPITALS, Hospital } from "../lib/hospitals";
 import { MapErrorBoundary } from "./MapErrorBoundary";
 import { VitalSignsView } from "./health-record/VitalSignsView";
@@ -11,6 +11,7 @@ import { LabResultsView } from "./health-record/LabResultsView";
 import { ImagingResultsView } from "./health-record/ImagingResultsView";
 import { AdminInfoView } from "./health-record/AdminInfoView";
 import { RecordSummaryView } from "./health-record/RecordSummaryView";
+import { FileResultsView } from "./health-record/FileResultsView";
 
 const PatientPortalMap = lazy(() => import("./PatientPortalMap"));
 
@@ -740,9 +741,6 @@ export function PatientPortalNew({
           <ArrowLeft className="h-6 w-6" />
         </button>
         <span className="text-[17px] font-bold flex-1 text-center pr-2">Hồ sơ sức khoẻ</span>
-        <button onClick={() => setShowFiles(!showFiles)} className="text-[13px] font-medium opacity-90 active:opacity-100">
-          File kết quả
-        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide pb-24">
@@ -808,43 +806,7 @@ export function PatientPortalNew({
           );
         })()}
 
-        {showFiles ? (
-           /* Files Accordion */
-           <div className="mx-4 mt-4 bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between bg-[#0d1f2d] px-4 py-3">
-                 <div className="flex items-center gap-2">
-                    <div className="flex h-5 w-5 items-center justify-center rounded border border-white/30 bg-white/10">
-                       <span className="text-white text-[14px] font-bold">+</span>
-                    </div>
-                    <span className="text-sm font-bold text-white">File Kết Quả</span>
-                 </div>
-                 <ChevronRight className="h-5 w-5 text-white/70 rotate-90" />
-              </div>
-              <div className="px-4 py-2 flex flex-col gap-3">
-                 {(() => {
-                   if (!clinicalBundle) return <div className="p-4 text-center text-slate-500 text-[13px]">Đang tải...</div>;
-                   const allFiles: any[] = [];
-                   if (clinicalBundle.labDocs) {
-                     clinicalBundle.labDocs.forEach((d: any) => allFiles.push({ title: "Phiếu xét nghiệm", type: "lab", ...d }));
-                   }
-                   if (clinicalBundle.imagingResults) {
-                     clinicalBundle.imagingResults.forEach((d: any) => allFiles.push({ title: "Phiếu CĐHA: " + (d.image_type || "Chung"), type: "imaging", ...d }));
-                   }
-                   if (allFiles.length === 0) return <div className="p-4 text-center text-slate-500 text-[13px]">Chưa có file kết quả nào</div>;
-                   return allFiles.map((file, i) => (
-                     <div key={i} className="flex items-center justify-between py-3 border-b border-slate-50 last:border-0">
-                        <div className="flex items-center gap-3 overflow-hidden">
-                           <FileText className="h-5 w-5 text-red-500 shrink-0" />
-                           <span className="text-[14px] font-medium text-slate-700 truncate">{file.title}</span>
-                        </div>
-                        <ChevronRight className="h-4 w-4 text-slate-300 shrink-0" />
-                     </div>
-                   ));
-                 })()}
-              </div>
-           </div>
-        ) : (
-           /* Services List as Accordion */
+        {/* Services List as Accordion */}
            <div className="bg-slate-50 mt-4 pt-2 flex-1 shadow-[0_-4px_10px_rgba(0,0,0,0.02)] min-h-screen">
               {[
                 { id: "record_summary", icon: Stethoscope, label: "Kết quả khám", Component: RecordSummaryView },
@@ -853,6 +815,7 @@ export function PatientPortalNew({
                 { id: "imaging_results", icon: FileText, label: "Kết quả CĐHA và thăm dò chức năng", Component: ImagingResultsView },
                 { id: "medications", icon: Receipt, label: "Thuốc", Component: MedicationsView },
                 { id: "admin_info", icon: FileText, label: "Thông tin hành chính", Component: AdminInfoView },
+                { id: "file_results", icon: FileText, label: "File kết quả", Component: FileResultsView },
               ].map((item, i) => {
                  const isExpanded = expandedSection === item.id;
                  return (
@@ -871,14 +834,13 @@ export function PatientPortalNew({
                      {/* Accordion Content */}
                      {isExpanded && (
                        <div className="border-t border-[#88E8F2]/30 animate-in slide-in-from-top-2 duration-200">
-                          <item.Component data={clinicalBundle} onBack={() => setExpandedSection(null)} />
+                          <item.Component data={clinicalBundle} user={user} onBack={() => setExpandedSection(null)} />
                        </div>
                      )}
                    </div>
                  );
               })}
            </div>
-        )}
       </div>
 
       {/* Bottom pagination banner */}
@@ -996,7 +958,7 @@ export function PatientPortalNew({
           </div>
           
           <div className="mb-2">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-4 relative">
               <span className="text-[14px] text-slate-600 font-medium">Tuổi</span>
               <span className="text-[14px] font-bold text-slate-800 absolute left-1/2 -translate-x-1/2">{askAge} tuổi</span>
             </div>
@@ -1036,7 +998,7 @@ export function PatientPortalNew({
         </div>
       </div>
 
-      <div className="px-4 py-3 bg-white border-t border-slate-200 flex items-center justify-between pb-safe">
+      <div className="px-4 py-3 bg-white border-t border-slate-200 flex items-center justify-between pb-6 sm:pb-3 shrink-0">
         <button className="flex items-center gap-2 px-2 py-2 text-[14px] font-bold text-slate-800 active:scale-95 transition-transform">
           <div className="h-6 w-6 rounded bg-slate-100 flex items-center justify-center border border-slate-300"><FileText className="h-3 w-3 text-slate-500" /></div>
           Thêm ảnh liên quan
@@ -1091,7 +1053,7 @@ export function PatientPortalNew({
         <span className="text-[17px] font-bold flex-1 text-center pr-8">Tra cứu số khám</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide pb-24 px-4 pt-6">
+      <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide pb-24 px-4 pt-6 bg-slate-50">
         
         {/* Search Bar */}
         <div className="flex h-12 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-400 mb-8">
@@ -1107,7 +1069,7 @@ export function PatientPortalNew({
             className="flex-1 bg-transparent px-2 text-[15px] outline-none placeholder:text-slate-400"
           />
           <button onClick={() => setIsScanning(true)} className="flex w-10 shrink-0 items-center justify-center active:bg-slate-50">
-            <FileText className="h-5 w-5 text-[#0d1f2d]" />
+            <Scan className="h-5 w-5 text-[#0d1f2d]" />
           </button>
           <button 
             onClick={handleSearchTicket}
@@ -1120,8 +1082,65 @@ export function PatientPortalNew({
 
         {/* Guide Label */}
         <h3 className="mb-4 text-center text-[14px] font-bold text-slate-500 uppercase tracking-wide">
-          {currentTicket ? "Phiếu hướng dẫn khám bệnh" : "Không tìm thấy hồ sơ"}
+          {currentTicket ? "Phiếu hướng dẫn khám bệnh" : "HƯỚNG DẪN XEM MÃ HỒ SƠ"}
         </h3>
+
+        {/* Dummy Guide Ticket (When no ticket is searched) */}
+        {!currentTicket && (
+          <div className="mx-auto w-full max-w-[340px] bg-white p-4 shadow-md mb-6 relative">
+            <div className="flex justify-between items-start mb-4">
+              <div className="text-center">
+                <p className="text-[10px] font-bold uppercase">BỘ Y TẾ</p>
+                <p className="text-[10px] font-bold uppercase">CƠ SỞ Y TẾ</p>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-red-500 font-medium">Mã Hồ sơ</span>
+                <div className="bg-red-100/50 px-2 py-1 mt-0.5">
+                  <div className="flex h-8 w-24 gap-[2px]">
+                    {[3,1,2,4,1,3,2,1,2,3,1,1,4,2].map((w,i)=><div key={i} className="h-full bg-black" style={{width: `${w}px`}} />)}
+                  </div>
+                  <p className="text-[8px] text-center font-mono mt-0.5">80969800</p>
+                </div>
+              </div>
+              <div className="pt-4">
+                <p className="text-[9px]">Mã NB: 2303006123</p>
+              </div>
+            </div>
+            
+            <div className="text-center mb-4">
+               <h4 className="text-[16px] font-bold uppercase">PHIẾU HƯỚNG DẪN</h4>
+               <p className="text-[10px]">Ngày đăng ký: 10/03/2023 <span className="font-bold text-[18px] ml-4">STT: 18</span></p>
+            </div>
+            
+            <div className="text-[10px] space-y-1 mb-3">
+               <p>Họ và tên: <span className="font-bold text-[11px] uppercase">NGUYỄN VĂN A</span></p>
+               <div className="flex justify-between">
+                 <p>Đối tượng: Dịch vụ</p>
+                 <p>Tuổi: 14</p>
+                 <p>Giới tính: Nam</p>
+               </div>
+               <p>Địa chỉ: Nghĩa Tân, Cầu Giấy, Hà Nội, Việt Nam</p>
+            </div>
+            
+            <div className="border border-black mb-6">
+              <div className="flex border-b border-black font-bold text-[9px] text-center">
+                 <div className="w-10 border-r border-black py-1">STT</div>
+                 <div className="flex-1 border-r border-black py-1">Tên dịch vụ</div>
+                 <div className="flex-1 py-1">Nơi khám</div>
+              </div>
+              <div className="flex text-[9px] text-center items-center">
+                 <div className="w-10 border-r border-black py-2">1</div>
+                 <div className="flex-1 border-r border-black py-2">Khám Cấp cứu</div>
+                 <div className="flex-1 py-2 font-bold px-1">Khoa Cấp cứu- Phòng A109 - Tầng 1- nhà A2</div>
+              </div>
+            </div>
+            
+            <div className="flex justify-between text-[9px] mt-4">
+               <p>Tên đăng nhập: nguyenvana11</p>
+               <p>Mật khẩu: 888567</p>
+            </div>
+          </div>
+        )}
 
         {/* Dynamic Paper Mockup */}
         {currentTicket && (
@@ -1150,7 +1169,7 @@ export function PatientPortalNew({
             
             <div className="text-center mb-4">
                <h4 className="text-[16px] font-bold uppercase">PHIẾU HƯỚNG DẪN</h4>
-               <p className="text-[10px]">Ngày đăng ký: {new Date(currentTicket.registered_at).toLocaleDateString("vi-VN")} <span className="font-bold text-[18px] ml-4 text-red-600">STT: {currentTicket.sequence_number}</span></p>
+               <p className="text-[10px]">Ngày đăng ký: {new Date(currentTicket.registered_at).toLocaleDateString("vi-VN")} <span className="font-bold text-[18px] ml-4">STT: {currentTicket.sequence_number}</span></p>
             </div>
             
             <div className="text-[10px] space-y-1 mb-3">
@@ -1163,24 +1182,26 @@ export function PatientPortalNew({
                <p>Địa chỉ: {user?.address || "Chưa cập nhật"}</p>
             </div>
 
-            <table className="w-full text-[10px] border-collapse border border-slate-300 mb-6 text-center">
-              <thead>
-                <tr className="border-b border-slate-300 font-bold bg-slate-50">
-                  <td className="border-r border-slate-300 py-1">STT</td>
-                  <td className="border-r border-slate-300 py-1">Tên dịch vụ</td>
-                  <td className="py-1">Nơi khám</td>
-                </tr>
-              </thead>
-              <tbody>
-                {currentTicket.items?.map((item: any) => (
-                  <tr key={item.id} className={item.status === 'completed' ? "opacity-50 line-through" : ""}>
-                    <td className="border-r border-slate-300 py-3">{item.order_index}</td>
-                    <td className="border-r border-slate-300 py-3">{item.service_name}</td>
-                    <td className="py-3 font-bold px-1">{item.room_location}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="border border-black mb-6">
+              <div className="flex border-b border-black font-bold text-[9px] text-center">
+                 <div className="w-10 border-r border-black py-1">STT</div>
+                 <div className="flex-1 border-r border-black py-1">Tên dịch vụ</div>
+                 <div className="flex-1 py-1">Nơi khám</div>
+              </div>
+              {currentTicket.items && currentTicket.items.length > 0 ? currentTicket.items.map((item: any) => (
+                <div key={item.id} className={`flex text-[9px] text-center items-center ${item.status === 'completed' ? "opacity-50 line-through" : ""}`}>
+                   <div className="w-10 border-r border-black py-2">{item.order_index}</div>
+                   <div className="flex-1 border-r border-black py-2">{item.service_name}</div>
+                   <div className="flex-1 py-2 font-bold px-1">{item.room_location}</div>
+                </div>
+              )) : (
+                <div className="flex text-[9px] text-center items-center">
+                   <div className="w-10 border-r border-black py-2">&nbsp;</div>
+                   <div className="flex-1 border-r border-black py-2"></div>
+                   <div className="flex-1 py-2 font-bold px-1"></div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

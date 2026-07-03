@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 # Patient
@@ -452,13 +452,15 @@ def get_patient_clinical_bundle(
         )
 
     from app.db.models import VitalSign, SmartReaderDoc, ImagingResult
+    from sqlalchemy import text as sql_text
 
-    vital_signs = (
-        db.query(VitalSign)
-        .filter(VitalSign.patient_id == user.id)
-        .order_by(VitalSign.measured_at.desc())
-        .first()
-    )
+    vital_signs_row = db.execute(
+        sql_text("""SELECT vs.* FROM vital_signs vs
+            JOIN encounters e ON vs.encounter_id = e.id
+            WHERE e.patient_id = :pid
+            ORDER BY vs.measured_at DESC LIMIT 1""")
+        , {"pid": str(user.id)}
+    ).fetchone()
 
     lab_docs = (
         db.query(SmartReaderDoc)
@@ -497,12 +499,10 @@ def get_patient_clinical_bundle(
             "department": department_name,
         },
         "vitalSigns": {
-            "heart_rate": vital_signs.heart_rate,
-            "blood_pressure": vital_signs.blood_pressure,
-            "spo2": vital_signs.spo2,
-            "temperature": vital_signs.temperature,
-            "measured_at": vital_signs.measured_at.isoformat(),
-        } if vital_signs else None,
+            "heart_rate": vital_signs_row.heart_rate,
+            "spo2": vital_signs_row.spo2,
+            "measured_at": vital_signs_row.measured_at.isoformat(),
+        } if vital_signs_row else None,
         "medications": [
             {
                 "id": str(m.id),
