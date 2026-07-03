@@ -5,6 +5,12 @@ import { fetchApi, API_URL } from "../lib/api/client";
 import { User, LogIn, Calendar, FileText, Settings, Heart, Bell, MessageCircle, MapPin, Menu, X, ArrowLeft, ArrowRight, ShieldCheck, ChevronRight, Mic, Send, Phone, ClipboardList, ScanFace, FileSignature, Info, LogOut, Copy, Download, Eye, Map as MapIcon, Trash2, CalendarClock, Lock, Globe, Users, Activity, Search, Stethoscope, Receipt, Home, Bot, Star, Camera, ScanLine, Share, PlusSquare, Volume2, VolumeX, Loader2 } from "lucide-react";
 import { getHospitalsByProvince, CENTRAL_HOSPITALS, Hospital } from "../lib/hospitals";
 import { MapErrorBoundary } from "./MapErrorBoundary";
+import { VitalSignsView } from "./health-record/VitalSignsView";
+import { MedicationsView } from "./health-record/MedicationsView";
+import { LabResultsView } from "./health-record/LabResultsView";
+import { ImagingResultsView } from "./health-record/ImagingResultsView";
+import { AdminInfoView } from "./health-record/AdminInfoView";
+import { RecordSummaryView } from "./health-record/RecordSummaryView";
 
 const PatientPortalMap = lazy(() => import("./PatientPortalMap"));
 
@@ -50,7 +56,24 @@ export function PatientPortalNew({
   onRequestLogout: () => void;
 }) {
   const { user } = useAuth();
-  
+  const [clinicalBundle, setClinicalBundle] = useState<any>(null);
+  const [loadingBundle, setLoadingBundle] = useState(true);
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      setLoadingBundle(true);
+      fetchApi("/patient/clinical-bundle")
+        .then((data) => {
+          if (data && data.status !== "no_records") {
+            setClinicalBundle(data);
+          }
+        })
+        .catch(console.error)
+        .finally(() => setLoadingBundle(false));
+    }
+  }, [user]);
+
   // Floating Bot Logic
   const [botOpen, setBotOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
@@ -643,25 +666,39 @@ export function PatientPortalNew({
               </div>
            </div>
         ) : (
-           /* Services List */
-           <div className="mx-4 mt-4 bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col">
+           /* Services List as Accordion */
+           <div className="bg-slate-50 mt-4 pt-2 flex-1 shadow-[0_-4px_10px_rgba(0,0,0,0.02)] min-h-screen">
               {[
-                { icon: Stethoscope, label: "Kết quả khám" },
-                { icon: Heart, label: "Sinh hiệu" },
-                { icon: Activity, label: "Kết quả xét nghiệm" },
-                { icon: FileText, label: "Kết quả CĐHA và thăm dò chức năng" },
-                { icon: Receipt, label: "Thuốc" },
-                { icon: FileText, label: "Thông tin hành chính" },
-                { icon: FileSignature, label: "Tóm tắt bệnh án" },
-              ].map((item, i) => (
-                 <button key={i} className="flex items-center justify-between px-4 py-4 border-b border-slate-100 last:border-0 active:bg-slate-50 text-left">
-                    <div className="flex items-center gap-3">
-                       <item.icon className="h-5 w-5 text-[#0d1f2d]" strokeWidth={1.5} />
-                       <span className="text-[15px] font-semibold text-[#0d1f2d]">{item.label}</span>
-                    </div>
-                    <ChevronRight className="h-5 w-5 text-slate-400" />
-                 </button>
-              ))}
+                { id: "record_summary", icon: Stethoscope, label: "Kết quả khám", Component: RecordSummaryView },
+                { id: "vital_signs", icon: Heart, label: "Sinh hiệu", Component: VitalSignsView },
+                { id: "lab_results", icon: Activity, label: "Kết quả xét nghiệm", Component: LabResultsView },
+                { id: "imaging_results", icon: FileText, label: "Kết quả CĐHA và thăm dò chức năng", Component: ImagingResultsView },
+                { id: "medications", icon: Receipt, label: "Thuốc", Component: MedicationsView },
+                { id: "admin_info", icon: FileText, label: "Thông tin hành chính", Component: AdminInfoView },
+              ].map((item, i) => {
+                 const isExpanded = expandedSection === item.id;
+                 return (
+                   <div key={i} className="border-b border-slate-200/60 last:border-0 bg-white">
+                     <button 
+                        onClick={() => setExpandedSection(isExpanded ? null : item.id)} 
+                        className={`flex w-full items-center justify-between px-4 py-4 text-left transition-colors duration-200 ${isExpanded ? "bg-[#88E8F2]" : "bg-white active:bg-slate-50"}`}
+                     >
+                        <div className="flex items-center gap-3">
+                           <item.icon className={`h-5 w-5 ${isExpanded ? "text-[#0d1f2d]" : "text-[#0d1f2d]"}`} strokeWidth={1.5} />
+                           <span className={`text-[15px] font-semibold ${isExpanded ? "text-[#0d1f2d]" : "text-[#0d1f2d]"}`}>{item.label}</span>
+                        </div>
+                        <ChevronRight className={`h-5 w-5 transition-transform duration-200 ${isExpanded ? "rotate-90 text-[#0d1f2d]" : "text-slate-400"}`} />
+                     </button>
+                     
+                     {/* Accordion Content */}
+                     {isExpanded && (
+                       <div className="border-t border-[#88E8F2]/30 animate-in slide-in-from-top-2 duration-200">
+                          <item.Component data={clinicalBundle} onBack={() => setExpandedSection(null)} />
+                       </div>
+                     )}
+                   </div>
+                 );
+              })}
            </div>
         )}
       </div>
