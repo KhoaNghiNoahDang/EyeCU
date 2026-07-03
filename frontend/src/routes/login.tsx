@@ -42,7 +42,7 @@ const ACCENT_DARK = "#0A9BAD";
 function LoginPage() {
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<"staff" | "patient" | "admin">("staff");
+  const [activeTab, setActiveTab] = useState<"staff" | "patient" | "admin">("patient");
 
   useEffect(() => {
     ensureDemoPatient();
@@ -199,8 +199,8 @@ function LoginPage() {
           >
             {(
               [
-                { id: "staff", label: "Nhân viên Y tế", icon: Stethoscope },
                 { id: "patient", label: "Bệnh nhân", icon: ShieldCheck },
+                { id: "staff", label: "Nhân viên Y tế", icon: Stethoscope },
                 { id: "admin", label: "Quản trị", icon: Settings },
               ] as const
             ).map(({ id, label, icon: Icon }) => (
