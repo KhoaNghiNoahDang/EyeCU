@@ -558,7 +558,7 @@ def get_patient_clinical_bundle(
 
 
 @router.get("/invoices")
-def get_patient_invoices(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_patient_invoices(user: Patient = Depends(get_current_user), db: Session = Depends(get_db)):
     from app.db.models import HospitalFee, HospitalFeeItem
     fees = db.query(HospitalFee).filter(HospitalFee.patient_id == user.id).all()
     
