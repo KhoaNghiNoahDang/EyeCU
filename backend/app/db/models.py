@@ -196,6 +196,7 @@ class FollowUp(SQLModel, table=True):
     time: str = Field(max_length=50)
     department: str = Field(max_length=100)
     note: Optional[str] = None
+    status: str = Field(default="pending", max_length=20)  # pending, booked
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -260,4 +261,53 @@ class EmsMission(SQLModel, table=True):
     plate_number: str = Field(max_length=20, index=True)
     hospital_id: Optional[str] = Field(default=None, max_length=50)
     status: str = Field(default="active", max_length=20)  # active, arrived, completed
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+# =========================================================================
+# 5. NHÓM TƯƠNG TÁC BỆNH NHÂN (PATIENT ENGAGEMENT)
+# =========================================================================
+
+class Appointment(SQLModel, table=True):
+    __tablename__ = "appointments"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    patient_id: uuid.UUID = Field(foreign_key="patients.id")
+    department_id: Optional[uuid.UUID] = Field(default=None, foreign_key="departments.id")
+    doctor_id: Optional[uuid.UUID] = Field(default=None, foreign_key="staffs.id")
+    booking_date: str = Field(max_length=20)
+    booking_time: str = Field(max_length=20)
+    reason: Optional[str] = None
+    status: str = Field(default="pending", max_length=20)  # pending, confirmed, cancelled
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Notification(SQLModel, table=True):
+    __tablename__ = "notifications"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    patient_id: Optional[uuid.UUID] = Field(default=None, foreign_key="patients.id")
+    staff_id: Optional[uuid.UUID] = Field(default=None, foreign_key="staffs.id")
+    title: str = Field(max_length=200)
+    content: str
+    type: str = Field(max_length=50) # 'appointment_reminder', 'system', 'result'
+    is_read: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class CommunityQuestion(SQLModel, table=True):
+    __tablename__ = "community_questions"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    patient_id: uuid.UUID = Field(foreign_key="patients.id")
+    department: str = Field(max_length=100)
+    question: str
+    answer: Optional[str] = None
+    status: str = Field(default="unanswered", max_length=20) # unanswered, answered
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    answered_at: Optional[datetime] = None
+
+class ConsentForm(SQLModel, table=True):
+    __tablename__ = "consent_forms"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    patient_id: uuid.UUID = Field(foreign_key="patients.id")
+    document_name: str = Field(max_length=200)
+    content: str
+    is_signed: bool = Field(default=False)
+    signed_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)

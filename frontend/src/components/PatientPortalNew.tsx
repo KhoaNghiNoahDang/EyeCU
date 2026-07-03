@@ -59,6 +59,10 @@ export function PatientPortalNew({
   const [clinicalBundle, setClinicalBundle] = useState<any>(null);
   const [loadingBundle, setLoadingBundle] = useState(true);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [consentForms, setConsentForms] = useState<any[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -71,6 +75,13 @@ export function PatientPortalNew({
         })
         .catch(console.error)
         .finally(() => setLoadingBundle(false));
+
+      fetchApi("/patient/invoices").then((data) => setInvoices(data.invoices || [])).catch(console.error);
+      fetchApi("/patient/questions").then((data) => setQuestions(data.questions || [])).catch(console.error);
+      fetchApi("/patient/appointments").then((data) => setAppointments(data.appointments || [])).catch(console.error);
+      fetchApi("/patient/consent-forms").then((data) => setConsentForms(data.forms || [])).catch(console.error);
+      fetchApi("/patient/notifications").then((data) => setNotifications(data.notifications || [])).catch(console.error);
+      fetchApi("/patient/follow-ups").then((data) => setFollowUps(data.follow_ups || [])).catch(console.error);
     }
   }, [user]);
 
@@ -314,13 +325,8 @@ export function PatientPortalNew({
   const [aptTab, setAptTab] = useState<"upcoming" | "history">("upcoming");
   
   // Notification logic
-  const [notifications, setNotifications] = useState([
-    { id: 1, dateStr: "Ngày 14/06/2026", timeStr: "2026-06-14 00:00:00.0", daysAgo: "18 ngày trước" },
-    { id: 2, dateStr: "Ngày 14/06/2026", timeStr: "2026-06-14 00:00:00.0", daysAgo: "18 ngày trước" },
-    { id: 3, dateStr: "Ngày 14/06/2026", timeStr: "2026-06-14 00:00:00.0", daysAgo: "18 ngày trước" },
-    { id: 4, dateStr: "Ngày 13/06/2026", timeStr: "2026-06-14 00:00:00.0", daysAgo: "19 ngày trước" },
-    { id: 5, dateStr: "Ngày 13/06/2026", timeStr: "2026-06-14 00:00:00.0", daysAgo: "19 ngày trước" },
-  ]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [followUps, setFollowUps] = useState<any[]>([]);
 
   // Profile logic
   const [faceIdEnabled, setFaceIdEnabled] = useState(false);
@@ -456,7 +462,79 @@ export function PatientPortalNew({
   const [askGender, setAskGender] = useState<"Nam" | "Nữ">("Nữ");
   const [askAge, setAskAge] = useState(20);
   const [askSpecialty, setAskSpecialty] = useState<string | null>(null);
-  const [showSpecialties, setShowSpecialties] = useState(false);
+  const [askQuestionText, setAskQuestionText] = useState("");
+  const [submittingQuestion, setSubmittingQuestion] = useState(false);
+
+  const [submittingBooking, setSubmittingBooking] = useState(false);
+
+  const handleSignConsent = async (formId: string) => {
+    try {
+      await fetchApi("/patient/consent-forms/sign", {
+        method: "POST",
+        body: JSON.stringify({ form_id: formId }),
+      });
+      const data = await fetchApi("/patient/consent-forms");
+      setConsentForms(data.forms || []);
+      alert("Đã ký số thành công!");
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi khi ký số");
+    }
+  };
+
+  const handleBookingSubmit = async () => {
+    if (!bookingSpecialty || !bookingDate) {
+      alert("Vui lòng chọn chuyên khoa và ngày khám.");
+      return;
+    }
+    setSubmittingBooking(true);
+    try {
+      await fetchApi("/patient/appointments", {
+        method: "POST",
+        body: JSON.stringify({
+          department_id: bookingSpecialty,
+          booking_date: bookingDate,
+          booking_time: "08:00", // Default or you can add a time selector
+          reason: "Khám bệnh"
+        }),
+      });
+      const data = await fetchApi("/patient/appointments");
+      setAppointments(data.appointments || []);
+      alert(`Đã đặt lịch khám chuyên khoa ${bookingSpecialty} vào ngày ${bookingDate} thành công!`);
+      setShowBookingModal(false);
+      setBookingSpecialty(null);
+      setBookingDate("");
+    } catch (err) {
+      console.error(err);
+      alert("Đã có lỗi xảy ra khi đặt lịch");
+    } finally {
+      setSubmittingBooking(false);
+    }
+  };
+
+  const handleAskSubmit = async () => {
+    if (!askSpecialty || askQuestionText.length < 50) {
+      alert("Vui lòng chọn chuyên khoa và nhập câu hỏi tối thiểu 50 ký tự.");
+      return;
+    }
+    setSubmittingQuestion(true);
+    try {
+      await fetchApi("/patient/questions", {
+        method: "POST",
+        body: JSON.stringify({ department: askSpecialty, question: askQuestionText }),
+      });
+      const data = await fetchApi("/patient/questions");
+      setQuestions(data.questions || []);
+      setCurrentView("community_qa");
+      setAskQuestionText("");
+      setAskSpecialty(null);
+    } catch (err) {
+      console.error(err);
+      alert("Đã có lỗi xảy ra");
+    } finally {
+      setSubmittingQuestion(false);
+    }
+  };  const [showSpecialties, setShowSpecialties] = useState(false);
   const specialtiesList = ["Nội tiết", "Tim mạch", "Tiêu hoá", "Thần kinh", "Tai Mũi Họng", "Răng Hàm Mặt"];
 
   // Render Home View
@@ -477,12 +555,6 @@ export function PatientPortalNew({
                  </h1>
                  <p className="text-[#88E8F2] text-sm mt-1 font-medium tracking-widest uppercase">EyeCU Medical Center</p>
               </div>
-            </div>
-            
-            {/* Overlay Button "Lịch khám BS" */}
-            <div className="absolute -bottom-5 right-4 z-10 flex h-11 items-center gap-2 rounded-full bg-white px-5 shadow-lg">
-              <span className="text-[#0d1f2d] font-bold text-sm">Lịch khám BS</span>
-              <ChevronRight className="h-4 w-4 text-slate-400" />
             </div>
           </div>
 
@@ -648,21 +720,26 @@ export function PatientPortalNew({
                  <ChevronRight className="h-5 w-5 text-white/70 rotate-90" />
               </div>
               <div className="px-4 py-2 flex flex-col gap-3">
-                 {[
-                   "Phiếu kết quả CĐHA chung",
-                   "Phiếu kết quả xét nghiệm",
-                   "Phiếu kết quả CĐHA chung",
-                   "Phiếu kết quả xét nghiệm",
-                   "Đơn thuốc"
-                 ].map((title, i) => (
-                    <div key={i} className="flex items-center justify-between py-3 border-b border-slate-50 last:border-0">
-                       <div className="flex items-center gap-3">
-                          <FileText className="h-5 w-5 text-red-500" />
-                          <span className="text-[14px] font-medium text-slate-700">{title}</span>
-                       </div>
-                       <ChevronRight className="h-4 w-4 text-slate-300" />
-                    </div>
-                 ))}
+                 {(() => {
+                   if (!clinicalBundle) return <div className="p-4 text-center text-slate-500 text-[13px]">Đang tải...</div>;
+                   const allFiles: any[] = [];
+                   if (clinicalBundle.labDocs) {
+                     clinicalBundle.labDocs.forEach((d: any) => allFiles.push({ title: "Phiếu xét nghiệm", type: "lab", ...d }));
+                   }
+                   if (clinicalBundle.imagingResults) {
+                     clinicalBundle.imagingResults.forEach((d: any) => allFiles.push({ title: "Phiếu CĐHA: " + (d.image_type || "Chung"), type: "imaging", ...d }));
+                   }
+                   if (allFiles.length === 0) return <div className="p-4 text-center text-slate-500 text-[13px]">Chưa có file kết quả nào</div>;
+                   return allFiles.map((file, i) => (
+                     <div key={i} className="flex items-center justify-between py-3 border-b border-slate-50 last:border-0">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                           <FileText className="h-5 w-5 text-red-500 shrink-0" />
+                           <span className="text-[14px] font-medium text-slate-700 truncate">{file.title}</span>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-slate-300 shrink-0" />
+                     </div>
+                   ));
+                 })()}
               </div>
            </div>
         ) : (
@@ -740,29 +817,39 @@ export function PatientPortalNew({
         </div>
 
         <div className="flex flex-col gap-2 pb-24">
-          {[
-            { name: "Nam, 29 tuổi", date: "02/07/2026", q: "mình có lịch hẹn khám vào ngày 4 tháng 7 vậy mình chưa thể đi vào ngày đó thì mình có thể đến sau ngày 4 tháng 7 bao nhiêu ngày ạ", a: "Dạ được, bạn chỉ cần đến thăm khám trước khi phiếu chuyển tuyến hết giá trị sử dụng ạ" },
-            { name: "Nữ, 20 tuổi", date: "02/07/2026", q: "E bị tuyến giáp chỉ định mổ. E trái tuyến có đc hưởng bhyt thưa bs. Và nếu em đc bệnh viện chuyển tuyến thì có đc mức hưởng bhyt ko ạ", a: "Đối với bảo hiểm trái tuyến thì khi khám ngoại trú không được bảo hiểm thanh toán bạn nhé. Khi bạn nhập viện điều trị thì bảo hiểm sẽ chi trả từ 30 đến 40%" },
-            { name: "Nữ, 33 tuổi", date: "01/07/2026", q: "cho em hỏi lịch làm việc của bác sĩ Vũ Thị Hiền Trinh trong tuần này với ạ?", a: "Chào bạn, Bs đã hết lịch khám trong tuần này ạ" }
-          ].map((item, i) => (
-            <div key={i} className="bg-white p-4 shadow-sm">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="h-10 w-10 rounded-full bg-slate-200 overflow-hidden"><User className="h-full w-full text-slate-400 p-2" /></div>
-                <div>
-                  <p className="text-[14px] font-bold text-slate-800">{item.name}</p>
-                  <p className="text-[11px] text-slate-500">{item.date}</p>
+          {questions.length === 0 ? (
+            <div className="text-center text-slate-500 py-10">Chưa có câu hỏi nào.</div>
+          ) : (
+            questions.map((item, i) => (
+              <div key={i} className="bg-white p-4 shadow-sm">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="h-10 w-10 rounded-full bg-slate-200 overflow-hidden flex items-center justify-center">
+                    <User className="h-6 w-6 text-slate-400" />
+                  </div>
+                  <div>
+                    <p className="text-[14px] font-bold text-slate-800">{item.name}</p>
+                    <p className="text-[11px] text-slate-500">{new Date(item.created_at).toLocaleDateString('vi-VN')}</p>
+                  </div>
+                </div>
+                <p className="text-[14px] text-slate-800 leading-relaxed mb-3">{item.question}</p>
+                {item.answer ? (
+                  <div className="flex gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                    <div className="h-8 w-8 shrink-0 rounded-full border border-blue-200 bg-white flex items-center justify-center">
+                      <Activity className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <p className="text-[13px] text-slate-700 leading-relaxed pt-0.5">{item.answer}</p>
+                  </div>
+                ) : (
+                  <div className="flex gap-3 bg-orange-50/50 p-3 rounded-lg border border-orange-100">
+                    <p className="text-[13px] text-orange-600 italic">Chưa có câu trả lời</p>
+                  </div>
+                )}
+                <div className="mt-3">
+                  <span className="inline-block rounded bg-blue-50 px-3 py-1.5 text-[12px] font-medium text-blue-600">{item.department}</span>
                 </div>
               </div>
-              <p className="text-[14px] text-slate-800 leading-relaxed mb-3">{item.q}</p>
-              <div className="flex gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                <div className="h-8 w-8 shrink-0 rounded-full border border-blue-200 bg-white flex items-center justify-center"><Activity className="h-4 w-4 text-blue-600" /></div>
-                <p className="text-[13px] text-slate-700 leading-relaxed pt-0.5">{item.a}</p>
-              </div>
-              <div className="mt-3">
-                <span className="inline-block rounded bg-blue-50 px-3 py-1.5 text-[12px] font-medium text-blue-600">Nội tiết</span>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
@@ -840,6 +927,8 @@ export function PatientPortalNew({
 
         <div className="p-4">
           <textarea
+            value={askQuestionText}
+            onChange={(e) => setAskQuestionText(e.target.value)}
             placeholder="Viết câu hỏi của bạn:&#10;- Bạn có triệu chứng gì, kéo dài bao lâu?&#10;- Bạn đã đi khám hoặc dùng thuốc gì chưa?&#10;- Gửi ảnh chụp rõ nét (nếu có).&#10;- Câu hỏi tối thiểu 50 ký tự."
             className="w-full h-40 resize-none outline-none text-[14px] placeholder:text-slate-300 leading-relaxed"
           />
@@ -851,8 +940,11 @@ export function PatientPortalNew({
           <div className="h-6 w-6 rounded bg-slate-100 flex items-center justify-center border border-slate-300"><FileText className="h-3 w-3 text-slate-500" /></div>
           Thêm ảnh liên quan
         </button>
-        <button className="flex items-center gap-2 rounded-full bg-[#7CA8D9] px-6 py-2.5 text-[15px] font-bold text-white shadow-sm active:scale-95 transition-transform">
-          Gửi <Send className="h-4 w-4" />
+        <button 
+          onClick={handleAskSubmit}
+          disabled={submittingQuestion}
+          className="flex items-center gap-2 rounded-full bg-[#7CA8D9] px-6 py-2.5 text-[15px] font-bold text-white shadow-sm active:scale-95 transition-transform disabled:opacity-50">
+          {submittingQuestion ? "Đang gửi..." : "Gửi"} <Send className="h-4 w-4" />
         </button>
       </div>
 
@@ -1054,44 +1146,54 @@ export function PatientPortalNew({
       </div>
 
       <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide px-4 pt-4 pb-24">
-        <p className="text-[14px] font-medium text-slate-700 mb-4">2 hóa đơn</p>
+        <p className="text-[14px] font-medium text-slate-700 mb-4">{invoices.length} hóa đơn</p>
         
         <div className="flex flex-col gap-4">
-          {[
-            { id: "#00202036", amount: "1,473,200đ", code: "1206660", time: "2026-06-04 07:33:24" },
-            { id: "#00203053", amount: "603,800đ", code: "1207873", time: "2026-06-04 10:47:19" }
-          ].map((inv, i) => (
-            <div key={i} className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
-              <div className="text-center mb-4">
-                <p className="text-[14px] font-bold text-slate-800">Hóa đơn điện tử {inv.id}</p>
-                <p className="text-[18px] font-bold text-blue-600 mt-1">{inv.amount}</p>
-              </div>
+          {invoices.length === 0 ? (
+            <div className="text-center text-slate-500 py-10 bg-white rounded-xl shadow-sm border border-slate-100">Chưa có hóa đơn nào</div>
+          ) : (
+            invoices.map((inv, i) => {
+              const formattedDate = new Date(inv.created_at || new Date()).toLocaleString('vi-VN');
+              const formattedTotal = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(inv.total);
               
-              <div className="border-t border-dashed border-slate-200 my-4" />
-              
-              <div className="space-y-3 mb-4">
-                <div className="flex justify-between items-center text-[13px]">
-                  <span className="text-slate-600">Mã hóa đơn:</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-slate-800">{inv.code}</span>
-                    <button 
-                      onClick={() => handleCopy(inv.code)}
-                      className="relative rounded border border-slate-200 bg-slate-50 p-1 text-slate-400 active:scale-95"
-                    >
-                      <Copy className="h-3 w-3" />
-                      {copiedCode === inv.code && (
-                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 rounded bg-black/80 px-2 py-0.5 text-[10px] text-white">Đã chép</span>
-                      )}
-                    </button>
+              return (
+                <div key={i} className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
+                  <div className="text-center mb-4">
+                    <p className="text-[14px] font-bold text-slate-800">Hóa đơn điện tử #{inv.id.substring(0,8).toUpperCase()}</p>
+                    <p className="text-[18px] font-bold text-blue-600 mt-1">{formattedTotal}</p>
                   </div>
-                </div>
-                <div className="flex justify-between items-center text-[13px]">
-                  <span className="text-slate-600">Thời gian phát hành:</span>
-                  <span className="font-medium text-slate-800">{inv.time}</span>
-                </div>
-              </div>
-              
-              <div className="flex pt-2 gap-2">
+                  
+                  <div className="border-t border-dashed border-slate-200 my-4" />
+                  
+                  <div className="space-y-3 mb-4">
+                    <div className="flex justify-between items-center text-[13px]">
+                      <span className="text-slate-600">Mã hóa đơn:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-slate-800">{inv.id.substring(24).toUpperCase()}</span>
+                        <button 
+                          onClick={() => handleCopy(inv.id.substring(24).toUpperCase())}
+                          className="relative rounded border border-slate-200 bg-slate-50 p-1 text-slate-400 active:scale-95"
+                        >
+                          <Copy className="h-3 w-3" />
+                          {copiedCode === inv.id.substring(24).toUpperCase() && (
+                            <span className="absolute -top-6 left-1/2 -translate-x-1/2 rounded bg-black/80 px-2 py-0.5 text-[10px] text-white">Đã chép</span>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center text-[13px]">
+                      <span className="text-slate-600">Thời gian phát hành:</span>
+                      <span className="font-medium text-slate-800">{formattedDate}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[13px]">
+                      <span className="text-slate-600">Trạng thái:</span>
+                      <span className={`font-medium ${inv.status === 'paid' ? 'text-green-600' : 'text-orange-500'}`}>
+                        {inv.status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex pt-2 gap-2">
                 <button 
                   onClick={() => setViewingInvoice(inv)}
                   className="flex-1 flex items-center justify-center gap-2 py-2 text-[13px] font-medium text-blue-600 bg-blue-50/50 hover:bg-blue-50 active:bg-blue-100 rounded-lg transition-colors">
@@ -1103,8 +1205,10 @@ export function PatientPortalNew({
                   <Download className="h-4 w-4" /> Tải về
                 </button>
               </div>
-            </div>
-          ))}
+              </div>
+            );
+          })
+        )}
         </div>
       </div>
 
@@ -1131,19 +1235,19 @@ export function PatientPortalNew({
                 <div className="space-y-3 text-[14px]">
                    <div className="flex justify-between border-b border-dashed border-slate-200 pb-2">
                      <span className="text-slate-500">Mã:</span>
-                     <span className="font-mono font-medium">{viewingInvoice.code}</span>
+                     <span className="font-mono font-medium">{viewingInvoice.id.substring(24).toUpperCase()}</span>
                    </div>
                    <div className="flex justify-between border-b border-dashed border-slate-200 pb-2">
                      <span className="text-slate-500">Số:</span>
-                     <span className="font-mono font-medium">{viewingInvoice.id}</span>
+                     <span className="font-mono font-medium">{viewingInvoice.id.substring(0,8).toUpperCase()}</span>
                    </div>
                    <div className="flex justify-between border-b border-dashed border-slate-200 pb-2">
                      <span className="text-slate-500">Ngày:</span>
-                     <span>{viewingInvoice.time}</span>
+                     <span>{new Date(viewingInvoice.created_at || new Date()).toLocaleString('vi-VN')}</span>
                    </div>
                    <div className="flex flex-col mt-4 pt-2">
                      <span className="text-slate-500 text-[12px] uppercase">Tổng tiền thanh toán</span>
-                     <span className="text-[24px] font-bold text-blue-600 text-right mt-1">{viewingInvoice.amount}</span>
+                     <span className="text-[24px] font-bold text-blue-600 text-right mt-1">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(viewingInvoice.total)}</span>
                    </div>
                 </div>
                 
@@ -1190,8 +1294,44 @@ export function PatientPortalNew({
           </div>
         </div>
 
-        <div className="flex-1 flex items-center justify-center pt-32">
-          <p className="text-[14px] italic text-slate-800 font-serif">Không có dữ liệu</p>
+        <div className="flex flex-col gap-3 p-4">
+          {(() => {
+            const list = signTab === "signed" ? consentForms.filter(f => f.is_signed) : consentForms.filter(f => !f.is_signed);
+            if (list.length === 0) {
+              return (
+                <div className="flex-1 flex items-center justify-center pt-32">
+                  <p className="text-[14px] italic text-slate-800 font-serif">Không có dữ liệu</p>
+                </div>
+              );
+            }
+            return list.map(f => (
+              <div key={f.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="h-10 w-10 shrink-0 rounded-lg bg-blue-50 flex items-center justify-center">
+                    <FileSignature className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-[14px] font-bold text-slate-800 leading-tight">{f.name}</h4>
+                    <p className="text-[12px] text-slate-500 mt-1 line-clamp-2">{f.content}</p>
+                  </div>
+                </div>
+                {f.is_signed ? (
+                  <div className="flex justify-between items-center pt-3 border-t border-slate-100">
+                    <span className="text-[12px] text-slate-500">Ký lúc: {new Date(f.signed_at).toLocaleString('vi-VN')}</span>
+                    <span className="text-[12px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded">Đã ký</span>
+                  </div>
+                ) : (
+                  <div className="flex justify-end pt-3 border-t border-slate-100">
+                    <button 
+                      onClick={() => handleSignConsent(f.id)}
+                      className="px-4 py-1.5 bg-[#88E8F2] text-[#0d1f2d] text-[13px] font-bold rounded-lg active:scale-95 transition-transform">
+                      Ký số ngay
+                    </button>
+                  </div>
+                )}
+              </div>
+            ));
+          })()}
         </div>
       </div>
     </div>
@@ -1322,37 +1462,82 @@ export function PatientPortalNew({
 
       <div className="flex-1 overflow-y-auto overscroll-contain p-4 pb-24">
         {aptTab === "upcoming" ? (
-          <div className="bg-white rounded-xl p-0 flex flex-row overflow-hidden border border-slate-200 shadow-sm">
-             <div className="w-24 bg-white flex flex-col items-center justify-center border-r border-slate-100 py-4">
-                <span className="text-[36px] font-medium text-[#8bb4c8] leading-none">04</span>
-                <span className="text-[12px] font-bold text-slate-800 mt-1">06/2026</span>
-                <span className="text-[12px] text-slate-500">07:15</span>
-             </div>
-             <div className="flex-1 p-4 flex flex-col justify-center gap-1">
-                <span className="font-bold text-[14px] text-slate-800 uppercase">{user?.name || "BỆNH NHÂN"}</span>
-                <span className="text-[13px] text-slate-600">Cơ sở Tứ Hiệp</span>
-                <span className="text-[13px] text-slate-400">Khám yêu cầu 24/7</span>
-                <div className="mt-1">
-                   <span className="inline-block px-2 py-1 bg-cyan-50 text-cyan-400 text-[11px] font-bold rounded-md">Đã có số khám</span>
-                </div>
-             </div>
+          <div className="flex flex-col gap-4">
+            {appointments.length === 0 ? (
+              <div className="text-center text-slate-500 py-10 bg-white rounded-xl border border-slate-200">Chưa có lịch khám nào.</div>
+            ) : (
+              appointments.map((apt, i) => {
+                const dateObj = new Date(apt.date);
+                const day = dateObj.getDate().toString().padStart(2, '0');
+                const monthYear = `${(dateObj.getMonth() + 1).toString().padStart(2, '0')}/${dateObj.getFullYear()}`;
+                
+                return (
+                  <div key={i} className="bg-white rounded-xl p-0 flex flex-row overflow-hidden border border-slate-200 shadow-sm">
+                     <div className="w-24 bg-white flex flex-col items-center justify-center border-r border-slate-100 py-4">
+                        <span className="text-[36px] font-medium text-[#8bb4c8] leading-none">{day}</span>
+                        <span className="text-[12px] font-bold text-slate-800 mt-1">{monthYear}</span>
+                        <span className="text-[12px] text-slate-500">{apt.time}</span>
+                     </div>
+                     <div className="flex-1 p-4 flex flex-col justify-center gap-1">
+                        <span className="font-bold text-[14px] text-slate-800 uppercase">{user?.name || "BỆNH NHÂN"}</span>
+                        <span className="text-[13px] text-slate-600">Khoa: {apt.department}</span>
+                        <span className="text-[13px] text-slate-400">Lý do: {apt.reason}</span>
+                        <div className="mt-1">
+                           <span className="inline-block px-2 py-1 bg-cyan-50 text-cyan-400 text-[11px] font-bold rounded-md">
+                             {apt.status === "pending" ? "Đang chờ duyệt" : "Đã xác nhận"}
+                           </span>
+                        </div>
+                     </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         ) : (
-          <div className="bg-white rounded-xl p-0 flex flex-row overflow-hidden border border-slate-200 shadow-sm">
-             <div className="w-24 bg-white flex flex-col items-center justify-center border-r border-slate-100 py-4 gap-1">
-                <span className="text-[36px] font-medium text-[#8bb4c8] leading-none">14</span>
-                <span className="text-[12px] font-bold text-slate-800">06/2026</span>
-                <span className="text-[10px] text-red-500 text-center px-1 leading-tight mt-1">Lịch hẹn tái khám</span>
-             </div>
-             <div className="flex-1 p-3 flex flex-col gap-1">
-                <span className="font-bold text-[14px] text-slate-800 uppercase">{user?.name || "BỆNH NHÂN"}</span>
-                <span className="text-[13px] text-slate-600">Cơ sở Tứ Hiệp</span>
-                <span className="text-[11px] text-slate-400 mt-1">Khám bệnh theo yêu cầu</span>
-                <div className="flex gap-2 mt-2">
-                   <button onClick={() => alert('Đang tải hồ sơ...')} className="flex-1 py-1.5 border border-slate-300 rounded-md text-[11px] font-medium text-slate-600 active:bg-slate-50">Xem hồ sơ sức khỏe</button>
-                   <button onClick={() => alert('Đặt lịch tái khám...')} className="flex-1 py-1.5 bg-[#88E8F2] text-slate-900 font-bold rounded-md text-[11px] active:bg-[#68c6cf]">Đặt lịch tái khám</button>
-                </div>
-             </div>
+          <div className="flex flex-col gap-4">
+            {followUps.length === 0 ? (
+              <div className="text-center text-slate-500 py-10 bg-white rounded-xl border border-slate-200">Chưa có lịch tái khám nào.</div>
+            ) : (
+              followUps.map((fup, i) => {
+                const dateObj = new Date(fup.date);
+                const day = dateObj.getDate().toString().padStart(2, '0');
+                const monthYear = `${(dateObj.getMonth() + 1).toString().padStart(2, '0')}/${dateObj.getFullYear()}`;
+                
+                return (
+                  <div key={i} className="bg-white rounded-xl p-0 flex flex-row overflow-hidden border border-slate-200 shadow-sm">
+                     <div className="w-24 bg-white flex flex-col items-center justify-center border-r border-slate-100 py-4 gap-1">
+                        <span className="text-[36px] font-medium text-[#8bb4c8] leading-none">{day}</span>
+                        <span className="text-[12px] font-bold text-slate-800">{monthYear}</span>
+                        <span className="text-[10px] text-red-500 text-center px-1 leading-tight mt-1">Lịch hẹn tái khám</span>
+                     </div>
+                     <div className="flex-1 p-3 flex flex-col gap-1">
+                        <span className="font-bold text-[14px] text-slate-800 uppercase">{user?.name || "BỆNH NHÂN"}</span>
+                        <span className="text-[13px] text-slate-600">Khoa: {fup.department}</span>
+                        <span className="text-[11px] text-slate-400 mt-1">Ghi chú: {fup.note || "Không có"}</span>
+                        <div className="flex gap-2 mt-2">
+                           {fup.status === "booked" ? (
+                             <span className="w-full text-center py-1.5 bg-green-50 text-green-600 font-bold rounded-md text-[11px]">Đã xác nhận đặt lịch</span>
+                           ) : (
+                             <button 
+                               onClick={() => {
+                                 fetchApi(`/patient/follow-ups/${fup.id}/book`, { method: "POST", body: JSON.stringify({}) })
+                                   .then(() => {
+                                     setFollowUps(prev => prev.map(f => f.id === fup.id ? { ...f, status: "booked" } : f));
+                                     alert("Đặt lịch thành công!");
+                                   })
+                                   .catch(err => alert("Lỗi khi đặt lịch: " + err.message));
+                               }} 
+                               className="flex-1 py-1.5 bg-[#88E8F2] text-slate-900 font-bold rounded-md text-[11px] active:bg-[#68c6cf]"
+                             >
+                               Đặt lịch tái khám
+                             </button>
+                           )}
+                        </div>
+                     </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         )}
       </div>
@@ -1362,8 +1547,10 @@ export function PatientPortalNew({
   // Notification Tab Logic
   const renderNotificationTab = () => {
     const groupedNotifications = notifications.reduce((acc, curr) => {
-      if (!acc[curr.dateStr]) acc[curr.dateStr] = [];
-      acc[curr.dateStr].push(curr);
+      const d = new Date(curr.created_at);
+      const dateStr = `Ngày ${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+      if (!acc[dateStr]) acc[dateStr] = [];
+      acc[dateStr].push(curr);
       return acc;
     }, {} as Record<string, typeof notifications>);
 
@@ -1388,19 +1575,25 @@ export function PatientPortalNew({
                 <div className="px-4 py-2 mt-2">
                   <span className="text-[14px] font-bold text-slate-800">{dateStr}</span>
                 </div>
-                {items.map((item) => (
-                  <div key={item.id} className="flex gap-3 p-4 border-b border-slate-100 bg-[#f0faeb]/40 active:bg-slate-50 transition-colors">
-                    <div className="w-12 h-12 rounded-full border border-slate-200 overflow-hidden shrink-0">
-                        <img src="/logo.png" alt="logo" className="w-full h-full object-cover" />
+                {items.map((item) => {
+                  const d = new Date(item.created_at);
+                  const daysAgo = Math.floor((new Date().getTime() - d.getTime()) / (1000 * 3600 * 24));
+                  return (
+                    <div key={item.id} className={`flex gap-3 p-4 border-b border-slate-100 ${item.is_read ? "bg-white" : "bg-[#f0faeb]/40"} active:bg-slate-50 transition-colors`}>
+                      <div className="w-12 h-12 rounded-full border border-slate-200 overflow-hidden shrink-0">
+                          <img src="/logo.png" alt="logo" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1 flex flex-col">
+                          <span className="text-[14px] text-slate-800 font-medium leading-snug">
+                            {item.content}
+                          </span>
+                          <span className="text-[12px] text-slate-400 mt-2">
+                            {daysAgo === 0 ? "Hôm nay" : `${daysAgo} ngày trước`}
+                          </span>
+                      </div>
                     </div>
-                    <div className="flex-1 flex flex-col">
-                        <span className="text-[14px] text-slate-800 font-medium leading-snug">
-                          Lịch hẹn tái khám của <span className="uppercase font-bold">{user?.name || "BỆNH NHÂN"}</span> tại Cơ sở Tứ Hiệp sẽ diễn ra vào lúc {item.timeStr} . Nhấn vào để đặt khám!
-                        </span>
-                        <span className="text-[12px] text-slate-400 mt-2">{item.daysAgo}</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ))
           )}
@@ -1486,19 +1679,10 @@ export function PatientPortalNew({
             </div>
          </div>
          
-         <div className="mt-2 bg-white border-y border-slate-100">
-            <span className="block px-4 py-3 text-[14px] font-medium text-slate-800">Khác</span>
-            <div className="pl-4">
-               <button onClick={() => alert('Về bệnh viện...')} className="w-full flex items-center justify-between py-3 pr-4 border-b border-slate-100 active:bg-slate-50">
-                  <div className="flex items-center gap-3">
-                     <div className="w-8 h-8 rounded-md bg-slate-100 flex items-center justify-center"><Star className="w-5 h-5 text-slate-400" /></div>
-                     <span className="text-[15px] text-slate-700">Về BV Nội tiết Trung Ương</span>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-slate-400" />
-               </button>
-            </div>
-         </div>
-         
+          <div className="mt-2 bg-white border-y border-slate-100">
+             {/* The "Khác" section and "Về BV Nội tiết Trung Ương" button have been removed */}
+          </div>
+          
          <div className="mt-2 bg-white border-y border-slate-100">
             <button onClick={() => onRequestLogout()} className="w-full flex items-center px-4 py-3 active:bg-slate-50">
                <div className="flex items-center gap-3">
@@ -1669,13 +1853,11 @@ export function PatientPortalNew({
                 </div>
 
                 <button 
-                  onClick={() => {
-                    alert(`Đã đặt lịch khám chuyên khoa ${bookingSpecialty || "..."} vào ngày ${bookingDate || "..."} thành công!`);
-                    setShowBookingModal(false);
-                  }}
-                  className="w-full rounded-full bg-[#88E8F2] py-4 text-[16px] font-bold text-[#0d1f2d] shadow-lg active:scale-95 transition-transform"
+                  onClick={handleBookingSubmit}
+                  disabled={submittingBooking}
+                  className="w-full rounded-full bg-[#88E8F2] py-4 text-[16px] font-bold text-[#0d1f2d] shadow-lg active:scale-95 transition-transform disabled:opacity-50"
                 >
-                  Xác nhận đặt lịch
+                  {submittingBooking ? "Đang xử lý..." : "Xác nhận đặt lịch"}
                 </button>
               </div>
             </div>
