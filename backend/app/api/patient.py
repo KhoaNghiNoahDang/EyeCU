@@ -171,9 +171,32 @@ async def patient_chatbot(
     
     if not is_payload and data.message.strip().lower() not in ["xin chào", "xin chao", "hello", "hi", "chào", "bắt đầu"]:
         if recent_doc and recent_doc.extracted_data:
-            import json
-            context_str = json.dumps(recent_doc.extracted_data, ensure_ascii=False)
-            context = f"Thông tin hồ sơ y tế/đơn thuốc/xét nghiệm gần nhất của tôi: {context_str}. "
+            text_only = recent_doc.extracted_data.get("text", "")
+            
+            # Nếu kết quả bóc tách bị lưu dưới dạng string của dictionary chứa tọa độ (phrases)
+            if text_only.startswith("{") and "'phrases':" in text_only:
+                import ast
+                try:
+                    d = ast.literal_eval(text_only)
+                    words = []
+                    def extract_text(obj):
+                        if isinstance(obj, dict):
+                            if "text" in obj:
+                                words.append(str(obj["text"]))
+                            for v in obj.values():
+                                extract_text(v)
+                        elif isinstance(obj, list):
+                            for item in obj:
+                                extract_text(item)
+                    extract_text(d)
+                    text_only = " ".join(words)
+                except Exception:
+                    pass
+            
+            # Giới hạn số lượng ký tự gửi cho Smartbot để tránh lỗi quá tải payload (VD: 1500 ký tự)
+            text_only = text_only[:1500]
+            
+            context = f"Thông tin hồ sơ y tế/đơn thuốc/xét nghiệm gần nhất của tôi: {text_only}. "
         
     final_message = context + "Câu hỏi của tôi: " + data.message if context else data.message
     bot_response = await vnpt_client.call_smartbot_conversation(final_message, session_id=f"patient_{user.id}")
