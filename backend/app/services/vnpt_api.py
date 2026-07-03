@@ -325,7 +325,7 @@ class VnptAPIClient:
 
     # ── SmartBot: Chatbot hỗ trợ bệnh nhân ───────────────────────
     async def call_smartbot_conversation(
-        self, text: str, session_id: str = "patient_001"
+        self, text: str, session_id: str = "patient_001", metadata: dict = None
     ) -> dict:
         """Trả lời câu hỏi y tế của bệnh nhân qua SmartBot."""
         bot_id = getattr(settings, "VNPT_SMARTBOT_ID", "hackathon_bot")
@@ -335,7 +335,7 @@ class VnptAPIClient:
             "text": text,
             "input_channel": "livechat",
             "session_id": session_id,
-            "metadata": {"button_variables": []},
+            "metadata": metadata or {"button_variables": []},
         }
         try:
             async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
