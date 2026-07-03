@@ -206,12 +206,13 @@ type BeforeInstallPromptEvent = Event & {
 };
 
 function PatientRounds() {
-  const { user, workMode, isAuthenticated, logout } = useAuth();
+  const { user, workMode, setWorkMode, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
 
   // We must always call hooks at the top level
   const [activeView, setActiveView] = useState<ViewKey>("ambient");
   const [collapsed, setCollapsed] = useState(false);
+  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [highlightedRoom, setHighlightedRoom] = useState<string | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
@@ -296,25 +297,50 @@ function PatientRounds() {
       {!isPatientRole && (
         <nav
           className={`h-screen fixed left-0 top-0 bg-white flex-col py-6 border-r border-slate-200 z-40 hidden md:flex transition-all duration-300 ${
-            collapsed ? "w-20" : "w-64"
+            collapsed ? "w-24" : "w-80"
           }`}
         >
           <div className={`mb-4 ${collapsed ? "px-4" : "px-6"}`}>
             <div className="flex items-center gap-3 justify-between">
-              <div className="flex items-center gap-3 min-w-0">
-                <img 
-                  src="/logo.png" 
-                  alt="EyeCU Logo"
-                  className="w-9 h-9 rounded-lg shadow-sm object-contain flex-shrink-0"
-                />
-                {!collapsed && (
-                  <div className="min-w-0">
-                    <h1 className="text-base font-bold leading-tight text-slate-900 truncate">
-                      EyeCU
-                    </h1>
-                    <p className="text-[11px] tracking-wider text-slate-500 font-geist uppercase">
-                      {roleConfig[workMode].label}
-                    </p>
+              <div className="flex items-center gap-3 min-w-0 relative">
+                <button onClick={() => setRoleMenuOpen(!roleMenuOpen)} className="flex items-center gap-3 active:scale-95 transition-transform text-left">
+                  <img 
+                    src="/logo.png" 
+                    alt="EyeCU Logo"
+                    className="w-14 h-14 rounded-lg shadow-sm object-contain flex-shrink-0"
+                  />
+                  {!collapsed && (
+                    <div className="min-w-0">
+                      <h1 className="text-2xl font-bold leading-tight text-slate-900 truncate">
+                        EyeCU
+                      </h1>
+                      <p className="text-[14px] tracking-wider text-slate-500 font-geist uppercase mt-0.5">
+                        {roleConfig[workMode].label}
+                      </p>
+                    </div>
+                  )}
+                </button>
+                {roleMenuOpen && (
+                  <div className="absolute top-16 left-0 w-64 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-2">
+                    <p className="px-4 py-2 text-[12px] font-bold text-slate-400 uppercase tracking-wider">Đổi không gian làm việc</p>
+                    <button
+                      onClick={() => { setWorkMode("ops"); setRoleMenuOpen(false); }}
+                      className="w-full text-left px-4 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-[#0A9BAD]"
+                    >
+                      Trực Cấp cứu
+                    </button>
+                    <button
+                      onClick={() => { setWorkMode("clinician"); setRoleMenuOpen(false); }}
+                      className="w-full text-left px-4 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-[#0A9BAD]"
+                    >
+                      Khám Lâm sàng
+                    </button>
+                    <button
+                      onClick={() => { setWorkMode("ems"); setRoleMenuOpen(false); }}
+                      className="w-full text-left px-4 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-[#0A9BAD]"
+                    >
+                      Cấp cứu Ngoại viện
+                    </button>
                   </div>
                 )}
               </div>
@@ -346,7 +372,7 @@ function PatientRounds() {
                   <button
                     onClick={() => setActiveView(key)}
                     title={collapsed ? label : undefined}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[15px] font-medium transition-all ${
                       collapsed ? "justify-center" : ""
                     } ${
                       active
@@ -364,22 +390,11 @@ function PatientRounds() {
           </ul>
           <div className={`mt-auto pt-4 border-t border-slate-200 ${collapsed ? "px-3" : "px-4"}`}>
             <ul className="space-y-1">
-              <li key="Trạng thái">
-                <button
-                  title={collapsed ? "Trạng thái" : undefined}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-50 font-geist text-[12px] uppercase tracking-wider ${
-                    collapsed ? "justify-center" : ""
-                  }`}
-                >
-                  <Cpu className="w-4 h-4 flex-shrink-0" />
-                  {!collapsed && "Trạng thái"}
-                </button>
-              </li>
               <li key="Đăng xuất">
                 <button
                   onClick={requestLogout}
                   title={collapsed ? "Đăng xuất" : undefined}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-50 font-geist text-[12px] uppercase tracking-wider ${
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-50 font-geist text-[14px] uppercase tracking-wider ${
                     collapsed ? "justify-center" : ""
                   }`}
                 >
@@ -395,7 +410,7 @@ function PatientRounds() {
       {/* Main */}
       <main
         className={`flex-1 flex min-h-dvh min-w-0 flex-col overflow-hidden bg-white transition-all duration-300 ${
-          isPatientRole ? "" : collapsed ? "md:ml-20" : "md:ml-64"
+          isPatientRole ? "" : collapsed ? "md:ml-24" : "md:ml-80"
         }`}
       >
         {/* Top Nav — staff / clinician */}
@@ -545,10 +560,10 @@ function PatientRounds() {
             {!isPatientRole && (
               <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl md:font-light">
+                  <h2 className="text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl md:font-light">
                     {meta.title}
                   </h2>
-                  <p className="mt-1 text-sm text-slate-500">{meta.subtitle}</p>
+                  <p className="mt-1 text-base text-slate-500">{meta.subtitle}</p>
                 </div>
                 <div className="flex gap-2 md:mt-0">
                   {[
@@ -832,11 +847,11 @@ function AmbientView({
         {/* Header */}
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h3 className="text-lg font-medium text-slate-900 flex items-center gap-2">
+            <h3 className="text-xl font-medium text-slate-900 flex items-center gap-2">
               <Video className="w-5 h-5" style={{ color: ACCENT }} />
               Camera AI Giám sát — {currentTab?.name}
             </h3>
-            <p className="text-[11px] text-slate-500 font-geist mt-0.5">
+            <p className="text-[13px] text-slate-500 font-geist mt-0.5">
               {deptCameras.length} camera · Phân tích hành vi · Phát hiện ngã · Nhận dạng âm thanh
             </p>
           </div>
@@ -870,7 +885,7 @@ function AmbientView({
                     setSelectedDept(tab.id);
                     setOnlyAlerts(false);
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all flex-shrink-0 border"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-bold whitespace-nowrap transition-all flex-shrink-0 border"
                   style={{
                     backgroundColor: isActive ? tab.color : "#F8FAFC",
                     color: isActive ? "#fff" : "#475569",
@@ -878,8 +893,8 @@ function AmbientView({
                     boxShadow: isActive ? `0 2px 8px ${tab.color}50` : undefined,
                   }}
                 >
-                  <span className="text-[12px] font-semibold tracking-wide">{tab.name}</span>
-                  <span className="opacity-70 text-[9px]">({tabCams.length})</span>
+                  <span className="text-[14px] font-semibold tracking-wide">{tab.name}</span>
+                  <span className="opacity-70 text-[11px]">({tabCams.length})</span>
                   {tabAlerts > 0 && (
                     <span className="w-4 h-4 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center">
                       {tabAlerts}
@@ -1422,16 +1437,16 @@ function PrivacyCameraFeed() {
     <div className="bg-white border border-slate-200 rounded-2xl p-5 mt-4 mb-4">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+          <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <ShieldCheck className="w-4 h-4" style={{ color: ACCENT }} />
             Privacy-by-Design · Pose Estimation AI
           </h3>
-          <p className="text-[11px] text-slate-500 font-geist mt-0.5">
+          <p className="text-[13px] text-slate-500 font-geist mt-0.5">
             Không hiển thị hình ảnh thật · Skeleton Overlay + Audio Spectrogram · Sensor Fusion
           </p>
         </div>
         <span
-          className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-lg"
+          className="text-[12px] font-bold uppercase tracking-wider px-2 py-1 rounded-lg"
           style={{
             backgroundColor: isCritical ? "#FEE2E2" : "#F0FDF4",
             color: isCritical ? "#DC2626" : "#16A34A",
@@ -1493,18 +1508,18 @@ function PrivacyCameraFeed() {
             {/* Top-left badge */}
             <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-full px-2.5 py-1">
               <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-[10px] font-mono text-white">Camera 103 – Khoa Nội</span>
+              <span className="text-[12px] font-mono text-white">Camera 103 – Khoa Nội</span>
             </div>
 
             {/* Timestamp */}
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 text-[9px] font-mono text-white/40">
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 text-[11px] font-mono text-white/40">
               {timestamp} · 1080p · 30fps
             </div>
 
             {/* Top-right status */}
             <div className="absolute top-3 right-3 z-20">
               <span
-                className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all duration-500"
+                className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold uppercase tracking-wider transition-all duration-500"
                 style={{
                   backgroundColor: isCritical ? "#DC2626" : "#065F46",
                   color: "white",
@@ -1544,11 +1559,11 @@ function PrivacyCameraFeed() {
                 <div className="absolute inset-0 bg-red-900/10" />
                 {flashText && (
                   <div className="relative mt-10 text-center w-full">
-                    <span className="text-red-400 font-black text-base tracking-[0.2em] drop-shadow-[0_0_16px_rgba(239,68,68,0.9)]">
+                    <span className="text-red-400 font-black text-lg tracking-[0.2em] drop-shadow-[0_0_16px_rgba(239,68,68,0.9)]">
                       PHÁT HIỆN TƯ THẾ NGÃ
                     </span>
                     <br />
-                    <span className="text-[9px] text-red-300/80 font-geist uppercase tracking-wider">
+                    <span className="text-[11px] text-red-300/80 font-geist uppercase tracking-wider">
                       Pose: 97.4% · Audio Spike: 91dB
                     </span>
                   </div>
@@ -1562,7 +1577,7 @@ function PrivacyCameraFeed() {
 
           {/* Sensor fusion bar */}
           <div
-            className={`mt-2 rounded-lg px-3 py-2 flex items-center justify-between text-[10px] font-geist transition-colors duration-500 ${isCritical ? "bg-red-50 border border-red-200" : "bg-slate-50 border border-slate-200"}`}
+            className={`mt-2 rounded-lg px-3 py-2 flex items-center justify-between text-[12px] font-geist transition-colors duration-500 ${isCritical ? "bg-red-50 border border-red-200" : "bg-slate-50 border border-slate-200"}`}
           >
             <div className="flex items-center gap-3">
               <span
@@ -1597,7 +1612,7 @@ function PrivacyCameraFeed() {
                 id="privacy-camera-demo-btn"
                 onClick={triggerFall}
                 disabled={transitioning}
-                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-900 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                className="flex-1 py-2.5 rounded-xl text-base font-bold text-slate-900 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 style={{ background: `linear-gradient(135deg, ${ACCENT} 0%, #5DD3E0 100%)` }}
               >
                 <Siren className="w-4 h-4" />
@@ -1606,7 +1621,7 @@ function PrivacyCameraFeed() {
             ) : (
               <button
                 onClick={resetState}
-                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800"
+                className="flex-1 py-2.5 rounded-xl text-base font-bold text-white hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800"
               >
                 <CheckCircle2 className="w-4 h-4" />
                 Đặt lại — Chế độ riêng tư
@@ -1618,11 +1633,11 @@ function PrivacyCameraFeed() {
         {/* Right panel */}
         <div className="lg:col-span-2 flex flex-col gap-3">
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
+            <p className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5" style={{ color: ACCENT }} />
               Privacy-by-Design · Nguyên lý
             </p>
-            <div className="space-y-2.5 text-[11px]">
+            <div className="space-y-2.5 text-[13px]">
               {[
                 ["Nhận diện khuôn mặt", "TẮT — Không lưu trữ"],
                 ["Video gốc", "Không gửi lên server"],
@@ -1638,7 +1653,7 @@ function PrivacyCameraFeed() {
           </div>
 
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+            <p className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-3">
               Độ tin cậy AI — Thời gian thực
             </p>
             <div className="space-y-3">
@@ -1663,7 +1678,7 @@ function PrivacyCameraFeed() {
                 },
               ].map(({ label, val, color, unit }) => (
                 <div key={label}>
-                  <div className="flex justify-between text-[10px] mb-1">
+                  <div className="flex justify-between text-[12px] mb-1">
                     <span className="text-slate-500">{label}</span>
                     <span className="font-bold font-mono" style={{ color }}>
                       {val}
@@ -1681,10 +1696,10 @@ function PrivacyCameraFeed() {
             </div>
 
             <div className="mt-4 pt-3 border-t border-slate-200">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+              <p className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-2">
                 Nhật ký sự kiện
               </p>
-              <div className="space-y-1.5 text-[10px] font-mono">
+              <div className="space-y-1.5 text-[12px] font-mono">
                 {isCritical ? (
                   <>
                     <div className="flex gap-2 text-red-600">
@@ -6225,7 +6240,7 @@ function VoiceView() {
                   AI Voice NLU · Tiếng Việt
                 </span>
               </div>
-              <p className="mt-2 text-[11px] font-geist uppercase tracking-wider text-slate-500">
+              <p className="mt-2 text-[13px] font-geist uppercase tracking-wider text-slate-500">
                 BS. Văn Ngữ · Phòng 103
               </p>
               
@@ -6233,7 +6248,7 @@ function VoiceView() {
                  <button
                   onClick={startRecording}
                   disabled={isProcessing}
-                  className="mt-3 flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-slate-900 transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed sm:px-6"
+                  className="mt-3 flex items-center gap-2 rounded-full px-5 py-2.5 text-base font-medium text-slate-900 transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed sm:px-6"
                   style={{ backgroundColor: ACCENT }}
                 >
                   <Play className="w-4 h-4" /> Bắt đầu thu
@@ -6241,7 +6256,7 @@ function VoiceView() {
               ) : (
                 <button
                   onClick={stopRecording}
-                  className="mt-3 flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90 animate-pulse sm:px-6"
+                  className="mt-3 flex items-center gap-2 rounded-full px-5 py-2.5 text-base font-medium text-white transition hover:opacity-90 animate-pulse sm:px-6"
                   style={{ backgroundColor: "#ef4444" }}
                 >
                   <StopCircle className="w-4 h-4" /> Dừng & Xử lý
@@ -6250,22 +6265,22 @@ function VoiceView() {
             </div>
             
             {errorMsg && (
-              <div className="mt-2 bg-red-50 text-red-600 p-2 rounded-md text-xs font-medium text-center">
+              <div className="mt-2 bg-red-50 text-red-600 p-2 rounded-md text-sm font-medium text-center">
                 {errorMsg}
               </div>
             )}
 
             <div className="mt-3 border-t border-slate-200 pt-3 flex-1 overflow-auto scrollbar-hide">
-              <p className="text-[10px] font-geist uppercase tracking-wider text-slate-500 mb-1">
+              <p className="text-[12px] font-geist uppercase tracking-wider text-slate-500 mb-1">
                 Phiên âm thô (raw speech)
               </p>
               {isProcessing ? (
                  <div className="flex items-center text-slate-400 space-x-2 mt-4">
                    <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" />
-                   <span className="text-sm">Đang phân tích SOAPE qua AI...</span>
+                   <span className="text-base">Đang phân tích SOAPE qua AI...</span>
                  </div>
               ) : (
-                 <p className="text-sm text-slate-800 italic leading-relaxed whitespace-pre-wrap">
+                 <p className="text-base text-slate-800 italic leading-relaxed whitespace-pre-wrap">
                    {recording ? (liveTranscript || "Đang lắng nghe...") : (transcript || "Chưa có dữ liệu...")}
                  </p>
               )}
@@ -6275,8 +6290,8 @@ function VoiceView() {
           {/* RIGHT: SOAPE Form */}
           <div className="flex min-h-[520px] flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6 lg:h-[620px]">
             <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <h3 className="text-lg font-medium text-slate-900">EMR · Mẫu SOAPE</h3>
-              <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-slate-500 font-geist">
+              <h3 className="text-xl font-medium text-slate-900">EMR · Mẫu SOAPE</h3>
+              <span className="flex items-center gap-1 text-[12px] uppercase tracking-wider text-slate-500 font-geist">
                 <Cpu className="w-3 h-3" style={{ color: ACCENT }} /> AI Parser · Trực tiếp
               </span>
             </div>
@@ -6313,7 +6328,7 @@ function VoiceView() {
               />
             </div>
             <button
-              className="mt-4 rounded-lg py-3 text-sm font-bold text-slate-900 transition hover:opacity-90 disabled:opacity-50 flex items-center justify-center space-x-2"
+              className="mt-4 rounded-lg py-3 text-base font-bold text-slate-900 transition hover:opacity-90 disabled:opacity-50 flex items-center justify-center space-x-2"
               style={{ backgroundColor: ACCENT }}
               disabled={!soapeData || isProcessing}
               onClick={() => setShowSignedEMR(true)}
@@ -6570,13 +6585,13 @@ function EMRField({ label, value, filled, isProcessing }: { label: string; value
       className="border border-slate-200 rounded-lg p-3 transition-colors"
       style={filled ? { borderColor: ACCENT } : undefined}
     >
-      <p className="text-[10px] font-geist uppercase tracking-wider text-slate-500">{label}</p>
+      <p className="text-[12px] font-geist uppercase tracking-wider text-slate-500">{label}</p>
       {isProcessing ? (
         <div className="animate-pulse flex space-x-2 mt-2">
           <div className="h-4 w-3/4 bg-slate-200 rounded"></div>
         </div>
       ) : (
-        <p className={`text-sm mt-1 ${filled ? "text-slate-900 font-medium whitespace-pre-wrap" : "text-slate-300"}`}>
+        <p className={`text-[15px] mt-1 ${filled ? "text-slate-900 font-medium whitespace-pre-wrap" : "text-slate-300"}`}>
           {filled ? value : "— đang chờ —"}
         </p>
       )}
@@ -8428,8 +8443,8 @@ function EmsView() {
           <Mic className="w-4 h-4 text-red-600" />
         </div>
         <div>
-          <h3 className="text-base font-bold text-slate-900">Cảnh báo Trước (Pre-Alert)</h3>
-          <p className="text-[11px] text-slate-500 font-geist">
+          <h3 className="text-lg font-bold text-slate-900">Cảnh báo Trước (Pre-Alert)</h3>
+          <p className="text-[13px] text-slate-500 font-geist">
             Gửi cảnh báo đến phòng cấp cứu bệnh viện
           </p>
         </div>
@@ -8447,16 +8462,16 @@ function EmsView() {
         >
           <Mic className={`w-8 h-8 ${isRecordingPreAlert ? "text-white" : "text-red-600"}`} />
         </button>
-        <p className="mt-4 text-sm font-bold text-slate-700">
+        <p className="mt-4 text-base font-bold text-slate-700">
           {isRecordingPreAlert ? "Đang ghi âm... Chạm để dừng" : "Chạm để ghi âm"}
         </p>
-        <p className="mt-1 text-[11px] text-slate-500 text-center px-4 max-w-xs">
+        <p className="mt-1 text-[13px] text-slate-500 text-center px-4 max-w-xs">
           Ghi âm tình trạng bệnh nhân, chỉ số sinh tồn và gửi trực tiếp về kíp trực cấp cứu.
         </p>
       </div>
 
       <div className="mt-4">
-        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Nội dung cảnh báo</label>
+        <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-1.5">Nội dung cảnh báo</label>
         <textarea
           value={preAlertText}
           onChange={(e) => setPreAlertText(e.target.value)}
@@ -8476,8 +8491,8 @@ function EmsView() {
             <MapPin className="w-4 h-4 text-slate-900" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-900">Định vị GPS · Lộ trình</h3>
-            <p className="text-[11px] text-slate-500 font-geist">
+            <h3 className="text-lg font-bold text-slate-900">Định vị GPS · Lộ trình</h3>
+            <p className="text-[13px] text-slate-500 font-geist">
               Theo dõi thời gian thực · ETA tự động cập nhật
             </p>
           </div>
@@ -8489,13 +8504,13 @@ function EmsView() {
         {/* ETA info */}
         <div className="grid grid-cols-3 gap-3">
           <div className="p-3 rounded-xl bg-[#fff7ed] border border-orange-100/50 text-center">
-            <p className="text-[10px] font-geist uppercase tracking-wider text-orange-400 mb-0.5 font-bold">
+            <p className="text-[12px] font-geist uppercase tracking-wider text-orange-400 mb-0.5 font-bold">
               ETA
             </p>
             <p className="text-xl font-black text-orange-500">{etaMins} phút</p>
           </div>
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-center">
-            <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5 font-bold">
+            <p className="text-[12px] font-geist uppercase tracking-wider text-slate-400 mb-0.5 font-bold">
               Khoảng cách
             </p>
             <p className="text-xl font-black text-slate-900">{distanceKm} km</p>
@@ -8748,7 +8763,10 @@ function EmsView() {
               </div>
             </div>
 
-            <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-between">
+            <a
+              href={`tel:${scannedPatient?.emergency_contact?.phone || scannedPatient?.emergencyContact?.phone || ""}`}
+              className="p-3 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-between hover:bg-blue-100 hover:border-blue-200 transition-colors cursor-pointer"
+            >
               <div>
                 <p className="text-[10px] font-geist uppercase tracking-wider text-blue-400 mb-0.5">
                   Người liên hệ khẩn cấp
@@ -8763,7 +8781,7 @@ function EmsView() {
                 </p>
               </div>
               <Phone className="w-5 h-5 text-blue-500" />
-            </div>
+            </a>
           </div>
         )}
       </div>

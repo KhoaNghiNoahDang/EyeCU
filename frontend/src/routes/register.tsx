@@ -38,10 +38,14 @@ function RegisterPage() {
 
   // Additional inputs
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [bhxhCode, setBhxhCode] = useState("");
   const [emergencyName, setEmergencyName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
+  const [bloodType, setBloodType] = useState("");
+  const [allergies, setAllergies] = useState("");
+  const [chronicConditions, setChronicConditions] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -83,6 +87,10 @@ function RegisterPage() {
       setFormError("Mật khẩu phải từ 6 ký tự trở lên");
       return;
     }
+    if (password !== confirmPassword) {
+      setFormError("Mật khẩu xác nhận không khớp");
+      return;
+    }
     if (phone.replace(/\D/g, "").length < 9) {
       setFormError("Số điện thoại không hợp lệ");
       return;
@@ -97,7 +105,10 @@ function RegisterPage() {
         bhxh_code: bhxhCode,
         emergency_contact_name: emergencyName,
         emergency_contact_phone: emergencyPhone,
-        face_base64: faceUrl
+        face_base64: faceUrl,
+        blood_type: bloodType,
+        allergies: allergies,
+        chronic_conditions: chronicConditions
       };
 
       const res = await fetchApi("/auth/register/patient/ekyc/finalize", {
@@ -313,12 +324,28 @@ function RegisterPage() {
                     <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Tạo mật khẩu đăng nhập" className="w-full rounded-xl border-2 border-slate-100 px-3 py-2.5 text-sm outline-none focus:border-[#0A9BAD]" />
                   </div>
                   <div>
+                    <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">XÁC NHẬN LẠI MẬT KHẨU *</label>
+                    <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Nhập lại mật khẩu" className="w-full rounded-xl border-2 border-slate-100 px-3 py-2.5 text-sm outline-none focus:border-[#0A9BAD]" />
+                  </div>
+                  <div>
                     <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">SỐ ĐIỆN THOẠI *</label>
                     <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Số điện thoại liên hệ" className="w-full rounded-xl border-2 border-slate-100 px-3 py-2.5 text-sm outline-none focus:border-[#0A9BAD]" />
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">MÃ BHYT / BHXH</label>
                     <input type="text" value={bhxhCode} onChange={(e) => setBhxhCode(e.target.value)} placeholder="Nhập mã Bảo hiểm y tế" className="w-full rounded-xl border-2 border-slate-100 px-3 py-2.5 text-sm outline-none focus:border-[#0A9BAD]" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">NHÓM MÁU</label>
+                    <input type="text" value={bloodType} onChange={(e) => setBloodType(e.target.value)} placeholder="VD: O+, A-, AB" className="w-full rounded-xl border-2 border-slate-100 px-3 py-2.5 text-sm outline-none focus:border-[#0A9BAD]" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">DỊ ỨNG</label>
+                    <input type="text" value={allergies} onChange={(e) => setAllergies(e.target.value)} placeholder="VD: Kháng sinh, Hải sản" className="w-full rounded-xl border-2 border-slate-100 px-3 py-2.5 text-sm outline-none focus:border-[#0A9BAD]" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">BỆNH NỀN</label>
+                    <input type="text" value={chronicConditions} onChange={(e) => setChronicConditions(e.target.value)} placeholder="VD: Huyết áp cao, Tiểu đường" className="w-full rounded-xl border-2 border-slate-100 px-3 py-2.5 text-sm outline-none focus:border-[#0A9BAD]" />
                   </div>
                   <div className="pt-2">
                     <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">NGƯỜI LH KHẨN CẤP</label>

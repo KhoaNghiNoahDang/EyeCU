@@ -42,6 +42,9 @@ class Patient(SQLModel, table=True):
     issue_place: Optional[str] = Field(default=None)
     valid_until: Optional[str] = Field(default=None, max_length=20)
     characteristics: Optional[str] = Field(default=None)
+    blood_type: Optional[str] = Field(default=None, max_length=10)
+    allergies: Optional[str] = Field(default=None)
+    chronic_conditions: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     @property
