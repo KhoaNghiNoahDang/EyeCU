@@ -114,7 +114,8 @@ async def smartbot_webhook_ds_bacsi(request: Request, db: Session = Depends(get_
             # Nếu không tìm thấy, lấy ngẫu nhiên 1 khoa có bác sĩ
             dept = db.query(Department).first()
 
-        doctors = db.query(Staff).filter(Staff.department_id == dept.id, Staff.role == "clinician").all()
+        # Chỉ lấy tối đa 10 bác sĩ để tránh lỗi tràn Carousel của VNPT SmartBot
+        doctors = db.query(Staff).filter(Staff.department_id == dept.id, Staff.role == "clinician").limit(10).all()
         
         if not doctors:
             return JSONResponse(content={
