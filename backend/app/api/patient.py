@@ -210,10 +210,10 @@ async def patient_chatbot(
     final_message = context + "Câu hỏi của tôi: " + data.message if context else data.message
     # Gắn thẻ metadata định danh bệnh nhân (CCCD) để bot nhận biết và gọi API Đặt lịch
     metadata = {
-        "button_variables": {
-            "patient_id": user.cccd,
-            "patient_name": user.name
-        }
+        "button_variables": [
+            {"key": "patient_id", "value": user.cccd},
+            {"key": "patient_name", "value": user.name}
+        ]
     }
     bot_response = await vnpt_client.call_smartbot_conversation(final_message, session_id=f"patient_{user.id}", metadata=metadata)
 
