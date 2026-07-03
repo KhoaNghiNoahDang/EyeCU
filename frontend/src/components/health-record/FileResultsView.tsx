@@ -5,6 +5,10 @@ export const FileResultsView = () => {
   const sampleFiles = [
     { title: "Kết quả Xét nghiệm sinh hóa 01", url: "/mau_xet_nghiem_1.pdf", date: "Hôm nay" },
     { title: "Kết quả Xét nghiệm sinh hóa 02", url: "/mau_xet_nghiem_2.pdf", date: "Hôm qua" },
+    { title: "Kết quả CĐHA chung 01", url: "/chan_doan_1.pdf", date: "Hôm nay" },
+    { title: "Kết quả CĐHA chung 02", url: "/chan_doan_2.pdf", date: "Hôm qua" },
+    { title: "Kết quả CĐHA chung 03", url: "/chan_doan_3.pdf", date: "Hôm qua" },
+    { title: "Đơn thuốc", url: "/don_thuoc.pdf", date: "Hôm nay" },
   ];
 
   return (
