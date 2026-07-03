@@ -668,3 +668,65 @@ def sign_consent_form(req: ConsentSign, user = Depends(get_current_user), db: Se
     form.signed_at = datetime.datetime.utcnow()
     db.commit()
     return {"status": "success"}
+
+@router.get("/notifications")
+def get_notifications(user = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import Notification
+    nots = db.query(Notification).filter(Notification.patient_id == user.id).order_by(Notification.created_at.desc()).all()
+    result = [{
+        "id": str(n.id),
+        "title": n.title,
+        "content": n.content,
+        "type": n.type,
+        "is_read": n.is_read,
+        "created_at": n.created_at.isoformat()
+    } for n in nots]
+    return {"notifications": result}
+
+@router.get("/follow-ups")
+def get_follow_ups(user = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import FollowUp
+    fups = db.query(FollowUp).filter(FollowUp.patient_id == user.id).order_by(FollowUp.created_at.desc()).all()
+    result = [{
+        "id": str(f.id),
+        "date": f.date,
+        "time": f.time,
+        "department": f.department,
+        "note": f.note,
+        "status": f.status,
+        "created_at": f.created_at.isoformat()
+    } for f in fups]
+    return {"follow_ups": result}
+
+class FollowUpBookRequest(BaseModel):
+    pass # Empty request for now, can add options later
+
+@router.post("/follow-ups/{f_id}/book")
+def book_follow_up(f_id: str, req: FollowUpBookRequest, user = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import FollowUp, Appointment, Department
+    import uuid
+    fup = db.query(FollowUp).filter(FollowUp.id == f_id, FollowUp.patient_id == user.id).first()
+    if not fup:
+        return {"error": "Not found"}
+    if fup.status == "booked":
+        return {"error": "Already booked"}
+    
+    # Create Appointment
+    dept = db.query(Department).filter(Department.name == fup.department).first()
+    dept_id = dept.id if dept else None
+
+    app_obj = Appointment(
+        patient_id=user.id,
+        department_id=dept_id,
+        booking_date=fup.date,
+        booking_time=fup.time,
+        reason=f"Tái khám: {fup.note or ''}",
+        status="pending"
+    )
+    db.add(app_obj)
+    
+    # Update FollowUp status
+    fup.status = "booked"
+    db.commit()
+
+    return {"status": "success", "appointment_id": str(app_obj.id)}

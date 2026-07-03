@@ -196,6 +196,7 @@ class FollowUp(SQLModel, table=True):
     time: str = Field(max_length=50)
     department: str = Field(max_length=100)
     note: Optional[str] = None
+    status: str = Field(default="pending", max_length=20)  # pending, booked
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -272,10 +273,22 @@ class Appointment(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     patient_id: uuid.UUID = Field(foreign_key="patients.id")
     department_id: Optional[uuid.UUID] = Field(default=None, foreign_key="departments.id")
+    doctor_id: Optional[uuid.UUID] = Field(default=None, foreign_key="staffs.id")
     booking_date: str = Field(max_length=20)
     booking_time: str = Field(max_length=20)
     reason: Optional[str] = None
     status: str = Field(default="pending", max_length=20)  # pending, confirmed, cancelled
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Notification(SQLModel, table=True):
+    __tablename__ = "notifications"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    patient_id: Optional[uuid.UUID] = Field(default=None, foreign_key="patients.id")
+    staff_id: Optional[uuid.UUID] = Field(default=None, foreign_key="staffs.id")
+    title: str = Field(max_length=200)
+    content: str
+    type: str = Field(max_length=50) # 'appointment_reminder', 'system', 'result'
+    is_read: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class CommunityQuestion(SQLModel, table=True):

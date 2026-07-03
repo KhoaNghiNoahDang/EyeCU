@@ -80,6 +80,8 @@ export function PatientPortalNew({
       fetchApi("/patient/questions").then((data) => setQuestions(data.questions || [])).catch(console.error);
       fetchApi("/patient/appointments").then((data) => setAppointments(data.appointments || [])).catch(console.error);
       fetchApi("/patient/consent-forms").then((data) => setConsentForms(data.forms || [])).catch(console.error);
+      fetchApi("/patient/notifications").then((data) => setNotifications(data.notifications || [])).catch(console.error);
+      fetchApi("/patient/follow-ups").then((data) => setFollowUps(data.follow_ups || [])).catch(console.error);
     }
   }, [user]);
 
@@ -323,13 +325,8 @@ export function PatientPortalNew({
   const [aptTab, setAptTab] = useState<"upcoming" | "history">("upcoming");
   
   // Notification logic
-  const [notifications, setNotifications] = useState([
-    { id: 1, dateStr: "Ngày 14/06/2026", timeStr: "2026-06-14 00:00:00.0", daysAgo: "18 ngày trước" },
-    { id: 2, dateStr: "Ngày 14/06/2026", timeStr: "2026-06-14 00:00:00.0", daysAgo: "18 ngày trước" },
-    { id: 3, dateStr: "Ngày 14/06/2026", timeStr: "2026-06-14 00:00:00.0", daysAgo: "18 ngày trước" },
-    { id: 4, dateStr: "Ngày 13/06/2026", timeStr: "2026-06-14 00:00:00.0", daysAgo: "19 ngày trước" },
-    { id: 5, dateStr: "Ngày 13/06/2026", timeStr: "2026-06-14 00:00:00.0", daysAgo: "19 ngày trước" },
-  ]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [followUps, setFollowUps] = useState<any[]>([]);
 
   // Profile logic
   const [faceIdEnabled, setFaceIdEnabled] = useState(false);
@@ -1503,21 +1500,50 @@ export function PatientPortalNew({
             )}
           </div>
         ) : (
-          <div className="bg-white rounded-xl p-0 flex flex-row overflow-hidden border border-slate-200 shadow-sm">
-             <div className="w-24 bg-white flex flex-col items-center justify-center border-r border-slate-100 py-4 gap-1">
-                <span className="text-[36px] font-medium text-[#8bb4c8] leading-none">14</span>
-                <span className="text-[12px] font-bold text-slate-800">06/2026</span>
-                <span className="text-[10px] text-red-500 text-center px-1 leading-tight mt-1">Lịch hẹn tái khám</span>
-             </div>
-             <div className="flex-1 p-3 flex flex-col gap-1">
-                <span className="font-bold text-[14px] text-slate-800 uppercase">{user?.name || "BỆNH NHÂN"}</span>
-                <span className="text-[13px] text-slate-600">Cơ sở Tứ Hiệp</span>
-                <span className="text-[11px] text-slate-400 mt-1">Khám bệnh theo yêu cầu</span>
-                <div className="flex gap-2 mt-2">
-                   <button onClick={() => alert('Đang tải hồ sơ...')} className="flex-1 py-1.5 border border-slate-300 rounded-md text-[11px] font-medium text-slate-600 active:bg-slate-50">Xem hồ sơ sức khỏe</button>
-                   <button onClick={() => alert('Đặt lịch tái khám...')} className="flex-1 py-1.5 bg-[#88E8F2] text-slate-900 font-bold rounded-md text-[11px] active:bg-[#68c6cf]">Đặt lịch tái khám</button>
-                </div>
-             </div>
+          <div className="flex flex-col gap-4">
+            {followUps.length === 0 ? (
+              <div className="text-center text-slate-500 py-10 bg-white rounded-xl border border-slate-200">Chưa có lịch tái khám nào.</div>
+            ) : (
+              followUps.map((fup, i) => {
+                const dateObj = new Date(fup.date);
+                const day = dateObj.getDate().toString().padStart(2, '0');
+                const monthYear = `${(dateObj.getMonth() + 1).toString().padStart(2, '0')}/${dateObj.getFullYear()}`;
+                
+                return (
+                  <div key={i} className="bg-white rounded-xl p-0 flex flex-row overflow-hidden border border-slate-200 shadow-sm">
+                     <div className="w-24 bg-white flex flex-col items-center justify-center border-r border-slate-100 py-4 gap-1">
+                        <span className="text-[36px] font-medium text-[#8bb4c8] leading-none">{day}</span>
+                        <span className="text-[12px] font-bold text-slate-800">{monthYear}</span>
+                        <span className="text-[10px] text-red-500 text-center px-1 leading-tight mt-1">Lịch hẹn tái khám</span>
+                     </div>
+                     <div className="flex-1 p-3 flex flex-col gap-1">
+                        <span className="font-bold text-[14px] text-slate-800 uppercase">{user?.name || "BỆNH NHÂN"}</span>
+                        <span className="text-[13px] text-slate-600">Khoa: {fup.department}</span>
+                        <span className="text-[11px] text-slate-400 mt-1">Ghi chú: {fup.note || "Không có"}</span>
+                        <div className="flex gap-2 mt-2">
+                           {fup.status === "booked" ? (
+                             <span className="w-full text-center py-1.5 bg-green-50 text-green-600 font-bold rounded-md text-[11px]">Đã xác nhận đặt lịch</span>
+                           ) : (
+                             <button 
+                               onClick={() => {
+                                 fetchApi(`/patient/follow-ups/${fup.id}/book`, { method: "POST", body: JSON.stringify({}) })
+                                   .then(() => {
+                                     setFollowUps(prev => prev.map(f => f.id === fup.id ? { ...f, status: "booked" } : f));
+                                     alert("Đặt lịch thành công!");
+                                   })
+                                   .catch(err => alert("Lỗi khi đặt lịch: " + err.message));
+                               }} 
+                               className="flex-1 py-1.5 bg-[#88E8F2] text-slate-900 font-bold rounded-md text-[11px] active:bg-[#68c6cf]"
+                             >
+                               Đặt lịch tái khám
+                             </button>
+                           )}
+                        </div>
+                     </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         )}
       </div>
@@ -1527,8 +1553,10 @@ export function PatientPortalNew({
   // Notification Tab Logic
   const renderNotificationTab = () => {
     const groupedNotifications = notifications.reduce((acc, curr) => {
-      if (!acc[curr.dateStr]) acc[curr.dateStr] = [];
-      acc[curr.dateStr].push(curr);
+      const d = new Date(curr.created_at);
+      const dateStr = `Ngày ${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+      if (!acc[dateStr]) acc[dateStr] = [];
+      acc[dateStr].push(curr);
       return acc;
     }, {} as Record<string, typeof notifications>);
 
@@ -1553,19 +1581,25 @@ export function PatientPortalNew({
                 <div className="px-4 py-2 mt-2">
                   <span className="text-[14px] font-bold text-slate-800">{dateStr}</span>
                 </div>
-                {items.map((item) => (
-                  <div key={item.id} className="flex gap-3 p-4 border-b border-slate-100 bg-[#f0faeb]/40 active:bg-slate-50 transition-colors">
-                    <div className="w-12 h-12 rounded-full border border-slate-200 overflow-hidden shrink-0">
-                        <img src="/logo.png" alt="logo" className="w-full h-full object-cover" />
+                {items.map((item) => {
+                  const d = new Date(item.created_at);
+                  const daysAgo = Math.floor((new Date().getTime() - d.getTime()) / (1000 * 3600 * 24));
+                  return (
+                    <div key={item.id} className={`flex gap-3 p-4 border-b border-slate-100 ${item.is_read ? "bg-white" : "bg-[#f0faeb]/40"} active:bg-slate-50 transition-colors`}>
+                      <div className="w-12 h-12 rounded-full border border-slate-200 overflow-hidden shrink-0">
+                          <img src="/logo.png" alt="logo" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1 flex flex-col">
+                          <span className="text-[14px] text-slate-800 font-medium leading-snug">
+                            {item.content}
+                          </span>
+                          <span className="text-[12px] text-slate-400 mt-2">
+                            {daysAgo === 0 ? "Hôm nay" : `${daysAgo} ngày trước`}
+                          </span>
+                      </div>
                     </div>
-                    <div className="flex-1 flex flex-col">
-                        <span className="text-[14px] text-slate-800 font-medium leading-snug">
-                          Lịch hẹn tái khám của <span className="uppercase font-bold">{user?.name || "BỆNH NHÂN"}</span> tại Cơ sở Tứ Hiệp sẽ diễn ra vào lúc {item.timeStr} . Nhấn vào để đặt khám!
-                        </span>
-                        <span className="text-[12px] text-slate-400 mt-2">{item.daysAgo}</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ))
           )}
