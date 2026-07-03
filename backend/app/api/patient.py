@@ -166,7 +166,9 @@ async def patient_chatbot(
     recent_doc = db.query(SmartReaderDoc).filter(SmartReaderDoc.patient_id == user.id).order_by(SmartReaderDoc.uploaded_at.desc()).first()
     
     context = ""
-    if data.message.strip().lower() not in ["xin chào", "xin chao", "hello", "hi", "chào", "bắt đầu"]:
+    is_payload = data.message.strip().startswith("{") and data.message.strip().endswith("}")
+    
+    if not is_payload and data.message.strip().lower() not in ["xin chào", "xin chao", "hello", "hi", "chào", "bắt đầu"]:
         if recent_doc and recent_doc.extracted_data:
             import json
             context_str = json.dumps(recent_doc.extracted_data, ensure_ascii=False)
