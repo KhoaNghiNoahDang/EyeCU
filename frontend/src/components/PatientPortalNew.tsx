@@ -1005,16 +1005,15 @@ export function PatientPortalNew({
         </div>
       </div>
 
-      <div className="px-4 py-3 bg-white border-t border-slate-200 flex items-center justify-between pb-6 sm:pb-3 shrink-0">
-        <button className="flex items-center gap-2 px-2 py-2 text-[14px] font-bold text-slate-800 active:scale-95 transition-transform">
-          <div className="h-6 w-6 rounded bg-slate-100 flex items-center justify-center border border-slate-300"><FileText className="h-3 w-3 text-slate-500" /></div>
-          Thêm ảnh liên quan
+      <div className="px-4 py-3 bg-white border-t border-slate-200 flex items-center justify-between mb-[68px] pb-safe shrink-0 shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
+        <button className="flex items-center gap-2 px-2 py-2 text-[14px] font-bold text-slate-500 active:scale-95 transition-transform">
+          <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200"><FileText className="h-5 w-5 text-slate-500" /></div>
         </button>
         <button 
           onClick={handleAskSubmit}
           disabled={submittingQuestion}
-          className="flex items-center gap-2 rounded-full bg-[#7CA8D9] px-6 py-2.5 text-[15px] font-bold text-white shadow-sm active:scale-95 transition-transform disabled:opacity-50">
-          {submittingQuestion ? "Đang gửi..." : "Gửi"} <Send className="h-4 w-4" />
+          className="flex-1 ml-3 flex items-center justify-center gap-2 rounded-full bg-[#88E8F2] px-6 py-3 text-[16px] font-bold text-[#0d1f2d] shadow-md active:scale-95 transition-transform disabled:opacity-50">
+          {submittingQuestion ? "Đang gửi..." : "Gửi câu hỏi"} <Send className="h-5 w-5" />
         </button>
       </div>
 
