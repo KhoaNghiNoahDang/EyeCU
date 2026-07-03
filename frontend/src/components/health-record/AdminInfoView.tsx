@@ -7,7 +7,7 @@ interface Props {
 }
 
 export function AdminInfoView({ onBack, data }: Props) {
-  const p = data;
+  const p = data || {};
 
   return (
     <div className="p-4 space-y-4 bg-white">
