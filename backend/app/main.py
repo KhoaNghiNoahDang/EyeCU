@@ -8,6 +8,26 @@ from app.api.ambulance import background_db_updater
 
 SQLModel.metadata.create_all(bind=engine)
 
+# ── Startup Migration: thêm cột mới nếu chưa tồn tại ──────────────
+def _run_migrations():
+    """Tự động thêm cột mới vào bảng hiện có khi upgrade."""
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        # Thêm doctor_name vào community_questions
+        try:
+            conn.execute(text("ALTER TABLE community_questions ADD COLUMN doctor_name TEXT"))
+            conn.commit()
+        except Exception:
+            pass  # Cột đã tồn tại
+        # Thêm doctor_id vào community_questions
+        try:
+            conn.execute(text("ALTER TABLE community_questions ADD COLUMN doctor_id TEXT"))
+            conn.commit()
+        except Exception:
+            pass  # Cột đã tồn tại
+
+_run_migrations()
+
 app = FastAPI(title="EyeCU Ambient Clinical OS", version="1.0.0")
 
 

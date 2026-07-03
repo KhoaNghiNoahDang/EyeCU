@@ -119,6 +119,11 @@ import {
   Users,
   Camera,
   Trash2,
+  MessageSquare,
+  CheckCircle,
+  XCircle,
+  BarChart2,
+  RefreshCw,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -145,7 +150,8 @@ type ViewKey =
   | "chatbot"
   | "patient"
   | "ems"
-  | "admin_dashboard";
+  | "admin_dashboard"
+  | "doctor_qa";
 
 const navItems: { key: ViewKey; Icon: typeof Eye; label: string }[] = [
   { key: "ambient", Icon: Eye, label: "Giám sát Không gian" },
@@ -156,6 +162,7 @@ const navItems: { key: ViewKey; Icon: typeof Eye; label: string }[] = [
   { key: "chatbot", Icon: Bot, label: "Trợ lý AI Bệnh nhân" },
   { key: "ems" as ViewKey, Icon: Siren, label: "Cấp cứu Ngoại viện" },
   { key: "admin_dashboard" as ViewKey, Icon: Settings, label: "Quản trị Hệ thống" },
+  { key: "doctor_qa" as ViewKey, Icon: MessageSquare, label: "Hỏi Đáp Cộng Đồng" },
 ];
 
 const roleConfig: Record<WorkMode, { label: string; views: ViewKey[]; defaultView: ViewKey }> = {
@@ -171,7 +178,7 @@ const roleConfig: Record<WorkMode, { label: string; views: ViewKey[]; defaultVie
   },
   clinician: {
     label: "Khám Lâm sàng",
-    views: ["voice"],
+    views: ["voice", "doctor_qa"] as ViewKey[],
     defaultView: "voice",
   },
   patient: {
@@ -199,6 +206,7 @@ const viewTitles: Record<ViewKey, { title: string; subtitle: string }> = {
   patient: { title: "Cổng thông tin Bệnh nhân", subtitle: "Mobile Portal · EyeCU" },
   ems: { title: "Cấp cứu Ngoại viện", subtitle: "Quét BN · Định vị GPS · Liên lạc Kíp trực" },
   admin_dashboard: { title: "Quản trị Hệ thống", subtitle: "Tổng quan · Nhân sự · Thiết bị · API" },
+  doctor_qa: { title: "Hỏi Đáp Cộng Đồng", subtitle: "Giải đáp thắc mắc bệnh nhân · Chuyên khoa" },
 };
 
 type BeforeInstallPromptEvent = Event & {
@@ -585,6 +593,7 @@ function PatientRounds() {
             )}
             {activeView === "ems" && <EmsView />}
             {activeView === "admin_dashboard" && <AdminDashboardView />}
+            {activeView === "doctor_qa" && <DoctorQAView />}
           </div>
         </div>
       </main>
@@ -10257,13 +10266,468 @@ function AdminWebAuthnTab() {
                 <td className="px-4 py-3 font-mono text-[13px] text-slate-700">{c.sign_count}</td>
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-500">{c.created_at}</td>
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-500">{c.last_used_at}</td>
-              
                 <td className="px-4 py-3 text-right"><button onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }} className="text-slate-400 hover:text-red-600 transition-colors" title="Xóa"><Trash2 className="w-4 h-4" /></button></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   DoctorQAView — Không gian Hỏi Đáp Cộng Đồng cho Bác sĩ
+   Cho phép bác sĩ xem, lọc, tìm kiếm và trả lời câu hỏi bệnh nhân
+   ═══════════════════════════════════════════════════════════════════ */
+interface QAQuestion {
+  id: string;
+  department: string;
+  question: string;
+  answer: string | null;
+  status: "unanswered" | "answered";
+  doctor_name: string | null;
+  doctor_id: string | null;
+  created_at: string;
+  answered_at: string | null;
+}
+
+const DEPARTMENTS_QA = [
+  "Tất cả",
+  "Mắt",
+  "Tim mạch",
+  "Thần kinh",
+  "Nội tiết",
+  "Tiêu hóa",
+  "Hô hấp",
+  "Cơ xương khớp",
+  "Da liễu",
+  "Tai mũi họng",
+  "Sản phụ khoa",
+  "Nhi khoa",
+  "Ung thư",
+  "Tâm thần",
+  "Khác",
+];
+
+function DoctorQAView() {
+  const [questions, setQuestions] = useState<QAQuestion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<"all" | "unanswered" | "answered">("all");
+  const [filterDept, setFilterDept] = useState("Tất cả");
+  const [searchText, setSearchText] = useState("");
+  const [selectedQuestion, setSelectedQuestion] = useState<QAQuestion | null>(null);
+  const [answerText, setAnswerText] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  const fetchQuestions = async (showRefresh = false) => {
+    if (showRefresh) setRefreshing(true);
+    else setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (filterDept !== "Tất cả") params.append("department", filterDept);
+      if (filterStatus !== "all") params.append("status", filterStatus);
+      const data = await fetchApi(`/patient/questions/all?${params.toString()}`);
+      setQuestions(data.questions || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchQuestions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterStatus, filterDept]);
+
+  // Filtered by search text on the client side
+  const displayedQuestions = questions.filter((q) => {
+    if (!searchText.trim()) return true;
+    const lower = searchText.toLowerCase();
+    return (
+      q.question.toLowerCase().includes(lower) ||
+      q.department.toLowerCase().includes(lower) ||
+      (q.answer || "").toLowerCase().includes(lower)
+    );
+  });
+
+  const unansweredCount = questions.filter((q) => q.status === "unanswered").length;
+  const answeredCount = questions.filter((q) => q.status === "answered").length;
+
+  const handleOpenAnswer = (q: QAQuestion) => {
+    setSelectedQuestion(q);
+    setAnswerText(q.answer || "");
+    setSubmitError("");
+    setSubmitSuccess(false);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedQuestion(null);
+    setAnswerText("");
+    setSubmitError("");
+    setSubmitSuccess(false);
+  };
+
+  const handleSubmitAnswer = async () => {
+    if (!selectedQuestion) return;
+    if (answerText.trim().length < 10) {
+      setSubmitError("Câu trả lời phải có ít nhất 10 ký tự.");
+      return;
+    }
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      await fetchApi(`/patient/questions/${selectedQuestion.id}/answer`, {
+        method: "PATCH",
+        body: JSON.stringify({ answer: answerText.trim() }),
+      });
+      setSubmitSuccess(true);
+      // Update local state ngay lập tức
+      setQuestions((prev) =>
+        prev.map((q) =>
+          q.id === selectedQuestion.id
+            ? {
+                ...q,
+                answer: answerText.trim(),
+                status: "answered",
+                answered_at: new Date().toISOString(),
+                doctor_name: "Bác sĩ",  // sẽ được cập nhật từ WS broadcast
+              }
+            : q
+        )
+      );
+      setTimeout(() => handleCloseModal(), 1200);
+    } catch (e: any) {
+      setSubmitError(e.message || "Có lỗi xảy ra. Vui lòng thử lại.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+  const formatTime = (iso: string) =>
+    new Date(iso).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+
+  return (
+    <div className="space-y-6">
+      {/* ── Stats Row ── */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#88E8F2] to-[#4dd8e8] p-5 shadow-md">
+          <div className="relative z-10">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#0d4a56] opacity-80">
+              Tổng câu hỏi
+            </p>
+            <p className="mt-1 text-4xl font-bold text-[#0d1f2d]">{questions.length}</p>
+          </div>
+          <BarChart2 className="absolute right-4 bottom-3 h-14 w-14 text-[#0d1f2d] opacity-10" />
+        </div>
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-400 to-orange-500 p-5 shadow-md">
+          <div className="relative z-10">
+            <p className="text-xs font-semibold uppercase tracking-widest text-orange-100 opacity-90">
+              Chờ trả lời
+            </p>
+            <p className="mt-1 text-4xl font-bold text-white">{unansweredCount}</p>
+          </div>
+          <MessageSquare className="absolute right-4 bottom-3 h-14 w-14 text-white opacity-10" />
+        </div>
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-500 p-5 shadow-md">
+          <div className="relative z-10">
+            <p className="text-xs font-semibold uppercase tracking-widest text-emerald-100 opacity-90">
+              Đã trả lời
+            </p>
+            <p className="mt-1 text-4xl font-bold text-white">{answeredCount}</p>
+          </div>
+          <CheckCircle className="absolute right-4 bottom-3 h-14 w-14 text-white opacity-10" />
+        </div>
+      </div>
+
+      {/* ── Filter + Search Bar ── */}
+      <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-4">
+        {/* Status Tabs */}
+        <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
+          {(["all", "unanswered", "answered"] as const).map((s) => {
+            const labels = { all: "Tất cả", unanswered: "Chờ trả lời", answered: "Đã trả lời" };
+            const active = filterStatus === s;
+            return (
+              <button
+                key={s}
+                onClick={() => setFilterStatus(s)}
+                className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-all duration-200 ${
+                  active
+                    ? "bg-white text-[#0d1f2d] shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {labels[s]}
+                {s === "unanswered" && unansweredCount > 0 && (
+                  <span className={`ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold ${active ? "bg-orange-500 text-white" : "bg-orange-100 text-orange-600"}`}>
+                    {unansweredCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Search + Dept + Refresh */}
+        <div className="flex gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Tìm kiếm câu hỏi, nội dung..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-4 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#88E8F2] focus:ring-2 focus:ring-[#88E8F2]/20 transition"
+            />
+          </div>
+          <select
+            value={filterDept}
+            onChange={(e) => setFilterDept(e.target.value)}
+            className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 outline-none focus:border-[#88E8F2] focus:ring-2 focus:ring-[#88E8F2]/20 transition cursor-pointer"
+          >
+            {DEPARTMENTS_QA.map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => fetchQuestions(true)}
+            disabled={refreshing}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 hover:border-[#88E8F2] hover:text-[#0d1f2d] transition-all"
+            title="Làm mới"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* ── Question List ── */}
+      <div className="space-y-3">
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-32 animate-pulse rounded-2xl bg-slate-100" />
+            ))}
+          </div>
+        ) : displayedQuestions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center">
+            <MessageSquare className="mb-3 h-12 w-12 text-slate-300" />
+            <p className="font-semibold text-slate-500">Không có câu hỏi nào</p>
+            <p className="mt-1 text-sm text-slate-400">
+              {searchText ? "Thử thay đổi từ khóa tìm kiếm" : "Bệnh nhân chưa đặt câu hỏi nào"}
+            </p>
+          </div>
+        ) : (
+          displayedQuestions.map((q) => (
+            <div
+              key={q.id}
+              className="group relative overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all duration-200 hover:border-[#88E8F2]/60 hover:shadow-md"
+            >
+              {/* Left accent bar */}
+              <div
+                className={`absolute left-0 top-0 h-full w-1 rounded-l-2xl transition-all ${
+                  q.status === "answered" ? "bg-emerald-400" : "bg-orange-400"
+                }`}
+              />
+
+              <div className="pl-5 pr-5 py-4">
+                {/* Header row */}
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="inline-flex items-center gap-1 rounded-lg bg-[#e8f9fb] px-2.5 py-1 text-[12px] font-semibold text-[#0d6b7a]">
+                      <Stethoscope className="h-3.5 w-3.5" />
+                      {q.department}
+                    </span>
+                    {q.status === "answered" ? (
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-600">
+                        <CheckCircle className="h-3 w-3" /> Đã trả lời
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-orange-50 px-2.5 py-1 text-[11px] font-semibold text-orange-500">
+                        <Clock className="h-3 w-3" /> Chờ trả lời
+                      </span>
+                    )}
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-[11px] text-slate-400">{formatDate(q.created_at)}</p>
+                    <p className="text-[11px] text-slate-400">{formatTime(q.created_at)}</p>
+                  </div>
+                </div>
+
+                {/* Sender */}
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100">
+                    <User className="h-4 w-4 text-slate-400" />
+                  </div>
+                  <p className="text-[12px] font-medium text-slate-500">Bệnh nhân ẩn danh</p>
+                </div>
+
+                {/* Question text */}
+                <p className="text-[14px] text-slate-800 leading-relaxed mb-3">{q.question}</p>
+
+                {/* Answer (if exists) */}
+                {q.answer ? (
+                  <div className="flex gap-3 rounded-xl bg-emerald-50 border border-emerald-100 p-3 mb-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-white">
+                      <Stethoscope className="h-4 w-4 text-emerald-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[11px] font-semibold text-emerald-600 mb-0.5">
+                        {q.doctor_name ? `BS. ${q.doctor_name} trả lời` : "Câu trả lời của bác sĩ"}
+                      </p>
+                      <p className="text-[13px] text-slate-700 leading-relaxed">{q.answer}</p>
+                      {q.answered_at && (
+                        <p className="mt-1 text-[10px] text-slate-400">
+                          {formatDate(q.answered_at)} · {formatTime(q.answered_at)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Action button */}
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => handleOpenAnswer(q)}
+                    className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-[13px] font-semibold transition-all duration-200 active:scale-95 ${
+                      q.status === "answered"
+                        ? "border border-slate-200 text-slate-600 hover:border-[#88E8F2] hover:bg-[#f0fdfe] hover:text-[#0d1f2d]"
+                        : "bg-[#0d1f2d] text-white hover:bg-[#1a3548] shadow-sm"
+                    }`}
+                  >
+                    {q.status === "answered" ? (
+                      <>
+                        <CheckCircle className="h-4 w-4" />
+                        Chỉnh sửa câu trả lời
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4" />
+                        Trả lời ngay
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* ── Answer Modal ── */}
+      {selectedQuestion && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={handleCloseModal}
+          />
+
+          {/* Modal panel */}
+          <div className="relative z-10 w-full max-w-2xl rounded-t-3xl sm:rounded-3xl bg-white shadow-2xl overflow-hidden">
+            {/* Modal header */}
+            <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-[#0d1f2d] to-[#1a3548] px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#88E8F2]/20">
+                  <MessageSquare className="h-5 w-5 text-[#88E8F2]" />
+                </div>
+                <div>
+                  <p className="font-bold text-white text-[15px]">Trả lời câu hỏi</p>
+                  <p className="text-[11px] text-[#88E8F2]/70">Khoa {selectedQuestion.department}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleCloseModal}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-white/60 hover:bg-white/10 hover:text-white transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
+              {/* Original question */}
+              <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-200">
+                    <User className="h-4 w-4 text-slate-500" />
+                  </div>
+                  <p className="text-[12px] font-semibold text-slate-500">Bệnh nhân ẩn danh</p>
+                  <span className="ml-auto text-[11px] text-slate-400">{formatDate(selectedQuestion.created_at)}</span>
+                </div>
+                <p className="text-[14px] text-slate-800 leading-relaxed">{selectedQuestion.question}</p>
+              </div>
+
+              {/* Answer input */}
+              <div>
+                <label className="mb-2 block text-[13px] font-semibold text-slate-700">
+                  Câu trả lời của bác sĩ
+                  <span className="ml-1 font-normal text-slate-400">(tối thiểu 10 ký tự)</span>
+                </label>
+                <textarea
+                  rows={5}
+                  value={answerText}
+                  onChange={(e) => setAnswerText(e.target.value)}
+                  placeholder="Nhập câu trả lời chuyên môn, lời khuyên sức khỏe..."
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-[14px] text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#88E8F2] focus:ring-2 focus:ring-[#88E8F2]/20 resize-none transition"
+                  disabled={submitting || submitSuccess}
+                />
+                <div className="mt-1 flex items-center justify-between">
+                  <span className={`text-[11px] ${answerText.length < 10 ? "text-orange-400" : "text-emerald-500"}`}>
+                    {answerText.length} / tối thiểu 10 ký tự
+                  </span>
+                  {submitError && (
+                    <span className="text-[12px] text-red-500">{submitError}</span>
+                  )}
+                  {submitSuccess && (
+                    <span className="flex items-center gap-1 text-[12px] text-emerald-600 font-semibold">
+                      <CheckCircle className="h-4 w-4" /> Đã gửi thành công!
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-3 pt-1 pb-2">
+                <button
+                  onClick={handleCloseModal}
+                  className="flex-1 rounded-xl border border-slate-200 py-3 text-[14px] font-semibold text-slate-600 hover:bg-slate-50 transition"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleSubmitAnswer}
+                  disabled={submitting || submitSuccess || answerText.trim().length < 10}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-[#0d1f2d] py-3 text-[14px] font-bold text-white shadow-md hover:bg-[#1a3548] disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+                >
+                  {submitSuccess ? (
+                    <>
+                      <CheckCircle className="h-4 w-4" />
+                      Đã gửi!
+                    </>
+                  ) : submitting ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      Đang gửi...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" />
+                      Gửi câu trả lời
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
