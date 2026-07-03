@@ -133,7 +133,8 @@ async def smartbot_webhook_ds_bacsi(request: Request, db: Session = Depends(get_
                         "payload": "?ic_bot_button_Dat_lich_kham",
                         "button_variables": [
                             {"variableName": "ten_bac_si", "value": doc.name},
-                            {"variableName": "bac_si_id", "value": str(doc.id)}
+                            {"variableName": "bac_si_id", "value": str(doc.id)},
+                            {"variableName": "hanh_dong_bac_si", "value": "chon_bac_si"}
                         ]
                     }
                 ]
