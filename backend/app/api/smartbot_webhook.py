@@ -107,6 +107,7 @@ async def smartbot_webhook_ds_bacsi(request: Request, db: Session = Depends(get_
         
         # Hỗ trợ lấy tên khoa từ root hoặc từ set_variables
         ten_khoa = data.get("ten_khoa") or variables.get("khoa_kham") or "Khoa Nội"
+        ngay_kham = data.get("ngay_gio") or variables.get("ngay_gio_kham") or variables.get("ngay_kham") or "Lịch sớm nhất"
         
         # Tìm department
         dept = db.query(Department).filter(Department.name.ilike(f"%{ten_khoa}%")).first()
@@ -129,18 +130,18 @@ async def smartbot_webhook_ds_bacsi(request: Request, db: Session = Depends(get_
             doc_names.append(doc.name)
             carousel_data.append({
                 "title": f"Bác sĩ {doc.name}",
-                "subtitle": f"Khoa: {dept.name}. Lịch trống: 08:00 - 11:30",
+                "subtitle": f"Khoa: {dept.name}. Lịch khám: {ngay_kham}",
                 "url": doc.face_base64 or "https://img.freepik.com/free-photo/smiling-asian-male-doctor-pointing-upwards_1262-18321.jpg",
                 "buttons": [
                     {
                         "type": "postback",
                         "title": f"Đặt lịch BS {doc.name.split()[-1]}",
                         "payload": "?ic_bot_button_Dat_lich_kham",
-                        "button_variables": [
-                            {"variableName": "ten_bac_si", "value": doc.name},
-                            {"variableName": "bac_si_id", "value": str(doc.id)},
-                            {"variableName": "hanh_dong_bac_si", "value": "chon_bac_si"}
-                        ]
+                        "button_variables": {
+                            "ten_bac_si": doc.name,
+                            "bac_si_id": str(doc.id),
+                            "hanh_dong_bac_si": "chon_bac_si"
+                        }
                     }
                 ]
             })
