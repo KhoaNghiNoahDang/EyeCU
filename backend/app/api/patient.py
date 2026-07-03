@@ -555,3 +555,116 @@ def get_patient_clinical_bundle(
             else None
         ),
     }
+
+
+@router.get("/invoices")
+def get_patient_invoices(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import HospitalFee, HospitalFeeItem
+    fees = db.query(HospitalFee).filter(HospitalFee.patient_id == user.id).all()
+    
+    result = []
+    for fee in fees:
+        items = db.query(HospitalFeeItem).filter(HospitalFeeItem.fee_id == fee.id).all()
+        result.append({
+            "id": str(fee.id),
+            "record_id": str(fee.record_id),
+            "total": fee.total,
+            "status": fee.status,
+            "paid_at": fee.paid_at.isoformat() if fee.paid_at else None,
+            "items": [{"name": i.name, "amount": i.amount} for i in items]
+        })
+    return {"invoices": result}
+
+class AppointmentCreate(BaseModel):
+    department_id: str
+    booking_date: str
+    booking_time: str
+    reason: str = ""
+
+class QuestionCreate(BaseModel):
+    department: str
+    question: str
+
+class ConsentSign(BaseModel):
+    form_id: str
+    
+@router.post("/appointments")
+def create_appointment(req: AppointmentCreate, user = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import Appointment
+    app_obj = Appointment(
+        patient_id=user.id,
+        department_id=req.department_id,
+        booking_date=req.booking_date,
+        booking_time=req.booking_time,
+        reason=req.reason
+    )
+    db.add(app_obj)
+    db.commit()
+    return {"status": "success", "appointment_id": str(app_obj.id)}
+
+@router.get("/appointments")
+def get_appointments(user = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import Appointment, Department
+    apps = db.query(Appointment).filter(Appointment.patient_id == user.id).order_by(Appointment.created_at.desc()).all()
+    result = []
+    for a in apps:
+        dept = db.query(Department).filter(Department.id == a.department_id).first() if a.department_id else None
+        result.append({
+            "id": str(a.id),
+            "department": dept.name if dept else "Khám Tổng Quát",
+            "date": a.booking_date,
+            "time": a.booking_time,
+            "reason": a.reason,
+            "status": a.status
+        })
+    return {"appointments": result}
+
+@router.post("/questions")
+def create_question(req: QuestionCreate, user = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import CommunityQuestion
+    q_obj = CommunityQuestion(
+        patient_id=user.id,
+        department=req.department,
+        question=req.question
+    )
+    db.add(q_obj)
+    db.commit()
+    return {"status": "success", "question_id": str(q_obj.id)}
+
+@router.get("/questions")
+def get_questions(user = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import CommunityQuestion
+    qs = db.query(CommunityQuestion).order_by(CommunityQuestion.created_at.desc()).all()
+    result = []
+    for q in qs:
+        is_mine = (str(q.patient_id) == str(user.id))
+        result.append({
+            "id": str(q.id),
+            "department": q.department,
+            "question": q.question,
+            "answer": q.answer,
+            "status": q.status,
+            "created_at": q.created_at.isoformat(),
+            "is_mine": is_mine,
+            "name": "Bạn" if is_mine else "Bệnh nhân ẩn danh"
+        })
+    return {"questions": result}
+
+@router.get("/consent-forms")
+def get_consent_forms(user = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import ConsentForm
+    forms = db.query(ConsentForm).filter(ConsentForm.patient_id == user.id).all()
+    result = [{"id": str(f.id), "name": f.document_name, "content": f.content, "is_signed": f.is_signed, "signed_at": f.signed_at.isoformat() if f.signed_at else None} for f in forms]
+    return {"forms": result}
+
+@router.post("/consent-forms/sign")
+def sign_consent_form(req: ConsentSign, user = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import ConsentForm
+    import datetime
+    form = db.query(ConsentForm).filter(ConsentForm.id == req.form_id, ConsentForm.patient_id == user.id).first()
+    if not form:
+        return {"error": "Not found"}
+    form.is_signed = True
+    form.signed_at = datetime.datetime.utcnow()
+    db.commit()
+    return {"status": "success"}
