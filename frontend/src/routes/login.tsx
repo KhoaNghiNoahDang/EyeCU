@@ -19,6 +19,7 @@ import {
   Smartphone,
   X,
   Eye,
+  EyeOff,
 } from "lucide-react";
 import { WebAuthnFaceStep } from "../components/auth/WebAuthnFaceStep";
 import { useAuth, type AuthUser, type WorkMode } from "../lib/auth/auth-context";
@@ -287,6 +288,7 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode,
   const [identifiedUser, setIdentifiedUser] = useState<AuthUser | null>(null);
   const [employeeId, setEmployeeId] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -553,14 +555,21 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode,
               <input
                 id="staffPassword"
                 name="staffPassword"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:border-[#0d1f2d] outline-none transition-colors"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-10 py-2.5 text-sm focus:border-[#0d1f2d] outline-none transition-colors"
                 disabled={isAuthenticating}
               />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
           <button
@@ -703,6 +712,7 @@ function VNeidLoginButton({ onClick }: { onClick: () => void }) {
 function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string) => void }) {
   const [cccd, setCccd] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [isCapturingFace, setIsCapturingFace] = useState(false);
@@ -879,24 +889,33 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
             <label htmlFor="patientPassword" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
               MẬT KHẨU
             </label>
-            <input
-              id="patientPassword"
-              name="patientPassword"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Nhập mật khẩu"
-              className="w-full rounded-xl border-2 px-3 py-2.5 text-sm outline-none transition-all"
-              style={{ borderColor: "#f1f5f9" }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = ACCENT;
-                e.currentTarget.style.boxShadow = `0 0 0 3px ${ACCENT}20`;
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = "#f1f5f9";
-                e.currentTarget.style.boxShadow = "none";
-              }}
-            />
+            <div className="relative">
+              <input
+                id="patientPassword"
+                name="patientPassword"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Nhập mật khẩu"
+                className="w-full rounded-xl border-2 px-3 py-2.5 text-sm outline-none transition-all pr-10"
+                style={{ borderColor: "#f1f5f9" }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = ACCENT;
+                  e.currentTarget.style.boxShadow = `0 0 0 3px ${ACCENT}20`;
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = "#f1f5f9";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
 
           <div className="flex justify-end">
@@ -1005,6 +1024,7 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string)
   const [step, setStep] = useState<"manual" | "scan">("manual");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -1206,7 +1226,7 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string)
           },
           {
             label: "Mật khẩu",
-            type: "password",
+            type: showPassword ? "text" : "password",
             value: password,
             onChange: setPassword,
             placeholder: "Nhập mật khẩu...",
@@ -1216,25 +1236,36 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string)
             <label htmlFor={`admin-${label}`} className="block text-xs font-bold text-slate-500 mb-1.5 font-geist uppercase tracking-wider">
               {label}
             </label>
-            <input
-              id={`admin-${label}`}
-              name={`admin-${label}`}
-              type={type}
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              placeholder={placeholder}
-              className="w-full px-3 py-2.5 border-2 rounded-xl text-sm outline-none transition-all"
-              style={{ borderColor: "#f1f5f9" }}
-              onFocus={(e) => {
-                (e.currentTarget as HTMLInputElement).style.borderColor = ACCENT;
-                (e.currentTarget as HTMLInputElement).style.boxShadow = `0 0 0 3px ${ACCENT}20`;
-              }}
-              onBlur={(e) => {
-                (e.currentTarget as HTMLInputElement).style.borderColor = "#f1f5f9";
-                (e.currentTarget as HTMLInputElement).style.boxShadow = "none";
-              }}
-              disabled={isAuthenticating}
-            />
+            <div className="relative">
+              <input
+                id={`admin-${label}`}
+                name={`admin-${label}`}
+                type={type}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder={placeholder}
+                className={`w-full px-3 py-2.5 border-2 rounded-xl text-sm outline-none transition-all ${label === "Mật khẩu" ? "pr-10" : ""}`}
+                style={{ borderColor: "#f1f5f9" }}
+                onFocus={(e) => {
+                  (e.currentTarget as HTMLInputElement).style.borderColor = ACCENT;
+                  (e.currentTarget as HTMLInputElement).style.boxShadow = `0 0 0 3px ${ACCENT}20`;
+                }}
+                onBlur={(e) => {
+                  (e.currentTarget as HTMLInputElement).style.borderColor = "#f1f5f9";
+                  (e.currentTarget as HTMLInputElement).style.boxShadow = "none";
+                }}
+                disabled={isAuthenticating}
+              />
+              {label === "Mật khẩu" && (
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>
