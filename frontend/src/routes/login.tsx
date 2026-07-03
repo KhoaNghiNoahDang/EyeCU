@@ -530,10 +530,12 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode,
 
         <form onSubmit={handleManualLogin} className="w-full flex flex-col gap-4 text-left">
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">MÃ NHÂN VIÊN</label>
+            <label htmlFor="employeeId" className="block text-xs font-bold text-slate-700 mb-1">MÃ NHÂN VIÊN</label>
             <div className="relative">
               <UserCircle2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
+                id="employeeId"
+                name="employeeId"
                 type="text"
                 required
                 value={employeeId}
@@ -545,10 +547,12 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode,
             </div>
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">MẬT KHẨU</label>
+            <label htmlFor="staffPassword" className="block text-xs font-bold text-slate-700 mb-1">MẬT KHẨU</label>
             <div className="relative">
               <Keyboard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
+                id="staffPassword"
+                name="staffPassword"
                 type="password"
                 required
                 value={password}
@@ -884,10 +888,12 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
       ) : (
         <form onSubmit={handleLoginSubmit} className="space-y-3">
           <div>
-            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+            <label htmlFor="patientCccd" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
               SỐ CCCD
             </label>
             <input
+              id="patientCccd"
+              name="patientCccd"
               type="text"
               inputMode="numeric"
               value={cccd}
@@ -907,10 +913,12 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+            <label htmlFor="patientPassword" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
               MẬT KHẨU
             </label>
             <input
+              id="patientPassword"
+              name="patientPassword"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -1242,10 +1250,12 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string)
           },
         ].map(({ label, type, value, onChange, placeholder }) => (
           <div key={label}>
-            <label className="block text-xs font-bold text-slate-500 mb-1.5 font-geist uppercase tracking-wider">
+            <label htmlFor={`admin-${label}`} className="block text-xs font-bold text-slate-500 mb-1.5 font-geist uppercase tracking-wider">
               {label}
             </label>
             <input
+              id={`admin-${label}`}
+              name={`admin-${label}`}
               type={type}
               value={value}
               onChange={(e) => onChange(e.target.value)}

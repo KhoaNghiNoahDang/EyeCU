@@ -63,6 +63,8 @@ def get_patient_by_cccd(cccd: str, db: Session = Depends(get_db)):
             "bloodType": "O+",
             "insurance": patient.bhxh_code or "",
             "insuranceExpiry": "31/12/2026",
+            "emergencyContactName": patient.emergency_contact_name or "",
+            "emergencyContactPhone": patient.emergency_contact_phone or "",
             "allergies": [],
             "chronicConditions": [],
             "currentMeds": [

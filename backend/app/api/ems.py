@@ -153,3 +153,77 @@ def get_ems_dashboard(ambulance_id: str, db: Session = Depends(get_db)):
             "last_lng": ambulance.last_lng,
         }
     }
+
+from sqlalchemy import text
+import time
+
+@router.get("/dispatch_records")
+async def get_dispatch_records(status: str = "active", db: Session = Depends(get_db)):
+    try:
+        result = db.execute(text("SELECT * FROM dispatch_records WHERE status = :status"), {"status": status}).fetchall()
+        return [dict(r._mapping) for r in result]
+    except Exception as e:
+        print(f"Error fetching dispatch_records: {e}")
+        return []
+
+@router.put("/dispatch_records/{plate}/complete")
+async def complete_dispatch_record(plate: str, db: Session = Depends(get_db)):
+    try:
+        db.execute(
+            text("UPDATE dispatch_records SET status = 'completed', completed_at = :now WHERE plate = :plate"),
+            {"now": int(time.time()*1000), "plate": plate}
+        )
+        db.commit()
+        # notify sockets
+        from app.api.ambient import ambient_manager
+        import asyncio
+        asyncio.create_task(ambient_manager.broadcast({"type": "dispatch_update", "plate": plate, "status": "completed"}))
+        return {"status": "success"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+from fastapi import Request
+
+@router.post("/dispatch_records/upsert")
+async def upsert_dispatch_record(req: Request, db: Session = Depends(get_db)):
+    data = await req.json()
+    try:
+        # Check if exists
+        plate = data.get("plate")
+        if not plate: return {"status": "error"}
+        existing = db.execute(text("SELECT plate FROM dispatch_records WHERE plate = :plate"), {"plate": plate}).fetchone()
+        
+        # Build query
+        keys = list(data.keys())
+        if existing:
+            set_clause = ", ".join([f"{k} = :{k}" for k in keys if k != "plate"])
+            if set_clause:
+                db.execute(text(f"UPDATE dispatch_records SET {set_clause} WHERE plate = :plate"), data)
+        else:
+            cols = ", ".join(keys)
+            vals = ", ".join([f":{k}" for k in keys])
+            db.execute(text(f"INSERT INTO dispatch_records ({cols}) VALUES ({vals})"), data)
+            
+        db.commit()
+        return {"status": "success"}
+    except Exception as e:
+        db.rollback()
+        print("Upsert error:", e)
+        return {"status": "error", "message": str(e)}
+
+@router.put("/dispatch_records/{plate}")
+async def update_dispatch_record(plate: str, req: Request, db: Session = Depends(get_db)):
+    data = await req.json()
+    try:
+        keys = list(data.keys())
+        set_clause = ", ".join([f"{k} = :{k}" for k in keys])
+        if set_clause:
+            data["_plate"] = plate
+            db.execute(text(f"UPDATE dispatch_records SET {set_clause} WHERE plate = :_plate"), data)
+            db.commit()
+        return {"status": "success"}
+    except Exception as e:
+        db.rollback()
+        print("Update error:", e)
+        return {"status": "error", "message": str(e)}

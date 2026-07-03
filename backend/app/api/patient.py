@@ -166,7 +166,9 @@ async def patient_chatbot(
     recent_doc = db.query(SmartReaderDoc).filter(SmartReaderDoc.patient_id == user.id).order_by(SmartReaderDoc.uploaded_at.desc()).first()
     
     context = ""
-    if data.message.strip().lower() not in ["xin chào", "xin chao", "hello", "hi", "chào", "bắt đầu"]:
+    is_payload = data.message.strip().startswith("{") and data.message.strip().endswith("}")
+    
+    if not is_payload and data.message.strip().lower() not in ["xin chào", "xin chao", "hello", "hi", "chào", "bắt đầu"]:
         if recent_doc and recent_doc.extracted_data:
             import json
             context_str = json.dumps(recent_doc.extracted_data, ensure_ascii=False)
@@ -237,8 +239,27 @@ async def extract_cccd_info(data: EkycCccdRequest):
         hash_str = await vnpt_client.upload_file(file_bytes, "cccd.jpg")
         if not hash_str:
             return {"status": "error", "message": "Lỗi upload ảnh lên VNPT"}
-        ocr_data = await vnpt_client.call_ekyc_ocr(hash_str)
-        return {"status": "success", "data": ocr_data}
+        
+        # Parallel call to OCR and Liveness
+        import asyncio
+        ocr_task = asyncio.create_task(vnpt_client.call_ekyc_ocr(hash_str))
+        liveness_task = asyncio.create_task(vnpt_client.call_card_liveness(hash_str))
+        
+        ocr_data, liveness_data = await asyncio.gather(ocr_task, liveness_task)
+        
+        liveness_warning = None
+        liveness_val = liveness_data.get("liveness")
+        msg = liveness_data.get("msg", "")
+        # Handle vnpt real return value
+        is_real = liveness_val in ["pass", "True", True] or "thật" in str(msg).lower()
+        if not is_real:
+            liveness_warning = f"CẢNH BÁO: {msg or 'Thẻ có dấu hiệu giả mạo!'}"
+
+        return {
+            "status": "success", 
+            "data": ocr_data,
+            "liveness_warning": liveness_warning
+        }
     except Exception as e:
         return {"status": "error", "message": str(e)}
 

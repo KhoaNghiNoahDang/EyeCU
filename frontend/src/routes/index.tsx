@@ -3852,10 +3852,17 @@ function HistoryView() {
                 <tr key={`${rec.plate}-${idx}`} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80 transition-colors">
                   <td className="px-3 py-3"><span className="font-mono font-bold text-slate-600 text-[13px]">{rec.plate}</span></td>
                   <td className="px-3 py-3"><span className="font-semibold text-slate-600">{rec.patient_name || "—"}</span></td>
-                  <td className="px-3 py-3 text-slate-500">{rec.gender || "—"}</td>
-                  <td className="px-3 py-3 text-slate-500">{rec.age || "—"}</td>
+                  <td className="px-3 py-3 font-mono text-[12px] text-slate-500">{rec.bhxh_code || "—"}</td>
                   <td className="px-3 py-3 font-mono text-[12px] text-slate-500">{rec.cccd || "—"}</td>
-                  <td className="px-3 py-3 max-w-[180px]">
+                  <td className="px-3 py-3 text-[11px] text-slate-600">
+                    {rec.emergency_contact_name ? (
+                      <div>
+                        <div className="font-semibold">{rec.emergency_contact_name}</div>
+                        <div className="text-slate-500">{rec.emergency_contact_phone}</div>
+                      </div>
+                    ) : "—"}
+                  </td>
+                  <td className="px-3 py-3 max-w-[150px]">
                     {rec.chronic_conditions && rec.chronic_conditions.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
                         {rec.chronic_conditions.map((c: string) => (
@@ -3908,36 +3915,61 @@ interface DispatchRecord {
   alertLabel: string | null;
   erTeam: string;
   addedAt: number;
+  bhxhCode?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
 }
 
 function AmbulanceView() {
   const [ambulances, setAmbulances] = useState<AmbulanceUnit[]>([]);
   const [dispatchRecords, setDispatchRecords] = useState<Record<string, any>>({});
 
+  const lastSpokenRef = useRef<Record<string, string>>({});
+
+  const playTts = async (text: string) => {
+    try {
+      const url = `${import.meta.env.VITE_API_URL || "http://localhost:8000/api"}/voice/tts?text=${encodeURIComponent(text)}`;
+      const audio = new Audio(url);
+      await audio.play();
+    } catch (err) {
+      console.error("Failed to play TTS:", err);
+    }
+  };
+
   useEffect(() => {
-    supabase.from('dispatch_records').select('*').eq('status', 'active').then(({ data }) => {
-      if (data) {
-        const r: Record<string, any> = {};
-        data.forEach(d => { r[d.plate] = d; });
-        setDispatchRecords(r);
-      }
-    });
+    const fetchDispatch = () => {
+      fetchApi('/ems/dispatch_records?status=active')
+        .then((data) => {
+          if (Array.isArray(data)) {
+            const r: Record<string, any> = {};
+            data.forEach(d => {
+              r[d.plate] = {
+                plate: d.plate,
+                eta: d.eta,
+                patient_name: d.patient_name,
+                gender: d.gender,
+                age: d.age,
+                cccd: d.cccd,
+                chronic_conditions: d.chronic_conditions,
+                allergies: d.allergies,
+                alert_label: d.alert_label,
+                er_team: d.er_team,
+                addedAt: d.added_at || Date.now(),
+                bhxhCode: d.bhxh_code,
+                emergencyContactName: d.emergency_contact_name,
+                emergencyContactPhone: d.emergency_contact_phone,
+                preAlertText: d.pre_alert_text
+              };
+            });
+            setDispatchRecords(r);
+          }
+        })
+        .catch(console.error);
+    };
 
-    const sub = supabase.channel('active_dispatch')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'dispatch_records', filter: 'status=eq.active' }, (payload) => {
-        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-          setDispatchRecords(prev => ({ ...prev, [payload.new.plate]: payload.new }));
-        } else if (payload.eventType === 'DELETE') {
-          setDispatchRecords(prev => {
-            const copy = { ...prev };
-            delete copy[payload.old.plate];
-            return copy;
-          });
-        }
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(sub); };
+    fetchDispatch();
+    const interval = setInterval(fetchDispatch, 3000);
+    return () => clearInterval(interval);
   }, []);
   
   useEffect(() => {
@@ -3982,6 +4014,7 @@ function AmbulanceView() {
       // ── GPS_START: xe mới đăng ký nhiệm vụ ──────────────────────────
       if (msg.type === "GPS_START" && msg.data) {
         const { plate, eta_seconds, lat, lng } = msg.data as { plate: string, eta_seconds?: number, lat?: number, lng?: number };
+        const d = msg.data as any;
         if (plate) {
           supabase.from('dispatch_records').upsert({
             plate,
@@ -3989,8 +4022,39 @@ function AmbulanceView() {
             status: 'active',
             lat: lat ?? null,
             lng: lng ?? null,
-            added_at: Date.now()
+            added_at: Date.now(),
+            pre_alert_text: d.pre_alert_text ?? null,
+            patient_name: d.name ?? null,
+            gender: d.gender ?? null,
+            age: d.age ?? null,
+            cccd: d.cccd ?? null,
+            bhxh_code: d.bhxh_code ?? null,
+            emergency_contact_name: d.emergency_contact_name ?? null,
+            emergency_contact_phone: d.emergency_contact_phone ?? null,
+            chronic_conditions: d.chronic_conditions ?? [],
+            allergies: d.allergies ?? []
           }).then();
+
+          setDispatchRecords(prev => ({
+            ...prev,
+            [plate]: {
+              ...(prev[plate] || {}),
+              plate,
+              eta: typeof eta_seconds === 'number' ? eta_seconds : null,
+              status: 'active',
+              addedAt: Date.now(),
+              patient_name: d.name ?? null,
+              gender: d.gender ?? null,
+              age: d.age ?? null,
+              cccd: d.cccd ?? null,
+              bhxhCode: d.bhxh_code ?? null,
+              emergencyContactName: d.emergency_contact_name ?? null,
+              emergencyContactPhone: d.emergency_contact_phone ?? null,
+              chronic_conditions: d.chronic_conditions ?? [],
+              allergies: d.allergies ?? [],
+              preAlertText: d.pre_alert_text ?? null
+            }
+          }));
 
           // Cũng cập nhật ambulances map nếu xe chưa có
           setAmbulances((prev) => {
@@ -4035,6 +4099,17 @@ function AmbulanceView() {
             lng,
             eta: eta_seconds ?? null
           }).eq('plate', msgPlate).then();
+
+          setDispatchRecords(prev => {
+            if (!prev[msgPlate]) return prev;
+            return {
+              ...prev,
+              [msgPlate]: {
+                ...prev[msgPlate],
+                eta: eta_seconds ?? prev[msgPlate].eta
+              }
+            };
+          });
         }
       }
       // ── PATIENT_UPDATE: bệnh nhân được gắn kèm xe ───────────────────
@@ -4042,6 +4117,8 @@ function AmbulanceView() {
         const d = msg.data as {
           plate: string; name?: string; gender?: string; age?: string; cccd?: string;
           chronic_conditions?: string[]; allergies?: string[]; alert_label?: string;
+          bhxh_code?: string; emergency_contact_name?: string; emergency_contact_phone?: string;
+          pre_alert_text?: string;
         };
         if (d.plate) {
           supabase.from('dispatch_records').update({
@@ -4051,8 +4128,32 @@ function AmbulanceView() {
             cccd: d.cccd ?? null,
             chronic_conditions: d.chronic_conditions ?? null,
             allergies: d.allergies ?? null,
-            alert_label: d.alert_label ?? null
+            alert_label: d.alert_label ?? null,
+            bhxh_code: d.bhxh_code ?? null,
+            emergency_contact_name: d.emergency_contact_name ?? null,
+            emergency_contact_phone: d.emergency_contact_phone ?? null,
+            pre_alert_text: d.pre_alert_text ?? null
           }).eq('plate', d.plate).then();
+
+          setDispatchRecords(prev => {
+            if (!prev[d.plate]) return prev;
+            return {
+              ...prev,
+              [d.plate]: {
+                ...prev[d.plate],
+                patient_name: d.name !== undefined ? d.name : prev[d.plate].patient_name,
+                gender: d.gender !== undefined ? d.gender : prev[d.plate].gender,
+                age: d.age !== undefined ? d.age : prev[d.plate].age,
+                cccd: d.cccd !== undefined ? d.cccd : prev[d.plate].cccd,
+                bhxhCode: d.bhxh_code !== undefined ? d.bhxh_code : prev[d.plate].bhxhCode,
+                emergencyContactName: d.emergency_contact_name !== undefined ? d.emergency_contact_name : prev[d.plate].emergencyContactName,
+                emergencyContactPhone: d.emergency_contact_phone !== undefined ? d.emergency_contact_phone : prev[d.plate].emergencyContactPhone,
+                chronic_conditions: d.chronic_conditions !== undefined ? d.chronic_conditions : prev[d.plate].chronic_conditions,
+                allergies: d.allergies !== undefined ? d.allergies : prev[d.plate].allergies,
+                preAlertText: d.pre_alert_text !== undefined ? d.pre_alert_text : prev[d.plate].preAlertText
+              }
+            };
+          });
         }
       }
       // ── GATE events ──────────────────────────────────────────────────
@@ -4091,6 +4192,16 @@ function AmbulanceView() {
 
   // Danh sách hồ sơ dispatch — sắp xếp theo thời gian đến mới nhất
   const dispatchList = Object.values(dispatchRecords).sort((a, b) => b.addedAt - a.addedAt);
+
+  useEffect(() => {
+    dispatchList.forEach((rec) => {
+      if (rec.preAlertText && rec.preAlertText !== lastSpokenRef.current[rec.plate]) {
+        lastSpokenRef.current[rec.plate] = rec.preAlertText;
+        const plateSpelled = rec.plate.split('').join(' ');
+        playTts(`Cảnh báo từ xe ${plateSpelled}: ${rec.preAlertText}`);
+      }
+    });
+  }, [dispatchList]);
 
   return (
     <>
@@ -4218,9 +4329,12 @@ function AmbulanceView() {
                     <th className="px-3 py-3 whitespace-nowrap">Giới tính</th>
                     <th className="px-3 py-3 whitespace-nowrap">Độ tuổi</th>
                     <th className="px-3 py-3 whitespace-nowrap">Số CCCD</th>
+                    <th className="px-3 py-3 whitespace-nowrap">Bảo hiểm Y Tế</th>
+                    <th className="px-3 py-3 whitespace-nowrap">Liên hệ khẩn cấp</th>
                     <th className="px-3 py-3 whitespace-nowrap">Bệnh nền</th>
                     <th className="px-3 py-3 whitespace-nowrap">Dị ứng thuốc</th>
-                    <th className="px-3 py-3 whitespace-nowrap">Nhãn cấp cứu</th>
+                     <th className="px-3 py-3 whitespace-nowrap">Nhãn cấp cứu</th>
+                    <th className="px-3 py-3 whitespace-nowrap">Cảnh báo trước (EMS)</th>
                     <th className="px-3 py-3 whitespace-nowrap">Chỉ định kíp CC</th>
                     <th className="px-3 py-3 whitespace-nowrap text-right">Thao tác</th>
                   </tr>
@@ -4276,6 +4390,21 @@ function AmbulanceView() {
                             <span className="font-mono text-[12px] text-slate-700">{rec.cccd || "—"}</span>
                           ) : <LoadingCell />}
                         </td>
+                        {/* Bảo hiểm Y Tế */}
+                        <td className="px-3 py-3">
+                          {hasPatient ? (
+                            <span className="font-mono text-[12px] text-slate-700">{rec.bhxhCode || "—"}</span>
+                          ) : <LoadingCell />}
+                        </td>
+                        {/* Liên hệ khẩn cấp */}
+                        <td className="px-3 py-3">
+                          {hasPatient ? (
+                            <div className="flex flex-col">
+                              <span className="text-[13px] font-semibold text-slate-900">{rec.emergencyContactName || "—"}</span>
+                              <span className="text-[11px] text-slate-500">{rec.emergencyContactPhone || ""}</span>
+                            </div>
+                          ) : <LoadingCell />}
+                        </td>
                         {/* Bệnh nền */}
                         <td className="px-3 py-3 max-w-[180px]">
                           {hasPatient ? (
@@ -4307,6 +4436,26 @@ function AmbulanceView() {
                               <span className="px-2 py-1 rounded-lg text-[11px] font-bold text-red-700 bg-red-100 border border-red-200 whitespace-nowrap">{rec.alert_label}</span>
                             ) : <span className="text-slate-400 text-xs">Chưa có</span>
                           ) : <LoadingCell />}
+                        </td>
+                        {/* Cảnh báo trước (EMS) */}
+                        <td className="px-3 py-3 max-w-[200px]">
+                          {rec.preAlertText ? (
+                            <div className="flex flex-col gap-1">
+                              <span className="text-xs text-slate-800 font-semibold line-clamp-2" title={rec.preAlertText}>
+                                {rec.preAlertText}
+                              </span>
+                              <button 
+                                type="button"
+                                onClick={() => playTts(rec.preAlertText)}
+                                className="inline-flex items-center gap-1 text-[10px] text-cyan-600 hover:text-cyan-700 font-bold bg-cyan-50 px-1.5 py-0.5 rounded border border-cyan-100 w-fit active:scale-95 transition-transform"
+                              >
+                                <Volume2 className="w-3 h-3 animate-pulse" />
+                                Nghe đọc
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 text-xs">Không có</span>
+                          )}
                         </td>
                         {/* Chỉ định kíp CC */}
                         <td className="px-3 py-3">
@@ -7723,6 +7872,69 @@ function EmsView() {
   const [plateConfirmed, setPlateConfirmed] = useState<string | null>(null);
   const groupedHospitals = getHospitalsByProvince();
 
+  const [preAlertText, setPreAlertText] = useState("");
+  const [isRecordingPreAlert, setIsRecordingPreAlert] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  const startRecording = () => {
+    try {
+      setEkycError("");
+      const SpeechRecognition =
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+      if (!SpeechRecognition) {
+        alert("Trình duyệt không hỗ trợ nhận dạng giọng nói. Vui lòng dùng Google Chrome.");
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.lang = "vi-VN";
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onresult = (event: any) => {
+        let interim = "";
+        let final = "";
+        for (let i = 0; i < event.results.length; i++) {
+          const result = event.results[i];
+          if (result.isFinal) {
+            final += result[0].transcript + " ";
+          } else {
+            interim += result[0].transcript;
+          }
+        }
+        const text = (final + interim).trim();
+        setPreAlertText(text);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error("Speech recognition error:", event.error);
+        setIsRecordingPreAlert(false);
+      };
+
+      recognition.onend = () => {
+        setIsRecordingPreAlert(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+      setIsRecordingPreAlert(true);
+    } catch (err) {
+      alert("Không thể khởi động nhận dạng giọng nói.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    setIsRecordingPreAlert(false);
+  };
+
+  
+
+
 
   const handleStartMission = async () => {
     const finalPlate = plate.trim() || localStorage.getItem("ems_plate") || "";
@@ -7759,15 +7971,55 @@ function EmsView() {
         body: JSON.stringify({ image_base64: base64 })
       });
       if (ocrRes.status === "success" && ocrRes.data) {
+        if (ocrRes.liveness_warning) {
+          alert(ocrRes.liveness_warning);
+        }
         const ocrCccd = ocrRes.data.cccd;
-        if (ocrCccd) {
-          const dbRes = await fetchApi(`/records/by-cccd/${ocrCccd}`);
-          if (dbRes.status === "success" && dbRes.data) {
-            setScannedPatient(dbRes.data);
-            sendPatientUpdate(dbRes.data);
-          } else {
-            setEkycError("Không tìm thấy hồ sơ bệnh nhân trong hệ thống cho CCCD này.");
-            setCapturedCccdUrl(null);
+        const ocrName = ocrRes.data.name;
+        if (ocrCccd && ocrName) {
+          try {
+            const dbRes = await fetchApi(`/records/by-cccd/${ocrCccd}`);
+            if (dbRes.status === "success" && dbRes.data) {
+              const mergedPatient = {
+                ...dbRes.data,
+                dob: ocrRes.data.dob || dbRes.data.dob,
+                gender: ocrRes.data.gender || dbRes.data.gender,
+              };
+              setScannedPatient(mergedPatient);
+              sendPatientUpdate(mergedPatient);
+            } else {
+              // Patient not found in DB - fallback to OCR data
+              const fallbackPatient = {
+                cccd: ocrCccd,
+                name: ocrName,
+                dob: ocrRes.data.dob || "",
+                gender: ocrRes.data.gender || "N/A",
+                address: ocrRes.data.address || "",
+                insurance: "",
+                emergencyContactName: "",
+                emergencyContactPhone: "",
+                allergies: [],
+                chronicConditions: [],
+              };
+              setScannedPatient(fallbackPatient);
+              sendPatientUpdate(fallbackPatient);
+            }
+          } catch (dbErr) {
+            // Database request failed, still fallback to OCR data
+            const fallbackPatient = {
+              cccd: ocrCccd,
+              name: ocrName,
+              dob: ocrRes.data.dob || "",
+              gender: ocrRes.data.gender || "N/A",
+              address: ocrRes.data.address || "",
+              insurance: "",
+              emergencyContactName: "",
+              emergencyContactPhone: "",
+              allergies: [],
+              chronicConditions: [],
+            };
+            setScannedPatient(fallbackPatient);
+            sendPatientUpdate(fallbackPatient);
           }
         } else {
           setEkycError("Không nhận dạng được CCCD.");
@@ -7806,9 +8058,18 @@ function EmsView() {
   const sendPatientUpdate = useCallback((patient: any, alertLabel?: string) => {
     const activePlate = plate.trim() || localStorage.getItem("ems_plate") || "";
     if (!activePlate || !patient) return;
-    const age = patient.dob
-      ? String(new Date().getFullYear() - new Date(patient.dob).getFullYear())
-      : patient.age ?? null;
+    
+    let age = patient.age ?? null;
+    if (patient.dob) {
+      const parts = patient.dob.split(/[\/\-]/);
+      if (parts.length === 3) {
+        const birthYear = parts[2].length === 4 ? parseInt(parts[2]) : parseInt(parts[0]);
+        if (!isNaN(birthYear)) {
+          age = String(new Date().getFullYear() - birthYear);
+        }
+      }
+    }
+
     send({
       type: "PATIENT_UPDATE",
       data: {
@@ -7820,9 +8081,29 @@ function EmsView() {
         chronic_conditions: patient.chronic_conditions || patient.chronicConditions || [],
         allergies: patient.allergies || [],
         alert_label: alertLabel || selectedAlert || null,
+        bhxh_code: patient.insurance || null,
+        emergency_contact_name: patient.emergencyContactName || null,
+        emergency_contact_phone: patient.emergencyContactPhone || null,
       },
     });
   }, [plate, send, selectedAlert]);
+
+  useEffect(() => {
+    if (isBroadcasting && plateConfirmed) {
+      const activePlate = plateConfirmed;
+      supabase.from('dispatch_records').update({
+        pre_alert_text: preAlertText
+      }).eq('plate', activePlate).then();
+
+      send({
+        type: "PATIENT_UPDATE",
+        data: {
+          plate: activePlate,
+          pre_alert_text: preAlertText
+        }
+      });
+    }
+  }, [preAlertText, isBroadcasting, plateConfirmed, send]);
 
   // Khi an nut BẬT TRUYỀN GPS -> hien modal nhap bien so
   const toggleGpsBroadcast = () => {
@@ -7854,6 +8135,22 @@ function EmsView() {
       setPlateConfirmed(savedPlate);
       setIsBroadcasting(true);
 
+      const patientName = scannedPatient?.name || scannedPatient?.full_name || (manualInputMode === "cccd" && manualName ? manualName : (manualInputMode === "unknown" ? "Chưa rõ danh tính" : "Bệnh nhân không CCCD"));
+      const patientGender = scannedPatient?.gender || (manualInputMode === "cccd" && manualGender ? manualGender : null);
+      
+      let patientAge = scannedPatient?.age || null;
+      if (scannedPatient?.dob) {
+        const parts = scannedPatient.dob.split(/[\/\-]/);
+        if (parts.length === 3) {
+          const birthYear = parts[2].length === 4 ? parseInt(parts[2]) : parseInt(parts[0]);
+          if (!isNaN(birthYear)) {
+            patientAge = String(new Date().getFullYear() - birthYear);
+          }
+        }
+      } else if (manualInputMode === "cccd" && manualAgeRange) {
+        patientAge = manualAgeRange;
+      }
+
       // GỬI NGAY LẬP TỨC để bảng nhận được thông tin mà không cần chờ thiết bị định vị
       const initLat = gpsState?.lat ?? 21.0011;
       const initLng = gpsState?.lng ?? 105.8418;
@@ -7865,11 +8162,37 @@ function EmsView() {
         lng: initLng,
         eta: initEta,
         status: 'active',
-        added_at: Date.now()
+        added_at: Date.now(),
+        patient_name: patientName,
+        gender: patientGender,
+        age: patientAge,
+        cccd: scannedPatient?.cccd || scannedPatient?.cccd_number || null,
+        bhxh_code: scannedPatient?.insurance || null,
+        emergency_contact_name: scannedPatient?.emergencyContactName || null,
+        emergency_contact_phone: scannedPatient?.emergencyContactPhone || null,
+        chronic_conditions: scannedPatient?.chronicConditions || scannedPatient?.chronic_conditions || [],
+        allergies: scannedPatient?.allergies || [],
+        pre_alert_text: preAlertText || ""
       }).then();
+
       send({
         type: "GPS_START",
-        data: { plate: savedPlate, lat: initLat, lng: initLng, eta_seconds: initEta },
+        data: { 
+          plate: savedPlate, 
+          lat: initLat, 
+          lng: initLng, 
+          eta_seconds: initEta,
+          name: patientName,
+          gender: patientGender,
+          age: patientAge,
+          cccd: scannedPatient?.cccd || scannedPatient?.cccd_number || null,
+          bhxh_code: scannedPatient?.insurance || null,
+          emergency_contact_name: scannedPatient?.emergencyContactName || null,
+          emergency_contact_phone: scannedPatient?.emergencyContactPhone || null,
+          chronic_conditions: scannedPatient?.chronicConditions || scannedPatient?.chronic_conditions || [],
+          allergies: scannedPatient?.allergies || [],
+          pre_alert_text: preAlertText || ""
+        },
       });
 
       // Lay vi tri lan dau tien -> gui GPS_START kem bien so
@@ -7886,11 +8209,36 @@ function EmsView() {
             lng: longitude,
             eta: etaSeconds,
             status: 'active',
-            added_at: Date.now()
+            added_at: Date.now(),
+            patient_name: patientName,
+            gender: patientGender,
+            age: patientAge,
+            cccd: scannedPatient?.cccd || scannedPatient?.cccd_number || null,
+            bhxh_code: scannedPatient?.insurance || null,
+            emergency_contact_name: scannedPatient?.emergencyContactName || null,
+            emergency_contact_phone: scannedPatient?.emergencyContactPhone || null,
+            chronic_conditions: scannedPatient?.chronicConditions || scannedPatient?.chronic_conditions || [],
+            allergies: scannedPatient?.allergies || [],
+            pre_alert_text: preAlertText || ""
           }).then();
           send({
             type: "GPS_START",
-            data: { plate: savedPlate, lat: latitude, lng: longitude, eta_seconds: etaSeconds },
+            data: { 
+              plate: savedPlate, 
+              lat: latitude, 
+              lng: longitude, 
+              eta_seconds: etaSeconds,
+              name: patientName,
+              gender: patientGender,
+              age: patientAge,
+              cccd: scannedPatient?.cccd || scannedPatient?.cccd_number || null,
+              bhxh_code: scannedPatient?.insurance || null,
+              emergency_contact_name: scannedPatient?.emergencyContactName || null,
+              emergency_contact_phone: scannedPatient?.emergencyContactPhone || null,
+              chronic_conditions: scannedPatient?.chronicConditions || scannedPatient?.chronic_conditions || [],
+              allergies: scannedPatient?.allergies || [],
+              pre_alert_text: preAlertText || ""
+            },
           });
         },
         () => {},
@@ -8076,14 +8424,32 @@ function EmsView() {
 
       <div className="flex flex-col items-center py-6 bg-slate-50 rounded-xl border border-slate-100">
         <button 
-          className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center hover:bg-red-200 hover:scale-105 active:scale-95 transition-all shadow-sm border border-red-200"
+          type="button"
+          onClick={isRecordingPreAlert ? stopRecording : startRecording}
+          className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-sm border ${
+            isRecordingPreAlert 
+              ? "bg-red-500 border-red-600 hover:bg-red-600 animate-pulse scale-105" 
+              : "bg-red-100 border-red-200 hover:bg-red-200 hover:scale-105"
+          }`}
         >
-          <Mic className="w-8 h-8 text-red-600" />
+          <Mic className={`w-8 h-8 ${isRecordingPreAlert ? "text-white" : "text-red-600"}`} />
         </button>
-        <p className="mt-4 text-sm font-bold text-slate-700">Chạm để ghi âm</p>
+        <p className="mt-4 text-sm font-bold text-slate-700">
+          {isRecordingPreAlert ? "Đang ghi âm... Chạm để dừng" : "Chạm để ghi âm"}
+        </p>
         <p className="mt-1 text-[11px] text-slate-500 text-center px-4 max-w-xs">
           Ghi âm tình trạng bệnh nhân, chỉ số sinh tồn và gửi trực tiếp về kíp trực cấp cứu.
         </p>
+      </div>
+
+      <div className="mt-4">
+        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Nội dung cảnh báo</label>
+        <textarea
+          value={preAlertText}
+          onChange={(e) => setPreAlertText(e.target.value)}
+          placeholder="Ví dụ: Bệnh nhân nam 30 tuổi, bị chấn thương sọ não, đang sơ cứu tạm thời, đề nghị chuẩn bị thêm thuốc cầm máu."
+          className="w-full h-24 p-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-cyan-500/20 outline-none resize-none bg-white"
+        />
       </div>
     </div>
 
