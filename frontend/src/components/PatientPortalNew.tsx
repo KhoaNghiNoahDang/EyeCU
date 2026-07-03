@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useAuth } from "../lib/auth/auth-context";
 import { fetchApi, API_URL } from "../lib/api/client";
-import { User, LogIn, Calendar, FileText, Settings, Heart, Bell, MessageCircle, MapPin, Menu, X, ArrowLeft, ArrowRight, ShieldCheck, ChevronRight, Mic, Send, Phone, ClipboardList, ScanFace, FileSignature, Info, LogOut, Copy, Download, Eye, Map as MapIcon, Trash2, CalendarClock, Lock, Globe, Users, Activity, Search, Stethoscope, Receipt, Home, Bot, Star, Camera, ScanLine, Share, PlusSquare, Volume2, VolumeX, Loader2, Scan, BriefcaseMedical } from "lucide-react";
+import { User, LogIn, Calendar, FileText, Settings, Heart, Bell, MessageCircle, MapPin, Menu, X, ArrowLeft, ArrowRight, ShieldCheck, ChevronRight, Mic, Send, Phone, ClipboardList, ScanFace, FileSignature, Info, LogOut, Copy, Download, Eye, Map as MapIcon, Trash2, CalendarClock, Lock, Globe, Users, Activity, Search, Stethoscope, Receipt, Home, Bot, Star, Camera, ScanLine, Share, PlusSquare, Volume2, VolumeX, Pause, Play, Loader2, Scan, BriefcaseMedical } from "lucide-react";
 import { getHospitalsByProvince, CENTRAL_HOSPITALS, Hospital } from "../lib/hospitals";
 import { MapErrorBoundary } from "./MapErrorBoundary";
 import { VitalSignsView } from "./health-record/VitalSignsView";
@@ -96,6 +96,7 @@ export function PatientPortalNew({
   // TTS Logic
   const [autoPlayTTS, setAutoPlayTTS] = useState(true);
   const [playingTTSMsgIdx, setPlayingTTSMsgIdx] = useState<number | null>(null);
+  const [isTTSPaused, setIsTTSPaused] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -201,18 +202,37 @@ export function PatientPortalNew({
   }, [messages.length, autoPlayTTS]);
 
   const playTTS = (text: string, idx: number) => {
+    if (playingTTSMsgIdx === idx && audioRef.current) {
+      if (audioRef.current.paused) {
+        audioRef.current.play();
+        setIsTTSPaused(false);
+      } else {
+        audioRef.current.pause();
+        setIsTTSPaused(true);
+      }
+      return;
+    }
+
     if (audioRef.current) {
       audioRef.current.pause();
     }
     setPlayingTTSMsgIdx(idx);
-    const audio = new Audio(`${API_URL}/voice/tts?text=${encodeURIComponent(text)}`);
+    setIsTTSPaused(false);
+    
+    // Tùy chỉnh cách phát âm cho hệ thống TTS
+    let spokenText = text;
+    spokenText = spokenText.replace(/EyeCU/gi, "ai xi diu");
+    
+    const audio = new Audio(`${API_URL}/voice/tts?text=${encodeURIComponent(spokenText)}`);
     audioRef.current = audio;
     audio.play().catch(e => {
       console.error("Audio playback failed:", e);
       setPlayingTTSMsgIdx(null);
+      setIsTTSPaused(false);
     });
     audio.onended = () => {
       setPlayingTTSMsgIdx(null);
+      setIsTTSPaused(false);
       audioRef.current = null;
     };
   };
@@ -493,6 +513,12 @@ export function PatientPortalNew({
       if (res.status === "success") {
         setMessages((prev) => [
           ...prev,
+          {
+            from: "user",
+            text: "Đây là phiếu khám/xét nghiệm của tôi:",
+            time: getTimeNow(),
+            images: [imageDataUrl],
+          },
           {
             from: "bot",
             text: `Mình đã nhận được tài liệu của bạn (VNPT bóc tách thành công). Bạn muốn mình giải thích chỉ số hay đơn thuốc này như thế nào?`,
@@ -1845,7 +1871,7 @@ export function PatientPortalNew({
          <div className="flex flex-col items-center justify-center py-6 gap-2 opacity-70">
             <div className="flex items-center gap-2 text-slate-500">
                <Phone className="w-5 h-5" />
-               <span className="text-[14px]">Hotline: <strong className="text-slate-700">19008219</strong></span>
+               <span className="text-[14px]">Hotline: <strong className="text-slate-700">115</strong></span>
             </div>
             <span className="text-[12px] text-slate-400">Phiên bản: 22.0 <span className="text-[#0d1f2d] font-medium cursor-pointer" onClick={() => alert('Đã là phiên bản mới nhất')}>Cập nhật</span></span>
          </div>
@@ -1874,7 +1900,7 @@ export function PatientPortalNew({
                 <div className="flex items-center gap-1.5 rounded-full bg-[#88E8F2]/30 px-3 py-1.5">
                   <Phone className="h-3.5 w-3.5 text-[#0d1f2d]" />
                   <div className="flex flex-col">
-                    <span className="text-[12px] font-bold text-[#0d1f2d] leading-none">19008219</span>
+                    <span className="text-[12px] font-bold text-[#0d1f2d] leading-none">115</span>
                     <span className="text-[7px] text-[#0d1f2d] uppercase font-semibold">Hotline hỗ trợ</span>
                   </div>
                 </div>
@@ -2150,8 +2176,8 @@ export function PatientPortalNew({
           <div className="fixed sm:absolute inset-0 z-[110] flex items-center justify-center bg-slate-900/40 p-4 animate-in fade-in duration-200">
             <div className="flex h-[75dvh] max-h-[600px] w-full max-w-[360px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 duration-300">
               <div className="flex items-center gap-2 bg-[#88E8F2] px-4 py-3">
-                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#0d1f2d]/10">
-                  <Bot className="h-4 w-4 text-[#0d1f2d]" />
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#0d1f2d]/10 overflow-hidden">
+                  <img src="/chatbot_khongnen.png" alt="Bot" className="h-full w-full object-cover" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] font-bold text-[#0d1f2d]">Trợ lý AI EyeCU</p>
@@ -2172,8 +2198,8 @@ export function PatientPortalNew({
                 {messages.map((msg, i) => (
                   <div key={i} className={`flex ${msg.from === "user" ? "justify-end" : "justify-start"}`}>
                     {msg.from === "bot" && (
-                      <div className="mr-1.5 mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[#88E8F2]">
-                        <Bot className="h-3.5 w-3.5 text-[#0d1f2d]" />
+                      <div className="mr-1.5 mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[#88E8F2] overflow-hidden">
+                        <img src="/chatbot_khongnen.png" alt="Bot" className="h-full w-full object-cover" />
                       </div>
                     )}
                     <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${msg.from === "user" ? "rounded-br-sm bg-[#0d1f2d] text-white" : "rounded-bl-sm border border-slate-100 bg-white text-slate-800 shadow-sm"}`}>
@@ -2185,7 +2211,7 @@ export function PatientPortalNew({
                             className={`mt-0.5 flex-shrink-0 p-1 rounded-full transition-colors ${playingTTSMsgIdx === i ? "bg-[#88E8F2]/30 text-[#0d1f2d]" : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"}`}
                             title="Nghe tin nhắn"
                           >
-                            {playingTTSMsgIdx === i ? <Volume2 className="h-3.5 w-3.5 animate-pulse" /> : <Volume2 className="h-3.5 w-3.5" />}
+                            {playingTTSMsgIdx === i && !isTTSPaused ? <Pause className="h-3.5 w-3.5 animate-pulse" /> : <Volume2 className="h-3.5 w-3.5" />}
                           </button>
                         )}
                       </div>
@@ -2203,10 +2229,10 @@ export function PatientPortalNew({
                           ))}
                         </div>
                       )}
-                      {msg.from === "bot" && msg.images && msg.images.length > 0 && (
+                      {msg.images && msg.images.length > 0 && (
                         <div className="mt-2.5 flex flex-col gap-2">
                           {msg.images.map((url, idx) => (
-                            <img key={idx} src={url} alt="VNPT SmartBot Image" className="rounded-xl max-w-full h-auto object-contain border border-slate-200" />
+                            <img key={idx} src={url} alt="Attached Image" className="rounded-xl max-w-full h-auto object-contain border border-slate-200" />
                           ))}
                         </div>
                       )}
@@ -2216,8 +2242,8 @@ export function PatientPortalNew({
                 ))}
                 {botTyping && (
                   <div className="flex justify-start">
-                    <div className="mr-1.5 mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[#88E8F2]">
-                      <Bot className="h-3.5 w-3.5 text-[#0d1f2d]" />
+                    <div className="mr-1.5 mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[#88E8F2] overflow-hidden">
+                      <img src="/chatbot_khongnen.png" alt="Bot" className="h-full w-full object-cover" />
                     </div>
                     <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-sm border border-slate-100 bg-white px-4 py-3 shadow-sm">
                       {[0, 1, 2].map((i) => (
