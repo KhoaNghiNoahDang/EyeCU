@@ -931,3 +931,73 @@ def get_ticket_by_code(ticket_code: str, user: Patient = Depends(get_current_use
             } for i in items
         ]
     }
+
+class PaymentFaceVerify(BaseModel):
+    face_base64: str
+
+@router.post("/payment/verify-face")
+async def verify_payment_face(data: PaymentFaceVerify, current_user: Patient = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        from app.services.vnpt_api import VnptAPIClient
+        vnpt_client = VnptAPIClient()
+        
+        b64_data = data.face_base64
+        if b64_data.startswith('data:image'):
+            b64_data = b64_data.split(',')[1]
+            
+        import base64
+        webcam_bytes = base64.b64decode(b64_data)
+        webcam_hash = await vnpt_client.upload_file(webcam_bytes, "webcam_payment.jpg")
+        
+        db_b64 = current_user.face_base64
+        if not db_b64:
+            raise HTTPException(status_code=400, detail="Bệnh nhân chưa đăng ký khuôn mặt (FaceID).")
+            
+        if db_b64.startswith('data:image'):
+            db_b64 = db_b64.split(',')[1]
+            
+        db_bytes = base64.b64decode(db_b64)
+        db_hash = await vnpt_client.upload_file(db_bytes, "db_payment.jpg")
+        
+        compare_res = await vnpt_client.call_face_compare(webcam_hash, db_hash)
+        
+        is_match = (compare_res.get('msg') == 'MATCH')
+        
+        return {"success": True, "message": "Xác thực khuôn mặt thành công" if is_match else "Khuôn mặt không khớp", "match": is_match}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/payment/qr-code")
+async def generate_payment_qr(invoice_id: str, amount: int, current_user: Patient = Depends(get_current_user)):
+    try:
+        import qrcode
+        import io
+        import base64
+        
+        # Format the payment string
+        payment_info = f"THANH TOÁN VIỆN PHÍ\nBN: {current_user.name}\nMã HĐ: {invoice_id}\nSố tiền: {amount} VND"
+        
+        # Generate QR code
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(payment_info)
+        qr.make(fit=True)
+        
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Convert to base64
+        buffered = io.BytesIO()
+        img.save(buffered, format="PNG")
+        img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        
+        return {"success": True, "qr_base64": f"data:image/png;base64,{img_str}"}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
