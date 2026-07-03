@@ -63,7 +63,7 @@ export function PatientPortalNew({
   const [questions, setQuestions] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [consentForms, setConsentForms] = useState<any[]>([]);
-
+  const [scheduledDoctors, setScheduledDoctors] = useState<any[]>([]);
   useEffect(() => {
     if (user) {
       setLoadingBundle(true);
@@ -82,6 +82,7 @@ export function PatientPortalNew({
       fetchApi("/patient/consent-forms").then((data) => setConsentForms(data.forms || [])).catch(console.error);
       fetchApi("/patient/notifications").then((data) => setNotifications(data.notifications || [])).catch(console.error);
       fetchApi("/patient/follow-ups").then((data) => setFollowUps(data.follow_ups || [])).catch(console.error);
+      fetchApi("/patient/doctor-schedules").then((data) => setScheduledDoctors(data.doctors || [])).catch(console.error);
     }
   }, [user]);
 
@@ -627,17 +628,20 @@ export function PatientPortalNew({
           <div className="px-4 mt-6">
             <h3 className="text-[15px] font-bold text-[#0d1f2d] mb-3">Bác sĩ có lịch khám</h3>
             <div className="space-y-3">
-              {[
-                { name: "TS.BS Lâm Mỹ Hạnh", img: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop" },
-                { name: "TS.BS Lê Quang Toàn", img: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=150&auto=format&fit=crop" }
-              ].map((doc, idx) => (
-                <div key={idx} className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm border border-slate-100">
-                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-slate-100 border border-slate-200">
-                     <img src={doc.img} alt={doc.name} className="h-full w-full object-cover" />
-                  </div>
-                  <p className="text-[15px] font-medium text-[#0d1f2d]">{doc.name}</p>
+              {scheduledDoctors.length === 0 ? (
+                <div className="bg-white rounded-2xl p-4 text-center border border-slate-100 shadow-sm text-sm text-slate-500">
+                  Chưa cập nhật được lịch của bác sĩ
                 </div>
-              ))}
+              ) : (
+                scheduledDoctors.map((doc, idx) => (
+                  <div key={idx} className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm border border-slate-100">
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-slate-100 border border-slate-200">
+                       <img src={doc.img} alt={doc.name} className="h-full w-full object-cover" />
+                    </div>
+                    <p className="text-[15px] font-medium text-[#0d1f2d]">{doc.name}</p>
+                  </div>
+                ))
+              )}
             </div>
           </div>
           

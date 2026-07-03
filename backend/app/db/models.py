@@ -68,6 +68,15 @@ class Staff(SQLModel, table=True):
     face_base64: Optional[str] = Field(default=None) # To store the registered face image
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+class DoctorSchedule(SQLModel, table=True):
+    __tablename__ = "doctor_schedules"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    doctor_id: uuid.UUID = Field(foreign_key="staffs.id")
+    date: str = Field(max_length=20) # YYYY-MM-DD
+    start_time: str = Field(max_length=10) # HH:MM
+    end_time: str = Field(max_length=10) # HH:MM
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
 
 # =========================================================================
 # 2. NHÓM ĐIỀU PHỐI & THIẾT BỊ (OPERATIONS & DEVICES)

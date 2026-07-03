@@ -728,5 +728,27 @@ def book_follow_up(f_id: str, req: FollowUpBookRequest, user = Depends(get_curre
     # Update FollowUp status
     fup.status = "booked"
     db.commit()
-
     return {"status": "success", "appointment_id": str(app_obj.id)}
+
+@router.get("/doctor-schedules")
+def get_doctor_schedules(db: Session = Depends(get_db)):
+    from app.db.models import DoctorSchedule, Staff
+    import datetime
+    today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+    
+    # Get all distinct schedules for today or future
+    # Group by doctor to avoid duplicate doctor entries if a doctor has multiple shifts
+    # For simplicity, we just join with Staff and return unique doctors who have a schedule
+    schedules = db.query(DoctorSchedule, Staff).join(Staff, DoctorSchedule.doctor_id == Staff.id).filter(DoctorSchedule.date >= today).all()
+    
+    # Use a dictionary to keep unique doctors
+    doctors_dict = {}
+    for sched, staff in schedules:
+        if staff.id not in doctors_dict:
+            doctors_dict[staff.id] = {
+                "id": str(staff.id),
+                "name": staff.name,
+                "img": staff.face_base64 or "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop" # Default fallback
+            }
+            
+    return {"doctors": list(doctors_dict.values())}
