@@ -58,7 +58,6 @@ export function VitalSignsView({ onBack, data }: Props) {
             <p className="text-xs text-center text-slate-400 mt-4">Cập nhật lần cuối: {new Date(vs.measured_at).toLocaleString('vi-VN')}</p>
           </>
         )}
-      </div>
     </div>
   );
 }

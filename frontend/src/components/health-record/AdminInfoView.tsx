@@ -11,6 +11,7 @@ export function AdminInfoView({ onBack, data }: Props) {
 
   return (
     <div className="p-4 space-y-4 bg-white">
+        <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
            <h3 className="text-sm font-bold text-[#0d1f2d] uppercase tracking-wide border-b border-slate-100 pb-2 mb-3">Thông tin cơ bản</h3>
            <div className="space-y-3">
               <div className="flex items-center gap-3">
@@ -71,6 +72,5 @@ export function AdminInfoView({ onBack, data }: Props) {
            </div>
         </div>
       </div>
-    </div>
   );
 }

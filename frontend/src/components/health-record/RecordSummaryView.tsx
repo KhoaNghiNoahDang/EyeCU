@@ -73,7 +73,6 @@ export function RecordSummaryView({ onBack, data }: Props) {
             )}
           </>
         )}
-      </div>
     </div>
   );
 }

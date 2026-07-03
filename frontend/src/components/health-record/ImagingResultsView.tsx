@@ -40,7 +40,6 @@ export function ImagingResultsView({ onBack, data }: Props) {
             </div>
           ))
         )}
-      </div>
     </div>
   );
 }

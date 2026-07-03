@@ -39,7 +39,6 @@ export function MedicationsView({ onBack, data }: Props) {
             </div>
           ))
         )}
-      </div>
     </div>
   );
 }
