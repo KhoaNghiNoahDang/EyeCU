@@ -262,6 +262,17 @@ class Appointment(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class Appointment(SQLModel, table=True):
+    __tablename__ = "appointments"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    patient_id: uuid.UUID = Field(foreign_key="patients.id", index=True)
+    doctor_id: uuid.UUID = Field(foreign_key="staffs.id", index=True)
+    date: str = Field(max_length=50) # VD: "2023-10-25"
+    time: str = Field(max_length=50) # VD: "08:30"
+    status: str = Field(default="pending", max_length=20) # pending, confirmed, cancelled
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class HospitalFee(SQLModel, table=True):
     __tablename__ = "hospital_fees"
     __table_args__ = {'extend_existing': True}
