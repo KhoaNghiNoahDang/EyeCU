@@ -11,6 +11,7 @@ import uuid
 
 class Department(SQLModel, table=True):
     __tablename__ = "departments"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str = Field(max_length=100, unique=True, index=True)
     description: Optional[str] = None
@@ -19,6 +20,7 @@ class Department(SQLModel, table=True):
 
 class Patient(SQLModel, table=True):
     __tablename__ = "patients"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str = Field(max_length=100)
     cccd: str = Field(max_length=12, unique=True, index=True)
@@ -54,6 +56,7 @@ class Patient(SQLModel, table=True):
 
 class Staff(SQLModel, table=True):
     __tablename__ = "staffs"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     role: str = Field(max_length=20, index=True)  # admin, clinician, ops, ems
     cccd: str = Field(max_length=12, unique=True, index=True)
@@ -70,6 +73,7 @@ class Staff(SQLModel, table=True):
 
 class DoctorSchedule(SQLModel, table=True):
     __tablename__ = "doctor_schedules"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     doctor_id: uuid.UUID = Field(foreign_key="staffs.id")
     date: str = Field(max_length=20) # YYYY-MM-DD
@@ -85,6 +89,7 @@ class DoctorSchedule(SQLModel, table=True):
 
 class Ambulance(SQLModel, table=True):
     __tablename__ = "ambulances"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     plate_number: str = Field(max_length=15, unique=True, index=True)
     driver_name: Optional[str] = Field(default=None, max_length=100)
@@ -97,6 +102,7 @@ class Ambulance(SQLModel, table=True):
 
 class Shift(SQLModel, table=True):
     __tablename__ = "shifts"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     ambulance_id: uuid.UUID = Field(foreign_key="ambulances.id")
     doctor_id: uuid.UUID = Field(foreign_key="staffs.id")
@@ -106,6 +112,7 @@ class Shift(SQLModel, table=True):
 
 class Device(SQLModel, table=True):
     __tablename__ = "devices"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     device_type: str = Field(
         max_length=50, index=True
@@ -123,6 +130,7 @@ class Device(SQLModel, table=True):
 
 class PatientsQueue(SQLModel, table=True):
     __tablename__ = "patients_queue"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     patient_id: uuid.UUID = Field(foreign_key="patients.id")
     department_id: Optional[uuid.UUID] = Field(
@@ -137,6 +145,7 @@ class PatientsQueue(SQLModel, table=True):
 
 class RegistrationTicket(SQLModel, table=True):
     __tablename__ = "registration_tickets"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     patient_id: uuid.UUID = Field(foreign_key="patients.id")
     ticket_code: str = Field(max_length=50, unique=True, index=True)
@@ -147,6 +156,7 @@ class RegistrationTicket(SQLModel, table=True):
 
 class TicketServiceItem(SQLModel, table=True):
     __tablename__ = "ticket_service_items"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     ticket_id: uuid.UUID = Field(foreign_key="registration_tickets.id")
     service_name: str = Field(max_length=255)
@@ -158,6 +168,7 @@ class TicketServiceItem(SQLModel, table=True):
 
 class ClinicalRecord(SQLModel, table=True):
     __tablename__ = "clinical_records"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     patient_id: uuid.UUID = Field(foreign_key="patients.id")
     doctor_id: uuid.UUID = Field(foreign_key="staffs.id")
@@ -170,6 +181,7 @@ class ClinicalRecord(SQLModel, table=True):
 
 class Medication(SQLModel, table=True):
     __tablename__ = "medications"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     record_id: uuid.UUID = Field(foreign_key="clinical_records.id")
     medicine_name: str = Field(max_length=200)
@@ -179,6 +191,7 @@ class Medication(SQLModel, table=True):
 
 class VitalSign(SQLModel, table=True):
     __tablename__ = "vital_signs"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     patient_id: uuid.UUID = Field(foreign_key="patients.id")
     device_id: Optional[uuid.UUID] = Field(default=None, foreign_key="devices.id")
@@ -191,6 +204,7 @@ class VitalSign(SQLModel, table=True):
 
 class ImagingResult(SQLModel, table=True):
     __tablename__ = "imaging_results"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     patient_id: uuid.UUID = Field(foreign_key="patients.id")
     record_id: Optional[uuid.UUID] = Field(
@@ -204,6 +218,7 @@ class ImagingResult(SQLModel, table=True):
 
 class SmartReaderDoc(SQLModel, table=True):
     __tablename__ = "smart_reader_docs"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     patient_id: uuid.UUID = Field(foreign_key="patients.id")
     record_id: Optional[uuid.UUID] = Field(
@@ -219,6 +234,7 @@ class SmartReaderDoc(SQLModel, table=True):
 
 class FollowUp(SQLModel, table=True):
     __tablename__ = "follow_ups"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     patient_id: uuid.UUID = Field(foreign_key="patients.id")
     record_id: uuid.UUID = Field(foreign_key="clinical_records.id")
@@ -232,17 +248,23 @@ class FollowUp(SQLModel, table=True):
 
 class Appointment(SQLModel, table=True):
     __tablename__ = "appointments"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     patient_id: uuid.UUID = Field(foreign_key="patients.id", index=True)
-    doctor_id: uuid.UUID = Field(foreign_key="staffs.id", index=True)
-    date: str = Field(max_length=50) # VD: "2023-10-25"
-    time: str = Field(max_length=50) # VD: "08:30"
+    doctor_id: Optional[uuid.UUID] = Field(default=None, foreign_key="staffs.id", index=True)
+    department_id: Optional[uuid.UUID] = Field(default=None, foreign_key="departments.id")
+    date: Optional[str] = Field(default=None, max_length=50) # VD: "2023-10-25"
+    time: Optional[str] = Field(default=None, max_length=50) # VD: "08:30"
+    booking_date: Optional[str] = Field(default=None, max_length=20)
+    booking_time: Optional[str] = Field(default=None, max_length=20)
+    reason: Optional[str] = None
     status: str = Field(default="pending", max_length=20) # pending, confirmed, cancelled
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class HospitalFee(SQLModel, table=True):
     __tablename__ = "hospital_fees"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     patient_id: uuid.UUID = Field(foreign_key="patients.id")
     record_id: uuid.UUID = Field(foreign_key="clinical_records.id")
@@ -253,6 +275,7 @@ class HospitalFee(SQLModel, table=True):
 
 class HospitalFeeItem(SQLModel, table=True):
     __tablename__ = "hospital_fee_items"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     fee_id: uuid.UUID = Field(foreign_key="hospital_fees.id")
     name: str = Field(max_length=150)
@@ -266,6 +289,7 @@ class HospitalFeeItem(SQLModel, table=True):
 
 class SystemLog(SQLModel, table=True):
     __tablename__ = "system_logs"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     log_type: str = Field(
         max_length=50, index=True
@@ -279,6 +303,7 @@ class SystemLog(SQLModel, table=True):
 
 class LprLog(SQLModel, table=True):
     __tablename__ = "lpr_logs"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     camera_id: Optional[uuid.UUID] = Field(default=None, foreign_key="devices.id")
     plate_number: str = Field(max_length=20, index=True)
@@ -289,6 +314,7 @@ class LprLog(SQLModel, table=True):
 
 class Incident(SQLModel, table=True):
     __tablename__ = "incidents"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     room_code: str = Field(max_length=50, index=True)
     severity: str = Field(max_length=50)  # Khẩn, Cần xem, Ổn định
@@ -298,6 +324,7 @@ class Incident(SQLModel, table=True):
 
 class EmsMission(SQLModel, table=True):
     __tablename__ = "ems_missions"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     plate_number: str = Field(max_length=20, index=True)
     hospital_id: Optional[str] = Field(default=None, max_length=50)
@@ -309,20 +336,11 @@ class EmsMission(SQLModel, table=True):
 # 5. NHÓM TƯƠNG TÁC BỆNH NHÂN (PATIENT ENGAGEMENT)
 # =========================================================================
 
-class Appointment(SQLModel, table=True):
-    __tablename__ = "appointments"
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    patient_id: uuid.UUID = Field(foreign_key="patients.id")
-    department_id: Optional[uuid.UUID] = Field(default=None, foreign_key="departments.id")
-    doctor_id: Optional[uuid.UUID] = Field(default=None, foreign_key="staffs.id")
-    booking_date: str = Field(max_length=20)
-    booking_time: str = Field(max_length=20)
-    reason: Optional[str] = None
-    status: str = Field(default="pending", max_length=20)  # pending, confirmed, cancelled
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+
 
 class Notification(SQLModel, table=True):
     __tablename__ = "notifications"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     patient_id: Optional[uuid.UUID] = Field(default=None, foreign_key="patients.id")
     staff_id: Optional[uuid.UUID] = Field(default=None, foreign_key="staffs.id")
@@ -334,6 +352,7 @@ class Notification(SQLModel, table=True):
 
 class CommunityQuestion(SQLModel, table=True):
     __tablename__ = "community_questions"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     patient_id: uuid.UUID = Field(foreign_key="patients.id")
     department: str = Field(max_length=100)
@@ -345,6 +364,7 @@ class CommunityQuestion(SQLModel, table=True):
 
 class ConsentForm(SQLModel, table=True):
     __tablename__ = "consent_forms"
+    __table_args__ = {'extend_existing': True}
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     patient_id: uuid.UUID = Field(foreign_key="patients.id")
     document_name: str = Field(max_length=200)
