@@ -10,17 +10,7 @@ export function VitalSignsView({ onBack, data }: Props) {
   const vs = data?.vitalSigns;
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 overflow-hidden absolute inset-0 z-50">
-      {/* Top App Bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white text-[#0d1f2d] pt-safe z-10 shrink-0 shadow-sm border-b border-slate-100">
-        <button onClick={onBack} className="p-1 active:scale-95">
-          <ArrowLeft className="h-6 w-6" />
-        </button>
-        <span className="text-[17px] font-bold flex-1 text-center pr-2">Sinh hiệu</span>
-        <div className="w-8" />
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+    <div className="p-4 space-y-3 bg-white">
         {!vs ? (
           <div className="text-center text-slate-500 mt-10">Chưa có dữ liệu sinh hiệu</div>
         ) : (

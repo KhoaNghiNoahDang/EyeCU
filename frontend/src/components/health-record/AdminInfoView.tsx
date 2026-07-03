@@ -10,17 +10,7 @@ export function AdminInfoView({ onBack, data }: Props) {
   const p = data;
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 overflow-hidden absolute inset-0 z-50">
-      <div className="flex items-center justify-between px-4 py-3 bg-white text-[#0d1f2d] pt-safe z-10 shrink-0 shadow-sm border-b border-slate-100">
-        <button onClick={onBack} className="p-1 active:scale-95">
-          <ArrowLeft className="h-6 w-6" />
-        </button>
-        <span className="text-[17px] font-bold flex-1 text-center pr-2">Thông tin hành chính</span>
-        <div className="w-8" />
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
+    <div className="p-4 space-y-4 bg-white">
            <h3 className="text-sm font-bold text-[#0d1f2d] uppercase tracking-wide border-b border-slate-100 pb-2 mb-3">Thông tin cơ bản</h3>
            <div className="space-y-3">
               <div className="flex items-center gap-3">

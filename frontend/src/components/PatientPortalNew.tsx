@@ -30,7 +30,7 @@ function getTimeNow() {
   return new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 }
 
-type ViewState = "home" | "health_record" | "record_lookup" | "community_qa" | "ask_question" | "invoice_list" | "digital_signature" | "hospital_map" | "vital_signs" | "medications" | "lab_results" | "imaging_results" | "admin_info" | "record_summary";
+type ViewState = "home" | "health_record" | "record_lookup" | "community_qa" | "ask_question" | "invoice_list" | "digital_signature" | "hospital_map";
 
 function getAge(dobString?: string) {
   if (!dobString) return "";
@@ -58,6 +58,7 @@ export function PatientPortalNew({
   const { user } = useAuth();
   const [clinicalBundle, setClinicalBundle] = useState<any>(null);
   const [loadingBundle, setLoadingBundle] = useState(true);
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -665,25 +666,39 @@ export function PatientPortalNew({
               </div>
            </div>
         ) : (
-           /* Services List */
-           <div className="mx-4 mt-4 bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col">
+           /* Services List as Accordion */
+           <div className="bg-slate-50 mt-4 pt-2 flex-1 shadow-[0_-4px_10px_rgba(0,0,0,0.02)] min-h-screen">
               {[
-                { icon: Stethoscope, label: "Kết quả khám", view: "record_summary" as ViewState }, // Using record_summary for both, or separate if needed
-                { icon: Heart, label: "Sinh hiệu", view: "vital_signs" as ViewState },
-                { icon: Activity, label: "Kết quả xét nghiệm", view: "lab_results" as ViewState },
-                { icon: FileText, label: "Kết quả CĐHA và thăm dò chức năng", view: "imaging_results" as ViewState },
-                { icon: Receipt, label: "Thuốc", view: "medications" as ViewState },
-                { icon: FileText, label: "Thông tin hành chính", view: "admin_info" as ViewState },
-                { icon: FileSignature, label: "Tóm tắt bệnh án", view: "record_summary" as ViewState },
-              ].map((item, i) => (
-                 <button key={i} onClick={() => setCurrentView(item.view)} className="flex items-center justify-between px-4 py-4 border-b border-slate-100 last:border-0 active:bg-slate-50 text-left">
-                    <div className="flex items-center gap-3">
-                       <item.icon className="h-5 w-5 text-[#0d1f2d]" strokeWidth={1.5} />
-                       <span className="text-[15px] font-semibold text-[#0d1f2d]">{item.label}</span>
-                    </div>
-                    <ChevronRight className="h-5 w-5 text-slate-400" />
-                 </button>
-              ))}
+                { id: "record_summary", icon: Stethoscope, label: "Kết quả khám", Component: RecordSummaryView },
+                { id: "vital_signs", icon: Heart, label: "Sinh hiệu", Component: VitalSignsView },
+                { id: "lab_results", icon: Activity, label: "Kết quả xét nghiệm", Component: LabResultsView },
+                { id: "imaging_results", icon: FileText, label: "Kết quả CĐHA và thăm dò chức năng", Component: ImagingResultsView },
+                { id: "medications", icon: Receipt, label: "Thuốc", Component: MedicationsView },
+                { id: "admin_info", icon: FileText, label: "Thông tin hành chính", Component: AdminInfoView },
+              ].map((item, i) => {
+                 const isExpanded = expandedSection === item.id;
+                 return (
+                   <div key={i} className="border-b border-slate-200/60 last:border-0 bg-white">
+                     <button 
+                        onClick={() => setExpandedSection(isExpanded ? null : item.id)} 
+                        className={`flex w-full items-center justify-between px-4 py-4 text-left transition-colors duration-200 ${isExpanded ? "bg-[#88E8F2]" : "bg-white active:bg-slate-50"}`}
+                     >
+                        <div className="flex items-center gap-3">
+                           <item.icon className={`h-5 w-5 ${isExpanded ? "text-[#0d1f2d]" : "text-[#0d1f2d]"}`} strokeWidth={1.5} />
+                           <span className={`text-[15px] font-semibold ${isExpanded ? "text-[#0d1f2d]" : "text-[#0d1f2d]"}`}>{item.label}</span>
+                        </div>
+                        <ChevronRight className={`h-5 w-5 transition-transform duration-200 ${isExpanded ? "rotate-90 text-[#0d1f2d]" : "text-slate-400"}`} />
+                     </button>
+                     
+                     {/* Accordion Content */}
+                     {isExpanded && (
+                       <div className="border-t border-[#88E8F2]/30 animate-in slide-in-from-top-2 duration-200">
+                          <item.Component data={clinicalBundle} onBack={() => setExpandedSection(null)} />
+                       </div>
+                     )}
+                   </div>
+                 );
+              })}
            </div>
         )}
       </div>
@@ -1545,18 +1560,6 @@ export function PatientPortalNew({
             renderInvoiceList()
           ) : currentView === "digital_signature" ? (
             renderDigitalSignature()
-          ) : currentView === "vital_signs" ? (
-            <VitalSignsView data={clinicalBundle} onBack={() => setCurrentView("health_record")} />
-          ) : currentView === "medications" ? (
-            <MedicationsView data={clinicalBundle} onBack={() => setCurrentView("health_record")} />
-          ) : currentView === "lab_results" ? (
-            <LabResultsView data={clinicalBundle} onBack={() => setCurrentView("health_record")} />
-          ) : currentView === "imaging_results" ? (
-            <ImagingResultsView data={clinicalBundle} onBack={() => setCurrentView("health_record")} />
-          ) : currentView === "admin_info" ? (
-            <AdminInfoView data={clinicalBundle} onBack={() => setCurrentView("health_record")} />
-          ) : currentView === "record_summary" ? (
-            <RecordSummaryView data={clinicalBundle} onBack={() => setCurrentView("health_record")} />
           ) : (
             renderHospitalMap()
           )
