@@ -711,8 +711,8 @@ def get_departments(db: Session = Depends(get_db)):
     return {"departments": [{"id": str(d.id), "name": d.name, "description": d.description} for d in depts]}
 
 # ─── GET Doctors by Department ────────────────────────────────────
-@router.get("/doctors")
-def get_doctors(department_id: Optional[str] = None, db: Session = Depends(get_db)):
+@router.get("/doctors-by-department")
+def get_doctors_by_dept(department_id: Optional[str] = None, db: Session = Depends(get_db)):
     """Trả về danh sách bác sĩ (clinician) theo khoa."""
     from app.db.models import Staff
     import uuid as _uuid
@@ -864,6 +864,27 @@ def get_appointments(user = Depends(get_current_user), db: Session = Depends(get
         result.append({
             "id": str(a.id),
             "department": dept.name if dept else "Khám Tổng Quát",
+            "date": a.booking_date,
+            "time": a.booking_time,
+            "reason": a.reason,
+            "status": a.status
+        })
+    return {"appointments": result}
+
+# ─── Lấy Lịch Hẹn Của Bác Sĩ (Clinician Dashboard) ─────────────────
+@router.get("/doctor-appointments")
+def get_doctor_appointments(user = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Lấy danh sách lịch khám của bác sĩ đang đăng nhập."""
+    from app.db.models import Appointment, Department, Patient
+    apps = db.query(Appointment).filter(Appointment.doctor_id == user.id).order_by(Appointment.booking_date.asc(), Appointment.booking_time.asc()).all()
+    result = []
+    for a in apps:
+        dept = db.query(Department).filter(Department.id == a.department_id).first() if a.department_id else None
+        pat = db.query(Patient).filter(Patient.id == a.patient_id).first() if a.patient_id else None
+        result.append({
+            "id": str(a.id),
+            "department": dept.name if dept else "Khám Tổng Quát",
+            "patient_name": pat.name if pat else "Bệnh nhân",
             "date": a.booking_date,
             "time": a.booking_time,
             "reason": a.reason,

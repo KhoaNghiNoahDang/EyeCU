@@ -259,6 +259,26 @@ function PatientRounds() {
     window.speechSynthesis.speak(utter);
   };
 
+  // ── Lấy danh sách lịch hẹn đã đồng bộ từ CSDL ─────────────────────────
+  useEffect(() => {
+    if (workMode !== "clinician") return;
+    fetchApi("/patient/doctor-appointments").then(data => {
+      if (data && data.appointments) {
+        const syncedNotifs: ClinicNotif[] = data.appointments.map((d: any) => {
+          const dateStr = d.date ? new Date(d.date + "T00:00:00").toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }) : d.date;
+          return {
+            id: d.id,
+            text: `Lịch khám mới — ${d.department}`,
+            detail: `Bệnh nhân: ${d.patient_name} · Ngày ${dateStr} lúc ${d.time}`,
+            ts: d.date + "T" + d.time,
+            read: true, // Lịch đã có trong CSDL coi như đã đọc
+          };
+        });
+        setClinicNotifs(syncedNotifs);
+      }
+    }).catch(console.error);
+  }, [workMode]);
+
   // ── WebSocket listener cho APPOINTMENT_BOOKED ───────────────────────────
   useEffect(() => {
     if (workMode !== "clinician") return; // Chỉ clinician mới nghe

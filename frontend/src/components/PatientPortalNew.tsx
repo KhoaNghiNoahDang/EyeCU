@@ -759,7 +759,7 @@ export function PatientPortalNew({
     setSelectedDoctorId("random"); setSelectedDoctorName("Bác sĩ ngẫu nhiên");
     setBookStep(2);
     try {
-      const data = await fetchApi(`/patient/doctors?department_id=${id}`);
+      const data = await fetchApi(`/patient/doctors-by-department?department_id=${id}`);
       setDoctorsList(data.doctors || []);
     } catch { setDoctorsList([]); }
   };
