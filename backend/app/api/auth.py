@@ -370,6 +370,9 @@ class FinalizeRegisterRequest(BaseModel):
     emergency_contact_name: str
     emergency_contact_phone: str
     face_base64: str
+    blood_type: str = ""
+    allergies: str = ""
+    chronic_conditions: str = ""
 
 @router.post("/register/patient/ekyc/finalize")
 async def finalize_ekyc(data: FinalizeRegisterRequest, db: Session = Depends(get_db)):
@@ -394,7 +397,10 @@ async def finalize_ekyc(data: FinalizeRegisterRequest, db: Session = Depends(get
             issue_place=data.issue_place,
             valid_until=data.valid_until,
             characteristics=data.characteristics,
-            face_base64=data.face_base64
+            face_base64=data.face_base64,
+            blood_type=data.blood_type,
+            allergies=data.allergies,
+            chronic_conditions=data.chronic_conditions
         )
         
         db.add(new_patient)

@@ -4,12 +4,16 @@ export const supabase = {
   from: (table: string) => ({
     select: () => ({
       eq: (field: string, val: string) => {
-        if (table === 'dispatch_records' && field === 'status' && val === 'active') {
-          return fetchApi('/ems/dispatch_records?status=active')
+        let p;
+        if (table === 'dispatch_records' && field === 'status' && (val === 'active' || val === 'completed')) {
+          p = fetchApi(`/ems/dispatch_records?status=${val}`)
             .then(data => ({ data: Array.isArray(data) ? data : [] }))
             .catch(() => ({ data: [] }));
+        } else {
+          p = Promise.resolve({ data: [] });
         }
-        return Promise.resolve({ data: [] });
+        p.order = () => p;
+        return p;
       }
     }),
     upsert: (data: any) => {
