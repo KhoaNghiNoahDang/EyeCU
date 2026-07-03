@@ -389,6 +389,49 @@ export function PatientPortalNew({
   };
   const [currentView, setCurrentView] = useState<ViewState>("home");
   const [showFiles, setShowFiles] = useState(false);
+  
+  const [currentTicket, setCurrentTicket] = useState<any>(null);
+  const [searchTicketCode, setSearchTicketCode] = useState("");
+  const [isSearchingTicket, setIsSearchingTicket] = useState(false);
+
+  useEffect(() => {
+    if (currentView === "record_lookup") {
+      fetchLatestTicket();
+    }
+  }, [currentView]);
+
+  const fetchLatestTicket = async () => {
+    setIsSearchingTicket(true);
+    try {
+      const res = await fetchApi("/patient/tickets/latest");
+      if (res && res.id) setCurrentTicket(res);
+      else setCurrentTicket(null);
+    } catch(e) {
+      setCurrentTicket(null);
+    } finally {
+      setIsSearchingTicket(false);
+    }
+  };
+
+  const handleSearchTicket = async () => {
+    if (!searchTicketCode) return;
+    setIsSearchingTicket(true);
+    try {
+      const res = await fetchApi(`/patient/tickets/${searchTicketCode}`);
+      if (res && res.id) {
+        setCurrentTicket(res);
+      } else {
+        alert("Không tìm thấy mã hồ sơ này");
+        setCurrentTicket(null);
+      }
+    } catch(e) {
+      console.error(e);
+      alert("Không tìm thấy mã hồ sơ này");
+      setCurrentTicket(null);
+    } finally {
+      setIsSearchingTicket(false);
+    }
+  };
 
   // Camera / Scan logic
   const [isScanning, setIsScanning] = useState(false);
@@ -712,8 +755,8 @@ export function PatientPortalNew({
             </div>
            
            <div className="flex items-start gap-3">
-             <div className="h-16 w-16 shrink-0 rounded-full border border-slate-100 bg-white p-1 shadow-sm">
-                <img src="/logo.png" alt="EyeCU" className="h-full w-full object-contain" />
+             <div className="h-16 w-16 shrink-0 rounded-full border border-slate-100 bg-white p-1 shadow-sm overflow-hidden">
+                <img src={user?.avatar || DEFAULT_AVATAR} alt="EyeCU" className="h-full w-full object-cover rounded-full" />
              </div>
              <div className="flex-1 min-w-0">
                <h2 className="text-[16px] font-bold text-[#0d1f2d] uppercase mb-1">{user?.name || "Bệnh nhân"}</h2>
@@ -725,8 +768,11 @@ export function PatientPortalNew({
                </div>
              </div>
              <div className="shrink-0 rounded-xl bg-white p-1 border border-slate-200 shadow-sm mt-1">
-                {/* Dummy QR Code */}
-                <div className="h-14 w-14 bg-[url('https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=EYECU_RECORD')] bg-cover" />
+                {/* Dynamic QR Code */}
+                <div 
+                   className="h-14 w-14 bg-cover" 
+                   style={{ backgroundImage: `url('https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${user?.cccd || "EYECU_RECORD"}')` }}
+                />
              </div>
            </div>
         </div>
@@ -1055,80 +1101,88 @@ export function PatientPortalNew({
           <input
             type="text"
             placeholder="Nhập mã hồ sơ"
+            value={searchTicketCode}
+            onChange={(e) => setSearchTicketCode(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearchTicket()}
             className="flex-1 bg-transparent px-2 text-[15px] outline-none placeholder:text-slate-400"
           />
           <button onClick={() => setIsScanning(true)} className="flex w-10 shrink-0 items-center justify-center active:bg-slate-50">
             <FileText className="h-5 w-5 text-[#0d1f2d]" />
           </button>
-          <button className="flex items-center justify-center bg-[#a6c1e6] px-5 text-[15px] font-semibold text-white active:bg-blue-400 transition-colors">
+          <button 
+            onClick={handleSearchTicket}
+            disabled={isSearchingTicket}
+            className="flex items-center justify-center bg-[#a6c1e6] px-5 text-[15px] font-semibold text-white active:bg-blue-400 transition-colors disabled:opacity-50"
+          >
             Tìm
           </button>
         </div>
 
         {/* Guide Label */}
         <h3 className="mb-4 text-center text-[14px] font-bold text-slate-500 uppercase tracking-wide">
-          Hướng dẫn xem mã hồ sơ
+          {currentTicket ? "Phiếu hướng dẫn khám bệnh" : "Không tìm thấy hồ sơ"}
         </h3>
 
-        {/* Paper Mockup */}
-        <div className="mx-auto w-full max-w-[340px] bg-white p-4 shadow-md mb-6">
-          <div className="flex justify-between items-start mb-4">
-            <div className="text-center">
-              <p className="text-[10px] font-bold uppercase">BỘ Y TẾ</p>
-              <p className="text-[10px] font-bold uppercase">CƠ SỞ Y TẾ</p>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-[10px] text-red-500 font-medium">Mã Hồ sơ</span>
-              <div className="bg-red-100/50 px-2 py-1 mt-0.5">
-                {/* Barcode Mock */}
-                <div className="flex h-8 w-24 gap-[2px]">
-                  {[3,1,2,4,1,3,2,1,2,3,1,1,4,2].map((w,i)=><div key={i} className="h-full bg-black" style={{width: `${w}px`}} />)}
+        {/* Dynamic Paper Mockup */}
+        {currentTicket && (
+          <div className="mx-auto w-full max-w-[340px] bg-white p-4 shadow-md mb-6 relative">
+            {currentTicket.status === "completed" && (
+               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-12 border-4 border-red-500 text-red-500 font-bold text-3xl px-4 py-2 rounded-lg opacity-20 pointer-events-none">ĐÃ KHÁM XONG</div>
+            )}
+            <div className="flex justify-between items-start mb-4">
+              <div className="text-center">
+                <p className="text-[10px] font-bold uppercase">BỘ Y TẾ</p>
+                <p className="text-[10px] font-bold uppercase">CƠ SỞ Y TẾ EYECU</p>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-red-500 font-medium">Mã Hồ sơ</span>
+                <div className="bg-red-100/50 px-2 py-1 mt-0.5">
+                  <div className="flex h-8 w-24 gap-[2px]">
+                    {[3,1,2,4,1,3,2,1,2,3,1,1,4,2].map((w,i)=><div key={i} className="h-full bg-black" style={{width: `${w}px`}} />)}
+                  </div>
+                  <p className="text-[8px] text-center font-mono mt-0.5">{currentTicket.ticket_code}</p>
                 </div>
-                <p className="text-[8px] text-center font-mono mt-0.5">80969800</p>
+              </div>
+              <div className="pt-4">
+                <p className="text-[9px]">Mã NB: {currentTicket.patient_code}</p>
               </div>
             </div>
-            <div className="pt-4">
-              <p className="text-[9px]">Mã NB: 2303006123</p>
+            
+            <div className="text-center mb-4">
+               <h4 className="text-[16px] font-bold uppercase">PHIẾU HƯỚNG DẪN</h4>
+               <p className="text-[10px]">Ngày đăng ký: {new Date(currentTicket.registered_at).toLocaleDateString("vi-VN")} <span className="font-bold text-[18px] ml-4 text-red-600">STT: {currentTicket.sequence_number}</span></p>
             </div>
-          </div>
-          
-          <div className="text-center mb-4">
-             <h4 className="text-[16px] font-bold uppercase">PHIẾU HƯỚNG DẪN</h4>
-             <p className="text-[10px]">Ngày đăng ký: 10/03/2023 <span className="font-bold text-[18px] ml-4">STT: 18</span></p>
-          </div>
-          
-          <div className="text-[10px] space-y-1 mb-3">
-             <p>Họ và tên: <span className="font-bold text-[11px]">NGUYỄN VĂN A</span></p>
-             <div className="flex justify-between">
-               <p>Đối tượng: Dịch vụ</p>
-               <p>Tuổi: 14</p>
-               <p>Giới tính: Nam</p>
-             </div>
-             <p>Địa chỉ: Nghĩa Tân, Cầu Giấy, Hà Nội, Việt Nam</p>
-          </div>
+            
+            <div className="text-[10px] space-y-1 mb-3">
+               <p>Họ và tên: <span className="font-bold text-[11px] uppercase">{user?.name}</span></p>
+               <div className="flex justify-between">
+                 <p>Đối tượng: Dịch vụ</p>
+                 <p>Tuổi: {getAge(user?.dob)}</p>
+                 <p>Giới tính: {user?.gender}</p>
+               </div>
+               <p>Địa chỉ: {user?.address || "Chưa cập nhật"}</p>
+            </div>
 
-          <table className="w-full text-[10px] border-collapse border border-slate-300 mb-6 text-center">
-            <thead>
-              <tr className="border-b border-slate-300 font-bold">
-                <td className="border-r border-slate-300 py-1">STT</td>
-                <td className="border-r border-slate-300 py-1">Tên dịch vụ</td>
-                <td className="py-1">Nơi khám</td>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="border-r border-slate-300 py-3">1</td>
-                <td className="border-r border-slate-300 py-3">Khám Cấp cứu</td>
-                <td className="py-3 font-bold px-1">Khoa Cấp cứu- Phòng A109 - Tầng 1- nhà A2</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <div className="flex justify-between text-[9px]">
-             <p>Tên đăng nhập: nguyenvana11</p>
-             <p>Mật khẩu: 888567</p>
+            <table className="w-full text-[10px] border-collapse border border-slate-300 mb-6 text-center">
+              <thead>
+                <tr className="border-b border-slate-300 font-bold bg-slate-50">
+                  <td className="border-r border-slate-300 py-1">STT</td>
+                  <td className="border-r border-slate-300 py-1">Tên dịch vụ</td>
+                  <td className="py-1">Nơi khám</td>
+                </tr>
+              </thead>
+              <tbody>
+                {currentTicket.items?.map((item: any) => (
+                  <tr key={item.id} className={item.status === 'completed' ? "opacity-50 line-through" : ""}>
+                    <td className="border-r border-slate-300 py-3">{item.order_index}</td>
+                    <td className="border-r border-slate-300 py-3">{item.service_name}</td>
+                    <td className="py-3 font-bold px-1">{item.room_location}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

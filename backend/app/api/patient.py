@@ -762,3 +762,53 @@ def get_doctor_schedules(db: Session = Depends(get_db)):
             }
             
     return {"doctors": list(doctors_dict.values())}
+
+@router.get("/tickets/latest")
+def get_latest_ticket(user: Patient = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import RegistrationTicket, TicketServiceItem
+    ticket = db.query(RegistrationTicket).filter(RegistrationTicket.patient_id == user.id).order_by(RegistrationTicket.registered_at.desc()).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Không tìm thấy phiếu khám")
+    items = db.query(TicketServiceItem).filter(TicketServiceItem.ticket_id == ticket.id).order_by(TicketServiceItem.order_index).all()
+    return {
+        "id": str(ticket.id),
+        "ticket_code": ticket.ticket_code,
+        "patient_code": ticket.patient_code,
+        "sequence_number": ticket.sequence_number,
+        "registered_at": ticket.registered_at.isoformat(),
+        "status": ticket.status,
+        "items": [
+            {
+                "id": str(i.id),
+                "service_name": i.service_name,
+                "room_location": i.room_location,
+                "order_index": i.order_index,
+                "status": i.status
+            } for i in items
+        ]
+    }
+
+@router.get("/tickets/{ticket_code}")
+def get_ticket_by_code(ticket_code: str, user: Patient = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import RegistrationTicket, TicketServiceItem
+    ticket = db.query(RegistrationTicket).filter(RegistrationTicket.patient_id == user.id, RegistrationTicket.ticket_code == ticket_code).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Không tìm thấy mã hồ sơ này")
+    items = db.query(TicketServiceItem).filter(TicketServiceItem.ticket_id == ticket.id).order_by(TicketServiceItem.order_index).all()
+    return {
+        "id": str(ticket.id),
+        "ticket_code": ticket.ticket_code,
+        "patient_code": ticket.patient_code,
+        "sequence_number": ticket.sequence_number,
+        "registered_at": ticket.registered_at.isoformat(),
+        "status": ticket.status,
+        "items": [
+            {
+                "id": str(i.id),
+                "service_name": i.service_name,
+                "room_location": i.room_location,
+                "order_index": i.order_index,
+                "status": i.status
+            } for i in items
+        ]
+    }

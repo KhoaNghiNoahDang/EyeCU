@@ -135,6 +135,27 @@ class PatientsQueue(SQLModel, table=True):
     entered_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class RegistrationTicket(SQLModel, table=True):
+    __tablename__ = "registration_tickets"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    patient_id: uuid.UUID = Field(foreign_key="patients.id")
+    ticket_code: str = Field(max_length=50, unique=True, index=True)
+    patient_code: str = Field(max_length=50)
+    sequence_number: int = Field(default=1)
+    registered_at: datetime = Field(default_factory=datetime.utcnow)
+    status: str = Field(default="active", max_length=20) # active, completed, cancelled
+
+class TicketServiceItem(SQLModel, table=True):
+    __tablename__ = "ticket_service_items"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    ticket_id: uuid.UUID = Field(foreign_key="registration_tickets.id")
+    service_name: str = Field(max_length=255)
+    room_location: str = Field(max_length=255)
+    order_index: int = Field(default=1)
+    status: str = Field(default="pending", max_length=20)
+
+
+
 class ClinicalRecord(SQLModel, table=True):
     __tablename__ = "clinical_records"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
