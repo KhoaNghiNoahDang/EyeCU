@@ -1,8 +1,8 @@
 "use client";
 import React, { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useAuth } from "../lib/auth/auth-context";
-import { fetchApi } from "../lib/api/client";
-import { User, LogIn, Calendar, FileText, Settings, Heart, Bell, MessageCircle, MapPin, Menu, X, ArrowLeft, ArrowRight, ShieldCheck, ChevronRight, Mic, Send, Phone, ClipboardList, ScanFace, FileSignature, Info, LogOut, Copy, Download, Eye, Map as MapIcon, Trash2, CalendarClock, Lock, Globe, Users, Activity, Search, Stethoscope, Receipt, Home, Bot, Star, Camera, ScanLine, Share, PlusSquare } from "lucide-react";
+import { fetchApi, API_URL } from "../lib/api/client";
+import { User, LogIn, Calendar, FileText, Settings, Heart, Bell, MessageCircle, MapPin, Menu, X, ArrowLeft, ArrowRight, ShieldCheck, ChevronRight, Mic, Send, Phone, ClipboardList, ScanFace, FileSignature, Info, LogOut, Copy, Download, Eye, Map as MapIcon, Trash2, CalendarClock, Lock, Globe, Users, Activity, Search, Stethoscope, Receipt, Home, Bot, Star, Camera, ScanLine, Share, PlusSquare, Volume2, VolumeX, Loader2 } from "lucide-react";
 import { getHospitalsByProvince, CENTRAL_HOSPITALS, Hospital } from "../lib/hospitals";
 import { MapErrorBoundary } from "./MapErrorBoundary";
 
@@ -56,6 +56,11 @@ export function PatientPortalNew({
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [botTyping, setBotTyping] = useState(false);
+  
+  // TTS Logic
+  const [autoPlayTTS, setAutoPlayTTS] = useState(true);
+  const [playingTTSMsgIdx, setPlayingTTSMsgIdx] = useState<number | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Ghi âm Voice
@@ -145,6 +150,36 @@ export function PatientPortalNew({
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, botTyping]);
+
+  useEffect(() => {
+    if (autoPlayTTS && messages.length > 0) {
+      const lastMsgIdx = messages.length - 1;
+      const lastMsg = messages[lastMsgIdx];
+      // Play TTS if it's from bot and not already playing (to prevent re-triggering on re-renders)
+      if (lastMsg.from === "bot" && playingTTSMsgIdx !== lastMsgIdx) {
+        // Debounce slightly to allow UI to render first
+        const t = setTimeout(() => playTTS(lastMsg.text, lastMsgIdx), 300);
+        return () => clearTimeout(t);
+      }
+    }
+  }, [messages.length, autoPlayTTS]);
+
+  const playTTS = (text: string, idx: number) => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+    setPlayingTTSMsgIdx(idx);
+    const audio = new Audio(`${API_URL}/voice/tts?text=${encodeURIComponent(text)}`);
+    audioRef.current = audio;
+    audio.play().catch(e => {
+      console.error("Audio playback failed:", e);
+      setPlayingTTSMsgIdx(null);
+    });
+    audio.onended = () => {
+      setPlayingTTSMsgIdx(null);
+      audioRef.current = null;
+    };
+  };
 
   const sendMessage = (textStr?: string, payloadStr?: string) => {
     const text = textStr || chatInput.trim();
@@ -1756,7 +1791,14 @@ export function PatientPortalNew({
                     <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#0d1f2d]" />Trực tuyến
                   </p>
                 </div>
-                <button onClick={() => setBotOpen(false)} className="text-[#0d1f2d]/50 transition hover:text-[#0d1f2d]"><X className="h-5 w-5" /></button>
+                <button 
+                  onClick={() => setAutoPlayTTS(!autoPlayTTS)} 
+                  className={`flex items-center justify-center p-1.5 rounded-full transition-colors ${autoPlayTTS ? "bg-[#0d1f2d]/10 text-[#0d1f2d]" : "text-[#0d1f2d]/40 hover:bg-[#0d1f2d]/5"}`}
+                  title={autoPlayTTS ? "Tắt tự động đọc" : "Bật tự động đọc"}
+                >
+                  {autoPlayTTS ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                </button>
+                <button onClick={() => setBotOpen(false)} className="text-[#0d1f2d]/50 transition hover:text-[#0d1f2d] ml-1"><X className="h-5 w-5" /></button>
               </div>
               <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50 p-3 scrollbar-hide">
                 {messages.map((msg, i) => (
@@ -1767,7 +1809,18 @@ export function PatientPortalNew({
                       </div>
                     )}
                     <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${msg.from === "user" ? "rounded-br-sm bg-[#0d1f2d] text-white" : "rounded-bl-sm border border-slate-100 bg-white text-slate-800 shadow-sm"}`}>
-                      <p className="text-[13px] leading-relaxed">{msg.text}</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                        {msg.from === "bot" && (
+                          <button 
+                            onClick={() => playTTS(msg.text, i)}
+                            className={`mt-0.5 flex-shrink-0 p-1 rounded-full transition-colors ${playingTTSMsgIdx === i ? "bg-[#88E8F2]/30 text-[#0d1f2d]" : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"}`}
+                            title="Nghe tin nhắn"
+                          >
+                            {playingTTSMsgIdx === i ? <Volume2 className="h-3.5 w-3.5 animate-pulse" /> : <Volume2 className="h-3.5 w-3.5" />}
+                          </button>
+                        )}
+                      </div>
                       {msg.from === "bot" && msg.buttons && msg.buttons.length > 0 && (
                         <div className="mt-2.5 flex flex-wrap gap-1.5">
                           {msg.buttons.map((btn, idx) => (

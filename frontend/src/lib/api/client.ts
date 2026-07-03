@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || "https://eyecu.onrender.com/api";
+export const API_URL = import.meta.env.VITE_API_URL || "https://eyecu.onrender.com/api";
 
 interface CustomRequestInit extends Omit<RequestInit, 'body'> {
   body?: any;
