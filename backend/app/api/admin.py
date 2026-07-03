@@ -198,3 +198,126 @@ def get_table_data(table_name: str, db: Session = Depends(get_db)):
         data.append(row_dict)
 
     return data
+
+@router.delete("/tables/{table_name}/{record_id}", dependencies=[Depends(require_roles(["admin"]))])
+def delete_table_record(table_name: str, record_id: str, db: Session = Depends(get_db)):
+    allowed_tables = [
+        "patients",
+        "staffs",
+        "departments",
+        "ambulances",
+        "devices",
+        "patients_queue",
+        "clinical_records",
+        "medications",
+        "vital_signs",
+        "smart_reader_docs",
+        "follow_ups",
+        "hospital_fees",
+        "hospital_fee_items",
+        "system_logs",
+        "lpr_logs",
+        "incidents",
+        "encounters",
+        "shifts",
+    ]
+    if table_name not in allowed_tables:
+        raise HTTPException(status_code=400, detail="Invalid table name")
+
+    try:
+        query = text(f"DELETE FROM {table_name} WHERE id = :record_id")
+        result = db.execute(query, {"record_id": record_id})
+        db.commit()
+        
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Record not found")
+            
+        return {"status": "success", "message": "Deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class DepartmentCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+@router.post("/departments", dependencies=[Depends(require_roles(["admin"]))])
+def create_department(data: DepartmentCreate, db: Session = Depends(get_db)):
+    import uuid as _uuid
+    new_dept = Department(
+        name=data.name,
+        description=data.description,
+    )
+    db.add(new_dept)
+    db.commit()
+    db.refresh(new_dept)
+    return {"status": "success", "id": str(new_dept.id)}
+
+@router.get("/departments")
+def get_departments(db: Session = Depends(get_db)):
+    depts = db.query(Department).all()
+    return [{"id": str(d.id), "name": d.name, "description": d.description} for d in depts]
+
+class AmbulanceCreate(BaseModel):
+    plate_number: str
+    driver_name: Optional[str] = None
+    status: Optional[str] = "available"
+
+@router.post("/ambulances", dependencies=[Depends(require_roles(["admin"]))])
+def create_ambulance(data: AmbulanceCreate, db: Session = Depends(get_db)):
+    new_amb = Ambulance(
+        plate_number=data.plate_number,
+        driver_name=data.driver_name,
+        status=data.status or "available",
+    )
+    db.add(new_amb)
+    db.commit()
+    db.refresh(new_amb)
+    return {"status": "success", "id": str(new_amb.id)}
+
+
+class PatientCreate(BaseModel):
+    name: str
+    cccd: str
+    phone: Optional[str] = None
+    bhxh_code: Optional[str] = None
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+
+@router.post("/patients", dependencies=[Depends(require_roles(["admin"]))])
+def create_patient(data: PatientCreate, db: Session = Depends(get_db)):
+    new_patient = Patient(
+        name=data.name,
+        cccd=data.cccd,
+        phone=data.phone,
+        bhxh_code=data.bhxh_code,
+        emergency_contact_name=data.emergency_contact_name,
+        emergency_contact_phone=data.emergency_contact_phone,
+    )
+    db.add(new_patient)
+    db.commit()
+    db.refresh(new_patient)
+    return {"status": "success", "id": str(new_patient.id)}
+
+
+class DeviceCreate(BaseModel):
+    name: str
+    device_type: str
+    location: Optional[str] = None
+    ip_address: Optional[str] = None
+    status: Optional[str] = "active"
+
+@router.post("/devices", dependencies=[Depends(require_roles(["admin"]))])
+def create_device(data: DeviceCreate, db: Session = Depends(get_db)):
+    new_device = Device(
+        name=data.name,
+        device_type=data.device_type,
+        location=data.location,
+        ip_address=data.ip_address,
+        status=data.status or "active",
+    )
+    db.add(new_device)
+    db.commit()
+    db.refresh(new_device)
+    return {"status": "success", "id": str(new_device.id)}

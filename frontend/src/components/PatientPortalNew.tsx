@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useAuth } from "../lib/auth/auth-context";
 import { fetchApi, API_URL } from "../lib/api/client";
-import { User, LogIn, Calendar, FileText, Settings, Heart, Bell, MessageCircle, MapPin, Menu, X, ArrowLeft, ArrowRight, ShieldCheck, ChevronRight, Mic, Send, Phone, ClipboardList, ScanFace, FileSignature, Info, LogOut, Copy, Download, Eye, Map as MapIcon, Trash2, CalendarClock, Lock, Globe, Users, Activity, Search, Stethoscope, Receipt, Home, Bot, Star, Camera, ScanLine, Share, PlusSquare, Volume2, VolumeX, Loader2 } from "lucide-react";
+import { User, LogIn, Calendar, FileText, Settings, Heart, Bell, MessageCircle, MapPin, Menu, X, ArrowLeft, ArrowRight, ShieldCheck, ChevronRight, Mic, Send, Phone, ClipboardList, ScanFace, FileSignature, Info, LogOut, Copy, Download, Eye, Map as MapIcon, Trash2, CalendarClock, Lock, Globe, Users, Activity, Search, Stethoscope, Receipt, Home, Bot, Star, Camera, ScanLine, Share, PlusSquare, Volume2, VolumeX, Loader2, Scan, BriefcaseMedical } from "lucide-react";
 import { getHospitalsByProvince, CENTRAL_HOSPITALS, Hospital } from "../lib/hospitals";
 import { MapErrorBoundary } from "./MapErrorBoundary";
 import { VitalSignsView } from "./health-record/VitalSignsView";
@@ -11,6 +11,7 @@ import { LabResultsView } from "./health-record/LabResultsView";
 import { ImagingResultsView } from "./health-record/ImagingResultsView";
 import { AdminInfoView } from "./health-record/AdminInfoView";
 import { RecordSummaryView } from "./health-record/RecordSummaryView";
+import { FileResultsView } from "./health-record/FileResultsView";
 
 const PatientPortalMap = lazy(() => import("./PatientPortalMap"));
 
@@ -60,7 +61,11 @@ export function PatientPortalNew({
   const [clinicalBundle, setClinicalBundle] = useState<any>(null);
   const [loadingBundle, setLoadingBundle] = useState(true);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
-
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [consentForms, setConsentForms] = useState<any[]>([]);
+  const [scheduledDoctors, setScheduledDoctors] = useState<any[]>([]);
   useEffect(() => {
     if (user) {
       setLoadingBundle(true);
@@ -72,6 +77,14 @@ export function PatientPortalNew({
         })
         .catch(console.error)
         .finally(() => setLoadingBundle(false));
+
+      fetchApi("/patient/invoices").then((data) => setInvoices(data.invoices || [])).catch(console.error);
+      fetchApi("/patient/questions").then((data) => setQuestions(data.questions || [])).catch(console.error);
+      fetchApi("/patient/appointments").then((data) => setAppointments(data.appointments || [])).catch(console.error);
+      fetchApi("/patient/consent-forms").then((data) => setConsentForms(data.forms || [])).catch(console.error);
+      fetchApi("/patient/notifications").then((data) => setNotifications(data.notifications || [])).catch(console.error);
+      fetchApi("/patient/follow-ups").then((data) => setFollowUps(data.follow_ups || [])).catch(console.error);
+      fetchApi("/patient/doctor-schedules").then((data) => setScheduledDoctors(data.doctors || [])).catch(console.error);
     }
   }, [user]);
 
@@ -322,18 +335,52 @@ export function PatientPortalNew({
   const [aptTab, setAptTab] = useState<"upcoming" | "history">("upcoming");
   
   // Notification logic
-  const [notifications, setNotifications] = useState([
-    { id: 1, dateStr: "Ngày 14/06/2026", timeStr: "2026-06-14 00:00:00.0", daysAgo: "18 ngày trước" },
-    { id: 2, dateStr: "Ngày 14/06/2026", timeStr: "2026-06-14 00:00:00.0", daysAgo: "18 ngày trước" },
-    { id: 3, dateStr: "Ngày 14/06/2026", timeStr: "2026-06-14 00:00:00.0", daysAgo: "18 ngày trước" },
-    { id: 4, dateStr: "Ngày 13/06/2026", timeStr: "2026-06-14 00:00:00.0", daysAgo: "19 ngày trước" },
-    { id: 5, dateStr: "Ngày 13/06/2026", timeStr: "2026-06-14 00:00:00.0", daysAgo: "19 ngày trước" },
-  ]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [followUps, setFollowUps] = useState<any[]>([]);
 
   // Profile logic
   const [faceIdEnabled, setFaceIdEnabled] = useState(false);
   const [language, setLanguage] = useState<"vi" | "en">("vi");
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%239ca3af'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>";
+
+  const handleBookFollowUp = async (fId: string) => {
+    try {
+      const res = await fetchApi(`/patient/follow-ups/${fId}/book`, { method: "POST", body: {} });
+      if (res.status === "success") {
+        alert("Đặt khám thành công!");
+        fetchApi("/patient/follow-ups").then(data => setFollowUps(data.follow_ups || []));
+        fetchApi("/patient/appointments").then(data => setAppointments(data.appointments || []));
+      } else {
+        alert(res.error || "Có lỗi xảy ra");
+      }
+    } catch(e) {
+      console.error(e);
+      alert("Có lỗi xảy ra khi kết nối");
+    }
+  };
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const base64 = ev.target?.result as string;
+      try {
+        const res = await fetchApi("/patient/avatar", { method: "POST", body: { avatar_base64: base64 } });
+        if (res.status === "success") {
+          alert("Cập nhật ảnh đại diện thành công, vui lòng tải lại trang.");
+          window.location.reload();
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   
   const handleFaceIdToggle = async () => {
     if (!faceIdEnabled) {
@@ -351,6 +398,49 @@ export function PatientPortalNew({
   };
   const [currentView, setCurrentView] = useState<ViewState>("home");
   const [showFiles, setShowFiles] = useState(false);
+  
+  const [currentTicket, setCurrentTicket] = useState<any>(null);
+  const [searchTicketCode, setSearchTicketCode] = useState("");
+  const [isSearchingTicket, setIsSearchingTicket] = useState(false);
+
+  useEffect(() => {
+    if (currentView === "record_lookup") {
+      fetchLatestTicket();
+    }
+  }, [currentView]);
+
+  const fetchLatestTicket = async () => {
+    setIsSearchingTicket(true);
+    try {
+      const res = await fetchApi("/patient/tickets/latest");
+      if (res && res.id) setCurrentTicket(res);
+      else setCurrentTicket(null);
+    } catch(e) {
+      setCurrentTicket(null);
+    } finally {
+      setIsSearchingTicket(false);
+    }
+  };
+
+  const handleSearchTicket = async () => {
+    if (!searchTicketCode) return;
+    setIsSearchingTicket(true);
+    try {
+      const res = await fetchApi(`/patient/tickets/${searchTicketCode}`);
+      if (res && res.id) {
+        setCurrentTicket(res);
+      } else {
+        alert("Không tìm thấy mã hồ sơ này");
+        setCurrentTicket(null);
+      }
+    } catch(e) {
+      console.error(e);
+      alert("Không tìm thấy mã hồ sơ này");
+      setCurrentTicket(null);
+    } finally {
+      setIsSearchingTicket(false);
+    }
+  };
 
   // Camera / Scan logic
   const [isScanning, setIsScanning] = useState(false);
@@ -464,7 +554,79 @@ export function PatientPortalNew({
   const [askGender, setAskGender] = useState<"Nam" | "Nữ">("Nữ");
   const [askAge, setAskAge] = useState(20);
   const [askSpecialty, setAskSpecialty] = useState<string | null>(null);
-  const [showSpecialties, setShowSpecialties] = useState(false);
+  const [askQuestionText, setAskQuestionText] = useState("");
+  const [submittingQuestion, setSubmittingQuestion] = useState(false);
+
+  const [submittingBooking, setSubmittingBooking] = useState(false);
+
+  const handleSignConsent = async (formId: string) => {
+    try {
+      await fetchApi("/patient/consent-forms/sign", {
+        method: "POST",
+        body: JSON.stringify({ form_id: formId }),
+      });
+      const data = await fetchApi("/patient/consent-forms");
+      setConsentForms(data.forms || []);
+      alert("Đã ký số thành công!");
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi khi ký số");
+    }
+  };
+
+  const handleBookingSubmit = async () => {
+    if (!bookingSpecialty || !bookingDate) {
+      alert("Vui lòng chọn chuyên khoa và ngày khám.");
+      return;
+    }
+    setSubmittingBooking(true);
+    try {
+      await fetchApi("/patient/appointments", {
+        method: "POST",
+        body: JSON.stringify({
+          department_id: bookingSpecialty,
+          booking_date: bookingDate,
+          booking_time: "08:00", // Default or you can add a time selector
+          reason: "Khám bệnh"
+        }),
+      });
+      const data = await fetchApi("/patient/appointments");
+      setAppointments(data.appointments || []);
+      alert(`Đã đặt lịch khám chuyên khoa ${bookingSpecialty} vào ngày ${bookingDate} thành công!`);
+      setShowBookingModal(false);
+      setBookingSpecialty(null);
+      setBookingDate("");
+    } catch (err) {
+      console.error(err);
+      alert("Đã có lỗi xảy ra khi đặt lịch");
+    } finally {
+      setSubmittingBooking(false);
+    }
+  };
+
+  const handleAskSubmit = async () => {
+    if (!askSpecialty || askQuestionText.length < 50) {
+      alert("Vui lòng chọn chuyên khoa và nhập câu hỏi tối thiểu 50 ký tự.");
+      return;
+    }
+    setSubmittingQuestion(true);
+    try {
+      await fetchApi("/patient/questions", {
+        method: "POST",
+        body: JSON.stringify({ department: askSpecialty, question: askQuestionText }),
+      });
+      const data = await fetchApi("/patient/questions");
+      setQuestions(data.questions || []);
+      setCurrentView("community_qa");
+      setAskQuestionText("");
+      setAskSpecialty(null);
+    } catch (err) {
+      console.error(err);
+      alert("Đã có lỗi xảy ra");
+    } finally {
+      setSubmittingQuestion(false);
+    }
+  };  const [showSpecialties, setShowSpecialties] = useState(false);
   const specialtiesList = ["Nội tiết", "Tim mạch", "Tiêu hoá", "Thần kinh", "Tai Mũi Họng", "Răng Hàm Mặt"];
 
   // Render Home View
@@ -485,12 +647,6 @@ export function PatientPortalNew({
                  </h1>
                  <p className="text-[#88E8F2] text-sm mt-1 font-medium tracking-widest uppercase">EyeCU Medical Center</p>
               </div>
-            </div>
-            
-            {/* Overlay Button "Lịch khám BS" */}
-            <div className="absolute -bottom-5 right-4 z-10 flex h-11 items-center gap-2 rounded-full bg-white px-5 shadow-lg">
-              <span className="text-[#0d1f2d] font-bold text-sm">Lịch khám BS</span>
-              <ChevronRight className="h-4 w-4 text-slate-400" />
             </div>
           </div>
 
@@ -563,17 +719,20 @@ export function PatientPortalNew({
           <div className="px-4 mt-6">
             <h3 className="text-[15px] font-bold text-[#0d1f2d] mb-3">Bác sĩ có lịch khám</h3>
             <div className="space-y-3">
-              {[
-                { name: "TS.BS Lâm Mỹ Hạnh", img: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop" },
-                { name: "TS.BS Lê Quang Toàn", img: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=150&auto=format&fit=crop" }
-              ].map((doc, idx) => (
-                <div key={idx} className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm border border-slate-100">
-                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-slate-100 border border-slate-200">
-                     <img src={doc.img} alt={doc.name} className="h-full w-full object-cover" />
-                  </div>
-                  <p className="text-[15px] font-medium text-[#0d1f2d]">{doc.name}</p>
+              {scheduledDoctors.length === 0 ? (
+                <div className="bg-white rounded-2xl p-4 text-center border border-slate-100 shadow-sm text-sm text-slate-500">
+                  Chưa cập nhật được lịch của bác sĩ
                 </div>
-              ))}
+              ) : (
+                scheduledDoctors.map((doc, idx) => (
+                  <div key={idx} className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm border border-slate-100">
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-slate-100 border border-slate-200">
+                       <img src={doc.img} alt={doc.name} className="h-full w-full object-cover" />
+                    </div>
+                    <p className="text-[15px] font-medium text-[#0d1f2d]">{doc.name}</p>
+                  </div>
+                ))
+              )}
             </div>
           </div>
           
@@ -590,9 +749,6 @@ export function PatientPortalNew({
           <ArrowLeft className="h-6 w-6" />
         </button>
         <span className="text-[17px] font-bold flex-1 text-center pr-2">Hồ sơ sức khoẻ</span>
-        <button onClick={() => setShowFiles(!showFiles)} className="text-[13px] font-medium opacity-90 active:opacity-100">
-          File kết quả
-        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide pb-24">
@@ -605,8 +761,8 @@ export function PatientPortalNew({
             </div>
            
            <div className="flex items-start gap-3">
-             <div className="h-16 w-16 shrink-0 rounded-full border border-slate-100 bg-white p-1 shadow-sm">
-                <img src="/logo.png" alt="EyeCU" className="h-full w-full object-contain" />
+             <div className="h-16 w-16 shrink-0 rounded-full border border-slate-100 bg-white p-1 shadow-sm overflow-hidden">
+                <img src={user?.avatar || DEFAULT_AVATAR} alt="EyeCU" className="h-full w-full object-cover rounded-full" />
              </div>
              <div className="flex-1 min-w-0">
                <h2 className="text-[16px] font-bold text-[#0d1f2d] uppercase mb-1">{user?.name || "Bệnh nhân"}</h2>
@@ -618,65 +774,50 @@ export function PatientPortalNew({
                </div>
              </div>
              <div className="shrink-0 rounded-xl bg-white p-1 border border-slate-200 shadow-sm mt-1">
-                {/* Dummy QR Code */}
-                <div className="h-14 w-14 bg-[url('https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=EYECU_RECORD')] bg-cover" />
+                {/* Dynamic QR Code */}
+                <div 
+                   className="h-14 w-14 bg-cover" 
+                   style={{ backgroundImage: `url('https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${user?.cccd || "EYECU_RECORD"}')` }}
+                />
              </div>
            </div>
         </div>
 
         {/* Next Appointment Card */}
-        <div className="mx-4 mt-4 bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-           <div className="flex">
-             <div className="flex flex-col items-center justify-center border-r border-slate-100 px-4 py-3 min-w-[72px]">
-                <span className="text-3xl font-bold text-[#0d1f2d] leading-none">14</span>
-                <span className="text-[11px] font-medium text-blue-600 mt-1">06/2026</span>
-             </div>
-             <div className="flex flex-col justify-center flex-1 px-3 py-2">
-                <p className="text-[13px] font-bold text-red-600 mb-1">[Lịch hẹn tái khám] <span className="text-[#0d1f2d]">Nội tiết</span></p>
-                <p className="text-[12px] text-slate-600">Khám bệnh theo yêu cầu</p>
-             </div>
-             <div className="flex items-center px-3">
-                <button className="rounded-full bg-[#0d1f2d] px-4 py-2 text-[13px] font-bold text-white shadow-sm active:scale-95">
-                  Đặt khám
-                </button>
-             </div>
-           </div>
-        </div>
-
-        {showFiles ? (
-           /* Files Accordion */
-           <div className="mx-4 mt-4 bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between bg-[#0d1f2d] px-4 py-3">
-                 <div className="flex items-center gap-2">
-                    <div className="flex h-5 w-5 items-center justify-center rounded border border-white/30 bg-white/10">
-                       <span className="text-white text-[14px] font-bold">+</span>
-                    </div>
-                    <span className="text-sm font-bold text-white">File Kết Quả</span>
+        {(() => {
+          const upcomingFollowUp = followUps.find(f => f.status !== "booked");
+          if (!upcomingFollowUp) return null;
+          
+          const parts = upcomingFollowUp.date.split("-"); // "YYYY-MM-DD"
+          const day = parts[2] || "00";
+          const monthYear = parts[1] + "/" + parts[0];
+          return (
+            <div className="mx-4 mt-4 bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+               <div className="flex">
+                 <div className="flex flex-col items-center justify-center border-r border-slate-100 px-4 py-3 min-w-[72px]">
+                    <span className="text-3xl font-bold text-[#0d1f2d] leading-none">{day}</span>
+                    <span className="text-[11px] font-medium text-blue-600 mt-1">{monthYear}</span>
                  </div>
-                 <ChevronRight className="h-5 w-5 text-white/70 rotate-90" />
-              </div>
-              <div className="px-4 py-2 flex flex-col gap-3">
-                 {[
-                   "Phiếu kết quả CĐHA chung",
-                   "Phiếu kết quả xét nghiệm",
-                   "Phiếu kết quả CĐHA chung",
-                   "Phiếu kết quả xét nghiệm",
-                   "Đơn thuốc"
-                 ].map((title, i) => (
-                    <div key={i} className="flex items-center justify-between py-3 border-b border-slate-50 last:border-0">
-                       <div className="flex items-center gap-3">
-                          <FileText className="h-5 w-5 text-red-500" />
-                          <span className="text-[14px] font-medium text-slate-700">{title}</span>
-                       </div>
-                       <ChevronRight className="h-4 w-4 text-slate-300" />
-                    </div>
-                 ))}
-              </div>
-           </div>
-        ) : (
-           /* Services List as Accordion */
+                 <div className="flex flex-col justify-center flex-1 px-3 py-2">
+                    <p className="text-[13px] font-bold text-red-600 mb-1">[Lịch hẹn tái khám] <span className="text-[#0d1f2d]">{upcomingFollowUp.department}</span></p>
+                    <p className="text-[12px] text-slate-600">{upcomingFollowUp.note || "Khám bệnh theo yêu cầu"}</p>
+                 </div>
+                 <div className="flex items-center px-3">
+                    <button 
+                      onClick={() => handleBookFollowUp(upcomingFollowUp.id)}
+                      className="rounded-full bg-[#0d1f2d] px-4 py-2 text-[13px] font-bold text-white shadow-sm active:scale-95">
+                      Đặt khám
+                    </button>
+                 </div>
+               </div>
+            </div>
+          );
+        })()}
+
+        {/* Services List as Accordion */}
            <div className="bg-slate-50 mt-4 pt-2 flex-1 shadow-[0_-4px_10px_rgba(0,0,0,0.02)] min-h-screen">
               {[
+                { id: "file_results", icon: BriefcaseMedical, label: "File Kết Quả", Component: FileResultsView },
                 { id: "record_summary", icon: Stethoscope, label: "Kết quả khám", Component: RecordSummaryView },
                 { id: "vital_signs", icon: Heart, label: "Sinh hiệu", Component: VitalSignsView },
                 { id: "lab_results", icon: Activity, label: "Kết quả xét nghiệm", Component: LabResultsView },
@@ -685,30 +826,36 @@ export function PatientPortalNew({
                 { id: "admin_info", icon: FileText, label: "Thông tin hành chính", Component: AdminInfoView },
               ].map((item, i) => {
                  const isExpanded = expandedSection === item.id;
+                 const isSpecial = item.id === "file_results";
                  return (
-                   <div key={i} className="border-b border-slate-200/60 last:border-0 bg-white">
+                   <div key={i} className={`border-b border-slate-200/60 last:border-0 ${isSpecial ? "mx-4 mt-2 mb-4 bg-white rounded-xl overflow-hidden shadow-sm border border-slate-200" : "bg-white"}`}>
                      <button 
                         onClick={() => setExpandedSection(isExpanded ? null : item.id)} 
-                        className={`flex w-full items-center justify-between px-4 py-4 text-left transition-colors duration-200 ${isExpanded ? "bg-[#88E8F2]" : "bg-white active:bg-slate-50"}`}
+                        className={`flex w-full items-center justify-between px-4 py-4 text-left transition-colors duration-200 ${
+                           isSpecial
+                             ? "bg-[#88E8F2] text-[#0d1f2d]"
+                             : isExpanded 
+                               ? "bg-[#88E8F2]" 
+                               : "bg-white active:bg-slate-50"
+                        }`}
                      >
                         <div className="flex items-center gap-3">
-                           <item.icon className={`h-5 w-5 ${isExpanded ? "text-[#0d1f2d]" : "text-[#0d1f2d]"}`} strokeWidth={1.5} />
-                           <span className={`text-[15px] font-semibold ${isExpanded ? "text-[#0d1f2d]" : "text-[#0d1f2d]"}`}>{item.label}</span>
+                           <item.icon className="h-5 w-5 text-[#0d1f2d]" strokeWidth={1.5} />
+                           <span className="text-[15px] font-semibold text-[#0d1f2d]">{item.label}</span>
                         </div>
-                        <ChevronRight className={`h-5 w-5 transition-transform duration-200 ${isExpanded ? "rotate-90 text-[#0d1f2d]" : "text-slate-400"}`} />
+                        <ChevronRight className={`h-5 w-5 transition-transform duration-200 ${isExpanded ? "rotate-90" : ""} ${isSpecial ? "text-[#0d1f2d]" : "text-slate-400"}`} />
                      </button>
                      
                      {/* Accordion Content */}
                      {isExpanded && (
-                       <div className="border-t border-[#88E8F2]/30 animate-in slide-in-from-top-2 duration-200">
-                          <item.Component data={clinicalBundle} onBack={() => setExpandedSection(null)} />
+                       <div className={`animate-in slide-in-from-top-2 duration-200 ${isSpecial ? "bg-white p-2" : "border-t border-[#88E8F2]/30"}`}>
+                          <item.Component data={clinicalBundle} user={user} onBack={() => setExpandedSection(null)} />
                        </div>
                      )}
                    </div>
                  );
               })}
            </div>
-        )}
       </div>
 
       {/* Bottom pagination banner */}
@@ -748,29 +895,39 @@ export function PatientPortalNew({
         </div>
 
         <div className="flex flex-col gap-2 pb-24">
-          {[
-            { name: "Nam, 29 tuổi", date: "02/07/2026", q: "mình có lịch hẹn khám vào ngày 4 tháng 7 vậy mình chưa thể đi vào ngày đó thì mình có thể đến sau ngày 4 tháng 7 bao nhiêu ngày ạ", a: "Dạ được, bạn chỉ cần đến thăm khám trước khi phiếu chuyển tuyến hết giá trị sử dụng ạ" },
-            { name: "Nữ, 20 tuổi", date: "02/07/2026", q: "E bị tuyến giáp chỉ định mổ. E trái tuyến có đc hưởng bhyt thưa bs. Và nếu em đc bệnh viện chuyển tuyến thì có đc mức hưởng bhyt ko ạ", a: "Đối với bảo hiểm trái tuyến thì khi khám ngoại trú không được bảo hiểm thanh toán bạn nhé. Khi bạn nhập viện điều trị thì bảo hiểm sẽ chi trả từ 30 đến 40%" },
-            { name: "Nữ, 33 tuổi", date: "01/07/2026", q: "cho em hỏi lịch làm việc của bác sĩ Vũ Thị Hiền Trinh trong tuần này với ạ?", a: "Chào bạn, Bs đã hết lịch khám trong tuần này ạ" }
-          ].map((item, i) => (
-            <div key={i} className="bg-white p-4 shadow-sm">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="h-10 w-10 rounded-full bg-slate-200 overflow-hidden"><User className="h-full w-full text-slate-400 p-2" /></div>
-                <div>
-                  <p className="text-[14px] font-bold text-slate-800">{item.name}</p>
-                  <p className="text-[11px] text-slate-500">{item.date}</p>
+          {questions.length === 0 ? (
+            <div className="text-center text-slate-500 py-10">Chưa có câu hỏi nào.</div>
+          ) : (
+            questions.map((item, i) => (
+              <div key={i} className="bg-white p-4 shadow-sm">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="h-10 w-10 rounded-full bg-slate-200 overflow-hidden flex items-center justify-center">
+                    <User className="h-6 w-6 text-slate-400" />
+                  </div>
+                  <div>
+                    <p className="text-[14px] font-bold text-slate-800">{item.name}</p>
+                    <p className="text-[11px] text-slate-500">{new Date(item.created_at).toLocaleDateString('vi-VN')}</p>
+                  </div>
+                </div>
+                <p className="text-[14px] text-slate-800 leading-relaxed mb-3">{item.question}</p>
+                {item.answer ? (
+                  <div className="flex gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                    <div className="h-8 w-8 shrink-0 rounded-full border border-blue-200 bg-white flex items-center justify-center">
+                      <Activity className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <p className="text-[13px] text-slate-700 leading-relaxed pt-0.5">{item.answer}</p>
+                  </div>
+                ) : (
+                  <div className="flex gap-3 bg-orange-50/50 p-3 rounded-lg border border-orange-100">
+                    <p className="text-[13px] text-orange-600 italic">Chưa có câu trả lời</p>
+                  </div>
+                )}
+                <div className="mt-3">
+                  <span className="inline-block rounded bg-blue-50 px-3 py-1.5 text-[12px] font-medium text-blue-600">{item.department}</span>
                 </div>
               </div>
-              <p className="text-[14px] text-slate-800 leading-relaxed mb-3">{item.q}</p>
-              <div className="flex gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                <div className="h-8 w-8 shrink-0 rounded-full border border-blue-200 bg-white flex items-center justify-center"><Activity className="h-4 w-4 text-blue-600" /></div>
-                <p className="text-[13px] text-slate-700 leading-relaxed pt-0.5">{item.a}</p>
-              </div>
-              <div className="mt-3">
-                <span className="inline-block rounded bg-blue-50 px-3 py-1.5 text-[12px] font-medium text-blue-600">Nội tiết</span>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
@@ -816,7 +973,7 @@ export function PatientPortalNew({
           </div>
           
           <div className="mb-2">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-4 relative">
               <span className="text-[14px] text-slate-600 font-medium">Tuổi</span>
               <span className="text-[14px] font-bold text-slate-800 absolute left-1/2 -translate-x-1/2">{askAge} tuổi</span>
             </div>
@@ -848,19 +1005,23 @@ export function PatientPortalNew({
 
         <div className="p-4">
           <textarea
+            value={askQuestionText}
+            onChange={(e) => setAskQuestionText(e.target.value)}
             placeholder="Viết câu hỏi của bạn:&#10;- Bạn có triệu chứng gì, kéo dài bao lâu?&#10;- Bạn đã đi khám hoặc dùng thuốc gì chưa?&#10;- Gửi ảnh chụp rõ nét (nếu có).&#10;- Câu hỏi tối thiểu 50 ký tự."
             className="w-full h-40 resize-none outline-none text-[14px] placeholder:text-slate-300 leading-relaxed"
           />
         </div>
       </div>
 
-      <div className="px-4 py-3 bg-white border-t border-slate-200 flex items-center justify-between pb-safe">
-        <button className="flex items-center gap-2 px-2 py-2 text-[14px] font-bold text-slate-800 active:scale-95 transition-transform">
-          <div className="h-6 w-6 rounded bg-slate-100 flex items-center justify-center border border-slate-300"><FileText className="h-3 w-3 text-slate-500" /></div>
-          Thêm ảnh liên quan
+      <div className="px-4 py-3 bg-white border-t border-slate-200 flex items-center justify-between mb-[68px] pb-safe shrink-0 shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
+        <button className="flex items-center gap-2 px-2 py-2 text-[14px] font-bold text-slate-500 active:scale-95 transition-transform">
+          <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200"><FileText className="h-5 w-5 text-slate-500" /></div>
         </button>
-        <button className="flex items-center gap-2 rounded-full bg-[#7CA8D9] px-6 py-2.5 text-[15px] font-bold text-white shadow-sm active:scale-95 transition-transform">
-          Gửi <Send className="h-4 w-4" />
+        <button 
+          onClick={handleAskSubmit}
+          disabled={submittingQuestion}
+          className="flex-1 ml-3 flex items-center justify-center gap-2 rounded-full bg-[#88E8F2] px-6 py-3 text-[16px] font-bold text-[#0d1f2d] shadow-md active:scale-95 transition-transform disabled:opacity-50">
+          {submittingQuestion ? "Đang gửi..." : "Gửi câu hỏi"} <Send className="h-5 w-5" />
         </button>
       </div>
 
@@ -906,7 +1067,7 @@ export function PatientPortalNew({
         <span className="text-[17px] font-bold flex-1 text-center pr-8">Tra cứu số khám</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide pb-24 px-4 pt-6">
+      <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide pb-24 px-4 pt-6 bg-slate-50">
         
         {/* Search Bar */}
         <div className="flex h-12 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-400 mb-8">
@@ -916,80 +1077,147 @@ export function PatientPortalNew({
           <input
             type="text"
             placeholder="Nhập mã hồ sơ"
+            value={searchTicketCode}
+            onChange={(e) => setSearchTicketCode(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearchTicket()}
             className="flex-1 bg-transparent px-2 text-[15px] outline-none placeholder:text-slate-400"
           />
           <button onClick={() => setIsScanning(true)} className="flex w-10 shrink-0 items-center justify-center active:bg-slate-50">
-            <FileText className="h-5 w-5 text-[#0d1f2d]" />
+            <Scan className="h-5 w-5 text-[#0d1f2d]" />
           </button>
-          <button className="flex items-center justify-center bg-[#a6c1e6] px-5 text-[15px] font-semibold text-white active:bg-blue-400 transition-colors">
+          <button 
+            onClick={handleSearchTicket}
+            disabled={isSearchingTicket}
+            className="flex items-center justify-center bg-[#a6c1e6] px-5 text-[15px] font-semibold text-white active:bg-blue-400 transition-colors disabled:opacity-50"
+          >
             Tìm
           </button>
         </div>
 
         {/* Guide Label */}
         <h3 className="mb-4 text-center text-[14px] font-bold text-slate-500 uppercase tracking-wide">
-          Hướng dẫn xem mã hồ sơ
+          {currentTicket ? "Phiếu hướng dẫn khám bệnh" : "HƯỚNG DẪN XEM MÃ HỒ SƠ"}
         </h3>
 
-        {/* Paper Mockup */}
-        <div className="mx-auto w-full max-w-[340px] bg-white p-4 shadow-md mb-6">
-          <div className="flex justify-between items-start mb-4">
-            <div className="text-center">
-              <p className="text-[10px] font-bold uppercase">BỘ Y TẾ</p>
-              <p className="text-[10px] font-bold uppercase">CƠ SỞ Y TẾ</p>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-[10px] text-red-500 font-medium">Mã Hồ sơ</span>
-              <div className="bg-red-100/50 px-2 py-1 mt-0.5">
-                {/* Barcode Mock */}
-                <div className="flex h-8 w-24 gap-[2px]">
-                  {[3,1,2,4,1,3,2,1,2,3,1,1,4,2].map((w,i)=><div key={i} className="h-full bg-black" style={{width: `${w}px`}} />)}
+        {/* Dummy Guide Ticket (When no ticket is searched) */}
+        {!currentTicket && (
+          <div className="mx-auto w-full max-w-[340px] bg-white p-4 shadow-md mb-6 relative">
+            <div className="flex justify-between items-start mb-4">
+              <div className="text-center">
+                <p className="text-[10px] font-bold uppercase">BỘ Y TẾ</p>
+                <p className="text-[10px] font-bold uppercase">CƠ SỞ Y TẾ</p>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-red-500 font-medium">Mã Hồ sơ</span>
+                <div className="bg-red-100/50 px-2 py-1 mt-0.5">
+                  <div className="flex h-8 w-24 gap-[2px]">
+                    {[3,1,2,4,1,3,2,1,2,3,1,1,4,2].map((w,i)=><div key={i} className="h-full bg-black" style={{width: `${w}px`}} />)}
+                  </div>
+                  <p className="text-[8px] text-center font-mono mt-0.5">80969800</p>
                 </div>
-                <p className="text-[8px] text-center font-mono mt-0.5">80969800</p>
+              </div>
+              <div className="pt-4">
+                <p className="text-[9px]">Mã NB: 2303006123</p>
               </div>
             </div>
-            <div className="pt-4">
-              <p className="text-[9px]">Mã NB: 2303006123</p>
+            
+            <div className="text-center mb-4">
+               <h4 className="text-[16px] font-bold uppercase">PHIẾU HƯỚNG DẪN</h4>
+               <p className="text-[10px]">Ngày đăng ký: 10/03/2023 <span className="font-bold text-[18px] ml-4">STT: 18</span></p>
+            </div>
+            
+            <div className="text-[10px] space-y-1 mb-3">
+               <p>Họ và tên: <span className="font-bold text-[11px] uppercase">NGUYỄN VĂN A</span></p>
+               <div className="flex justify-between">
+                 <p>Đối tượng: Dịch vụ</p>
+                 <p>Tuổi: 14</p>
+                 <p>Giới tính: Nam</p>
+               </div>
+               <p>Địa chỉ: Nghĩa Tân, Cầu Giấy, Hà Nội, Việt Nam</p>
+            </div>
+            
+            <div className="border border-black mb-6">
+              <div className="flex border-b border-black font-bold text-[9px] text-center">
+                 <div className="w-10 border-r border-black py-1">STT</div>
+                 <div className="flex-1 border-r border-black py-1">Tên dịch vụ</div>
+                 <div className="flex-1 py-1">Nơi khám</div>
+              </div>
+              <div className="flex text-[9px] text-center items-center">
+                 <div className="w-10 border-r border-black py-2">1</div>
+                 <div className="flex-1 border-r border-black py-2">Khám Cấp cứu</div>
+                 <div className="flex-1 py-2 font-bold px-1">Khoa Cấp cứu- Phòng A109 - Tầng 1- nhà A2</div>
+              </div>
+            </div>
+            
+            <div className="flex justify-between text-[9px] mt-4">
+               <p>Tên đăng nhập: nguyenvana11</p>
+               <p>Mật khẩu: 888567</p>
             </div>
           </div>
-          
-          <div className="text-center mb-4">
-             <h4 className="text-[16px] font-bold uppercase">PHIẾU HƯỚNG DẪN</h4>
-             <p className="text-[10px]">Ngày đăng ký: 10/03/2023 <span className="font-bold text-[18px] ml-4">STT: 18</span></p>
-          </div>
-          
-          <div className="text-[10px] space-y-1 mb-3">
-             <p>Họ và tên: <span className="font-bold text-[11px]">NGUYỄN VĂN A</span></p>
-             <div className="flex justify-between">
-               <p>Đối tượng: Dịch vụ</p>
-               <p>Tuổi: 14</p>
-               <p>Giới tính: Nam</p>
-             </div>
-             <p>Địa chỉ: Nghĩa Tân, Cầu Giấy, Hà Nội, Việt Nam</p>
-          </div>
+        )}
 
-          <table className="w-full text-[10px] border-collapse border border-slate-300 mb-6 text-center">
-            <thead>
-              <tr className="border-b border-slate-300 font-bold">
-                <td className="border-r border-slate-300 py-1">STT</td>
-                <td className="border-r border-slate-300 py-1">Tên dịch vụ</td>
-                <td className="py-1">Nơi khám</td>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="border-r border-slate-300 py-3">1</td>
-                <td className="border-r border-slate-300 py-3">Khám Cấp cứu</td>
-                <td className="py-3 font-bold px-1">Khoa Cấp cứu- Phòng A109 - Tầng 1- nhà A2</td>
-              </tr>
-            </tbody>
-          </table>
+        {/* Dynamic Paper Mockup */}
+        {currentTicket && (
+          <div className="mx-auto w-full max-w-[340px] bg-white p-4 shadow-md mb-6 relative">
+            {currentTicket.status === "completed" && (
+               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-12 border-4 border-red-500 text-red-500 font-bold text-3xl px-4 py-2 rounded-lg opacity-20 pointer-events-none">ĐÃ KHÁM XONG</div>
+            )}
+            <div className="flex justify-between items-start mb-4">
+              <div className="text-center">
+                <p className="text-[10px] font-bold uppercase">BỘ Y TẾ</p>
+                <p className="text-[10px] font-bold uppercase">CƠ SỞ Y TẾ EYECU</p>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-red-500 font-medium">Mã Hồ sơ</span>
+                <div className="bg-red-100/50 px-2 py-1 mt-0.5">
+                  <div className="flex h-8 w-24 gap-[2px]">
+                    {[3,1,2,4,1,3,2,1,2,3,1,1,4,2].map((w,i)=><div key={i} className="h-full bg-black" style={{width: `${w}px`}} />)}
+                  </div>
+                  <p className="text-[8px] text-center font-mono mt-0.5">{currentTicket.ticket_code}</p>
+                </div>
+              </div>
+              <div className="pt-4">
+                <p className="text-[9px]">Mã NB: {currentTicket.patient_code}</p>
+              </div>
+            </div>
+            
+            <div className="text-center mb-4">
+               <h4 className="text-[16px] font-bold uppercase">PHIẾU HƯỚNG DẪN</h4>
+               <p className="text-[10px]">Ngày đăng ký: {new Date(currentTicket.registered_at).toLocaleDateString("vi-VN")} <span className="font-bold text-[18px] ml-4">STT: {currentTicket.sequence_number}</span></p>
+            </div>
+            
+            <div className="text-[10px] space-y-1 mb-3">
+               <p>Họ và tên: <span className="font-bold text-[11px] uppercase">{user?.name}</span></p>
+               <div className="flex justify-between">
+                 <p>Đối tượng: Dịch vụ</p>
+                 <p>Tuổi: {getAge(user?.dob)}</p>
+                 <p>Giới tính: {user?.gender}</p>
+               </div>
+               <p>Địa chỉ: {user?.address || "Chưa cập nhật"}</p>
+            </div>
 
-          <div className="flex justify-between text-[9px]">
-             <p>Tên đăng nhập: nguyenvana11</p>
-             <p>Mật khẩu: 888567</p>
+            <div className="border border-black mb-6">
+              <div className="flex border-b border-black font-bold text-[9px] text-center">
+                 <div className="w-10 border-r border-black py-1">STT</div>
+                 <div className="flex-1 border-r border-black py-1">Tên dịch vụ</div>
+                 <div className="flex-1 py-1">Nơi khám</div>
+              </div>
+              {currentTicket.items && currentTicket.items.length > 0 ? currentTicket.items.map((item: any) => (
+                <div key={item.id} className={`flex text-[9px] text-center items-center ${item.status === 'completed' ? "opacity-50 line-through" : ""}`}>
+                   <div className="w-10 border-r border-black py-2">{item.order_index}</div>
+                   <div className="flex-1 border-r border-black py-2">{item.service_name}</div>
+                   <div className="flex-1 py-2 font-bold px-1">{item.room_location}</div>
+                </div>
+              )) : (
+                <div className="flex text-[9px] text-center items-center">
+                   <div className="w-10 border-r border-black py-2">&nbsp;</div>
+                   <div className="flex-1 border-r border-black py-2"></div>
+                   <div className="flex-1 py-2 font-bold px-1"></div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -1062,44 +1290,54 @@ export function PatientPortalNew({
       </div>
 
       <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide px-4 pt-4 pb-24">
-        <p className="text-[14px] font-medium text-slate-700 mb-4">2 hóa đơn</p>
+        <p className="text-[14px] font-medium text-slate-700 mb-4">{invoices.length} hóa đơn</p>
         
         <div className="flex flex-col gap-4">
-          {[
-            { id: "#00202036", amount: "1,473,200đ", code: "1206660", time: "2026-06-04 07:33:24" },
-            { id: "#00203053", amount: "603,800đ", code: "1207873", time: "2026-06-04 10:47:19" }
-          ].map((inv, i) => (
-            <div key={i} className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
-              <div className="text-center mb-4">
-                <p className="text-[14px] font-bold text-slate-800">Hóa đơn điện tử {inv.id}</p>
-                <p className="text-[18px] font-bold text-blue-600 mt-1">{inv.amount}</p>
-              </div>
+          {invoices.length === 0 ? (
+            <div className="text-center text-slate-500 py-10 bg-white rounded-xl shadow-sm border border-slate-100">Chưa có hóa đơn nào</div>
+          ) : (
+            invoices.map((inv, i) => {
+              const formattedDate = new Date(inv.created_at || new Date()).toLocaleString('vi-VN');
+              const formattedTotal = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(inv.total);
               
-              <div className="border-t border-dashed border-slate-200 my-4" />
-              
-              <div className="space-y-3 mb-4">
-                <div className="flex justify-between items-center text-[13px]">
-                  <span className="text-slate-600">Mã hóa đơn:</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-slate-800">{inv.code}</span>
-                    <button 
-                      onClick={() => handleCopy(inv.code)}
-                      className="relative rounded border border-slate-200 bg-slate-50 p-1 text-slate-400 active:scale-95"
-                    >
-                      <Copy className="h-3 w-3" />
-                      {copiedCode === inv.code && (
-                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 rounded bg-black/80 px-2 py-0.5 text-[10px] text-white">Đã chép</span>
-                      )}
-                    </button>
+              return (
+                <div key={i} className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
+                  <div className="text-center mb-4">
+                    <p className="text-[14px] font-bold text-slate-800">Hóa đơn điện tử #{inv.id.substring(0,8).toUpperCase()}</p>
+                    <p className="text-[18px] font-bold text-blue-600 mt-1">{formattedTotal}</p>
                   </div>
-                </div>
-                <div className="flex justify-between items-center text-[13px]">
-                  <span className="text-slate-600">Thời gian phát hành:</span>
-                  <span className="font-medium text-slate-800">{inv.time}</span>
-                </div>
-              </div>
-              
-              <div className="flex pt-2 gap-2">
+                  
+                  <div className="border-t border-dashed border-slate-200 my-4" />
+                  
+                  <div className="space-y-3 mb-4">
+                    <div className="flex justify-between items-center text-[13px]">
+                      <span className="text-slate-600">Mã hóa đơn:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-slate-800">{inv.id.substring(24).toUpperCase()}</span>
+                        <button 
+                          onClick={() => handleCopy(inv.id.substring(24).toUpperCase())}
+                          className="relative rounded border border-slate-200 bg-slate-50 p-1 text-slate-400 active:scale-95"
+                        >
+                          <Copy className="h-3 w-3" />
+                          {copiedCode === inv.id.substring(24).toUpperCase() && (
+                            <span className="absolute -top-6 left-1/2 -translate-x-1/2 rounded bg-black/80 px-2 py-0.5 text-[10px] text-white">Đã chép</span>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center text-[13px]">
+                      <span className="text-slate-600">Thời gian phát hành:</span>
+                      <span className="font-medium text-slate-800">{formattedDate}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[13px]">
+                      <span className="text-slate-600">Trạng thái:</span>
+                      <span className={`font-medium ${inv.status === 'paid' ? 'text-green-600' : 'text-orange-500'}`}>
+                        {inv.status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex pt-2 gap-2">
                 <button 
                   onClick={() => setViewingInvoice(inv)}
                   className="flex-1 flex items-center justify-center gap-2 py-2 text-[13px] font-medium text-blue-600 bg-blue-50/50 hover:bg-blue-50 active:bg-blue-100 rounded-lg transition-colors">
@@ -1111,8 +1349,10 @@ export function PatientPortalNew({
                   <Download className="h-4 w-4" /> Tải về
                 </button>
               </div>
-            </div>
-          ))}
+              </div>
+            );
+          })
+        )}
         </div>
       </div>
 
@@ -1139,19 +1379,19 @@ export function PatientPortalNew({
                 <div className="space-y-3 text-[14px]">
                    <div className="flex justify-between border-b border-dashed border-slate-200 pb-2">
                      <span className="text-slate-500">Mã:</span>
-                     <span className="font-mono font-medium">{viewingInvoice.code}</span>
+                     <span className="font-mono font-medium">{viewingInvoice.id.substring(24).toUpperCase()}</span>
                    </div>
                    <div className="flex justify-between border-b border-dashed border-slate-200 pb-2">
                      <span className="text-slate-500">Số:</span>
-                     <span className="font-mono font-medium">{viewingInvoice.id}</span>
+                     <span className="font-mono font-medium">{viewingInvoice.id.substring(0,8).toUpperCase()}</span>
                    </div>
                    <div className="flex justify-between border-b border-dashed border-slate-200 pb-2">
                      <span className="text-slate-500">Ngày:</span>
-                     <span>{viewingInvoice.time}</span>
+                     <span>{new Date(viewingInvoice.created_at || new Date()).toLocaleString('vi-VN')}</span>
                    </div>
                    <div className="flex flex-col mt-4 pt-2">
                      <span className="text-slate-500 text-[12px] uppercase">Tổng tiền thanh toán</span>
-                     <span className="text-[24px] font-bold text-blue-600 text-right mt-1">{viewingInvoice.amount}</span>
+                     <span className="text-[24px] font-bold text-blue-600 text-right mt-1">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(viewingInvoice.total)}</span>
                    </div>
                 </div>
                 
@@ -1204,6 +1444,44 @@ export function PatientPortalNew({
               <PatientPortalMap onClose={() => setActiveTab("home")} />
             </Suspense>
           </MapErrorBoundary>
+        <div className="flex flex-col gap-3 p-4">
+          {(() => {
+            const list = signTab === "signed" ? consentForms.filter(f => f.is_signed) : consentForms.filter(f => !f.is_signed);
+            if (list.length === 0) {
+              return (
+                <div className="flex-1 flex items-center justify-center pt-32">
+                  <p className="text-[14px] italic text-slate-800 font-serif">Không có dữ liệu</p>
+                </div>
+              );
+            }
+            return list.map(f => (
+              <div key={f.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="h-10 w-10 shrink-0 rounded-lg bg-blue-50 flex items-center justify-center">
+                    <FileSignature className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-[14px] font-bold text-slate-800 leading-tight">{f.name}</h4>
+                    <p className="text-[12px] text-slate-500 mt-1 line-clamp-2">{f.content}</p>
+                  </div>
+                </div>
+                {f.is_signed ? (
+                  <div className="flex justify-between items-center pt-3 border-t border-slate-100">
+                    <span className="text-[12px] text-slate-500">Ký lúc: {new Date(f.signed_at).toLocaleString('vi-VN')}</span>
+                    <span className="text-[12px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded">Đã ký</span>
+                  </div>
+                ) : (
+                  <div className="flex justify-end pt-3 border-t border-slate-100">
+                    <button 
+                      onClick={() => handleSignConsent(f.id)}
+                      className="px-4 py-1.5 bg-[#88E8F2] text-[#0d1f2d] text-[13px] font-bold rounded-lg active:scale-95 transition-transform">
+                      Ký số ngay
+                    </button>
+                  </div>
+                )}
+              </div>
+            ));
+          })()}
         </div>
 
         {/* EMERGENCY CALL MODAL */}
@@ -1361,37 +1639,82 @@ export function PatientPortalNew({
 
       <div className="flex-1 overflow-y-auto overscroll-contain p-4 pb-24">
         {aptTab === "upcoming" ? (
-          <div className="bg-white rounded-xl p-0 flex flex-row overflow-hidden border border-slate-200 shadow-sm">
-             <div className="w-24 bg-white flex flex-col items-center justify-center border-r border-slate-100 py-4">
-                <span className="text-[36px] font-medium text-[#8bb4c8] leading-none">04</span>
-                <span className="text-[12px] font-bold text-slate-800 mt-1">06/2026</span>
-                <span className="text-[12px] text-slate-500">07:15</span>
-             </div>
-             <div className="flex-1 p-4 flex flex-col justify-center gap-1">
-                <span className="font-bold text-[14px] text-slate-800 uppercase">{user?.name || "BỆNH NHÂN"}</span>
-                <span className="text-[13px] text-slate-600">Cơ sở Tứ Hiệp</span>
-                <span className="text-[13px] text-slate-400">Khám yêu cầu 24/7</span>
-                <div className="mt-1">
-                   <span className="inline-block px-2 py-1 bg-cyan-50 text-cyan-400 text-[11px] font-bold rounded-md">Đã có số khám</span>
-                </div>
-             </div>
+          <div className="flex flex-col gap-4">
+            {appointments.length === 0 ? (
+              <div className="text-center text-slate-500 py-10 bg-white rounded-xl border border-slate-200">Chưa có lịch khám nào.</div>
+            ) : (
+              appointments.map((apt, i) => {
+                const dateObj = new Date(apt.date);
+                const day = dateObj.getDate().toString().padStart(2, '0');
+                const monthYear = `${(dateObj.getMonth() + 1).toString().padStart(2, '0')}/${dateObj.getFullYear()}`;
+                
+                return (
+                  <div key={i} className="bg-white rounded-xl p-0 flex flex-row overflow-hidden border border-slate-200 shadow-sm">
+                     <div className="w-24 bg-white flex flex-col items-center justify-center border-r border-slate-100 py-4">
+                        <span className="text-[36px] font-medium text-[#8bb4c8] leading-none">{day}</span>
+                        <span className="text-[12px] font-bold text-slate-800 mt-1">{monthYear}</span>
+                        <span className="text-[12px] text-slate-500">{apt.time}</span>
+                     </div>
+                     <div className="flex-1 p-4 flex flex-col justify-center gap-1">
+                        <span className="font-bold text-[14px] text-slate-800 uppercase">{user?.name || "BỆNH NHÂN"}</span>
+                        <span className="text-[13px] text-slate-600">Khoa: {apt.department}</span>
+                        <span className="text-[13px] text-slate-400">Lý do: {apt.reason}</span>
+                        <div className="mt-1">
+                           <span className="inline-block px-2 py-1 bg-cyan-50 text-cyan-400 text-[11px] font-bold rounded-md">
+                             {apt.status === "pending" ? "Đang chờ duyệt" : "Đã xác nhận"}
+                           </span>
+                        </div>
+                     </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         ) : (
-          <div className="bg-white rounded-xl p-0 flex flex-row overflow-hidden border border-slate-200 shadow-sm">
-             <div className="w-24 bg-white flex flex-col items-center justify-center border-r border-slate-100 py-4 gap-1">
-                <span className="text-[36px] font-medium text-[#8bb4c8] leading-none">14</span>
-                <span className="text-[12px] font-bold text-slate-800">06/2026</span>
-                <span className="text-[10px] text-red-500 text-center px-1 leading-tight mt-1">Lịch hẹn tái khám</span>
-             </div>
-             <div className="flex-1 p-3 flex flex-col gap-1">
-                <span className="font-bold text-[14px] text-slate-800 uppercase">{user?.name || "BỆNH NHÂN"}</span>
-                <span className="text-[13px] text-slate-600">Cơ sở Tứ Hiệp</span>
-                <span className="text-[11px] text-slate-400 mt-1">Khám bệnh theo yêu cầu</span>
-                <div className="flex gap-2 mt-2">
-                   <button onClick={() => alert('Đang tải hồ sơ...')} className="flex-1 py-1.5 border border-slate-300 rounded-md text-[11px] font-medium text-slate-600 active:bg-slate-50">Xem hồ sơ sức khỏe</button>
-                   <button onClick={() => alert('Đặt lịch tái khám...')} className="flex-1 py-1.5 bg-[#88E8F2] text-slate-900 font-bold rounded-md text-[11px] active:bg-[#68c6cf]">Đặt lịch tái khám</button>
-                </div>
-             </div>
+          <div className="flex flex-col gap-4">
+            {followUps.length === 0 ? (
+              <div className="text-center text-slate-500 py-10 bg-white rounded-xl border border-slate-200">Chưa có lịch tái khám nào.</div>
+            ) : (
+              followUps.map((fup, i) => {
+                const dateObj = new Date(fup.date);
+                const day = dateObj.getDate().toString().padStart(2, '0');
+                const monthYear = `${(dateObj.getMonth() + 1).toString().padStart(2, '0')}/${dateObj.getFullYear()}`;
+                
+                return (
+                  <div key={i} className="bg-white rounded-xl p-0 flex flex-row overflow-hidden border border-slate-200 shadow-sm">
+                     <div className="w-24 bg-white flex flex-col items-center justify-center border-r border-slate-100 py-4 gap-1">
+                        <span className="text-[36px] font-medium text-[#8bb4c8] leading-none">{day}</span>
+                        <span className="text-[12px] font-bold text-slate-800">{monthYear}</span>
+                        <span className="text-[10px] text-red-500 text-center px-1 leading-tight mt-1">Lịch hẹn tái khám</span>
+                     </div>
+                     <div className="flex-1 p-3 flex flex-col gap-1">
+                        <span className="font-bold text-[14px] text-slate-800 uppercase">{user?.name || "BỆNH NHÂN"}</span>
+                        <span className="text-[13px] text-slate-600">Khoa: {fup.department}</span>
+                        <span className="text-[11px] text-slate-400 mt-1">Ghi chú: {fup.note || "Không có"}</span>
+                        <div className="flex gap-2 mt-2">
+                           {fup.status === "booked" ? (
+                             <span className="w-full text-center py-1.5 bg-green-50 text-green-600 font-bold rounded-md text-[11px]">Đã xác nhận đặt lịch</span>
+                           ) : (
+                             <button 
+                               onClick={() => {
+                                 fetchApi(`/patient/follow-ups/${fup.id}/book`, { method: "POST", body: JSON.stringify({}) })
+                                   .then(() => {
+                                     setFollowUps(prev => prev.map(f => f.id === fup.id ? { ...f, status: "booked" } : f));
+                                     alert("Đặt lịch thành công!");
+                                   })
+                                   .catch(err => alert("Lỗi khi đặt lịch: " + err.message));
+                               }} 
+                               className="flex-1 py-1.5 bg-[#88E8F2] text-slate-900 font-bold rounded-md text-[11px] active:bg-[#68c6cf]"
+                             >
+                               Đặt lịch tái khám
+                             </button>
+                           )}
+                        </div>
+                     </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         )}
       </div>
@@ -1401,8 +1724,10 @@ export function PatientPortalNew({
   // Notification Tab Logic
   const renderNotificationTab = () => {
     const groupedNotifications = notifications.reduce((acc, curr) => {
-      if (!acc[curr.dateStr]) acc[curr.dateStr] = [];
-      acc[curr.dateStr].push(curr);
+      const d = new Date(curr.created_at);
+      const dateStr = `Ngày ${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+      if (!acc[dateStr]) acc[dateStr] = [];
+      acc[dateStr].push(curr);
       return acc;
     }, {} as Record<string, typeof notifications>);
 
@@ -1427,19 +1752,25 @@ export function PatientPortalNew({
                 <div className="px-4 py-2 mt-2">
                   <span className="text-[14px] font-bold text-slate-800">{dateStr}</span>
                 </div>
-                {items.map((item) => (
-                  <div key={item.id} className="flex gap-3 p-4 border-b border-slate-100 bg-[#f0faeb]/40 active:bg-slate-50 transition-colors">
-                    <div className="w-12 h-12 rounded-full border border-slate-200 overflow-hidden shrink-0">
-                        <img src="/logo.png" alt="logo" className="w-full h-full object-cover" />
+                {items.map((item) => {
+                  const d = new Date(item.created_at);
+                  const daysAgo = Math.floor((new Date().getTime() - d.getTime()) / (1000 * 3600 * 24));
+                  return (
+                    <div key={item.id} className={`flex gap-3 p-4 border-b border-slate-100 ${item.is_read ? "bg-white" : "bg-[#f0faeb]/40"} active:bg-slate-50 transition-colors`}>
+                      <div className="w-12 h-12 rounded-full border border-slate-200 overflow-hidden shrink-0">
+                          <img src="/logo.png" alt="logo" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1 flex flex-col">
+                          <span className="text-[14px] text-slate-800 font-medium leading-snug">
+                            {item.content}
+                          </span>
+                          <span className="text-[12px] text-slate-400 mt-2">
+                            {daysAgo === 0 ? "Hôm nay" : `${daysAgo} ngày trước`}
+                          </span>
+                      </div>
                     </div>
-                    <div className="flex-1 flex flex-col">
-                        <span className="text-[14px] text-slate-800 font-medium leading-snug">
-                          Lịch hẹn tái khám của <span className="uppercase font-bold">{user?.name || "BỆNH NHÂN"}</span> tại Cơ sở Tứ Hiệp sẽ diễn ra vào lúc {item.timeStr} . Nhấn vào để đặt khám!
-                        </span>
-                        <span className="text-[12px] text-slate-400 mt-2">{item.daysAgo}</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ))
           )}
@@ -1457,8 +1788,21 @@ export function PatientPortalNew({
       
       <div className="flex-1 overflow-y-auto overscroll-contain pb-24">
          <div className="bg-white p-4 flex items-center gap-4 border-b border-slate-100">
-            <div className="w-16 h-16 rounded-full border border-slate-200 overflow-hidden shrink-0 p-1">
-               <img src="/logo.png" alt="logo" className="w-full h-full object-cover" />
+            <div 
+              className="w-16 h-16 rounded-full border border-slate-200 overflow-hidden shrink-0 p-1 relative cursor-pointer group"
+              onClick={() => avatarInputRef.current?.click()}
+            >
+               <img src={user?.avatar || DEFAULT_AVATAR} alt="avatar" className="w-full h-full rounded-full object-cover" />
+               <div className="absolute inset-0 bg-black/40 hidden group-hover:flex items-center justify-center rounded-full">
+                  <span className="text-white text-[10px] font-medium">Thay ảnh</span>
+               </div>
+               <input 
+                  type="file" 
+                  ref={avatarInputRef} 
+                  className="hidden" 
+                  accept="image/*"
+                  onChange={handleAvatarUpload}
+               />
             </div>
             <div className="flex flex-col">
                <span className="text-[16px] font-bold text-slate-800 uppercase">{user?.name || "BỆNH NHÂN"}</span>
@@ -1525,19 +1869,10 @@ export function PatientPortalNew({
             </div>
          </div>
          
-         <div className="mt-2 bg-white border-y border-slate-100">
-            <span className="block px-4 py-3 text-[14px] font-medium text-slate-800">Khác</span>
-            <div className="pl-4">
-               <button onClick={() => alert('Về bệnh viện...')} className="w-full flex items-center justify-between py-3 pr-4 border-b border-slate-100 active:bg-slate-50">
-                  <div className="flex items-center gap-3">
-                     <div className="w-8 h-8 rounded-md bg-slate-100 flex items-center justify-center"><Star className="w-5 h-5 text-slate-400" /></div>
-                     <span className="text-[15px] text-slate-700">Về BV Nội tiết Trung Ương</span>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-slate-400" />
-               </button>
-            </div>
-         </div>
-         
+          <div className="mt-2 bg-white border-y border-slate-100">
+             {/* The "Khác" section and "Về BV Nội tiết Trung Ương" button have been removed */}
+          </div>
+          
          <div className="mt-2 bg-white border-y border-slate-100">
             <button onClick={() => onRequestLogout()} className="w-full flex items-center px-4 py-3 active:bg-slate-50">
                <div className="flex items-center gap-3">
@@ -1708,13 +2043,11 @@ export function PatientPortalNew({
                 </div>
 
                 <button 
-                  onClick={() => {
-                    alert(`Đã đặt lịch khám chuyên khoa ${bookingSpecialty || "..."} vào ngày ${bookingDate || "..."} thành công!`);
-                    setShowBookingModal(false);
-                  }}
-                  className="w-full rounded-full bg-[#88E8F2] py-4 text-[16px] font-bold text-[#0d1f2d] shadow-lg active:scale-95 transition-transform"
+                  onClick={handleBookingSubmit}
+                  disabled={submittingBooking}
+                  className="w-full rounded-full bg-[#88E8F2] py-4 text-[16px] font-bold text-[#0d1f2d] shadow-lg active:scale-95 transition-transform disabled:opacity-50"
                 >
-                  Xác nhận đặt lịch
+                  {submittingBooking ? "Đang xử lý..." : "Xác nhận đặt lịch"}
                 </button>
               </div>
             </div>
@@ -1906,7 +2239,6 @@ export function PatientPortalNew({
                               onClick={() => sendMessage(btn.title, btn.payload || btn.payload_id)}
                               className="px-2.5 py-1.5 text-[11px] font-semibold rounded-[10px] border border-[#88E8F2] text-[#0d1f2d] bg-[#88E8F2]/10 hover:bg-[#88E8F2]/30 active:scale-95 transition-all text-left"
                               style={{ backgroundColor: btn.color ? `${btn.color}30` : undefined, borderColor: btn.color }}
-=======
                       <p className="text-[13px] leading-relaxed">{msg.text}</p>
                       
                       {/* Render Buttons from VNPT card_data if exist */}
@@ -1917,7 +2249,6 @@ export function PatientPortalNew({
                               key={bIdx}
                               onClick={() => sendMessage(btn.payload || btn.title)}
                               className="rounded-lg bg-[#88E8F2]/10 px-3 py-1.5 text-left text-[12px] font-semibold text-[#0d1f2d] transition hover:bg-[#88E8F2]/20"
->>>>>>> Stashed changes
                             >
                               {btn.title}
                             </button>
@@ -1933,10 +2264,8 @@ export function PatientPortalNew({
                         </div>
                       )}
                       <p className={`mt-1.5 text-[9px] font-medium ${msg.from === "user" ? "text-white/60" : "text-slate-400"}`}>{msg.time}</p>
-=======
                       
                       <p className={`mt-1 text-[9px] ${msg.from === "user" ? "text-white/60" : "text-slate-400"}`}>{msg.time}</p>
->>>>>>> Stashed changes
                     </div>
                   </div>
                 ))}

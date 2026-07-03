@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 # Patient
@@ -44,6 +44,7 @@ def lookup_patient(cccd: str, phone: str, db: Session = Depends(get_db)):
         "cccd": patient.cccd,
         "name": patient.name,
         "phone": patient.phone,
+        "avatar": patient.avatar_url,
         "access_token": access_token,
     }
 
@@ -178,9 +179,32 @@ async def patient_chatbot(
     
     if not is_payload and data.message.strip().lower() not in ["xin chào", "xin chao", "hello", "hi", "chào", "bắt đầu"]:
         if recent_doc and recent_doc.extracted_data:
-            import json
-            context_str = json.dumps(recent_doc.extracted_data, ensure_ascii=False)
-            context = f"Thông tin hồ sơ y tế/đơn thuốc/xét nghiệm gần nhất của tôi: {context_str}. "
+            text_only = recent_doc.extracted_data.get("text", "")
+            
+            # Nếu kết quả bóc tách bị lưu dưới dạng string của dictionary chứa tọa độ (phrases)
+            if text_only.startswith("{") and "'phrases':" in text_only:
+                import ast
+                try:
+                    d = ast.literal_eval(text_only)
+                    words = []
+                    def extract_text(obj):
+                        if isinstance(obj, dict):
+                            if "text" in obj:
+                                words.append(str(obj["text"]))
+                            for v in obj.values():
+                                extract_text(v)
+                        elif isinstance(obj, list):
+                            for item in obj:
+                                extract_text(item)
+                    extract_text(d)
+                    text_only = " ".join(words)
+                except Exception:
+                    pass
+            
+            # Giới hạn số lượng ký tự gửi cho Smartbot để tránh lỗi quá tải payload (VD: 1500 ký tự)
+            text_only = text_only[:1500]
+            
+            context = f"Thông tin hồ sơ y tế/đơn thuốc/xét nghiệm gần nhất của tôi: {text_only}. "
         
     final_message = context + "Câu hỏi của tôi: " + data.message if context else data.message
     # Gắn thẻ metadata định danh bệnh nhân (CCCD) để bot nhận biết và gọi API Đặt lịch
@@ -466,13 +490,15 @@ def get_patient_clinical_bundle(
         )
 
     from app.db.models import VitalSign, SmartReaderDoc, ImagingResult
+    from sqlalchemy import text as sql_text
 
-    vital_signs = (
-        db.query(VitalSign)
-        .filter(VitalSign.patient_id == user.id)
-        .order_by(VitalSign.measured_at.desc())
-        .first()
-    )
+    vital_signs_row = db.execute(
+        sql_text("""SELECT vs.* FROM vital_signs vs
+            JOIN encounters e ON vs.encounter_id = e.id
+            WHERE e.patient_id = :pid
+            ORDER BY vs.measured_at DESC LIMIT 1""")
+        , {"pid": str(user.id)}
+    ).fetchone()
 
     lab_docs = (
         db.query(SmartReaderDoc)
@@ -511,12 +537,10 @@ def get_patient_clinical_bundle(
             "department": department_name,
         },
         "vitalSigns": {
-            "heart_rate": vital_signs.heart_rate,
-            "blood_pressure": vital_signs.blood_pressure,
-            "spo2": vital_signs.spo2,
-            "temperature": vital_signs.temperature,
-            "measured_at": vital_signs.measured_at.isoformat(),
-        } if vital_signs else None,
+            "heart_rate": vital_signs_row.heart_rate,
+            "spo2": vital_signs_row.spo2,
+            "measured_at": vital_signs_row.measured_at.isoformat(),
+        } if vital_signs_row else None,
         "medications": [
             {
                 "id": str(m.id),
@@ -572,10 +596,8 @@ def get_patient_clinical_bundle(
     }
 
 
-# =========================================================================
-# LỊCH KHÁM & BÁC SĨ (DÀNH CHO CHATBOT)
-# =========================================================================
-
+# ==================================================================# LỊCH KHÁM & BÁC SĨ (DÀNH CHO CHATBOT)
+# ==================================================================
 @router.get("/doctors")
 def get_doctors(dept: str, db: Session = Depends(get_db)):
     """Trả về danh sách bác sĩ (role=clinician), hỗ trợ lọc theo khoa."""
@@ -654,3 +676,257 @@ def create_appointment(data: AppointmentCreate, db: Session = Depends(get_db)):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Không thể lưu lịch hẹn: {str(e)}")
+@router.get("/invoices")
+def get_patient_invoices(user: Patient = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import HospitalFee, HospitalFeeItem
+    fees = db.query(HospitalFee).filter(HospitalFee.patient_id == user.id).all()
+    
+    result = []
+    for fee in fees:
+        items = db.query(HospitalFeeItem).filter(HospitalFeeItem.fee_id == fee.id).all()
+        result.append({
+            "id": str(fee.id),
+            "record_id": str(fee.record_id),
+            "total": fee.total,
+            "status": fee.status,
+            "paid_at": fee.paid_at.isoformat() if fee.paid_at else None,
+            "items": [{"name": i.name, "amount": i.amount} for i in items]
+        })
+    return {"invoices": result}
+
+class AppointmentCreate(BaseModel):
+    department_id: str
+    booking_date: str
+    booking_time: str
+    reason: str = ""
+
+class AvatarUpdate(BaseModel):
+    avatar_base64: str
+
+@router.post("/avatar")
+def update_avatar(req: AvatarUpdate, user: Patient = Depends(get_current_user), db: Session = Depends(get_db)):
+    user.avatar_url = req.avatar_base64
+    db.commit()
+    return {"status": "success"}
+
+class QuestionCreate(BaseModel):
+    department: str
+    question: str
+
+class ConsentSign(BaseModel):
+    form_id: str
+    
+@router.post("/appointments")
+def create_appointment(req: AppointmentCreate, user = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import Appointment
+    app_obj = Appointment(
+        patient_id=user.id,
+        department_id=req.department_id,
+        booking_date=req.booking_date,
+        booking_time=req.booking_time,
+        reason=req.reason
+    )
+    db.add(app_obj)
+    db.commit()
+    return {"status": "success", "appointment_id": str(app_obj.id)}
+
+@router.get("/appointments")
+def get_appointments(user = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import Appointment, Department
+    apps = db.query(Appointment).filter(Appointment.patient_id == user.id).order_by(Appointment.created_at.desc()).all()
+    result = []
+    for a in apps:
+        dept = db.query(Department).filter(Department.id == a.department_id).first() if a.department_id else None
+        result.append({
+            "id": str(a.id),
+            "department": dept.name if dept else "Khám Tổng Quát",
+            "date": a.booking_date,
+            "time": a.booking_time,
+            "reason": a.reason,
+            "status": a.status
+        })
+    return {"appointments": result}
+
+@router.post("/questions")
+def create_question(req: QuestionCreate, user = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import CommunityQuestion
+    q_obj = CommunityQuestion(
+        patient_id=user.id,
+        department=req.department,
+        question=req.question
+    )
+    db.add(q_obj)
+    db.commit()
+    return {"status": "success", "question_id": str(q_obj.id)}
+
+@router.get("/questions")
+def get_questions(user = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import CommunityQuestion
+    qs = db.query(CommunityQuestion).order_by(CommunityQuestion.created_at.desc()).all()
+    result = []
+    for q in qs:
+        is_mine = (str(q.patient_id) == str(user.id))
+        result.append({
+            "id": str(q.id),
+            "department": q.department,
+            "question": q.question,
+            "answer": q.answer,
+            "status": q.status,
+            "created_at": q.created_at.isoformat(),
+            "is_mine": is_mine,
+            "name": "Bạn" if is_mine else "Bệnh nhân ẩn danh"
+        })
+    return {"questions": result}
+
+@router.get("/consent-forms")
+def get_consent_forms(user = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import ConsentForm
+    forms = db.query(ConsentForm).filter(ConsentForm.patient_id == user.id).all()
+    result = [{"id": str(f.id), "name": f.document_name, "content": f.content, "is_signed": f.is_signed, "signed_at": f.signed_at.isoformat() if f.signed_at else None} for f in forms]
+    return {"forms": result}
+
+@router.post("/consent-forms/sign")
+def sign_consent_form(req: ConsentSign, user = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import ConsentForm
+    import datetime
+    form = db.query(ConsentForm).filter(ConsentForm.id == req.form_id, ConsentForm.patient_id == user.id).first()
+    if not form:
+        return {"error": "Not found"}
+    form.is_signed = True
+    form.signed_at = datetime.datetime.utcnow()
+    db.commit()
+    return {"status": "success"}
+
+@router.get("/notifications")
+def get_notifications(user = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import Notification
+    nots = db.query(Notification).filter(Notification.patient_id == user.id).order_by(Notification.created_at.desc()).all()
+    result = [{
+        "id": str(n.id),
+        "title": n.title,
+        "content": n.content,
+        "type": n.type,
+        "is_read": n.is_read,
+        "created_at": n.created_at.isoformat()
+    } for n in nots]
+    return {"notifications": result}
+
+@router.get("/follow-ups")
+def get_follow_ups(user = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import FollowUp
+    fups = db.query(FollowUp).filter(FollowUp.patient_id == user.id).order_by(FollowUp.created_at.desc()).all()
+    result = [{
+        "id": str(f.id),
+        "date": f.date,
+        "time": f.time,
+        "department": f.department,
+        "note": f.note,
+        "status": f.status,
+        "created_at": f.created_at.isoformat()
+    } for f in fups]
+    return {"follow_ups": result}
+
+class FollowUpBookRequest(BaseModel):
+    pass # Empty request for now, can add options later
+
+@router.post("/follow-ups/{f_id}/book")
+def book_follow_up(f_id: str, req: FollowUpBookRequest, user = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import FollowUp, Appointment, Department
+    import uuid
+    fup = db.query(FollowUp).filter(FollowUp.id == f_id, FollowUp.patient_id == user.id).first()
+    if not fup:
+        return {"error": "Not found"}
+    if fup.status == "booked":
+        return {"error": "Already booked"}
+    
+    # Create Appointment
+    dept = db.query(Department).filter(Department.name == fup.department).first()
+    dept_id = dept.id if dept else None
+
+    app_obj = Appointment(
+        patient_id=user.id,
+        department_id=dept_id,
+        booking_date=fup.date,
+        booking_time=fup.time,
+        reason=f"Tái khám: {fup.note or ''}",
+        status="pending"
+    )
+    db.add(app_obj)
+    
+    # Update FollowUp status
+    fup.status = "booked"
+    db.commit()
+    return {"status": "success", "appointment_id": str(app_obj.id)}
+
+@router.get("/doctor-schedules")
+def get_doctor_schedules(db: Session = Depends(get_db)):
+    from app.db.models import DoctorSchedule, Staff
+    import datetime
+    today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+    
+    # Get all distinct schedules for today or future
+    # Group by doctor to avoid duplicate doctor entries if a doctor has multiple shifts
+    # For simplicity, we just join with Staff and return unique doctors who have a schedule
+    schedules = db.query(DoctorSchedule, Staff).join(Staff, DoctorSchedule.doctor_id == Staff.id).filter(DoctorSchedule.date >= today).all()
+    
+    # Use a dictionary to keep unique doctors
+    doctors_dict = {}
+    for sched, staff in schedules:
+        if staff.id not in doctors_dict:
+            doctors_dict[staff.id] = {
+                "id": str(staff.id),
+                "name": staff.name,
+                "img": staff.face_base64 or "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%239ca3af'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>" # Default fallback
+            }
+            
+    return {"doctors": list(doctors_dict.values())}
+
+@router.get("/tickets/latest")
+def get_latest_ticket(user: Patient = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import RegistrationTicket, TicketServiceItem
+    ticket = db.query(RegistrationTicket).filter(RegistrationTicket.patient_id == user.id).order_by(RegistrationTicket.registered_at.desc()).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Không tìm thấy phiếu khám")
+    items = db.query(TicketServiceItem).filter(TicketServiceItem.ticket_id == ticket.id).order_by(TicketServiceItem.order_index).all()
+    return {
+        "id": str(ticket.id),
+        "ticket_code": ticket.ticket_code,
+        "patient_code": ticket.patient_code,
+        "sequence_number": ticket.sequence_number,
+        "registered_at": ticket.registered_at.isoformat(),
+        "status": ticket.status,
+        "items": [
+            {
+                "id": str(i.id),
+                "service_name": i.service_name,
+                "room_location": i.room_location,
+                "order_index": i.order_index,
+                "status": i.status
+            } for i in items
+        ]
+    }
+
+@router.get("/tickets/{ticket_code}")
+def get_ticket_by_code(ticket_code: str, user: Patient = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models import RegistrationTicket, TicketServiceItem
+    ticket = db.query(RegistrationTicket).filter(RegistrationTicket.patient_id == user.id, RegistrationTicket.ticket_code == ticket_code).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Không tìm thấy mã hồ sơ này")
+    items = db.query(TicketServiceItem).filter(TicketServiceItem.ticket_id == ticket.id).order_by(TicketServiceItem.order_index).all()
+    return {
+        "id": str(ticket.id),
+        "ticket_code": ticket.ticket_code,
+        "patient_code": ticket.patient_code,
+        "sequence_number": ticket.sequence_number,
+        "registered_at": ticket.registered_at.isoformat(),
+        "status": ticket.status,
+        "items": [
+            {
+                "id": str(i.id),
+                "service_name": i.service_name,
+                "room_location": i.room_location,
+                "order_index": i.order_index,
+                "status": i.status
+            } for i in items
+        ]
+    }

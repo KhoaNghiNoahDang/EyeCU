@@ -1,4 +1,4 @@
-﻿import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useRef, useCallback, ComponentType } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth, type WorkMode } from "../lib/auth/auth-context";
@@ -118,6 +118,7 @@ import {
   Zap,
   Users,
   Camera,
+  Trash2,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -149,6 +150,7 @@ type ViewKey =
 const navItems: { key: ViewKey; Icon: typeof Eye; label: string }[] = [
   { key: "ambient", Icon: Eye, label: "Giám sát Không gian" },
   { key: "ambulance", Icon: Ambulance, label: "Điều phối Cấp cứu" },
+  { key: "history", Icon: HistoryIcon, label: "Lịch sử Cấp cứu" },
   { key: "records", Icon: ScanLine, label: "Hồ sơ Bệnh nhân" },
   { key: "voice", Icon: Mic, label: "Bệnh án Giọng nói" },
   { key: "chatbot", Icon: Bot, label: "Trợ lý AI Bệnh nhân" },
@@ -169,7 +171,7 @@ const roleConfig: Record<WorkMode, { label: string; views: ViewKey[]; defaultVie
   },
   clinician: {
     label: "Khám Lâm sàng",
-    views: ["voice", "records"],
+    views: ["voice"],
     defaultView: "voice",
   },
   patient: {
@@ -205,12 +207,13 @@ type BeforeInstallPromptEvent = Event & {
 };
 
 function PatientRounds() {
-  const { user, workMode, isAuthenticated, logout } = useAuth();
+  const { user, workMode, setWorkMode, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
 
   // We must always call hooks at the top level
   const [activeView, setActiveView] = useState<ViewKey>("ambient");
   const [collapsed, setCollapsed] = useState(false);
+  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [highlightedRoom, setHighlightedRoom] = useState<string | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
@@ -295,25 +298,50 @@ function PatientRounds() {
       {!isPatientRole && (
         <nav
           className={`h-screen fixed left-0 top-0 bg-white flex-col py-6 border-r border-slate-200 z-40 hidden md:flex transition-all duration-300 ${
-            collapsed ? "w-20" : "w-64"
+            collapsed ? "w-24" : "w-80"
           }`}
         >
           <div className={`mb-4 ${collapsed ? "px-4" : "px-6"}`}>
             <div className="flex items-center gap-3 justify-between">
-              <div className="flex items-center gap-3 min-w-0">
-                <img 
-                  src="/logo.png" 
-                  alt="EyeCU Logo"
-                  className="w-9 h-9 rounded-lg shadow-sm object-contain flex-shrink-0"
-                />
-                {!collapsed && (
-                  <div className="min-w-0">
-                    <h1 className="text-base font-bold leading-tight text-slate-900 truncate">
-                      EyeCU
-                    </h1>
-                    <p className="text-[11px] tracking-wider text-slate-500 font-geist uppercase">
-                      {roleConfig[workMode].label}
-                    </p>
+              <div className="flex items-center gap-3 min-w-0 relative">
+                <button onClick={() => setRoleMenuOpen(!roleMenuOpen)} className="flex items-center gap-3 active:scale-95 transition-transform text-left">
+                  <img 
+                    src="/logo.png" 
+                    alt="EyeCU Logo"
+                    className="w-14 h-14 rounded-lg shadow-sm object-contain flex-shrink-0"
+                  />
+                  {!collapsed && (
+                    <div className="min-w-0">
+                      <h1 className="text-2xl font-bold leading-tight text-slate-900 truncate">
+                        EyeCU
+                      </h1>
+                      <p className="text-[14px] tracking-wider text-slate-500 font-geist uppercase mt-0.5">
+                        {roleConfig[workMode].label}
+                      </p>
+                    </div>
+                  )}
+                </button>
+                {roleMenuOpen && (
+                  <div className="absolute top-16 left-0 w-64 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-2">
+                    <p className="px-4 py-2 text-[12px] font-bold text-slate-400 uppercase tracking-wider">Đổi không gian làm việc</p>
+                    <button
+                      onClick={() => { setWorkMode("ops"); setRoleMenuOpen(false); }}
+                      className="w-full text-left px-4 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-[#0A9BAD]"
+                    >
+                      Trực Cấp cứu
+                    </button>
+                    <button
+                      onClick={() => { setWorkMode("clinician"); setRoleMenuOpen(false); }}
+                      className="w-full text-left px-4 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-[#0A9BAD]"
+                    >
+                      Khám Lâm sàng
+                    </button>
+                    <button
+                      onClick={() => { setWorkMode("ems"); setRoleMenuOpen(false); }}
+                      className="w-full text-left px-4 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-[#0A9BAD]"
+                    >
+                      Cấp cứu Ngoại viện
+                    </button>
                   </div>
                 )}
               </div>
@@ -345,7 +373,7 @@ function PatientRounds() {
                   <button
                     onClick={() => setActiveView(key)}
                     title={collapsed ? label : undefined}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[15px] font-medium transition-all ${
                       collapsed ? "justify-center" : ""
                     } ${
                       active
@@ -363,22 +391,11 @@ function PatientRounds() {
           </ul>
           <div className={`mt-auto pt-4 border-t border-slate-200 ${collapsed ? "px-3" : "px-4"}`}>
             <ul className="space-y-1">
-              <li key="Trạng thái">
-                <button
-                  title={collapsed ? "Trạng thái" : undefined}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-50 font-geist text-[12px] uppercase tracking-wider ${
-                    collapsed ? "justify-center" : ""
-                  }`}
-                >
-                  <Cpu className="w-4 h-4 flex-shrink-0" />
-                  {!collapsed && "Trạng thái"}
-                </button>
-              </li>
               <li key="Đăng xuất">
                 <button
                   onClick={requestLogout}
                   title={collapsed ? "Đăng xuất" : undefined}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-50 font-geist text-[12px] uppercase tracking-wider ${
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-50 font-geist text-[14px] uppercase tracking-wider ${
                     collapsed ? "justify-center" : ""
                   }`}
                 >
@@ -394,7 +411,7 @@ function PatientRounds() {
       {/* Main */}
       <main
         className={`flex-1 flex min-h-dvh min-w-0 flex-col overflow-hidden bg-white transition-all duration-300 ${
-          isPatientRole ? "" : collapsed ? "md:ml-20" : "md:ml-64"
+          isPatientRole ? "" : collapsed ? "md:ml-24" : "md:ml-80"
         }`}
       >
         {/* Top Nav — staff / clinician */}
@@ -410,14 +427,7 @@ function PatientRounds() {
               />
               <span className="text-sm font-bold text-slate-900">EyeCU</span>
             </div>
-            <div className="hidden md:flex items-center rounded-full border border-slate-200 bg-slate-50/80 px-3 py-1.5">
-              <Search className="h-3.5 w-3.5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Tìm mã bệnh nhân..."
-                className="ml-2 w-44 border-none bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
-              />
-            </div>
+
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5">
@@ -542,27 +552,11 @@ function PatientRounds() {
             }
           >
             {!isPatientRole && (
-              <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <h2 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl md:font-light">
-                    {meta.title}
-                  </h2>
-                  <p className="mt-1 text-sm text-slate-500">{meta.subtitle}</p>
-                </div>
-                <div className="flex gap-2 md:mt-0">
-                  {[
-                    { Icon: Filter, l: "Lọc" },
-                    { Icon: MapIcon, l: "Bản đồ" },
-                  ].map(({ Icon, l }) => (
-                    <button
-                      key={l}
-                      className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition-colors hover:border-[#88E8F2] md:px-4 md:text-[12px] md:font-geist md:uppercase md:tracking-wider"
-                    >
-                      <Icon className="w-4 h-4" />
-                      {l}
-                    </button>
-                  ))}
-                </div>
+              <div className="mb-4">
+                <h2 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl md:font-light">
+                  {meta.title}
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">{meta.subtitle}</p>
               </div>
             )}
 
@@ -577,6 +571,7 @@ function PatientRounds() {
                 <AmbulanceView />
               </MapErrorBoundary>
             )}
+            {activeView === "history" && <HistoryView />}
             {activeView === "records" && <RecordsView />}
             {activeView === "voice" && <VoiceView />}
             {activeView === "chatbot" && <ChatbotView />}
@@ -830,11 +825,11 @@ function AmbientView({
         {/* Header */}
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h3 className="text-lg font-medium text-slate-900 flex items-center gap-2">
+            <h3 className="text-xl font-medium text-slate-900 flex items-center gap-2">
               <Video className="w-5 h-5" style={{ color: ACCENT }} />
               Camera AI Giám sát — {currentTab?.name}
             </h3>
-            <p className="text-[11px] text-slate-500 font-geist mt-0.5">
+            <p className="text-[13px] text-slate-500 font-geist mt-0.5">
               {deptCameras.length} camera · Phân tích hành vi · Phát hiện ngã · Nhận dạng âm thanh
             </p>
           </div>
@@ -868,7 +863,7 @@ function AmbientView({
                     setSelectedDept(tab.id);
                     setOnlyAlerts(false);
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all flex-shrink-0 border"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-bold whitespace-nowrap transition-all flex-shrink-0 border"
                   style={{
                     backgroundColor: isActive ? tab.color : "#F8FAFC",
                     color: isActive ? "#fff" : "#475569",
@@ -876,8 +871,8 @@ function AmbientView({
                     boxShadow: isActive ? `0 2px 8px ${tab.color}50` : undefined,
                   }}
                 >
-                  <span className="text-[12px] font-semibold tracking-wide">{tab.name}</span>
-                  <span className="opacity-70 text-[9px]">({tabCams.length})</span>
+                  <span className="text-[14px] font-semibold tracking-wide">{tab.name}</span>
+                  <span className="opacity-70 text-[11px]">({tabCams.length})</span>
                   {tabAlerts > 0 && (
                     <span className="w-4 h-4 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center">
                       {tabAlerts}
@@ -1420,16 +1415,16 @@ function PrivacyCameraFeed() {
     <div className="bg-white border border-slate-200 rounded-2xl p-5 mt-4 mb-4">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+          <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <ShieldCheck className="w-4 h-4" style={{ color: ACCENT }} />
             Privacy-by-Design · Pose Estimation AI
           </h3>
-          <p className="text-[11px] text-slate-500 font-geist mt-0.5">
+          <p className="text-[13px] text-slate-500 font-geist mt-0.5">
             Không hiển thị hình ảnh thật · Skeleton Overlay + Audio Spectrogram · Sensor Fusion
           </p>
         </div>
         <span
-          className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-lg"
+          className="text-[12px] font-bold uppercase tracking-wider px-2 py-1 rounded-lg"
           style={{
             backgroundColor: isCritical ? "#FEE2E2" : "#F0FDF4",
             color: isCritical ? "#DC2626" : "#16A34A",
@@ -1491,18 +1486,18 @@ function PrivacyCameraFeed() {
             {/* Top-left badge */}
             <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-full px-2.5 py-1">
               <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-[10px] font-mono text-white">Camera 103 – Khoa Nội</span>
+              <span className="text-[12px] font-mono text-white">Camera 103 – Khoa Nội</span>
             </div>
 
             {/* Timestamp */}
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 text-[9px] font-mono text-white/40">
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 text-[11px] font-mono text-white/40">
               {timestamp} · 1080p · 30fps
             </div>
 
             {/* Top-right status */}
             <div className="absolute top-3 right-3 z-20">
               <span
-                className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all duration-500"
+                className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold uppercase tracking-wider transition-all duration-500"
                 style={{
                   backgroundColor: isCritical ? "#DC2626" : "#065F46",
                   color: "white",
@@ -1542,11 +1537,11 @@ function PrivacyCameraFeed() {
                 <div className="absolute inset-0 bg-red-900/10" />
                 {flashText && (
                   <div className="relative mt-10 text-center w-full">
-                    <span className="text-red-400 font-black text-base tracking-[0.2em] drop-shadow-[0_0_16px_rgba(239,68,68,0.9)]">
+                    <span className="text-red-400 font-black text-lg tracking-[0.2em] drop-shadow-[0_0_16px_rgba(239,68,68,0.9)]">
                       PHÁT HIỆN TƯ THẾ NGÃ
                     </span>
                     <br />
-                    <span className="text-[9px] text-red-300/80 font-geist uppercase tracking-wider">
+                    <span className="text-[11px] text-red-300/80 font-geist uppercase tracking-wider">
                       Pose: 97.4% · Audio Spike: 91dB
                     </span>
                   </div>
@@ -1560,7 +1555,7 @@ function PrivacyCameraFeed() {
 
           {/* Sensor fusion bar */}
           <div
-            className={`mt-2 rounded-lg px-3 py-2 flex items-center justify-between text-[10px] font-geist transition-colors duration-500 ${isCritical ? "bg-red-50 border border-red-200" : "bg-slate-50 border border-slate-200"}`}
+            className={`mt-2 rounded-lg px-3 py-2 flex items-center justify-between text-[12px] font-geist transition-colors duration-500 ${isCritical ? "bg-red-50 border border-red-200" : "bg-slate-50 border border-slate-200"}`}
           >
             <div className="flex items-center gap-3">
               <span
@@ -1595,7 +1590,7 @@ function PrivacyCameraFeed() {
                 id="privacy-camera-demo-btn"
                 onClick={triggerFall}
                 disabled={transitioning}
-                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-900 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                className="flex-1 py-2.5 rounded-xl text-base font-bold text-slate-900 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 style={{ background: `linear-gradient(135deg, ${ACCENT} 0%, #5DD3E0 100%)` }}
               >
                 <Siren className="w-4 h-4" />
@@ -1604,7 +1599,7 @@ function PrivacyCameraFeed() {
             ) : (
               <button
                 onClick={resetState}
-                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800"
+                className="flex-1 py-2.5 rounded-xl text-base font-bold text-white hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800"
               >
                 <CheckCircle2 className="w-4 h-4" />
                 Đặt lại — Chế độ riêng tư
@@ -1616,11 +1611,11 @@ function PrivacyCameraFeed() {
         {/* Right panel */}
         <div className="lg:col-span-2 flex flex-col gap-3">
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
+            <p className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5" style={{ color: ACCENT }} />
               Privacy-by-Design · Nguyên lý
             </p>
-            <div className="space-y-2.5 text-[11px]">
+            <div className="space-y-2.5 text-[13px]">
               {[
                 ["Nhận diện khuôn mặt", "TẮT — Không lưu trữ"],
                 ["Video gốc", "Không gửi lên server"],
@@ -1636,7 +1631,7 @@ function PrivacyCameraFeed() {
           </div>
 
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+            <p className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-3">
               Độ tin cậy AI — Thời gian thực
             </p>
             <div className="space-y-3">
@@ -1661,7 +1656,7 @@ function PrivacyCameraFeed() {
                 },
               ].map(({ label, val, color, unit }) => (
                 <div key={label}>
-                  <div className="flex justify-between text-[10px] mb-1">
+                  <div className="flex justify-between text-[12px] mb-1">
                     <span className="text-slate-500">{label}</span>
                     <span className="font-bold font-mono" style={{ color }}>
                       {val}
@@ -1679,10 +1674,10 @@ function PrivacyCameraFeed() {
             </div>
 
             <div className="mt-4 pt-3 border-t border-slate-200">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+              <p className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-2">
                 Nhật ký sự kiện
               </p>
-              <div className="space-y-1.5 text-[10px] font-mono">
+              <div className="space-y-1.5 text-[12px] font-mono">
                 {isCritical ? (
                   <>
                     <div className="flex gap-2 text-red-600">
@@ -2921,9 +2916,9 @@ function LprScanner({
               ? "bg-amber-50 border-amber-400 text-amber-700"
               : "border-slate-200 text-slate-600 hover:bg-slate-50"
           }`}
-          title="Nhập biển số trực tiếp (demo)"
+          title="Nhập thủ công"
         >
-          ⚡ Demo
+          ⚡ Nhập thủ công
         </button>
       </div>
 
@@ -3802,19 +3797,7 @@ function HistoryView() {
 
   return (
     <div className="flex-1 flex flex-col p-6 max-h-screen overflow-hidden bg-slate-50/50">
-      <div className="flex items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 font-geist tracking-tight flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center text-white shadow-lg shadow-slate-900/20">
-              <HistoryIcon className="w-5 h-5" />
-            </div>
-            Lịch sử Điều phối Cấp cứu
-          </h1>
-          <p className="text-slate-500 font-medium mt-1 ml-13 flex items-center gap-2">
-            Theo dõi các ca cấp cứu ngoại viện đã hoàn thành
-          </p>
-        </div>
-      </div>
+      
       
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex-1 flex flex-col">
         <div className="flex flex-wrap justify-between items-center px-4 py-3 border-b border-slate-100 gap-2">
@@ -3833,6 +3816,7 @@ function HistoryView() {
           <table className="w-full text-sm text-left min-w-[1000px]">
             <thead className="text-[10px] text-slate-500 font-geist uppercase tracking-wider bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
               <tr>
+                <th className="px-3 py-3 whitespace-nowrap">Ngày tháng</th>
                 <th className="px-3 py-3 whitespace-nowrap">Biển số xe</th>
                 <th className="px-3 py-3 whitespace-nowrap">Tên bệnh nhân</th>
                 <th className="px-3 py-3 whitespace-nowrap">Giới tính</th>
@@ -3848,20 +3832,16 @@ function HistoryView() {
             <tbody>
               {historyRecords.length === 0 ? (
                 <tr><td colSpan={10} className="px-4 py-8 text-center text-slate-400">Chưa có ca cấp cứu nào hoàn thành</td></tr>
-              ) : historyRecords.map((rec, idx) => (
+              ) : Array.from(new Map(historyRecords.map(item => [item.plate, item])).values())
+                  .sort((a: any, b: any) => new Date(b.completed_at || 0).getTime() - new Date(a.completed_at || 0).getTime())
+                  .map((rec, idx) => (
                 <tr key={`${rec.plate}-${idx}`} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80 transition-colors">
+                  <td className="px-3 py-3 whitespace-nowrap text-slate-500 text-xs">{rec.completed_at ? new Date(rec.completed_at).toLocaleDateString("vi-VN") : "—"}</td>
                   <td className="px-3 py-3"><span className="font-mono font-bold text-slate-600 text-[13px]">{rec.plate}</span></td>
                   <td className="px-3 py-3"><span className="font-semibold text-slate-600">{rec.patient_name || "—"}</span></td>
-                  <td className="px-3 py-3 font-mono text-[12px] text-slate-500">{rec.bhxh_code || "—"}</td>
+                  <td className="px-3 py-3"><span className="text-slate-600">{rec.gender || "—"}</span></td>
+                  <td className="px-3 py-3"><span className="text-slate-600">{rec.age || "—"}</span></td>
                   <td className="px-3 py-3 font-mono text-[12px] text-slate-500">{rec.cccd || "—"}</td>
-                  <td className="px-3 py-3 text-[11px] text-slate-600">
-                    {rec.emergency_contact_name ? (
-                      <div>
-                        <div className="font-semibold">{rec.emergency_contact_name}</div>
-                        <div className="text-slate-500">{rec.emergency_contact_phone}</div>
-                      </div>
-                    ) : "—"}
-                  </td>
                   <td className="px-3 py-3 max-w-[150px]">
                     {rec.chronic_conditions && rec.chronic_conditions.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
@@ -4121,19 +4101,22 @@ function AmbulanceView() {
           pre_alert_text?: string;
         };
         if (d.plate) {
-          supabase.from('dispatch_records').update({
-            patient_name: d.name ?? null,
-            gender: d.gender ?? null,
-            age: d.age ?? null,
-            cccd: d.cccd ?? null,
-            chronic_conditions: d.chronic_conditions ?? null,
-            allergies: d.allergies ?? null,
-            alert_label: d.alert_label ?? null,
-            bhxh_code: d.bhxh_code ?? null,
-            emergency_contact_name: d.emergency_contact_name ?? null,
-            emergency_contact_phone: d.emergency_contact_phone ?? null,
-            pre_alert_text: d.pre_alert_text ?? null
-          }).eq('plate', d.plate).then();
+          const updateData: any = {};
+          if (d.name !== undefined) updateData.patient_name = d.name;
+          if (d.gender !== undefined) updateData.gender = d.gender;
+          if (d.age !== undefined) updateData.age = d.age;
+          if (d.cccd !== undefined) updateData.cccd = d.cccd;
+          if (d.chronic_conditions !== undefined) updateData.chronic_conditions = d.chronic_conditions;
+          if (d.allergies !== undefined) updateData.allergies = d.allergies;
+          if (d.alert_label !== undefined) updateData.alert_label = d.alert_label;
+          if (d.bhxh_code !== undefined) updateData.bhxh_code = d.bhxh_code;
+          if (d.emergency_contact_name !== undefined) updateData.emergency_contact_name = d.emergency_contact_name;
+          if (d.emergency_contact_phone !== undefined) updateData.emergency_contact_phone = d.emergency_contact_phone;
+          if (d.pre_alert_text !== undefined) updateData.pre_alert_text = d.pre_alert_text;
+
+          if (Object.keys(updateData).length > 0) {
+            supabase.from('dispatch_records').update(updateData).eq('plate', d.plate).then();
+          }
 
           setDispatchRecords(prev => {
             if (!prev[d.plate]) return prev;
@@ -4459,18 +4442,16 @@ function AmbulanceView() {
                         </td>
                         {/* Chỉ định kíp CC */}
                         <td className="px-3 py-3">
-                          <input
-                            type="text"
-                            defaultValue={rec.er_team}
-                            placeholder="Nhập kíp..."
-                            onBlur={(e) => {
-                              const val = e.target.value;
+                          <AssignDepartmentCell
+                            plate={rec.plate}
+                            currentTeam={rec.er_team || rec.erTeam}
+                            onUpdate={(val) => {
+                              supabase.from('dispatch_records').update({ er_team: val }).eq('plate', rec.plate).then();
                               setDispatchRecords((prev) => ({
                                 ...prev,
-                                [rec.plate]: { ...prev[rec.plate], erTeam: val },
+                                [rec.plate]: { ...prev[rec.plate], er_team: val, erTeam: val },
                               }));
                             }}
-                            className="w-32 px-2 py-1 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400 outline-none bg-white"
                           />
                         </td>
                         <td className="px-3 py-3 text-right">
@@ -4507,6 +4488,103 @@ function LoadingCell() {
       <span className="w-3 h-3 border-2 border-slate-300 border-t-slate-500 rounded-full animate-spin flex-shrink-0" />
       Đang lấy thông tin
     </span>
+  );
+}
+
+function AssignDepartmentCell({
+  plate,
+  currentTeam,
+  onUpdate
+}: {
+  plate: string;
+  currentTeam?: string;
+  onUpdate: (val: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedDept, setSelectedDept] = useState(currentTeam || "");
+  const [departments, setDepartments] = useState<{id: string, name: string, color: string}[]>([]);
+
+  useEffect(() => {
+    fetchApi('/admin/departments')
+      .then((data: any[]) => {
+        const colors = [
+          'text-red-700 bg-red-100 border-red-200',
+          'text-orange-700 bg-orange-100 border-orange-200',
+          'text-blue-700 bg-blue-100 border-blue-200',
+          'text-purple-700 bg-purple-100 border-purple-200',
+          'text-green-700 bg-green-100 border-green-200',
+          'text-teal-700 bg-teal-100 border-teal-200'
+        ];
+        const mapped = data.map((d, i) => ({
+          id: d.id,
+          name: d.name,
+          color: colors[i % colors.length]
+        }));
+        setDepartments(mapped);
+      })
+      .catch(console.error);
+  }, []);
+
+  const matchedDept = departments.find(d => d.name === currentTeam);
+
+  if (!isOpen && currentTeam) {
+    return (
+      <button 
+        onClick={() => setIsOpen(true)}
+        className={`px-2 py-1 rounded-lg text-[11px] font-bold border whitespace-nowrap transition-colors hover:opacity-80 ${matchedDept ? matchedDept.color : 'text-slate-700 bg-slate-100 border-slate-200'}`}
+      >
+        {currentTeam}
+      </button>
+    );
+  }
+
+  if (!isOpen) {
+    return (
+      <button 
+        onClick={() => setIsOpen(true)}
+        className="px-3 py-1.5 bg-cyan-50 text-cyan-600 hover:bg-cyan-100 hover:text-cyan-700 border border-cyan-200 text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
+      >
+        Chỉ định
+      </button>
+    );
+  }
+
+  return (
+    <div className="relative flex flex-col gap-1 z-10">
+      <select 
+        value={selectedDept} 
+        onChange={e => setSelectedDept(e.target.value)}
+        className="w-36 px-2 py-1 text-xs border border-slate-200 rounded-lg outline-none bg-white focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400"
+        autoFocus
+      >
+        <option value="" disabled>Chọn khoa...</option>
+        {departments.map(d => (
+          <option key={d.id} value={d.name}>{d.name}</option>
+        ))}
+      </select>
+      <div className="flex gap-1">
+        <button 
+          onClick={() => {
+            if (selectedDept) {
+              onUpdate(selectedDept);
+              setIsOpen(false);
+            }
+          }}
+          className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] py-1 rounded transition-colors font-semibold"
+        >
+          Xác nhận
+        </button>
+        <button 
+          onClick={() => {
+            setIsOpen(false);
+            setSelectedDept(currentTeam || "");
+          }}
+          className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 text-[10px] py-1 rounded transition-colors font-semibold"
+        >
+          Hủy
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -6233,7 +6311,7 @@ function VoiceView() {
                   AI Voice NLU · Tiếng Việt
                 </span>
               </div>
-              <p className="mt-2 text-[11px] font-geist uppercase tracking-wider text-slate-500">
+              <p className="mt-2 text-[13px] font-geist uppercase tracking-wider text-slate-500">
                 BS. Văn Ngữ · Phòng 103
               </p>
               
@@ -6241,7 +6319,7 @@ function VoiceView() {
                  <button
                   onClick={startRecording}
                   disabled={isProcessing}
-                  className="mt-3 flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-slate-900 transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed sm:px-6"
+                  className="mt-3 flex items-center gap-2 rounded-full px-5 py-2.5 text-base font-medium text-slate-900 transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed sm:px-6"
                   style={{ backgroundColor: ACCENT }}
                 >
                   <Play className="w-4 h-4" /> Bắt đầu thu
@@ -6249,7 +6327,7 @@ function VoiceView() {
               ) : (
                 <button
                   onClick={stopRecording}
-                  className="mt-3 flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90 animate-pulse sm:px-6"
+                  className="mt-3 flex items-center gap-2 rounded-full px-5 py-2.5 text-base font-medium text-white transition hover:opacity-90 animate-pulse sm:px-6"
                   style={{ backgroundColor: "#ef4444" }}
                 >
                   <StopCircle className="w-4 h-4" /> Dừng & Xử lý
@@ -6258,22 +6336,22 @@ function VoiceView() {
             </div>
             
             {errorMsg && (
-              <div className="mt-2 bg-red-50 text-red-600 p-2 rounded-md text-xs font-medium text-center">
+              <div className="mt-2 bg-red-50 text-red-600 p-2 rounded-md text-sm font-medium text-center">
                 {errorMsg}
               </div>
             )}
 
             <div className="mt-3 border-t border-slate-200 pt-3 flex-1 overflow-auto scrollbar-hide">
-              <p className="text-[10px] font-geist uppercase tracking-wider text-slate-500 mb-1">
+              <p className="text-[12px] font-geist uppercase tracking-wider text-slate-500 mb-1">
                 Phiên âm thô (raw speech)
               </p>
               {isProcessing ? (
                  <div className="flex items-center text-slate-400 space-x-2 mt-4">
                    <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" />
-                   <span className="text-sm">Đang phân tích SOAPE qua AI...</span>
+                   <span className="text-base">Đang phân tích SOAPE qua AI...</span>
                  </div>
               ) : (
-                 <p className="text-sm text-slate-800 italic leading-relaxed whitespace-pre-wrap">
+                 <p className="text-base text-slate-800 italic leading-relaxed whitespace-pre-wrap">
                    {recording ? (liveTranscript || "Đang lắng nghe...") : (transcript || "Chưa có dữ liệu...")}
                  </p>
               )}
@@ -6283,8 +6361,8 @@ function VoiceView() {
           {/* RIGHT: SOAPE Form */}
           <div className="flex min-h-[520px] flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6 lg:h-[620px]">
             <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <h3 className="text-lg font-medium text-slate-900">EMR · Mẫu SOAPE</h3>
-              <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-slate-500 font-geist">
+              <h3 className="text-xl font-medium text-slate-900">EMR · Mẫu SOAPE</h3>
+              <span className="flex items-center gap-1 text-[12px] uppercase tracking-wider text-slate-500 font-geist">
                 <Cpu className="w-3 h-3" style={{ color: ACCENT }} /> AI Parser · Trực tiếp
               </span>
             </div>
@@ -6321,7 +6399,7 @@ function VoiceView() {
               />
             </div>
             <button
-              className="mt-4 rounded-lg py-3 text-sm font-bold text-slate-900 transition hover:opacity-90 disabled:opacity-50 flex items-center justify-center space-x-2"
+              className="mt-4 rounded-lg py-3 text-base font-bold text-slate-900 transition hover:opacity-90 disabled:opacity-50 flex items-center justify-center space-x-2"
               style={{ backgroundColor: ACCENT }}
               disabled={!soapeData || isProcessing}
               onClick={() => setShowSignedEMR(true)}
@@ -6578,13 +6656,13 @@ function EMRField({ label, value, filled, isProcessing }: { label: string; value
       className="border border-slate-200 rounded-lg p-3 transition-colors"
       style={filled ? { borderColor: ACCENT } : undefined}
     >
-      <p className="text-[10px] font-geist uppercase tracking-wider text-slate-500">{label}</p>
+      <p className="text-[12px] font-geist uppercase tracking-wider text-slate-500">{label}</p>
       {isProcessing ? (
         <div className="animate-pulse flex space-x-2 mt-2">
           <div className="h-4 w-3/4 bg-slate-200 rounded"></div>
         </div>
       ) : (
-        <p className={`text-sm mt-1 ${filled ? "text-slate-900 font-medium whitespace-pre-wrap" : "text-slate-300"}`}>
+        <p className={`text-[15px] mt-1 ${filled ? "text-slate-900 font-medium whitespace-pre-wrap" : "text-slate-300"}`}>
           {filled ? value : "— đang chờ —"}
         </p>
       )}
@@ -7849,6 +7927,9 @@ function EmsView() {
   const [manualGender, setManualGender] = useState("");
   const [manualAgeRange, setManualAgeRange] = useState("");
   const [manualName, setManualName] = useState("");
+  const [manualEmergencyContact, setManualEmergencyContact] = useState("");
+  const [manualChronic, setManualChronic] = useState("");
+  const [manualAllergies, setManualAllergies] = useState("");
 
 
   const alertTypes = ["Nhoi mau co tim", "Dot quy", "Chan thuong nang", "Ngo doc"];
@@ -8120,6 +8201,24 @@ function EmsView() {
       setIsBroadcasting(false);
       setIsMissionStarted(false);
       realStartRef.current = null; // Reset
+      setPlate("");
+      setPlateInput("");
+      setPlateConfirmed(null);
+      setScannedPatient(null);
+      setManualName("");
+      setManualGender("");
+      setManualAgeRange("");
+      setManualEmergencyContact("");
+      setManualChronic("");
+      setManualAllergies("");
+      setPreAlertText("");
+      setCapturedCccdUrl(null);
+      setAlertSent(false);
+      setSelectedAlert(null);
+      setGpsState(null);
+      setRouteInfo(null);
+      setSyncStatus("idle");
+      setHospitalAck(false);
     } else {
       // Bat dau GPS
       if (!navigator.geolocation) {
@@ -8415,8 +8514,8 @@ function EmsView() {
           <Mic className="w-4 h-4 text-red-600" />
         </div>
         <div>
-          <h3 className="text-base font-bold text-slate-900">Cảnh báo Trước (Pre-Alert)</h3>
-          <p className="text-[11px] text-slate-500 font-geist">
+          <h3 className="text-lg font-bold text-slate-900">Cảnh báo Trước (Pre-Alert)</h3>
+          <p className="text-[13px] text-slate-500 font-geist">
             Gửi cảnh báo đến phòng cấp cứu bệnh viện
           </p>
         </div>
@@ -8434,16 +8533,16 @@ function EmsView() {
         >
           <Mic className={`w-8 h-8 ${isRecordingPreAlert ? "text-white" : "text-red-600"}`} />
         </button>
-        <p className="mt-4 text-sm font-bold text-slate-700">
+        <p className="mt-4 text-base font-bold text-slate-700">
           {isRecordingPreAlert ? "Đang ghi âm... Chạm để dừng" : "Chạm để ghi âm"}
         </p>
-        <p className="mt-1 text-[11px] text-slate-500 text-center px-4 max-w-xs">
+        <p className="mt-1 text-[13px] text-slate-500 text-center px-4 max-w-xs">
           Ghi âm tình trạng bệnh nhân, chỉ số sinh tồn và gửi trực tiếp về kíp trực cấp cứu.
         </p>
       </div>
 
       <div className="mt-4">
-        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Nội dung cảnh báo</label>
+        <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-1.5">Nội dung cảnh báo</label>
         <textarea
           value={preAlertText}
           onChange={(e) => setPreAlertText(e.target.value)}
@@ -8463,8 +8562,8 @@ function EmsView() {
             <MapPin className="w-4 h-4 text-slate-900" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-900">Định vị GPS · Lộ trình</h3>
-            <p className="text-[11px] text-slate-500 font-geist">
+            <h3 className="text-lg font-bold text-slate-900">Định vị GPS · Lộ trình</h3>
+            <p className="text-[13px] text-slate-500 font-geist">
               Theo dõi thời gian thực · ETA tự động cập nhật
             </p>
           </div>
@@ -8476,13 +8575,13 @@ function EmsView() {
         {/* ETA info */}
         <div className="grid grid-cols-3 gap-3">
           <div className="p-3 rounded-xl bg-[#fff7ed] border border-orange-100/50 text-center">
-            <p className="text-[10px] font-geist uppercase tracking-wider text-orange-400 mb-0.5 font-bold">
+            <p className="text-[12px] font-geist uppercase tracking-wider text-orange-400 mb-0.5 font-bold">
               ETA
             </p>
             <p className="text-xl font-black text-orange-500">{etaMins} phút</p>
           </div>
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-center">
-            <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5 font-bold">
+            <p className="text-[12px] font-geist uppercase tracking-wider text-slate-400 mb-0.5 font-bold">
               Khoảng cách
             </p>
             <p className="text-xl font-black text-slate-900">{distanceKm} km</p>
@@ -8514,41 +8613,6 @@ function EmsView() {
               }}
             />
           </div>
-        </div>
-      </div>
-
-      {/* ── 3. Communication Panel ── */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-            <Radio className="w-4 h-4 text-blue-600" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-slate-900">Liên lạc Khẩn cấp</h3>
-            <p className="text-[11px] text-slate-500 font-geist">Kết nối trực tiếp · VoIP mã hóa</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <button className="flex items-center gap-3 p-4 rounded-xl border-2 border-slate-100 hover:border-[#88E8F2] hover:bg-[#88E8F2]/5 transition-all group text-left">
-            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0">
-              <Phone className="w-6 h-6 text-emerald-600" />
-            </div>
-            <div>
-              <span className="font-bold text-slate-900 text-sm block"> Gọi Người thân</span>
-              <span className="text-xs text-slate-500">Liên hệ người thân bệnh nhân</span>
-            </div>
-          </button>
-
-          <button className="flex items-center gap-3 p-4 rounded-xl border-2 border-slate-100 hover:border-[#88E8F2] hover:bg-[#88E8F2]/5 transition-all group text-left">
-            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0">
-              <Radio className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <span className="font-bold text-slate-900 text-sm block">Liên lạc Kíp trực BV</span>
-              <span className="text-xs text-slate-500">Kết nối trực tiếp phòng Cấp cứu</span>
-            </div>
-          </button>
         </div>
       </div>
 
@@ -8642,11 +8706,42 @@ function EmsView() {
                   <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Khoảng tuổi</label>
                   <input type="text" value={manualAgeRange} onChange={e => setManualAgeRange(e.target.value)} placeholder="VD: 20-30, 40-50" className="w-full px-3 py-2 rounded-lg border border-slate-300" />
                 </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Liên hệ khẩn cấp</label>
+                  <input type="text" value={manualEmergencyContact} onChange={e => setManualEmergencyContact(e.target.value)} placeholder="Tên & SĐT người thân" className="w-full px-3 py-2 rounded-lg border border-slate-300" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Bệnh nền</label>
+                  <input type="text" value={manualChronic} onChange={e => setManualChronic(e.target.value)} placeholder="VD: Cao huyết áp..." className="w-full px-3 py-2 rounded-lg border border-slate-300" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Dị ứng thuốc</label>
+                  <input type="text" value={manualAllergies} onChange={e => setManualAllergies(e.target.value)} placeholder="VD: Kháng sinh..." className="w-full px-3 py-2 rounded-lg border border-slate-300" />
+                </div>
                 <button
                   className="w-full py-2 bg-cyan-500 text-white font-bold rounded-lg mt-2"
                   onClick={() => {
-                    const fakePatient = { name: manualName, gender: manualGender, age: manualAgeRange, cccd: null, chronic_conditions: [], allergies: [] };
-                    setScannedPatient({ full_name: manualName, gender: manualGender, dob: null, cccd_number: null, chronic_conditions: [], allergies: [] });
+                    const c_cond = manualChronic.trim() ? manualChronic.split(',').map(s=>s.trim()) : ["Không"];
+                    const c_allergy = manualAllergies.trim() ? manualAllergies.split(',').map(s=>s.trim()) : ["Không"];
+                    const e_contact = manualEmergencyContact.trim() || "Không";
+                    const fakePatient = { 
+                      name: manualName, 
+                      gender: manualGender, 
+                      age: manualAgeRange, 
+                      cccd: null, 
+                      chronic_conditions: c_cond, 
+                      allergies: c_allergy,
+                      emergencyContactName: e_contact
+                    };
+                    setScannedPatient({ 
+                      full_name: manualName, 
+                      gender: manualGender, 
+                      dob: null, 
+                      cccd_number: null, 
+                      chronic_conditions: c_cond, 
+                      allergies: c_allergy,
+                      emergencyContactName: e_contact
+                    });
                     sendPatientUpdate(fakePatient);
                   }}
                 >Xác nhận</button>
@@ -8739,7 +8834,10 @@ function EmsView() {
               </div>
             </div>
 
-            <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-between">
+            <a
+              href={`tel:${scannedPatient?.emergency_contact?.phone || scannedPatient?.emergencyContact?.phone || ""}`}
+              className="p-3 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-between hover:bg-blue-100 hover:border-blue-200 transition-colors cursor-pointer"
+            >
               <div>
                 <p className="text-[10px] font-geist uppercase tracking-wider text-blue-400 mb-0.5">
                   Người liên hệ khẩn cấp
@@ -8754,7 +8852,7 @@ function EmsView() {
                 </p>
               </div>
               <Phone className="w-5 h-5 text-blue-500" />
-            </div>
+            </a>
           </div>
         )}
       </div>
@@ -8798,47 +8896,74 @@ type AdminTab =
   | "devices"
   | "ambulances"
   | "queue"
-  | "logs"
   | "lpr"
-  | "medical_books"
-  | "webauthn";
+  | "medical_books";
 
 const ADMIN_TABS: { key: AdminTab; Icon: typeof Users; label: string }[] = [
   { key: "overview", Icon: Activity, label: "Tổng quan" },
-  { key: "users", Icon: Users, label: "Người dùng" },
+  { key: "users", Icon: Users, label: "Bệnh nhân" },
   { key: "staffs", Icon: UserCheck, label: "Nhân viên" },
   { key: "departments", Icon: Bed, label: "Khoa phòng" },
   { key: "devices", Icon: Cpu, label: "Thiết bị" },
   { key: "ambulances", Icon: Ambulance, label: "Xe cấp cứu" },
   { key: "queue", Icon: List, label: "Hàng chờ khám" },
-  { key: "logs", Icon: AlertTriangle, label: "Nhật ký hệ thống" },
   { key: "lpr", Icon: ScanLine, label: "Nhận diện biển số" },
   { key: "medical_books", Icon: BookOpen, label: "Sổ khám bệnh" },
-  { key: "webauthn", Icon: Shield, label: "Sinh trắc học" },
 ];
 
 function AdminDashboardView() {
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollLeft = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: -200, behavior: 'smooth' });
+    }
+  };
+
+  const scrollRight = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: 200, behavior: 'smooth' });
+    }
+  };
 
   return (
     <div className="space-y-4 pb-20">
       {/* Tab bar */}
-      <div className="flex overflow-x-auto scrollbar-hide gap-2 pb-1">
-        {ADMIN_TABS.map(({ key, Icon, label }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] font-bold transition-colors ${
-              activeTab === key
-                ? "border-transparent text-slate-900"
-                : "border-slate-200 bg-white text-slate-600 hover:border-[#88E8F2]"
-            }`}
-            style={activeTab === key ? { backgroundColor: ACCENT } : undefined}
-          >
-            <Icon className="h-3.5 w-3.5" />
-            {label}
-          </button>
-        ))}
+      <div className="relative flex items-center group">
+        <button 
+          onClick={scrollLeft}
+          className="absolute left-0 z-10 p-1.5 bg-white border border-slate-200 rounded-full shadow-md text-slate-600 hover:text-slate-900 opacity-0 group-hover:opacity-100 transition-opacity md:-ml-4"
+          aria-label="Cuộn trái"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+
+        <div ref={scrollRef} className="flex overflow-x-auto scrollbar-hide gap-2 pb-1 flex-1">
+          {ADMIN_TABS.map(({ key, Icon, label }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] font-bold transition-colors ${
+                activeTab === key
+                  ? "border-transparent text-slate-900"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-[#88E8F2]"
+              }`}
+              style={activeTab === key ? { backgroundColor: ACCENT } : undefined}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <button 
+          onClick={scrollRight}
+          className="absolute right-0 z-10 p-1.5 bg-white border border-slate-200 rounded-full shadow-md text-slate-600 hover:text-slate-900 opacity-0 group-hover:opacity-100 transition-opacity md:-mr-4"
+          aria-label="Cuộn phải"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
       </div>
 
       {activeTab === "overview" && <AdminOverviewTab />}
@@ -8904,17 +9029,126 @@ function AdminOverviewTab() {
 /* ── Tab 1: patients table ── */
 function AdminPatientsTab() {
   const [patients, setPatients] = useState<any[]>([]);
-  useEffect(() => {
-    fetchApi("/admin/tables/patients").then(setPatients).catch(console.error);
-  }, []);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    cccd: "",
+    phone: "",
+    bhxh_code: "",
+    emergency_contact_name: "",
+    emergency_contact_phone: "",
+    password: "",
+  });
+
+  const loadData = () => fetchApi("/admin/tables/patients").then(setPatients).catch(console.error);
+
+  useEffect(() => { loadData(); }, []);
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Xác nhận xóa bệnh nhân này?")) return;
+    try {
+      await fetchApi(`/admin/tables/patients/${id}`, { method: "DELETE" });
+      loadData();
+    } catch (e) {
+      alert("Lỗi khi xóa: " + e);
+    }
+  };
+
+  const handleAdd = async () => {
+    if (!form.name.trim() || !form.cccd.trim()) return;
+    try {
+      await fetchApi("/admin/patients", {
+        method: "POST",
+        body: JSON.stringify(form),
+      });
+      loadData();
+      setShowForm(false);
+      setForm({ name: "", cccd: "", phone: "", bhxh_code: "", emergency_contact_name: "", emergency_contact_phone: "", password: "" });
+    } catch (e) {
+      alert("Lỗi khi thêm: " + e);
+    }
+  };
+
+  const filteredPatients = patients.filter(p => 
+    p.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    p.cccd?.includes(searchQuery)
+  );
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
-      <div className="px-5 py-4 border-b border-slate-200">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-5 py-4 border-b border-slate-200 gap-3">
         <h3 className="font-bold text-slate-900 flex items-center gap-2">
           <Users className="w-5 h-5 text-[#0A9BAD]" /> Quản lý Bệnh nhân
         </h3>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-1 sm:flex-none items-center rounded-lg border border-slate-200 bg-slate-50/80 px-2 py-1.5">
+            <Search className="h-3.5 w-3.5 text-slate-400" />
+            <input type="text" placeholder="Tìm tên/CCCD..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="ml-2 w-full sm:w-40 border-none bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400" />
+          </div>
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="text-[11px] shrink-0 font-bold tracking-wider uppercase font-geist text-white bg-[#0A9BAD] hover:bg-[#0891b2] px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
+          >
+            <Plus className="w-3 h-3" /> Thêm bệnh nhân
+          </button>
+        </div>
       </div>
+
+      {showForm && (
+        <div className="px-5 py-4 bg-slate-50 border-b border-slate-200 space-y-3">
+          <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Thêm bệnh nhân mới</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Họ tên *</label>
+              <input type="text" placeholder="Nguyễn Văn A" value={form.name}
+                onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]" />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">CCCD *</label>
+              <input type="text" placeholder="001203001299" value={form.cccd}
+                onChange={(e) => setForm((s) => ({ ...s, cccd: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]" />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Số điện thoại</label>
+              <input type="text" placeholder="0912345678" value={form.phone}
+                onChange={(e) => setForm((s) => ({ ...s, phone: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]" />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Mã BHXH</label>
+              <input type="text" placeholder="VN-BHXH-12345" value={form.bhxh_code}
+                onChange={(e) => setForm((s) => ({ ...s, bhxh_code: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]" />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Liên hệ khẩn cấp</label>
+              <input type="text" placeholder="Nguyễn Thị B" value={form.emergency_contact_name}
+                onChange={(e) => setForm((s) => ({ ...s, emergency_contact_name: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]" />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">SĐT liên hệ khẩn cấp</label>
+              <input type="text" placeholder="0987654321" value={form.emergency_contact_phone}
+                onChange={(e) => setForm((s) => ({ ...s, emergency_contact_phone: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]" />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={handleAdd} disabled={!form.name.trim() || !form.cccd.trim()}
+              className="rounded-lg bg-[#0A9BAD] px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-[#0891b2] disabled:opacity-40 disabled:cursor-not-allowed">
+              Lưu bệnh nhân
+            </button>
+            <button onClick={() => setShowForm(false)}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">
+              Hủy
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
           <thead className="text-[10px] text-slate-500 font-geist uppercase tracking-wider bg-slate-50 border-b border-slate-200">
@@ -8926,10 +9160,11 @@ function AdminPatientsTab() {
               <th className="px-4 py-3">bhxh_code</th>
               <th className="px-4 py-3">emergency_contact</th>
               <th className="px-4 py-3">created_at</th>
+              <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
-            {patients.map((p) => (
+            {filteredPatients.map((p) => (
               <tr key={p.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                 <td className="px-4 py-3 text-[11px] font-mono text-slate-400">{p.id}</td>
                 <td className="px-4 py-3 font-bold text-slate-900">{p.name}</td>
@@ -8937,11 +9172,14 @@ function AdminPatientsTab() {
                 <td className="px-4 py-3 text-[13px] text-slate-600">{p.phone ?? "—"}</td>
                 <td className="px-4 py-3 text-[13px] text-slate-600">{p.bhxh_code ?? "—"}</td>
                 <td className="px-4 py-3 text-[12px] text-slate-500">
-                  {p.emergency_contact_name
-                    ? `${p.emergency_contact_name} · ${p.emergency_contact_phone}`
-                    : "—"}
+                  {p.emergency_contact_name ? `${p.emergency_contact_name} · ${p.emergency_contact_phone}` : "—"}
                 </td>
                 <td className="px-4 py-3 text-[12px] text-slate-500 font-mono">{p.created_at}</td>
+                <td className="px-4 py-3 text-right">
+                  <button onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }} className="text-slate-400 hover:text-red-600 transition-colors" title="Xóa">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -8953,8 +9191,19 @@ function AdminPatientsTab() {
 
 /* ── Tab 1.5: staffs table ── */
 function AdminStaffsTab() {
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Xác nhận xóa dữ liệu này?")) return;
+    try {
+      await fetchApi(`/admin/tables/staffs/${id}`, { method: "DELETE" });
+      fetchApi("/admin/tables/staffs").then(setUsers).catch(console.error);
+    } catch (e) {
+      alert("Lỗi khi xóa: " + e);
+    }
+  };
+
   const [users, setUsers] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   
   useEffect(() => {
     fetchApi("/admin/tables/staffs").then(setUsers).catch(console.error);
@@ -9008,20 +9257,31 @@ function AdminStaffsTab() {
     }
   };
 
+  const filteredUsers = users.filter(u => 
+    u.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    u.cccd?.includes(searchQuery)
+  );
+
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-5 py-4 border-b border-slate-200 gap-3">
         <div>
           <h3 className="font-bold text-slate-900 flex items-center gap-2">
             <UserCheck className="w-5 h-5 text-[#0A9BAD]" /> Quản lý Nhân viên
           </h3>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="text-[11px] font-bold tracking-wider uppercase font-geist text-white bg-[#0A9BAD] hover:bg-[#0891b2] px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
-        >
-          <Plus className="w-3 h-3" /> Thêm nhân viên
-        </button>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-1 sm:flex-none items-center rounded-lg border border-slate-200 bg-slate-50/80 px-2 py-1.5">
+            <Search className="h-3.5 w-3.5 text-slate-400" />
+            <input type="text" placeholder="Tìm tên/CCCD..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="ml-2 w-full sm:w-40 border-none bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400" />
+          </div>
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="text-[11px] shrink-0 font-bold tracking-wider uppercase font-geist text-white bg-[#0A9BAD] hover:bg-[#0891b2] px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
+          >
+            <Plus className="w-3 h-3" /> Thêm nhân viên
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -9140,10 +9400,11 @@ function AdminStaffsTab() {
               <th className="px-4 py-3">employee_id</th>
               <th className="px-4 py-3">department_id</th>
               <th className="px-4 py-3">created_at</th>
+            <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
+            {filteredUsers.map((u) => (
               <tr key={u.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                 <td className="px-4 py-3 text-[11px] font-mono text-slate-400">{u.id}</td>
                 <td className="px-4 py-3 font-bold text-slate-900">{u.name}</td>
@@ -9162,6 +9423,8 @@ function AdminStaffsTab() {
                   {u.department_id ? (departments.find(d => d.id === u.department_id)?.name || u.department_id) : "—"}
                 </td>
                 <td className="px-4 py-3 text-[12px] text-slate-500 font-mono">{u.created_at}</td>
+              
+                <td className="px-4 py-3 text-right"><button onClick={(e) => { e.stopPropagation(); handleDelete(u.id); }} className="text-slate-400 hover:text-red-600 transition-colors" title="Xóa"><Trash2 className="w-4 h-4" /></button></td>
               </tr>
             ))}
           </tbody>
@@ -9174,23 +9437,102 @@ function AdminStaffsTab() {
 /* ── Tab 2: departments table ── */
 function AdminDepartmentsTab() {
   const [departments, setDepartments] = useState<any[]>([]);
-  useEffect(() => {
-    fetchApi("/admin/tables/departments").then(setDepartments).catch(console.error);
-  }, []);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ name: "", description: "" });
+
+  const loadData = () => fetchApi("/admin/tables/departments").then(setDepartments).catch(console.error);
+
+  useEffect(() => { loadData(); }, []);
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Xác nhận xóa khoa phòng này?")) return;
+    try {
+      await fetchApi(`/admin/tables/departments/${id}`, { method: "DELETE" });
+      loadData();
+    } catch (e) {
+      alert("Lỗi khi xóa: " + e);
+    }
+  };
+
+  const handleAdd = async () => {
+    if (!form.name.trim()) return;
+    try {
+      await fetchApi("/admin/departments", {
+        method: "POST",
+        body: JSON.stringify(form),
+      });
+      loadData();
+      setShowForm(false);
+      setForm({ name: "", description: "" });
+    } catch (e) {
+      alert("Lỗi khi thêm: " + e);
+    }
+  };
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
-      <div className="px-5 py-4 border-b border-slate-200">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
         <h3 className="font-bold text-slate-900 flex items-center gap-2">
           <Bed className="w-5 h-5 text-[#0A9BAD]" /> Danh sách Khoa phòng
         </h3>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="text-[11px] font-bold tracking-wider uppercase font-geist text-white bg-[#0A9BAD] hover:bg-[#0891b2] px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
+        >
+          <Plus className="w-3 h-3" /> Thêm khoa phòng
+        </button>
       </div>
+
+      {showForm && (
+        <div className="px-5 py-4 bg-slate-50 border-b border-slate-200 space-y-3">
+          <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Thêm khoa phòng mới</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Tên khoa phòng *</label>
+              <input
+                type="text"
+                placeholder="Khoa Cấp cứu"
+                value={form.name}
+                onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Mô tả</label>
+              <input
+                type="text"
+                placeholder="Mô tả khoa phòng..."
+                value={form.description}
+                onChange={(e) => setForm((s) => ({ ...s, description: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleAdd}
+              disabled={!form.name.trim()}
+              className="rounded-lg bg-[#0A9BAD] px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-[#0891b2] disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Lưu khoa phòng
+            </button>
+            <button
+              onClick={() => setShowForm(false)}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
+            >
+              Hủy
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-5">
         {departments.map((d) => (
           <div
             key={d.id}
-            className="p-4 rounded-xl border border-slate-100 hover:border-[#88E8F2] hover:shadow-md transition-all cursor-pointer group"
+            className="relative p-4 rounded-xl border border-slate-100 hover:border-[#88E8F2] hover:shadow-md transition-all cursor-pointer group"
           >
+            <button onClick={(e) => { e.stopPropagation(); handleDelete(d.id); }} className="absolute top-2 right-2 text-slate-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Xóa"><Trash2 className="w-4 h-4" /></button>
             <div className="flex items-center gap-2 mb-2">
               <div className="w-2 h-8 rounded-full bg-[#0A9BAD] transition-transform group-hover:scale-y-110" />
               <div>
@@ -9209,9 +9551,37 @@ function AdminDepartmentsTab() {
 /* ── Tab 3: devices table ── */
 function AdminDevicesTab() {
   const [devices, setDevices] = useState<any[]>([]);
-  useEffect(() => {
-    fetchApi("/admin/tables/devices").then(setDevices).catch(console.error);
-  }, []);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ name: "", device_type: "camera_fall", location: "", ip_address: "", status: "active" });
+
+  const loadData = () => fetchApi("/admin/tables/devices").then(setDevices).catch(console.error);
+
+  useEffect(() => { loadData(); }, []);
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Xác nhận xóa thiết bị này?")) return;
+    try {
+      await fetchApi(`/admin/tables/devices/${id}`, { method: "DELETE" });
+      loadData();
+    } catch (e) {
+      alert("Lỗi khi xóa: " + e);
+    }
+  };
+
+  const handleAdd = async () => {
+    if (!form.name.trim()) return;
+    try {
+      await fetchApi("/admin/devices", {
+        method: "POST",
+        body: JSON.stringify(form),
+      });
+      loadData();
+      setShowForm(false);
+      setForm({ name: "", device_type: "camera_fall", location: "", ip_address: "", status: "active" });
+    } catch (e) {
+      alert("Lỗi khi thêm: " + e);
+    }
+  };
 
   const typeLabels: Record<string, { label: string; color: string }> = {
     camera_fall: { label: "Camera AI", color: "bg-blue-100 text-blue-700" },
@@ -9226,14 +9596,75 @@ function AdminDevicesTab() {
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
-      <div className="px-5 py-4 border-b border-slate-200">
-        <h3 className="font-bold text-slate-900 flex items-center gap-2">
-          <Cpu className="w-5 h-5 text-[#0A9BAD]" /> Quản lý Thiết bị
-        </h3>
-        <p className="text-[11px] text-slate-500 font-geist mt-0.5">
-          id · device_type · name · location · status · ip_address
-        </p>
+      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+        <div>
+          <h3 className="font-bold text-slate-900 flex items-center gap-2">
+            <Cpu className="w-5 h-5 text-[#0A9BAD]" /> Quản lý Thiết bị
+          </h3>
+          <p className="text-[11px] text-slate-500 font-geist mt-0.5">id · device_type · name · location · status · ip_address</p>
+        </div>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="text-[11px] font-bold tracking-wider uppercase font-geist text-white bg-[#0A9BAD] hover:bg-[#0891b2] px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
+        >
+          <Plus className="w-3 h-3" /> Thêm thiết bị
+        </button>
       </div>
+
+      {showForm && (
+        <div className="px-5 py-4 bg-slate-50 border-b border-slate-200 space-y-3">
+          <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Thêm thiết bị mới</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Tên thiết bị *</label>
+              <input type="text" placeholder="Camera sảnh A" value={form.name}
+                onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]" />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Loại thiết bị</label>
+              <select value={form.device_type} onChange={(e) => setForm((s) => ({ ...s, device_type: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2] bg-white">
+                <option value="camera_fall">Camera AI (phát hiện ngã)</option>
+                <option value="camera_lpr">Camera LPR (biển số)</option>
+                <option value="monitor_spo2">Monitor SpO2</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Vị trí</label>
+              <input type="text" placeholder="Phòng CC01" value={form.location}
+                onChange={(e) => setForm((s) => ({ ...s, location: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]" />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">IP Address</label>
+              <input type="text" placeholder="192.168.1.100" value={form.ip_address}
+                onChange={(e) => setForm((s) => ({ ...s, ip_address: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]" />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Trạng thái</label>
+              <select value={form.status} onChange={(e) => setForm((s) => ({ ...s, status: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2] bg-white">
+                <option value="active">Hoạt động</option>
+                <option value="offline">Offline</option>
+                <option value="maintenance">Bảo trì</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={handleAdd} disabled={!form.name.trim()}
+              className="rounded-lg bg-[#0A9BAD] px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-[#0891b2] disabled:opacity-40 disabled:cursor-not-allowed">
+              Lưu thiết bị
+            </button>
+            <button onClick={() => setShowForm(false)}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">
+              Hủy
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
           <thead className="text-[10px] text-slate-500 font-geist uppercase tracking-wider bg-slate-50 border-b border-slate-200">
@@ -9244,6 +9675,7 @@ function AdminDevicesTab() {
               <th className="px-4 py-3">location</th>
               <th className="px-4 py-3">ip_address</th>
               <th className="px-4 py-3">status</th>
+              <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -9251,9 +9683,7 @@ function AdminDevicesTab() {
               <tr key={d.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                 <td className="px-4 py-3 text-[11px] font-mono text-slate-400">{d.id}</td>
                 <td className="px-4 py-3">
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${typeLabels[d.device_type]?.color ?? "bg-slate-100 text-slate-600"}`}
-                  >
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${typeLabels[d.device_type]?.color ?? "bg-slate-100 text-slate-600"}`}>
                     {typeLabels[d.device_type]?.label ?? d.device_type}
                   </span>
                 </td>
@@ -9261,11 +9691,14 @@ function AdminDevicesTab() {
                 <td className="px-4 py-3 text-[13px] text-slate-600">{d.location}</td>
                 <td className="px-4 py-3 font-mono text-[13px] text-slate-500">{d.ip_address}</td>
                 <td className="px-4 py-3">
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusStyle[d.status] ?? ""}`}
-                  >
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusStyle[d.status] ?? ""}`}>
                     {d.status}
                   </span>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <button onClick={(e) => { e.stopPropagation(); handleDelete(d.id); }} className="text-slate-400 hover:text-red-600 transition-colors" title="Xóa">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </td>
               </tr>
             ))}
@@ -9279,9 +9712,37 @@ function AdminDevicesTab() {
 /* ── Tab 4: ambulances table ── */
 function AdminAmbulancesTab() {
   const [ambulances, setAmbulances] = useState<any[]>([]);
-  useEffect(() => {
-    fetchApi("/admin/tables/ambulances").then(setAmbulances).catch(console.error);
-  }, []);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ plate_number: "", driver_name: "", status: "available" });
+
+  const loadData = () => fetchApi("/admin/tables/ambulances").then(setAmbulances).catch(console.error);
+
+  useEffect(() => { loadData(); }, []);
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Xác nhận xóa xe cấp cứu này?")) return;
+    try {
+      await fetchApi(`/admin/tables/ambulances/${id}`, { method: "DELETE" });
+      loadData();
+    } catch (e) {
+      alert("Lỗi khi xóa: " + e);
+    }
+  };
+
+  const handleAdd = async () => {
+    if (!form.plate_number.trim() || !form.driver_name.trim()) return;
+    try {
+      await fetchApi("/admin/ambulances", {
+        method: "POST",
+        body: JSON.stringify(form),
+      });
+      loadData();
+      setShowForm(false);
+      setForm({ plate_number: "", driver_name: "", status: "available" });
+    } catch (e) {
+      alert("Lỗi khi thêm: " + e);
+    }
+  };
 
   const ambStatus: Record<string, { label: string; color: string }> = {
     dispatched: { label: "Đang đi", color: "bg-red-100 text-red-700" },
@@ -9291,11 +9752,73 @@ function AdminAmbulancesTab() {
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
-      <div className="px-5 py-4 border-b border-slate-200">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
         <h3 className="font-bold text-slate-900 flex items-center gap-2">
           <Ambulance className="w-5 h-5 text-[#0A9BAD]" /> Quản lý Xe cấp cứu
         </h3>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="text-[11px] font-bold tracking-wider uppercase font-geist text-white bg-[#0A9BAD] hover:bg-[#0891b2] px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
+        >
+          <Plus className="w-3 h-3" /> Thêm xe cấp cứu
+        </button>
       </div>
+
+      {showForm && (
+        <div className="px-5 py-4 bg-slate-50 border-b border-slate-200 space-y-3">
+          <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Thêm xe cấp cứu mới</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Biển số xe *</label>
+              <input
+                type="text"
+                placeholder="51F-123.45"
+                value={form.plate_number}
+                onChange={(e) => setForm((s) => ({ ...s, plate_number: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Tên tài xế *</label>
+              <input
+                type="text"
+                placeholder="Nguyễn Văn A"
+                value={form.driver_name}
+                onChange={(e) => setForm((s) => ({ ...s, driver_name: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Trạng thái</label>
+              <select
+                value={form.status}
+                onChange={(e) => setForm((s) => ({ ...s, status: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2] bg-white"
+              >
+                <option value="available">Sẵn sàng</option>
+                <option value="dispatched">Đang đi</option>
+                <option value="returning">Đang về</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleAdd}
+              disabled={!form.plate_number.trim() || !form.driver_name.trim()}
+              className="rounded-lg bg-[#0A9BAD] px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-[#0891b2] disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Lưu xe cấp cứu
+            </button>
+            <button
+              onClick={() => setShowForm(false)}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
+            >
+              Hủy
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
           <thead className="text-[10px] text-slate-500 font-geist uppercase tracking-wider bg-slate-50 border-b border-slate-200">
@@ -9306,6 +9829,7 @@ function AdminAmbulancesTab() {
               <th className="px-4 py-3">status</th>
               <th className="px-4 py-3">last_lat</th>
               <th className="px-4 py-3">last_lng</th>
+              <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -9315,14 +9839,17 @@ function AdminAmbulancesTab() {
                 <td className="px-4 py-3 font-mono font-bold text-slate-900">{a.plate_number}</td>
                 <td className="px-4 py-3 text-[13px] text-slate-700">{a.driver_name}</td>
                 <td className="px-4 py-3">
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${ambStatus[a.status]?.color ?? ""}`}
-                  >
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${ambStatus[a.status]?.color ?? ""}`}>
                     {ambStatus[a.status]?.label ?? a.status}
                   </span>
                 </td>
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-500">{a.last_lat}</td>
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-500">{a.last_lng}</td>
+                <td className="px-4 py-3 text-right">
+                  <button onClick={(e) => { e.stopPropagation(); handleDelete(a.id); }} className="text-slate-400 hover:text-red-600 transition-colors" title="Xóa">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -9334,6 +9861,16 @@ function AdminAmbulancesTab() {
 
 /* ── Tab 5: patients_queue table ── */
 function AdminQueueTab() {
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Xác nhận xóa dữ liệu này?")) return;
+    try {
+      await fetchApi(`/admin/tables/patients_queue/${id}`, { method: "DELETE" });
+      fetchApi("/admin/tables/patients_queue").then(setQueue).catch(console.error);
+    } catch (e) {
+      alert("Lỗi khi xóa: " + e);
+    }
+  };
+
   const [queue, setQueue] = useState<any[]>([]);
   useEffect(() => {
     fetchApi("/admin/tables/patients_queue").then(setQueue).catch(console.error);
@@ -9362,6 +9899,7 @@ function AdminQueueTab() {
               <th className="px-4 py-3">triage_level</th>
               <th className="px-4 py-3">status</th>
               <th className="px-4 py-3">entered_at</th>
+            <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -9391,7 +9929,9 @@ function AdminQueueTab() {
                     </span>
                   </td>
                   <td className="px-4 py-3 font-mono text-[12px] text-slate-500">{q.entered_at}</td>
-                </tr>
+                
+                <td className="px-4 py-3 text-right"><button onClick={(e) => { e.stopPropagation(); handleDelete(q.id); }} className="text-slate-400 hover:text-red-600 transition-colors" title="Xóa"><Trash2 className="w-4 h-4" /></button></td>
+              </tr>
               );
             })}
           </tbody>
@@ -9403,6 +9943,16 @@ function AdminQueueTab() {
 
 /* ── Tab 6: system_logs table ── */
 function AdminLogsTab() {
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Xác nhận xóa dữ liệu này?")) return;
+    try {
+      await fetchApi(`/admin/tables/system_logs/${id}`, { method: "DELETE" });
+      fetchApi("/admin/tables/system_logs").then(setLogs).catch(console.error);
+    } catch (e) {
+      alert("Lỗi khi xóa: " + e);
+    }
+  };
+
   const [logs, setLogs] = useState<any[]>([]);
   useEffect(() => {
     fetchApi("/admin/tables/system_logs").then(setLogs).catch(console.error);
@@ -9417,13 +9967,21 @@ function AdminLogsTab() {
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
-      <div className="px-5 py-4 border-b border-slate-200">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+        <div>
         <h3 className="font-bold text-slate-900 flex items-center gap-2">
           <AlertTriangle className="w-5 h-5 text-[#0A9BAD]" /> Nhật ký hệ thống
         </h3>
         <p className="text-[11px] text-slate-500 font-geist mt-0.5">
           id · log_type · device_id (FK) · description · is_alert · resolved_at · created_at
         </p>
+        </div>
+        <button
+          onClick={() => alert("Chức năng đang phát triển")}
+          className="text-[11px] font-bold tracking-wider uppercase font-geist text-white bg-[#0A9BAD] hover:bg-[#0891b2] px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
+        >
+          <Plus className="w-3 h-3" /> Thêm Nhật ký
+        </button>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
@@ -9436,6 +9994,7 @@ function AdminLogsTab() {
               <th className="px-4 py-3">is_alert</th>
               <th className="px-4 py-3">resolved_at</th>
               <th className="px-4 py-3">created_at</th>
+            <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -9470,6 +10029,8 @@ function AdminLogsTab() {
                   {l.resolved_at ?? "—"}
                 </td>
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-500">{l.created_at}</td>
+              
+                <td className="px-4 py-3 text-right"><button onClick={(e) => { e.stopPropagation(); handleDelete(l.id); }} className="text-slate-400 hover:text-red-600 transition-colors" title="Xóa"><Trash2 className="w-4 h-4" /></button></td>
               </tr>
             ))}
           </tbody>
@@ -9481,6 +10042,16 @@ function AdminLogsTab() {
 
 /* ── Tab 7: lpr_logs table ── */
 function AdminLprTab() {
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Xác nhận xóa dữ liệu này?")) return;
+    try {
+      await fetchApi(`/admin/tables/lpr_logs/${id}`, { method: "DELETE" });
+      fetchApi("/admin/tables/lpr_logs").then(setLprLogs).catch(console.error);
+    } catch (e) {
+      alert("Lỗi khi xóa: " + e);
+    }
+  };
+
   const [lprLogs, setLprLogs] = useState<any[]>([]);
   useEffect(() => {
     fetchApi("/admin/tables/lpr_logs").then(setLprLogs).catch(console.error);
@@ -9488,11 +10059,11 @@ function AdminLprTab() {
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
-      <div className="px-5 py-4 border-b border-slate-200">
+      <div className="flex items-center px-5 py-4 border-b border-slate-200">
         <h3 className="font-bold text-slate-900 flex items-center gap-2">
           <ScanLine className="w-5 h-5 text-[#0A9BAD]" /> Nhận diện biển số
         </h3>
-        <p className="text-[11px] text-slate-500 font-geist mt-0.5">
+        <p className="text-[11px] text-slate-500 font-geist mt-0.5 ml-3">
           id · camera_id (FK) · plate_number · confidence · image_url · timestamp
         </p>
       </div>
@@ -9505,6 +10076,7 @@ function AdminLprTab() {
               <th className="px-4 py-3">plate_number</th>
               <th className="px-4 py-3">confidence</th>
               <th className="px-4 py-3">timestamp</th>
+            <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -9545,6 +10117,8 @@ function AdminLprTab() {
                   </div>
                 </td>
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-500">{l.timestamp}</td>
+              
+                <td className="px-4 py-3 text-right"><button onClick={(e) => { e.stopPropagation(); handleDelete(l.id); }} className="text-slate-400 hover:text-red-600 transition-colors" title="Xóa"><Trash2 className="w-4 h-4" /></button></td>
               </tr>
             ))}
           </tbody>
@@ -9556,6 +10130,16 @@ function AdminLprTab() {
 
 /* ── Tab 8: medical_books table ── */
 function AdminMedicalBooksTab() {
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Xác nhận xóa dữ liệu này?")) return;
+    try {
+      await fetchApi(`/admin/tables/clinical_records/${id}`, { method: "DELETE" });
+      fetchApi("/admin/tables/clinical_records").then(setBooks).catch(console.error);
+    } catch (e) {
+      alert("Lỗi khi xóa: " + e);
+    }
+  };
+
   const [books, setBooks] = useState<any[]>([]);
   useEffect(() => {
     fetchApi("/admin/tables/clinical_records").then(setBooks).catch(console.error);
@@ -9583,6 +10167,7 @@ function AdminMedicalBooksTab() {
               <th className="px-4 py-3">qr_token</th>
               <th className="px-4 py-3">status</th>
               <th className="px-4 py-3">issued_at</th>
+            <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -9599,6 +10184,8 @@ function AdminMedicalBooksTab() {
                   </span>
                 </td>
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-500">{b.issued_at}</td>
+              
+                <td className="px-4 py-3 text-right"><button onClick={(e) => { e.stopPropagation(); handleDelete(b.id); }} className="text-slate-400 hover:text-red-600 transition-colors" title="Xóa"><Trash2 className="w-4 h-4" /></button></td>
               </tr>
             ))}
           </tbody>
@@ -9610,6 +10197,16 @@ function AdminMedicalBooksTab() {
 
 /* ── Tab 9: webauthn_credentials table ── */
 function AdminWebAuthnTab() {
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Xác nhận xóa dữ liệu này?")) return;
+    try {
+      await fetchApi(`/admin/tables/webauthn_credentials/${id}`, { method: "DELETE" });
+      setCreds([]);
+    } catch (e) {
+      alert("Lỗi khi xóa: " + e);
+    }
+  };
+
   const [creds, setCreds] = useState<any[]>([]);
   useEffect(() => {
     setCreds([]);
@@ -9617,7 +10214,8 @@ function AdminWebAuthnTab() {
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
-      <div className="px-5 py-4 border-b border-slate-200">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+        <div>
         <h3 className="font-bold text-slate-900 flex items-center gap-2">
           <Shield className="w-5 h-5 text-[#0A9BAD]" /> Bảng webauthn_credentials
         </h3>
@@ -9625,6 +10223,13 @@ function AdminWebAuthnTab() {
           id · user_id (FK) · credential_id · public_key · sign_count · device_name · created_at ·
           last_used_at
         </p>
+        </div>
+        <button
+          onClick={() => alert("Chức năng đang phát triển")}
+          className="text-[11px] font-bold tracking-wider uppercase font-geist text-white bg-[#0A9BAD] hover:bg-[#0891b2] px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
+        >
+          <Plus className="w-3 h-3" /> Thêm WebAuthn
+        </button>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
@@ -9637,6 +10242,7 @@ function AdminWebAuthnTab() {
               <th className="px-4 py-3">sign_count</th>
               <th className="px-4 py-3">created_at</th>
               <th className="px-4 py-3">last_used_at</th>
+            <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -9651,6 +10257,8 @@ function AdminWebAuthnTab() {
                 <td className="px-4 py-3 font-mono text-[13px] text-slate-700">{c.sign_count}</td>
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-500">{c.created_at}</td>
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-500">{c.last_used_at}</td>
+              
+                <td className="px-4 py-3 text-right"><button onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }} className="text-slate-400 hover:text-red-600 transition-colors" title="Xóa"><Trash2 className="w-4 h-4" /></button></td>
               </tr>
             ))}
           </tbody>

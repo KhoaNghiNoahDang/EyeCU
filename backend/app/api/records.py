@@ -55,18 +55,24 @@ def get_patient_by_cccd(cccd: str, db: Session = Depends(get_db)):
         "data": {
             "cccd": patient.cccd,
             "name": patient.name,
-            "gender": "Nam",  # Default mock for missing fields
-            "dob": "01/01/1970",
+            "gender": patient.gender or "N/A",
+            "dob": patient.dob or "N/A",
             "age": 55,
-            "address": "Địa chỉ",
+            "address": patient.address or patient.hometown or "N/A",
             "phone": patient.phone or "",
-            "bloodType": "O+",
+            "bloodType": patient.blood_type or "N/A",
+            "blood_type": patient.blood_type or "N/A",
             "insurance": patient.bhxh_code or "",
             "insuranceExpiry": "31/12/2026",
             "emergencyContactName": patient.emergency_contact_name or "",
             "emergencyContactPhone": patient.emergency_contact_phone or "",
-            "allergies": [],
-            "chronicConditions": [],
+            "emergency_contact": {
+                "name": patient.emergency_contact_name or "",
+                "phone": patient.emergency_contact_phone or "",
+                "relation": "Người thân"
+            },
+            "allergies": [a.strip() for a in patient.allergies.split(",")] if patient.allergies else [],
+            "chronicConditions": [c.strip() for c in patient.chronic_conditions.split(",")] if patient.chronic_conditions else [],
             "currentMeds": [
                 {"name": m.medicine_name, "dose": m.dosage, "freq": m.instructions}
                 for m in medications
