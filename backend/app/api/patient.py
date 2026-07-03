@@ -773,11 +773,88 @@ def get_questions(user = Depends(get_current_user), db: Session = Depends(get_db
             "question": q.question,
             "answer": q.answer,
             "status": q.status,
+            "doctor_name": q.doctor_name,
+            "answered_at": q.answered_at.isoformat() if q.answered_at else None,
             "created_at": q.created_at.isoformat(),
             "is_mine": is_mine,
             "name": "Bạn" if is_mine else "Bệnh nhân ẩn danh"
         })
     return {"questions": result}
+
+# ─────────────────────────────────────────────────────────────────
+# DOCTOR Q&A ENDPOINTS — for clinician/staff roles
+# ─────────────────────────────────────────────────────────────────────────────
+
+class AnswerCreate(BaseModel):
+    answer: str
+
+@router.get("/questions/all")
+def get_all_questions_doctor(
+    department: Optional[str] = None,
+    status: Optional[str] = None,
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Bác sĩ lấy toàn bộ câu hỏi cộng đồng, có thể filter theo khoa và trạng thái."""
+    from app.db.models import CommunityQuestion
+    query = db.query(CommunityQuestion)
+    if department and department != "all":
+        query = query.filter(CommunityQuestion.department == department)
+    if status and status != "all":
+        query = query.filter(CommunityQuestion.status == status)
+    qs = query.order_by(CommunityQuestion.created_at.desc()).all()
+    result = []
+    for q in qs:
+        result.append({
+            "id": str(q.id),
+            "department": q.department,
+            "question": q.question,
+            "answer": q.answer,
+            "status": q.status,
+            "doctor_name": q.doctor_name,
+            "doctor_id": str(q.doctor_id) if q.doctor_id else None,
+            "created_at": q.created_at.isoformat(),
+            "answered_at": q.answered_at.isoformat() if q.answered_at else None,
+        })
+    return {"questions": result}
+
+@router.patch("/questions/{question_id}/answer")
+async def answer_question(
+    question_id: str,
+    req: AnswerCreate,
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Bác sĩ trả lời câu hỏi của bệnh nhân, broadcast real-time qua WebSocket."""
+    from app.db.models import CommunityQuestion
+    import datetime
+    from app.api.ambient import ambient_manager
+    q = db.query(CommunityQuestion).filter(CommunityQuestion.id == question_id).first()
+    if not q:
+        raise HTTPException(status_code=404, detail="Không tìm thấy câu hỏi")
+    if not req.answer or len(req.answer.strip()) < 10:
+        raise HTTPException(status_code=400, detail="Câu trả lời phải có ít nhất 10 ký tự")
+    # Lưu thông tin bác sĩ trả lời
+    doctor_name = getattr(user, "name", None) or getattr(user, "full_name", None) or "Bác sĩ"
+    now = datetime.datetime.utcnow()
+    q.answer = req.answer.strip()
+    q.status = "answered"
+    q.answered_at = now
+    q.doctor_name = doctor_name
+    q.doctor_id = user.id
+    db.commit()
+    # Broadcast real-time cho tất cả client đang kết nối WebSocket
+    await ambient_manager.broadcast({
+        "type": "QA_ANSWERED",
+        "data": {
+            "question_id": question_id,
+            "answer": req.answer.strip(),
+            "doctor_name": doctor_name,
+            "doctor_id": str(user.id),
+            "answered_at": now.isoformat(),
+        }
+    })
+    return {"status": "success", "question_id": question_id, "doctor_name": doctor_name}
 
 @router.get("/consent-forms")
 def get_consent_forms(user = Depends(get_current_user), db: Session = Depends(get_db)):

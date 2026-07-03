@@ -359,6 +359,8 @@ class CommunityQuestion(SQLModel, table=True):
     question: str
     answer: Optional[str] = None
     status: str = Field(default="unanswered", max_length=20) # unanswered, answered
+    doctor_name: Optional[str] = None  # Tên bác sĩ trả lời
+    doctor_id: Optional[uuid.UUID] = None  # ID bác sĩ trả lời
     created_at: datetime = Field(default_factory=datetime.utcnow)
     answered_at: Optional[datetime] = None
 

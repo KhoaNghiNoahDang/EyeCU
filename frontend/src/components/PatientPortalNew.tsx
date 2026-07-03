@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useRef, lazy, Suspense } from "react";
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import { useAuth } from "../lib/auth/auth-context";
 import { fetchApi, API_URL } from "../lib/api/client";
 import { User, LogIn, Calendar, FileText, Settings, Heart, Bell, MessageCircle, MapPin, Menu, X, ArrowLeft, ArrowRight, ShieldCheck, ChevronRight, Mic, Send, Phone, ClipboardList, ScanFace, FileSignature, Info, LogOut, Copy, Download, Eye, Map as MapIcon, Trash2, CalendarClock, Lock, Globe, Users, Activity, Search, Stethoscope, Receipt, Home, Star, Camera, ScanLine, Share, PlusSquare, Volume2, VolumeX, Pause, Loader2, Scan, BriefcaseMedical, ChevronDown, CheckCircle2 , Landmark } from "lucide-react";
@@ -175,6 +175,54 @@ export function PatientPortalNew({
       fetchApi("/patient/doctor-schedules").then((data) => setScheduledDoctors(data.doctors || [])).catch(console.error);
     }
   }, [user]);
+
+  // ── Real-time WebSocket listener for QA_ANSWERED ──────────────────
+  useEffect(() => {
+    const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
+    const WS_BASE = (import.meta.env.VITE_WS_URL ?? `ws://${host}:8000`);
+    const wsUrl = WS_BASE + "/api/ambient/ws/live";
+    let ws: WebSocket | null = null;
+    let pingTimer: ReturnType<typeof setInterval> | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let unmounted = false;
+
+    const connect = () => {
+      ws = new WebSocket(wsUrl);
+      ws.onopen = () => {
+        pingTimer = setInterval(() => {
+          if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "ping" }));
+        }, 20000);
+      };
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === "QA_ANSWERED" && msg.data) {
+            const { question_id, answer, doctor_name, answered_at } = msg.data;
+            setQuestions((prev) =>
+              prev.map((q) =>
+                q.id === question_id
+                  ? { ...q, answer, doctor_name, answered_at, status: "answered" }
+                  : q
+              )
+            );
+          }
+        } catch {}
+      };
+      ws.onclose = () => {
+        if (pingTimer) clearInterval(pingTimer);
+        if (!unmounted) reconnectTimer = setTimeout(connect, 5000);
+      };
+    };
+
+    connect();
+    return () => {
+      unmounted = true;
+      if (pingTimer) clearInterval(pingTimer);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (ws) { ws.onclose = null; ws.close(); }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Floating Bot Logic
   const [botOpen, setBotOpen] = useState(false);
@@ -1025,11 +1073,23 @@ export function PatientPortalNew({
                 </div>
                 <p className="text-[14px] text-slate-800 leading-relaxed mb-3">{item.question}</p>
                 {item.answer ? (
-                  <div className="flex gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    <div className="h-8 w-8 shrink-0 rounded-full border border-blue-200 bg-white flex items-center justify-center">
-                      <Activity className="h-4 w-4 text-blue-600" />
+                  <div className="flex gap-3 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+                    <div className="h-8 w-8 shrink-0 rounded-full border border-emerald-200 bg-white flex items-center justify-center">
+                      <Stethoscope className="h-4 w-4 text-emerald-600" />
                     </div>
-                    <p className="text-[13px] text-slate-700 leading-relaxed pt-0.5">{item.answer}</p>
+                    <div className="flex-1">
+                      <p className="text-[11px] font-semibold text-emerald-600 mb-0.5">
+                        {item.doctor_name ? `BS. ${item.doctor_name} trả lời` : "Bác sĩ trả lời"}
+                      </p>
+                      <p className="text-[13px] text-slate-700 leading-relaxed">{item.answer}</p>
+                      {item.answered_at && (
+                        <p className="mt-1 text-[10px] text-slate-400">
+                          {new Date(item.answered_at).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                          {" · "}
+                          {new Date(item.answered_at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className="flex gap-3 bg-orange-50/50 p-3 rounded-lg border border-orange-100">

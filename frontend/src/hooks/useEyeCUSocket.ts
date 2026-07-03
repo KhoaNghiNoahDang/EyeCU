@@ -11,7 +11,8 @@ export type SocketMessageType =
   | "INCIDENT_ALERT"
   | "OCR_RESULT_SYNC"
   | "FACE_VERIFY_SUCCESS"
-  | "FALL_DETECTED";
+  | "FALL_DETECTED"
+  | "QA_ANSWERED";
 
 export interface SocketMessage {
   type: SocketMessageType;
