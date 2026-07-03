@@ -39,4 +39,12 @@ interface SpeechRecognitionConstructor {
 interface Window {
   SpeechRecognition?: SpeechRecognitionConstructor;
   webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  /** VNPT SmartUX SDK — UX tracking & heatmap */
+  VNPT?: {
+    q: Array<[string, ...unknown[]]>;
+    app_key?: string;
+    url?: string;
+    init?: () => void;
+    [key: string]: unknown;
+  };
 }
