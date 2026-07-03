@@ -275,13 +275,17 @@ async def smartbot_webhook_tu_van(request: Request):
                             "type": "postback",
                             "title": "Đồng ý",
                             "payload": "?ic_bot_button_Dong_y_Kham", 
-                            "button_variables": []
+                            "button_variables": [
+                                {"variableName": "hanh_dong_tu_van", "value": "dong_y"}
+                            ]
                         },
                         {
                             "type": "postback",
                             "title": "Cần hỗ trợ khác",
                             "payload": "?ic_bot_button_Ho_tro_Khac",
-                            "button_variables": []
+                            "button_variables": [
+                                {"variableName": "hanh_dong_tu_van", "value": "ho_tro"}
+                            ]
                         }
                     ]
                 }
