@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from typing import Optional
 # Patient
 from app.db.database import get_db
 from app.db.models import (
