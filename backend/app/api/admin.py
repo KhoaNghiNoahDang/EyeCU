@@ -254,6 +254,10 @@ def create_department(data: DepartmentCreate, db: Session = Depends(get_db)):
     db.refresh(new_dept)
     return {"status": "success", "id": str(new_dept.id)}
 
+@router.get("/departments")
+def get_departments(db: Session = Depends(get_db)):
+    depts = db.query(Department).all()
+    return [{"id": str(d.id), "name": d.name, "description": d.description} for d in depts]
 
 class AmbulanceCreate(BaseModel):
     plate_number: str

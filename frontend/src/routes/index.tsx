@@ -171,7 +171,7 @@ const roleConfig: Record<WorkMode, { label: string; views: ViewKey[]; defaultVie
   },
   clinician: {
     label: "Khám Lâm sàng",
-    views: ["voice", "records"],
+    views: ["voice"],
     defaultView: "voice",
   },
   patient: {
@@ -427,14 +427,7 @@ function PatientRounds() {
               />
               <span className="text-sm font-bold text-slate-900">EyeCU</span>
             </div>
-            <div className="hidden md:flex items-center rounded-full border border-slate-200 bg-slate-50/80 px-3 py-1.5">
-              <Search className="h-3.5 w-3.5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Tìm mã bệnh nhân..."
-                className="ml-2 w-44 border-none bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
-              />
-            </div>
+
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5">
@@ -3839,21 +3832,16 @@ function HistoryView() {
             <tbody>
               {historyRecords.length === 0 ? (
                 <tr><td colSpan={10} className="px-4 py-8 text-center text-slate-400">Chưa có ca cấp cứu nào hoàn thành</td></tr>
-              ) : Array.from(new Map(historyRecords.map(item => [item.plate, item])).values()).map((rec, idx) => (
+              ) : Array.from(new Map(historyRecords.map(item => [item.plate, item])).values())
+                  .sort((a: any, b: any) => new Date(b.completed_at || 0).getTime() - new Date(a.completed_at || 0).getTime())
+                  .map((rec, idx) => (
                 <tr key={`${rec.plate}-${idx}`} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80 transition-colors">
                   <td className="px-3 py-3 whitespace-nowrap text-slate-500 text-xs">{rec.completed_at ? new Date(rec.completed_at).toLocaleDateString("vi-VN") : "—"}</td>
                   <td className="px-3 py-3"><span className="font-mono font-bold text-slate-600 text-[13px]">{rec.plate}</span></td>
                   <td className="px-3 py-3"><span className="font-semibold text-slate-600">{rec.patient_name || "—"}</span></td>
-                  <td className="px-3 py-3 font-mono text-[12px] text-slate-500">{rec.bhxh_code || "—"}</td>
+                  <td className="px-3 py-3"><span className="text-slate-600">{rec.gender || "—"}</span></td>
+                  <td className="px-3 py-3"><span className="text-slate-600">{rec.age || "—"}</span></td>
                   <td className="px-3 py-3 font-mono text-[12px] text-slate-500">{rec.cccd || "—"}</td>
-                  <td className="px-3 py-3 text-[11px] text-slate-600">
-                    {rec.emergency_contact_name ? (
-                      <div>
-                        <div className="font-semibold">{rec.emergency_contact_name}</div>
-                        <div className="text-slate-500">{rec.emergency_contact_phone}</div>
-                      </div>
-                    ) : "—"}
-                  </td>
                   <td className="px-3 py-3 max-w-[150px]">
                     {rec.chronic_conditions && rec.chronic_conditions.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
@@ -4113,19 +4101,22 @@ function AmbulanceView() {
           pre_alert_text?: string;
         };
         if (d.plate) {
-          supabase.from('dispatch_records').update({
-            patient_name: d.name ?? null,
-            gender: d.gender ?? null,
-            age: d.age ?? null,
-            cccd: d.cccd ?? null,
-            chronic_conditions: d.chronic_conditions ?? null,
-            allergies: d.allergies ?? null,
-            alert_label: d.alert_label ?? null,
-            bhxh_code: d.bhxh_code ?? null,
-            emergency_contact_name: d.emergency_contact_name ?? null,
-            emergency_contact_phone: d.emergency_contact_phone ?? null,
-            pre_alert_text: d.pre_alert_text ?? null
-          }).eq('plate', d.plate).then();
+          const updateData: any = {};
+          if (d.name !== undefined) updateData.patient_name = d.name;
+          if (d.gender !== undefined) updateData.gender = d.gender;
+          if (d.age !== undefined) updateData.age = d.age;
+          if (d.cccd !== undefined) updateData.cccd = d.cccd;
+          if (d.chronic_conditions !== undefined) updateData.chronic_conditions = d.chronic_conditions;
+          if (d.allergies !== undefined) updateData.allergies = d.allergies;
+          if (d.alert_label !== undefined) updateData.alert_label = d.alert_label;
+          if (d.bhxh_code !== undefined) updateData.bhxh_code = d.bhxh_code;
+          if (d.emergency_contact_name !== undefined) updateData.emergency_contact_name = d.emergency_contact_name;
+          if (d.emergency_contact_phone !== undefined) updateData.emergency_contact_phone = d.emergency_contact_phone;
+          if (d.pre_alert_text !== undefined) updateData.pre_alert_text = d.pre_alert_text;
+
+          if (Object.keys(updateData).length > 0) {
+            supabase.from('dispatch_records').update(updateData).eq('plate', d.plate).then();
+          }
 
           setDispatchRecords(prev => {
             if (!prev[d.plate]) return prev;
@@ -4451,18 +4442,16 @@ function AmbulanceView() {
                         </td>
                         {/* Chỉ định kíp CC */}
                         <td className="px-3 py-3">
-                          <input
-                            type="text"
-                            defaultValue={rec.er_team}
-                            placeholder="Nhập kíp..."
-                            onBlur={(e) => {
-                              const val = e.target.value;
+                          <AssignDepartmentCell
+                            plate={rec.plate}
+                            currentTeam={rec.er_team || rec.erTeam}
+                            onUpdate={(val) => {
+                              supabase.from('dispatch_records').update({ er_team: val }).eq('plate', rec.plate).then();
                               setDispatchRecords((prev) => ({
                                 ...prev,
-                                [rec.plate]: { ...prev[rec.plate], erTeam: val },
+                                [rec.plate]: { ...prev[rec.plate], er_team: val, erTeam: val },
                               }));
                             }}
-                            className="w-32 px-2 py-1 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400 outline-none bg-white"
                           />
                         </td>
                         <td className="px-3 py-3 text-right">
@@ -4499,6 +4488,103 @@ function LoadingCell() {
       <span className="w-3 h-3 border-2 border-slate-300 border-t-slate-500 rounded-full animate-spin flex-shrink-0" />
       Đang lấy thông tin
     </span>
+  );
+}
+
+function AssignDepartmentCell({
+  plate,
+  currentTeam,
+  onUpdate
+}: {
+  plate: string;
+  currentTeam?: string;
+  onUpdate: (val: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedDept, setSelectedDept] = useState(currentTeam || "");
+  const [departments, setDepartments] = useState<{id: string, name: string, color: string}[]>([]);
+
+  useEffect(() => {
+    fetchApi('/admin/departments')
+      .then((data: any[]) => {
+        const colors = [
+          'text-red-700 bg-red-100 border-red-200',
+          'text-orange-700 bg-orange-100 border-orange-200',
+          'text-blue-700 bg-blue-100 border-blue-200',
+          'text-purple-700 bg-purple-100 border-purple-200',
+          'text-green-700 bg-green-100 border-green-200',
+          'text-teal-700 bg-teal-100 border-teal-200'
+        ];
+        const mapped = data.map((d, i) => ({
+          id: d.id,
+          name: d.name,
+          color: colors[i % colors.length]
+        }));
+        setDepartments(mapped);
+      })
+      .catch(console.error);
+  }, []);
+
+  const matchedDept = departments.find(d => d.name === currentTeam);
+
+  if (!isOpen && currentTeam) {
+    return (
+      <button 
+        onClick={() => setIsOpen(true)}
+        className={`px-2 py-1 rounded-lg text-[11px] font-bold border whitespace-nowrap transition-colors hover:opacity-80 ${matchedDept ? matchedDept.color : 'text-slate-700 bg-slate-100 border-slate-200'}`}
+      >
+        {currentTeam}
+      </button>
+    );
+  }
+
+  if (!isOpen) {
+    return (
+      <button 
+        onClick={() => setIsOpen(true)}
+        className="px-3 py-1.5 bg-cyan-50 text-cyan-600 hover:bg-cyan-100 hover:text-cyan-700 border border-cyan-200 text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
+      >
+        Chỉ định
+      </button>
+    );
+  }
+
+  return (
+    <div className="relative flex flex-col gap-1 z-10">
+      <select 
+        value={selectedDept} 
+        onChange={e => setSelectedDept(e.target.value)}
+        className="w-36 px-2 py-1 text-xs border border-slate-200 rounded-lg outline-none bg-white focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400"
+        autoFocus
+      >
+        <option value="" disabled>Chọn khoa...</option>
+        {departments.map(d => (
+          <option key={d.id} value={d.name}>{d.name}</option>
+        ))}
+      </select>
+      <div className="flex gap-1">
+        <button 
+          onClick={() => {
+            if (selectedDept) {
+              onUpdate(selectedDept);
+              setIsOpen(false);
+            }
+          }}
+          className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] py-1 rounded transition-colors font-semibold"
+        >
+          Xác nhận
+        </button>
+        <button 
+          onClick={() => {
+            setIsOpen(false);
+            setSelectedDept(currentTeam || "");
+          }}
+          className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 text-[10px] py-1 rounded transition-colors font-semibold"
+        >
+          Hủy
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -8815,7 +8901,7 @@ type AdminTab =
 
 const ADMIN_TABS: { key: AdminTab; Icon: typeof Users; label: string }[] = [
   { key: "overview", Icon: Activity, label: "Tổng quan" },
-  { key: "users", Icon: Users, label: "Người dùng" },
+  { key: "users", Icon: Users, label: "Bệnh nhân" },
   { key: "staffs", Icon: UserCheck, label: "Nhân viên" },
   { key: "departments", Icon: Bed, label: "Khoa phòng" },
   { key: "devices", Icon: Cpu, label: "Thiết bị" },
@@ -8943,6 +9029,7 @@ function AdminOverviewTab() {
 /* ── Tab 1: patients table ── */
 function AdminPatientsTab() {
   const [patients, setPatients] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -8983,18 +9070,29 @@ function AdminPatientsTab() {
     }
   };
 
+  const filteredPatients = patients.filter(p => 
+    p.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    p.cccd?.includes(searchQuery)
+  );
+
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-5 py-4 border-b border-slate-200 gap-3">
         <h3 className="font-bold text-slate-900 flex items-center gap-2">
           <Users className="w-5 h-5 text-[#0A9BAD]" /> Quản lý Bệnh nhân
         </h3>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="text-[11px] font-bold tracking-wider uppercase font-geist text-white bg-[#0A9BAD] hover:bg-[#0891b2] px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
-        >
-          <Plus className="w-3 h-3" /> Thêm bệnh nhân
-        </button>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-1 sm:flex-none items-center rounded-lg border border-slate-200 bg-slate-50/80 px-2 py-1.5">
+            <Search className="h-3.5 w-3.5 text-slate-400" />
+            <input type="text" placeholder="Tìm tên/CCCD..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="ml-2 w-full sm:w-40 border-none bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400" />
+          </div>
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="text-[11px] shrink-0 font-bold tracking-wider uppercase font-geist text-white bg-[#0A9BAD] hover:bg-[#0891b2] px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
+          >
+            <Plus className="w-3 h-3" /> Thêm bệnh nhân
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -9066,7 +9164,7 @@ function AdminPatientsTab() {
             </tr>
           </thead>
           <tbody>
-            {patients.map((p) => (
+            {filteredPatients.map((p) => (
               <tr key={p.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                 <td className="px-4 py-3 text-[11px] font-mono text-slate-400">{p.id}</td>
                 <td className="px-4 py-3 font-bold text-slate-900">{p.name}</td>
@@ -9105,6 +9203,7 @@ function AdminStaffsTab() {
 
   const [users, setUsers] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   
   useEffect(() => {
     fetchApi("/admin/tables/staffs").then(setUsers).catch(console.error);
@@ -9158,20 +9257,31 @@ function AdminStaffsTab() {
     }
   };
 
+  const filteredUsers = users.filter(u => 
+    u.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    u.cccd?.includes(searchQuery)
+  );
+
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-5 py-4 border-b border-slate-200 gap-3">
         <div>
           <h3 className="font-bold text-slate-900 flex items-center gap-2">
             <UserCheck className="w-5 h-5 text-[#0A9BAD]" /> Quản lý Nhân viên
           </h3>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="text-[11px] font-bold tracking-wider uppercase font-geist text-white bg-[#0A9BAD] hover:bg-[#0891b2] px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
-        >
-          <Plus className="w-3 h-3" /> Thêm nhân viên
-        </button>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-1 sm:flex-none items-center rounded-lg border border-slate-200 bg-slate-50/80 px-2 py-1.5">
+            <Search className="h-3.5 w-3.5 text-slate-400" />
+            <input type="text" placeholder="Tìm tên/CCCD..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="ml-2 w-full sm:w-40 border-none bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400" />
+          </div>
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="text-[11px] shrink-0 font-bold tracking-wider uppercase font-geist text-white bg-[#0A9BAD] hover:bg-[#0891b2] px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
+          >
+            <Plus className="w-3 h-3" /> Thêm nhân viên
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -9294,7 +9404,7 @@ function AdminStaffsTab() {
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
+            {filteredUsers.map((u) => (
               <tr key={u.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                 <td className="px-4 py-3 text-[11px] font-mono text-slate-400">{u.id}</td>
                 <td className="px-4 py-3 font-bold text-slate-900">{u.name}</td>
