@@ -5,7 +5,7 @@ from app.db.models import Patient, ClinicalRecord, Medication
 from app.core.security import require_roles
 from app.services.dataset_reader import get_mock_json
 from app.services.vnpt_api import vnpt_client
-
+#
 router = APIRouter()
 
 
