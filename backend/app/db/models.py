@@ -156,6 +156,19 @@ class VitalSign(SQLModel, table=True):
     measured_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class ImagingResult(SQLModel, table=True):
+    __tablename__ = "imaging_results"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    patient_id: uuid.UUID = Field(foreign_key="patients.id")
+    record_id: Optional[uuid.UUID] = Field(
+        default=None, foreign_key="clinical_records.id"
+    )
+    image_type: str = Field(max_length=100) # X-Quang, Siêu âm, MRI, CT
+    image_url: str = Field(max_length=255)
+    description: Optional[str] = None
+    conclusion: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
 class SmartReaderDoc(SQLModel, table=True):
     __tablename__ = "smart_reader_docs"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)

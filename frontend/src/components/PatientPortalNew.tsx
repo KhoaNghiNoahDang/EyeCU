@@ -5,6 +5,12 @@ import { fetchApi, API_URL } from "../lib/api/client";
 import { User, LogIn, Calendar, FileText, Settings, Heart, Bell, MessageCircle, MapPin, Menu, X, ArrowLeft, ArrowRight, ShieldCheck, ChevronRight, Mic, Send, Phone, ClipboardList, ScanFace, FileSignature, Info, LogOut, Copy, Download, Eye, Map as MapIcon, Trash2, CalendarClock, Lock, Globe, Users, Activity, Search, Stethoscope, Receipt, Home, Bot, Star, Camera, ScanLine, Share, PlusSquare, Volume2, VolumeX, Loader2 } from "lucide-react";
 import { getHospitalsByProvince, CENTRAL_HOSPITALS, Hospital } from "../lib/hospitals";
 import { MapErrorBoundary } from "./MapErrorBoundary";
+import { VitalSignsView } from "./health-record/VitalSignsView";
+import { MedicationsView } from "./health-record/MedicationsView";
+import { LabResultsView } from "./health-record/LabResultsView";
+import { ImagingResultsView } from "./health-record/ImagingResultsView";
+import { AdminInfoView } from "./health-record/AdminInfoView";
+import { RecordSummaryView } from "./health-record/RecordSummaryView";
 
 const PatientPortalMap = lazy(() => import("./PatientPortalMap"));
 
@@ -24,7 +30,7 @@ function getTimeNow() {
   return new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 }
 
-type ViewState = "home" | "health_record" | "record_lookup" | "community_qa" | "ask_question" | "invoice_list" | "digital_signature" | "hospital_map";
+type ViewState = "home" | "health_record" | "record_lookup" | "community_qa" | "ask_question" | "invoice_list" | "digital_signature" | "hospital_map" | "vital_signs" | "medications" | "lab_results" | "imaging_results" | "admin_info" | "record_summary";
 
 function getAge(dobString?: string) {
   if (!dobString) return "";
@@ -50,7 +56,23 @@ export function PatientPortalNew({
   onRequestLogout: () => void;
 }) {
   const { user } = useAuth();
-  
+  const [clinicalBundle, setClinicalBundle] = useState<any>(null);
+  const [loadingBundle, setLoadingBundle] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      setLoadingBundle(true);
+      fetchApi("/patient/clinical-bundle")
+        .then((data) => {
+          if (data && data.status !== "no_records") {
+            setClinicalBundle(data);
+          }
+        })
+        .catch(console.error)
+        .finally(() => setLoadingBundle(false));
+    }
+  }, [user]);
+
   // Floating Bot Logic
   const [botOpen, setBotOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
@@ -646,15 +668,15 @@ export function PatientPortalNew({
            /* Services List */
            <div className="mx-4 mt-4 bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col">
               {[
-                { icon: Stethoscope, label: "Kết quả khám" },
-                { icon: Heart, label: "Sinh hiệu" },
-                { icon: Activity, label: "Kết quả xét nghiệm" },
-                { icon: FileText, label: "Kết quả CĐHA và thăm dò chức năng" },
-                { icon: Receipt, label: "Thuốc" },
-                { icon: FileText, label: "Thông tin hành chính" },
-                { icon: FileSignature, label: "Tóm tắt bệnh án" },
+                { icon: Stethoscope, label: "Kết quả khám", view: "record_summary" as ViewState }, // Using record_summary for both, or separate if needed
+                { icon: Heart, label: "Sinh hiệu", view: "vital_signs" as ViewState },
+                { icon: Activity, label: "Kết quả xét nghiệm", view: "lab_results" as ViewState },
+                { icon: FileText, label: "Kết quả CĐHA và thăm dò chức năng", view: "imaging_results" as ViewState },
+                { icon: Receipt, label: "Thuốc", view: "medications" as ViewState },
+                { icon: FileText, label: "Thông tin hành chính", view: "admin_info" as ViewState },
+                { icon: FileSignature, label: "Tóm tắt bệnh án", view: "record_summary" as ViewState },
               ].map((item, i) => (
-                 <button key={i} className="flex items-center justify-between px-4 py-4 border-b border-slate-100 last:border-0 active:bg-slate-50 text-left">
+                 <button key={i} onClick={() => setCurrentView(item.view)} className="flex items-center justify-between px-4 py-4 border-b border-slate-100 last:border-0 active:bg-slate-50 text-left">
                     <div className="flex items-center gap-3">
                        <item.icon className="h-5 w-5 text-[#0d1f2d]" strokeWidth={1.5} />
                        <span className="text-[15px] font-semibold text-[#0d1f2d]">{item.label}</span>
@@ -1523,6 +1545,18 @@ export function PatientPortalNew({
             renderInvoiceList()
           ) : currentView === "digital_signature" ? (
             renderDigitalSignature()
+          ) : currentView === "vital_signs" ? (
+            <VitalSignsView data={clinicalBundle} onBack={() => setCurrentView("health_record")} />
+          ) : currentView === "medications" ? (
+            <MedicationsView data={clinicalBundle} onBack={() => setCurrentView("health_record")} />
+          ) : currentView === "lab_results" ? (
+            <LabResultsView data={clinicalBundle} onBack={() => setCurrentView("health_record")} />
+          ) : currentView === "imaging_results" ? (
+            <ImagingResultsView data={clinicalBundle} onBack={() => setCurrentView("health_record")} />
+          ) : currentView === "admin_info" ? (
+            <AdminInfoView data={clinicalBundle} onBack={() => setCurrentView("health_record")} />
+          ) : currentView === "record_summary" ? (
+            <RecordSummaryView data={clinicalBundle} onBack={() => setCurrentView("health_record")} />
           ) : (
             renderHospitalMap()
           )

@@ -450,11 +450,39 @@ def get_patient_clinical_bundle(
             db.query(HospitalFeeItem).filter(HospitalFeeItem.fee_id == fee.id).all()
         )
 
+    from app.db.models import VitalSign, SmartReaderDoc, ImagingResult
+
+    vital_signs = (
+        db.query(VitalSign)
+        .filter(VitalSign.patient_id == user.id)
+        .order_by(VitalSign.measured_at.desc())
+        .first()
+    )
+
+    lab_docs = (
+        db.query(SmartReaderDoc)
+        .filter(SmartReaderDoc.patient_id == user.id, SmartReaderDoc.doc_type != "imaging")
+        .order_by(SmartReaderDoc.uploaded_at.desc())
+        .all()
+    )
+
+    imaging_results = (
+        db.query(ImagingResult)
+        .filter(ImagingResult.patient_id == user.id)
+        .order_by(ImagingResult.created_at.desc())
+        .all()
+    )
+
     return {
         "patientId": str(user.id),
         "patientName": user.name,
         "cccd": user.cccd,
+        "gender": user.gender,
+        "dob": user.dob,
         "bhxh_code": user.bhxh_code,
+        "address": user.address,
+        "emergency_contact_name": user.emergency_contact_name,
+        "emergency_contact_phone": user.emergency_contact_phone,
         "latestRecord": {
             "id": str(latest_record.id),
             "patient_id": str(latest_record.patient_id),
@@ -467,6 +495,13 @@ def get_patient_clinical_bundle(
             "doctor_name": doctor_name,
             "department": department_name,
         },
+        "vitalSigns": {
+            "heart_rate": vital_signs.heart_rate,
+            "blood_pressure": vital_signs.blood_pressure,
+            "spo2": vital_signs.spo2,
+            "temperature": vital_signs.temperature,
+            "measured_at": vital_signs.measured_at.isoformat(),
+        } if vital_signs else None,
         "medications": [
             {
                 "id": str(m.id),
@@ -476,6 +511,27 @@ def get_patient_clinical_bundle(
                 "instructions": m.instructions,
             }
             for m in medications
+        ],
+        "labDocs": [
+            {
+                "id": str(d.id),
+                "doc_type": d.doc_type,
+                "image_url": d.image_url,
+                "extracted_data": d.extracted_data,
+                "uploaded_at": d.uploaded_at.isoformat(),
+            }
+            for d in lab_docs
+        ],
+        "imagingResults": [
+            {
+                "id": str(i.id),
+                "image_type": i.image_type,
+                "image_url": i.image_url,
+                "description": i.description,
+                "conclusion": i.conclusion,
+                "created_at": i.created_at.isoformat(),
+            }
+            for i in imaging_results
         ],
         "followUp": (
             {
