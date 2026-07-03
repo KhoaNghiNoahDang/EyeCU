@@ -442,7 +442,7 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode,
                 autoPlay
                 playsInline
                 muted
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover scale-x-[-1]"
               />
               {!cameraReady && (
                 <div className="absolute inset-0 flex items-center justify-center bg-slate-900/30">
@@ -659,55 +659,18 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode,
         <CheckCircle2 className="w-4 h-4 flex-shrink-0" style={{ color: ACCENT_DARK }} />
       </div>
 
-      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider font-geist">
-        Hôm nay bạn làm ca nào?
-      </p>
-
-      <div className="space-y-2.5">
-        {shifts.map(({ mode, icon: Icon, label, sub }) => (
-          <button
-            key={mode}
-            onClick={() => {
-              if (identifiedUser) {
-                // Fetch auth token by employee_id when picking shift from staff list
-                // Since this step happens after "identify" (clicking from list without password),
-                // we should either skip password for demo or require it. For now, use the mock login
-                const loginToken = sessionStorage.getItem("eyecu_token") || "demo_token";
-                onLogin(identifiedUser, mode, loginToken);
-              }
-            }}
-            className="w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all text-left group hover:scale-[1.01]"
-            style={{ borderColor: "#f1f5f9" }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.borderColor = ACCENT;
-              (e.currentTarget as HTMLButtonElement).style.backgroundColor = `${ACCENT}0A`;
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.borderColor = "#f1f5f9";
-              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
-            }}
-          >
-            <div className="flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center transition-colors"
-                style={{ backgroundColor: `${ACCENT}15` }}
-              >
-                <Icon className="w-5 h-5" style={{ color: ACCENT_DARK }} />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-900 group-hover:text-[#0A9BAD] transition-colors">
-                  {label}
-                </p>
-                <p className="text-[10px] text-slate-500 font-geist tracking-wider mt-0.5">{sub}</p>
-              </div>
-            </div>
-            <ArrowLeft
-              className="w-4 h-4 rotate-180 transition-transform group-hover:translate-x-1"
-              style={{ color: ACCENT_DARK }}
-            />
-          </button>
-        ))}
-      </div>
+      <button
+        onClick={() => {
+          if (identifiedUser) {
+            const loginToken = sessionStorage.getItem("eyecu_token") || "demo_token";
+            onLogin(identifiedUser, "ops", loginToken);
+          }
+        }}
+        className="w-full mt-4 flex items-center justify-center p-3 rounded-xl border-2 transition-all font-bold text-white hover:opacity-90 shadow-sm"
+        style={{ backgroundColor: ACCENT_DARK, borderColor: ACCENT_DARK }}
+      >
+        Truy cập hệ thống
+      </button>
     </div>
   );
 }
@@ -847,7 +810,7 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
               autoPlay
               playsInline
               muted
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover scale-x-[-1]"
             />
             <div
               className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2"
@@ -1173,7 +1136,7 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string)
               autoPlay
               playsInline
               muted
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover scale-x-[-1]"
             />
             {cameraReady && !isAuthenticating && (
               <div

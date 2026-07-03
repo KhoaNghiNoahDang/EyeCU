@@ -111,7 +111,7 @@ export function FaceIdCapture({ onCapture, capturedUrl }: FaceIdCaptureProps) {
               autoPlay
               playsInline
               muted
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover scale-x-[-1]"
             />
             <div className="pointer-events-none absolute inset-4 rounded-[40%] border-2 border-dashed border-white/70" />
             <div
