@@ -556,12 +556,6 @@ export function PatientPortalNew({
                  <p className="text-[#88E8F2] text-sm mt-1 font-medium tracking-widest uppercase">EyeCU Medical Center</p>
               </div>
             </div>
-            
-            {/* Overlay Button "Lịch khám BS" */}
-            <div className="absolute -bottom-5 right-4 z-10 flex h-11 items-center gap-2 rounded-full bg-white px-5 shadow-lg">
-              <span className="text-[#0d1f2d] font-bold text-sm">Lịch khám BS</span>
-              <ChevronRight className="h-4 w-4 text-slate-400" />
-            </div>
           </div>
 
           {/* 3. Grid Services */}
@@ -1685,19 +1679,10 @@ export function PatientPortalNew({
             </div>
          </div>
          
-         <div className="mt-2 bg-white border-y border-slate-100">
-            <span className="block px-4 py-3 text-[14px] font-medium text-slate-800">Khác</span>
-            <div className="pl-4">
-               <button onClick={() => alert('Về bệnh viện...')} className="w-full flex items-center justify-between py-3 pr-4 border-b border-slate-100 active:bg-slate-50">
-                  <div className="flex items-center gap-3">
-                     <div className="w-8 h-8 rounded-md bg-slate-100 flex items-center justify-center"><Star className="w-5 h-5 text-slate-400" /></div>
-                     <span className="text-[15px] text-slate-700">Về BV Nội tiết Trung Ương</span>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-slate-400" />
-               </button>
-            </div>
-         </div>
-         
+          <div className="mt-2 bg-white border-y border-slate-100">
+             {/* The "Khác" section and "Về BV Nội tiết Trung Ương" button have been removed */}
+          </div>
+          
          <div className="mt-2 bg-white border-y border-slate-100">
             <button onClick={() => onRequestLogout()} className="w-full flex items-center px-4 py-3 active:bg-slate-50">
                <div className="flex items-center gap-3">
