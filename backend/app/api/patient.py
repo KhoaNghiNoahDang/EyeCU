@@ -58,6 +58,14 @@ class ChatRequest(BaseModel):
     message: str
 
 
+class AppointmentCreate(BaseModel):
+    ma_bn: str
+    doctor_id: str
+    date: str
+    time: str
+    symptoms: Optional[str] = None
+
+
 class EkycCccdRequest(BaseModel):
     image_base64: str
 
@@ -199,7 +207,14 @@ async def patient_chatbot(
             context = f"Thông tin hồ sơ y tế/đơn thuốc/xét nghiệm gần nhất của tôi: {text_only}. "
         
     final_message = context + "Câu hỏi của tôi: " + data.message if context else data.message
-    bot_response = await vnpt_client.call_smartbot_conversation(final_message, session_id=f"patient_{user.id}")
+    # Gắn thẻ metadata định danh bệnh nhân (CCCD) để bot nhận biết và gọi API Đặt lịch
+    metadata = {
+        "button_variables": {
+            "patient_id": user.cccd,
+            "patient_name": user.name
+        }
+    }
+    bot_response = await vnpt_client.call_smartbot_conversation(final_message, session_id=f"patient_{user.id}", metadata=metadata)
 
     reply = bot_response.get("reply") or "Tôi chưa hiểu rõ câu hỏi, vui lòng thử lại."
     raw_data = bot_response.get("raw", {})
@@ -581,6 +596,86 @@ def get_patient_clinical_bundle(
     }
 
 
+# ==================================================================# LỊCH KHÁM & BÁC SĨ (DÀNH CHO CHATBOT)
+# ==================================================================
+@router.get("/doctors")
+def get_doctors(dept: str, db: Session = Depends(get_db)):
+    """Trả về danh sách bác sĩ (role=clinician), hỗ trợ lọc theo khoa."""
+    from app.db.models import Staff, Department
+    import datetime
+    
+    query = db.query(Staff).filter(Staff.role == "clinician")
+    
+    if dept:
+        # Tìm department_id dựa trên tên khoa (dept)
+        department = db.query(Department).filter(Department.name.ilike(f"%{dept}%")).first()
+        if department:
+            query = query.filter(Staff.department_id == department.id)
+            
+    doctors = query.all()
+    result = []
+    
+    # Tạo ngày mock (ngày mai) cho JSON Response giống hệt Document
+    mock_date = (datetime.datetime.now() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    
+    for doc in doctors:
+        dept_name = ""
+        if doc.department_id:
+            d = db.query(Department).filter(Department.id == doc.department_id).first()
+            if d:
+                dept_name = d.name
+                
+        result.append({
+            "doctor_id": str(doc.id),
+            "full_name": f"BS. {doc.name}",
+            "specialty": f"Bác sĩ chuyên khoa {dept_name}" if dept_name else "Bác sĩ chuyên khoa",
+            "available_slots": ["08:00 - 10:00", "13:30 - 15:00"],
+            "date": mock_date
+        })
+        
+    return {"status": "success", "data": result}
+
+
+@router.post("/appointments/create")
+def create_appointment(data: AppointmentCreate, db: Session = Depends(get_db)):
+    """Tạo lịch khám bệnh từ ứng dụng."""
+    from app.db.models import Appointment, Patient, Staff
+    import uuid
+    from fastapi import HTTPException
+    
+    # 1. Error Handling: Kiểm tra ma_bn (CCCD)
+    patient = db.query(Patient).filter(Patient.cccd == data.ma_bn).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy bệnh nhân với mã {data.ma_bn}")
+        
+    # 2. Error Handling: Kiểm tra Bác sĩ
+    try:
+        doc_id = uuid.UUID(data.doctor_id)
+        doctor = db.query(Staff).filter(Staff.id == doc_id).first()
+        if not doctor:
+            raise HTTPException(status_code=404, detail="Không tìm thấy bác sĩ")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Mã bác sĩ không hợp lệ (Phải là UUID)")
+    
+    try:
+        new_appointment = Appointment(
+            patient_id=patient.id,
+            doctor_id=doc_id,
+            date=data.date,
+            time=data.time,
+            status="pending"
+        )
+        db.add(new_appointment)
+        db.commit()
+        db.refresh(new_appointment)
+        
+        return {
+            "status": "success", 
+            "message": "Đặt lịch thành công",
+            "appointment_id": f"AP-{str(new_appointment.id)[:6].upper()}"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Không thể lưu lịch hẹn: {str(e)}")
 @router.get("/invoices")
 def get_patient_invoices(user: Patient = Depends(get_current_user), db: Session = Depends(get_db)):
     from app.db.models import HospitalFee, HospitalFeeItem
