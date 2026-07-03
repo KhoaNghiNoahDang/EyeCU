@@ -177,23 +177,14 @@ function RootShell({ children }: { children: ReactNode }) {
               VNPT.q.push(['collect_from_forms']);
 
               (function () {
-                var paths = [
-                  'https://console-smartux.vnpt.vn/sdk/web/core-track.js',
-                  'https://console-smartux.vnpt.vn/sdk/web/minify.min.js'
-                ];
-                for (var i = 0; i < paths.length; i++) {
-                  (function(idx) {
-                    var cly = document.createElement('script');
-                    cly.type = 'text/javascript';
-                    cly.async = true;
-                    cly.src = paths[idx];
-                    cly.onload = idx === 0
-                      ? function () { VNPT.init(); }
-                      : function () { window.minify = require('html-minifier').minify; };
-                    var s = document.getElementsByTagName('script')[0];
-                    s.parentNode.insertBefore(cly, s);
-                  })(i);
-                }
+                /* FIX: chỉ load core-track.js — minify.min.js dùng require() không tương thích browser */
+                var cly = document.createElement('script');
+                cly.type = 'text/javascript';
+                cly.async = true;
+                cly.src = 'https://console-smartux.vnpt.vn/sdk/web/core-track.js';
+                cly.onload = function () { VNPT.init(); };
+                var s = document.getElementsByTagName('script')[0];
+                s.parentNode.insertBefore(cly, s);
               })();
             `,
           }}
@@ -208,9 +199,19 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 import { AuthProvider } from "../lib/auth/auth-context";
+import { useLocation } from "@tanstack/react-router";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const location = useLocation();
+
+  // FIX: Track SPA page navigations for SmartUX heatmap
+  // TanStack Router không reload browser khi chuyển trang → cần notify SmartUX thủ công
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.VNPT && typeof window.VNPT.q !== 'undefined') {
+      window.VNPT.q.push(['track_pageview', location.pathname]);
+    }
+  }, [location.pathname]);
 
   return (
     <AuthProvider>
