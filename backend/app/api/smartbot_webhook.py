@@ -18,11 +18,10 @@ async def smartbot_webhook_tracuu_lich(request: Request, db: Session = Depends(g
         sender_id = data.get("sender_id")
         variables = data.get("set_variables", {})
         
-        # Bot truyền loại tra cứu qua biến, hoặc cố định "ca_nhan"
         loai_tra_cuu = data.get("loai_tra_cuu", "ca_nhan")
+        ngay_tra_cuu = variables.get("ngay_tra_cuu", "")
         
         if loai_tra_cuu == "ca_nhan":
-            # Lấy CCCD hoặc patient_id từ sender_id (Ở đây giả sử sender_id là cccd hoặc id)
             patient = db.query(Patient).filter((Patient.cccd == sender_id) | (Patient.id == sender_id)).first()
             if not patient:
                 return JSONResponse(content={
@@ -30,19 +29,52 @@ async def smartbot_webhook_tracuu_lich(request: Request, db: Session = Depends(g
                     "bot_responses": [{"type": "text", "text": "Không tìm thấy thông tin bệnh nhân trong hệ thống."}]
                 }, status_code=200)
 
-            appointments = db.query(Appointment).filter(Appointment.patient_id == patient.id, Appointment.status != "cancelled").order_by(Appointment.date.desc()).all()
+            query = db.query(Appointment).filter(Appointment.patient_id == patient.id, Appointment.status != "cancelled")
+            
+            if ngay_tra_cuu:
+                # Lọc theo ngày nếu người dùng có nhập
+                query = query.filter(Appointment.date.ilike(f"%{ngay_tra_cuu}%"))
+                
+            appointments = query.order_by(Appointment.date.desc()).all()
             
             if not appointments:
                 return JSONResponse(content={
                     "set_variables": {"api_status": "1"},
-                    "bot_responses": [{"type": "text", "text": f"Chào {patient.name}, hiện tại bạn không có lịch hẹn khám nào."}]
+                    "bot_responses": [{
+                        "type": "text", 
+                        "text": f"Hiện không có lịch khám nào trong ngày {ngay_tra_cuu}. Bạn có muốn đặt lịch khám không?",
+                        "buttons": [
+                            {
+                                "type": "postback",
+                                "title": "Có",
+                                "payload": "?ic_bot_button_Dat_lich_kham",
+                                "button_variables": []
+                            },
+                            {
+                                "type": "postback",
+                                "title": "Không",
+                                "payload": "?ic_bot_button_Khong_Dat_Lich",
+                                "button_variables": []
+                            }
+                        ]
+                    }]
                 }, status_code=200)
                 
-            text_response = f"Chào {patient.name}, đây là các lịch hẹn của bạn:\n"
+            text_response = f"Dưới đây là các lịch hẹn của bạn:\n"
             for apt in appointments:
                 doctor = db.query(Staff).filter(Staff.id == apt.doctor_id).first()
                 doc_name = doctor.name if doctor else "Bác sĩ"
-                text_response += f"- Ngày {apt.date} lúc {apt.time} với BS. {doc_name}\n"
+                
+                dept_name = "Khoa Khám Bệnh"
+                if doctor and doctor.department_id:
+                    dept = db.query(Department).filter(Department.id == doctor.department_id).first()
+                    if dept:
+                        dept_name = dept.name
+                        
+                text_response += f"• Ngày giờ: {apt.time} ngày {apt.date}\n"
+                text_response += f"• Địa điểm: Phòng 101 - Tầng 1\n"
+                text_response += f"• Khoa: {dept_name}\n"
+                text_response += f"• Tên bác sĩ: BS. {doc_name}\n\n"
 
             return JSONResponse(content={
                 "set_variables": {"api_status": "1"},
