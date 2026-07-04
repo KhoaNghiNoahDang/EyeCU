@@ -241,6 +241,7 @@ function PatientRounds() {
   const [activeView, setActiveView] = useState<ViewKey>("ambient");
   const [collapsed, setCollapsed] = useState(false);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
+  const [workspaceSheetOpen, setWorkspaceSheetOpen] = useState(false);
   const [highlightedRoom, setHighlightedRoom] = useState<string | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
@@ -594,9 +595,18 @@ function PatientRounds() {
               <div className="min-w-0 flex-1 md:hidden">
                 <div className="flex items-center gap-1.5">
                   <p className="truncate text-[15px] font-bold text-slate-900">{meta.title.split("—")[0].trim()}</p>
-                  <span className="inline-flex items-center rounded-full bg-[#88E8F2]/20 px-2 py-0.5 text-[9px] font-bold text-[#0A9BAD]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWorkspaceSheetOpen(true);
+                      setNotifOpen(false);
+                      setProfileMenuOpen(false);
+                    }}
+                    className="inline-flex items-center gap-0.5 rounded-full bg-[#88E8F2]/20 px-2 py-0.5 text-[9px] font-bold text-[#0A9BAD] transition-all active:scale-95 hover:bg-[#88E8F2]/40"
+                  >
                     {roleConfig[workMode].label}
-                  </span>
+                    <ChevronDown className="h-2.5 w-2.5" />
+                  </button>
                 </div>
                 <p className="truncate text-[11px] text-slate-500 mt-0.5">{meta.subtitle}</p>
               </div>
@@ -888,6 +898,74 @@ function PatientRounds() {
             })}
           </div>
         </nav>
+      )}
+
+      {/* Workspace Switcher Bottom Sheet */}
+      {workspaceSheetOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setWorkspaceSheetOpen(false)}
+          />
+          <div className="relative z-10 w-full max-w-md rounded-t-3xl bg-white shadow-2xl animate-in slide-in-from-bottom duration-300">
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="h-1 w-10 rounded-full bg-slate-300" />
+            </div>
+            <div className="px-5 pt-3 pb-2">
+              <p className="text-[17px] font-bold text-slate-900">Chọn không gian làm việc</p>
+              <p className="text-[12px] text-slate-500 mt-0.5">Chuyển đổi giữa các chức năng</p>
+            </div>
+            <div className="px-4 pb-5 space-y-2">
+              {(
+                [
+                  { key: "ops" as const, label: "Trực Cấp cứu", desc: "Giám sát & điều phối xe cấp cứu" },
+                  { key: "clinician" as const, label: "Khám Lâm sàng", desc: "Bệnh án giọng nói & Hỏi đáp" },
+                  { key: "ems" as const, label: "Cấp cứu Ngoại viện", desc: "Quét BN & định vị GPS" },
+                ] as const
+              ).map(({ key, label, desc }) => {
+                const active = workMode === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => {
+                      setWorkMode(key);
+                      setWorkspaceSheetOpen(false);
+                    }}
+                    className={`w-full rounded-2xl border p-4 text-left transition-all active:scale-[0.98] ${
+                      active
+                        ? "border-[#0A9BAD]/30 bg-[#88E8F2]/10 shadow-sm"
+                        : "border-slate-200 bg-white hover:border-[#88E8F2]/50 hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0">
+                        <p className={`text-[15px] font-bold ${active ? "text-[#0A9BAD]" : "text-slate-900"}`}>
+                          {label}
+                        </p>
+                        <p className="text-[12px] text-slate-500 mt-0.5">{desc}</p>
+                      </div>
+                      {active && (
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#0A9BAD]">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="px-4 pb-6">
+              <button
+                type="button"
+                onClick={() => setWorkspaceSheetOpen(false)}
+                className="w-full rounded-xl border border-slate-200 py-3 text-[14px] font-semibold text-slate-600 transition-colors hover:bg-slate-50 active:scale-95"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <LogoutConfirmModal
