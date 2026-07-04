@@ -57,6 +57,7 @@ class WalkinSchema(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str
+    screen_context: dict = None
 
 
 class AppointmentCreate(BaseModel):
@@ -179,7 +180,14 @@ async def patient_chatbot(
     is_payload = data.message.strip().startswith("{") and data.message.strip().endswith("}")
     
     if not is_payload and data.message.strip().lower() not in ["xin chào", "xin chao", "hello", "hi", "chào", "bắt đầu"]:
-        if recent_doc and recent_doc.extracted_data:
+        if getattr(data, "screen_context", None):
+            import json
+            try:
+                screen_context_str = json.dumps(data.screen_context, ensure_ascii=False)[:2500]
+                context = f"Thông tin hồ sơ/kết quả đang hiển thị trên màn hình của tôi: {screen_context_str}. "
+            except Exception:
+                pass
+        elif recent_doc and recent_doc.extracted_data:
             text_only = recent_doc.extracted_data.get("text", "")
             
             # Nếu kết quả bóc tách bị lưu dưới dạng string của dictionary chứa tọa độ (phrases)

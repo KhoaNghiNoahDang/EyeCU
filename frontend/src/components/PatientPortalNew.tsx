@@ -486,10 +486,25 @@ export function PatientPortalNew({
 
     const text = textStr || chatInput.trim();
     if (!text) return;
+
+    // Chuẩn bị dữ liệu ngữ cảnh trên màn hình
+    let screenContext: any = undefined;
+    if (extractedRecordData) {
+      screenContext = extractedRecordData;
+    } else if (clinicalBundle) {
+      screenContext = clinicalBundle;
+    }
+
     setMessages((prev) => [...prev, { from: "user", text, time: getTimeNow() }]);
     if (!textStr) setChatInput("");
     setBotTyping(true);
-    fetchApi("/patient/chat", { method: "POST", body: { message: payloadStr || text } })
+    fetchApi("/patient/chat", { 
+      method: "POST", 
+      body: { 
+        message: payloadStr || text,
+        screen_context: screenContext
+      } 
+    })
       .then((data) => {
         setMessages((prev) => [...prev, { from: "bot", text: data.reply || "Xin lỗi, tôi không thể trả lời lúc này.", time: getTimeNow(), buttons: data.buttons, images: data.images, raw: data.raw_data }]);
         setBotTyping(false);
