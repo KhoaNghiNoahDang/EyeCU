@@ -374,3 +374,16 @@ class ConsentForm(SQLModel, table=True):
     is_signed: bool = Field(default=False)
     signed_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class QuestionReply(SQLModel, table=True):
+    __tablename__ = "question_replies"
+    __table_args__ = {'extend_existing': True}
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    question_id: uuid.UUID = Field(foreign_key="community_questions.id", index=True)
+    # sender info
+    sender_id: uuid.UUID  # patient.id or staff.id
+    sender_type: str = Field(max_length=10)  # "patient" | "doctor"
+    sender_name: str = Field(max_length=100)
+    content: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
