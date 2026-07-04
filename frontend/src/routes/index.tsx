@@ -266,19 +266,13 @@ function PatientRounds() {
 
   // TTS helper
   const speakText = (text: string) => {
-    if (!window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = "vi-VN";
-    utter.rate = 0.95;
-    utter.pitch = 1.0;
-    utter.volume = 1.0;
-    // Ưu tiên voice tiếng Việt nếu có
-    const voices = window.speechSynthesis.getVoices();
-    const viVoice =
-      voices.find((v) => v.lang.startsWith("vi")) || voices.find((v) => v.lang.startsWith("en"));
-    if (viVoice) utter.voice = viVoice;
-    window.speechSynthesis.speak(utter);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+      const audio = new Audio(`${apiUrl}/voice/tts?text=${encodeURIComponent(text)}`);
+      audio.play().catch(e => console.warn("Audio play blocked", e));
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   useEffect(() => {

@@ -228,7 +228,11 @@ async def transcribe_pre_alert(audio: UploadFile = File(...)):
 @router.get("/tts")
 async def text_to_speech(text: str):
     try:
-        audio_data = await vnpt_client.call_smartvoice_tts(text)
+        audio_data = await vnpt_client.call_smartvoice_tts(
+            text, 
+            voice_model="books", 
+            voice_region="female_north_ngochoa"
+        )
         return StreamingResponse(io.BytesIO(audio_data), media_type="audio/wav")
     except Exception as e:
         return {"status": "error", "message": str(e)}
