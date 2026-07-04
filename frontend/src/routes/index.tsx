@@ -48,7 +48,7 @@ function ClientEmsLeafletMap(props: any) {
 
   if (!MapComp) {
     return (
-      <div className="relative w-full h-[240px] rounded-xl bg-[#e5e5e5] animate-pulse mb-4 z-0" />
+      <div className={`relative w-full rounded-xl bg-[#e5e5e5] animate-pulse mb-4 z-0 ${props.className || "h-[240px]"}`} />
     );
   }
 
@@ -9965,6 +9965,7 @@ function EmsView() {
                 lng={mapCenterLng}
                 onRouteUpdate={setRouteInfo}
                 hospitalId={isMissionStarted ? hospitalId : undefined}
+                className="h-full"
               />
             </div>
             <div className="flex items-center gap-2 mt-2 text-[11px]">

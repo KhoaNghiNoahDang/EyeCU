@@ -104,7 +104,7 @@ export function RealAmbulanceMap({ ambulances, selectedId, onSelect }: { ambulan
   );
 }
 
-export function EmsLeafletMap({ lat, lng, onRouteUpdate, hospitalId }: { lat: number; lng: number, onRouteUpdate?: (info: any) => void, hospitalId?: string }) {
+export function EmsLeafletMap({ lat, lng, onRouteUpdate, hospitalId, className }: { lat: number; lng: number, onRouteUpdate?: (info: any) => void, hospitalId?: string, className?: string }) {
   const [destination, setDestination] = useState<Hospital | null>(null);
   const [route, setRoute] = useState<[number, number][]>([]);
   const [distanceInfo, setDistanceInfo] = useState<{dist: string, time: string} | null>(null);
@@ -148,7 +148,7 @@ export function EmsLeafletMap({ lat, lng, onRouteUpdate, hospitalId }: { lat: nu
   const groupedHospitals = getHospitalsByProvince();
 
   return (
-    <div className="relative w-full h-[400px] rounded-xl bg-[#e5e5e5] overflow-hidden mb-4 border border-slate-200 z-0">
+    <div className={`relative w-full rounded-xl bg-[#e5e5e5] overflow-hidden mb-4 border border-slate-200 z-0 ${className || "h-[400px]"}`}>
       <MapContainer center={[lat, lng]} zoom={15} scrollWheelZoom={true} className="w-full h-full" zoomControl={false}>
         <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
