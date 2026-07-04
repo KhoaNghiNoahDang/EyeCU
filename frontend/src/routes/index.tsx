@@ -1401,6 +1401,11 @@ function AmbientView({
   const [selectedDept, setSelectedDept] = useState("internal");
   const [onlyAlerts, setOnlyAlerts] = useState(false);
   const [fullscreen, setFullscreen] = useState<Camera | null>(null);
+  const [ambientToast, setAmbientToast] = useState("");
+  const ambientShowToast = useCallback((msg: string) => {
+    setAmbientToast(msg);
+    setTimeout(() => setAmbientToast(""), 4000);
+  }, []);
 
   const [cameras, setCameras] = useState<Camera[]>([]);
   const [fallAlert, setFallAlert] = useState<{
@@ -1657,7 +1662,13 @@ function AmbientView({
         <PrivacyCameraFeed />
       </div>
 
-      {fullscreen && <CameraModal cam={fullscreen} onClose={() => setFullscreen(null)} />}
+      {fullscreen && (
+        <CameraModal
+          cam={fullscreen}
+          onClose={() => setFullscreen(null)}
+          onToast={ambientShowToast}
+        />
+      )}
 
       {fallAlert && (
         isMobile ? (
@@ -1737,6 +1748,13 @@ function AmbientView({
             </div>
           </div>
         )
+      )}
+
+      {ambientToast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[999] bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-fade-in max-w-[90vw]">
+          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+          <span className="text-sm font-medium">{ambientToast}</span>
+        </div>
       )}
     </>
   );
@@ -2436,8 +2454,129 @@ function PrivacyCameraFeed() {
   );
 }
 
-function CameraModal({ cam, onClose }: { cam: Camera; onClose: () => void }) {
+function CameraModal({ cam, onClose, onToast }: { cam: Camera; onClose: () => void; onToast?: (msg: string) => void }) {
   const isAlert = cam.status === "alert";
+  const isMobile = useIsMobile();
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const timeStr = now.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+  if (isMobile) {
+    return (
+      <div
+        className="fixed inset-0 z-50 bg-black flex flex-col animate-fade-in"
+        onClick={onClose}
+      >
+        {/* Camera Feed — 60% height */}
+        <div
+          className="relative flex-[6] min-h-0"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <CameraFeed cam={cam} />
+
+          {/* Top-left: close button */}
+          <button
+            onClick={onClose}
+            className="absolute top-3 left-3 z-10 w-9 h-9 rounded-full bg-black/50 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/70"
+            aria-label="Đóng"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          {/* Top-right: status badge */}
+          <div className="absolute top-3 right-3 z-10">
+            <span className="backdrop-blur-md bg-black/50 px-3 py-1.5 rounded-full flex items-center gap-2 text-[11px] uppercase tracking-wider text-white font-geist">
+              <span
+                className="w-2 h-2 rounded-full animate-pulse"
+                style={{ backgroundColor: isAlert ? "#EF4444" : ACCENT }}
+              />
+              {isAlert ? "Cảnh báo Khẩn" : "Ổn định"}
+            </span>
+          </div>
+
+          {/* Fall overlay */}
+          {cam.overlay === "fall" && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <div className="scale-[1.5]">
+                <SkeletonOverlay />
+              </div>
+              <span className="mt-4 text-red-500 font-bold text-xl tracking-widest drop-shadow-[0_0_12px_rgba(239,68,68,0.9)]">
+                PHÁT HIỆN NGÃ
+              </span>
+              <span className="mt-2 text-white/80 text-xs font-geist text-center px-8">
+                Hệ thống AI phát hiện dáng người nằm sàn · Đã thông báo điều dưỡng trực
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Info + Actions — 40% height */}
+        <div
+          className="flex-[4] min-h-0 bg-slate-900 flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Room info */}
+          <div className="px-4 pt-4 pb-3">
+            <div className="flex items-center gap-2 mb-1.5">
+              <Video className="w-4 h-4 text-white/70 shrink-0" />
+              <span className="text-sm font-bold text-white truncate">
+                Phòng {cam.room} · {cam.label} · Khu {cam.zone}
+              </span>
+            </div>
+          </div>
+
+          {/* Timestamp */}
+          <div className="px-4 pb-3">
+            <span className="text-[11px] text-white/50 font-mono">
+              {timeStr} · 1080p · 30fps
+            </span>
+          </div>
+
+          {/* Action buttons */}
+          <div className="px-4 pb-3 flex gap-3">
+            <button
+              onClick={() => {
+                onToast?.(`Đã cử điều dưỡng đến Phòng ${cam.room}`);
+                onClose();
+              }}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all active:scale-[0.97]"
+              style={{ backgroundColor: ACCENT, color: "#0d1f2d" }}
+            >
+              <Siren className="w-4 h-4" />
+              Cử điều dưỡng
+            </button>
+            <button
+              onClick={() => {
+                onToast?.("Đang ghi clip 30 giây...");
+                onClose();
+              }}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white border border-white/20 bg-white/10 hover:bg-white/15 transition-all active:scale-[0.97]"
+            >
+              <Video className="w-4 h-4" />
+              Ghi clip 30s
+            </button>
+          </div>
+
+          {/* Close button */}
+          <div className="px-4 pb-6 mt-auto">
+            <button
+              onClick={onClose}
+              className="w-full py-3 text-sm text-white/40 hover:text-white/60 transition-colors"
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Desktop layout ──
   return (
     <div
       className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in"
@@ -2469,7 +2608,7 @@ function CameraModal({ cam, onClose }: { cam: Camera; onClose: () => void }) {
             className="backdrop-blur-md bg-black/50 text-white w-9 h-9 rounded-full flex items-center justify-center hover:bg-black/70"
             aria-label="Đóng"
           >
-            âœ•
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -2482,22 +2621,27 @@ function CameraModal({ cam, onClose }: { cam: Camera; onClose: () => void }) {
               PHÁT HIỆN NGÃ
             </span>
             <span className="mt-2 text-white/80 text-sm font-geist">
-              Hệ thống AI phát hiện dáng người nằm sàn · Đã thông báo điều
-              dưỡng trực
+              Hệ thống AI phát hiện dáng người nằm sàn · Đã thông báo điều dưỡng trực
             </span>
           </div>
         )}
 
         <div className="absolute bottom-4 left-4 right-4 flex justify-between items-center">
-          <span className="text-[11px] text-white/70 font-mono">14:32:07 · 1080p · 30fps</span>
+          <span className="text-[11px] text-white/70 font-mono">{timeStr} · 1080p · 30fps</span>
           <div className="flex gap-2">
             <button
-              className="px-4 py-2 rounded-lg text-sm font-medium text-slate-900 hover:opacity-90 transition"
+              onClick={() => onToast?.(`Đã cử điều dưỡng đến Phòng ${cam.room}`)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-900 hover:opacity-90 transition"
               style={{ backgroundColor: ACCENT }}
             >
+              <Siren className="w-4 h-4" />
               Cử điều dưỡng
             </button>
-            <button className="px-4 py-2 rounded-lg text-sm font-medium text-white border border-white/30 hover:bg-white/10 transition">
+            <button
+              onClick={() => onToast?.("Đang ghi clip 30 giây...")}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white border border-white/30 hover:bg-white/10 transition"
+            >
+              <Video className="w-4 h-4" />
               Ghi clip 30s
             </button>
           </div>
