@@ -7568,6 +7568,11 @@ function VoiceView() {
 }
 
 function SignedEMRView({ soapeData, onClose }: { soapeData: any; onClose: () => void }) {
+  const { user } = useAuth();
+  const isMobile = useIsMobile();
+  const doctorName = user?.name || "Văn Ngữ";
+  const doctorTitle = user?.title || "BS.";
+  const staffCode = user?.staffCode || "CCHN-12345/BYT";
   const dateStr = new Date().toLocaleString("vi-VN", {
     timeZone: "Asia/Ho_Chi_Minh",
     hour12: false,
@@ -7654,47 +7659,49 @@ function SignedEMRView({ soapeData, onClose }: { soapeData: any; onClose: () => 
       >
         {/* Hospital Header */}
         <div
-          className="border-b p-8 flex justify-between items-start"
+          className={`border-b ${isMobile ? "p-4" : "p-8"} flex ${isMobile ? "flex-col" : "flex-row justify-between items-start"}`}
           style={{ backgroundColor: "#f8fafc", borderColor: "#e2e8f0" }}
         >
-          <div className="flex items-center space-x-4">
+          <div className={`flex items-center ${isMobile ? "space-x-3" : "space-x-4"}`}>
             <div
-              className="w-16 h-16 rounded-xl flex items-center justify-center shadow-inner"
+              className={`${isMobile ? "w-10 h-10" : "w-16 h-16"} rounded-xl flex items-center justify-center shadow-inner`}
               style={{ backgroundColor: "#2563eb" }}
             >
-              <span className="font-bold text-2xl tracking-tighter" style={{ color: "#ffffff" }}>
+              <span className={`font-bold ${isMobile ? "text-base" : "text-2xl"} tracking-tighter`} style={{ color: "#ffffff" }}>
                 EyeCU
               </span>
             </div>
             <div>
               <h1
-                className="text-2xl font-black tracking-tight uppercase"
+                className={`${isMobile ? "text-base" : "text-2xl"} font-black tracking-tight uppercase`}
                 style={{ color: "#0f172a" }}
               >
                 Bệnh viện Đa Khoa EyeCU
               </h1>
-              <p className="text-sm mt-1" style={{ color: "#64748b" }}>
+              <p className={`${isMobile ? "text-[11px]" : "text-sm"} mt-0.5`} style={{ color: "#64748b" }}>
                 123 Đường Y Tế, Phường Sức Khoẻ, TP.Hồ Chí Minh
               </p>
-              <p className="text-sm" style={{ color: "#64748b" }}>
-                Điện thoại: 1900 1234 — Website: eyecu.vn
-              </p>
+              {!isMobile && (
+                <p className="text-sm" style={{ color: "#64748b" }}>
+                  Điện thoại: 1900 1234 — Website: eyecu.vn
+                </p>
+              )}
             </div>
           </div>
-          <div className="text-right">
+          <div className={`${isMobile ? "mt-3 pt-3 border-t" : "text-right"}`} style={{ borderColor: isMobile ? "#e2e8f0" : undefined }}>
             <h2
-              className="text-xl font-bold uppercase tracking-widest"
+              className={`${isMobile ? "text-base" : "text-xl"} font-bold uppercase tracking-widest`}
               style={{ color: "#1e293b" }}
             >
               Bệnh án điện tử
             </h2>
-            <p className="font-mono text-sm mt-1" style={{ color: "#64748b" }}>
+            <p className={`font-mono ${isMobile ? "text-[11px]" : "text-sm"} mt-0.5`} style={{ color: "#64748b" }}>
               Mã BA: EMR-
               {Math.floor(Math.random() * 1000000)
                 .toString()
                 .padStart(6, "0")}
             </p>
-            <p className="text-sm" style={{ color: "#64748b" }}>
+            <p className={`${isMobile ? "text-[11px]" : "text-sm"}`} style={{ color: "#64748b" }}>
               Ngày: {dateStr.split(" ")[1]}
             </p>
           </div>
@@ -7702,51 +7709,51 @@ function SignedEMRView({ soapeData, onClose }: { soapeData: any; onClose: () => 
 
         {/* Patient Info */}
         <div
-          className="p-8 border-b"
+          className={`${isMobile ? "p-4" : "p-8"} border-b`}
           style={{ backgroundColor: "#ffffff", borderColor: "#f1f5f9" }}
         >
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className={`grid grid-cols-2 ${isMobile ? "gap-3" : "md:grid-cols-4 gap-6"}`}>
             <div>
               <p
-                className="text-xs uppercase tracking-widest font-bold mb-1"
+                className={`${isMobile ? "text-[10px]" : "text-xs"} uppercase tracking-widest font-bold mb-0.5`}
                 style={{ color: "#94a3b8" }}
               >
                 Họ tên người bệnh
               </p>
-              <p className="text-lg font-bold uppercase" style={{ color: "#1e293b" }}>
+              <p className={`${isMobile ? "text-sm" : "text-lg"} font-bold uppercase`} style={{ color: "#1e293b" }}>
                 Nguyễn Văn A
               </p>
             </div>
             <div>
               <p
-                className="text-xs uppercase tracking-widest font-bold mb-1"
+                className={`${isMobile ? "text-[10px]" : "text-xs"} uppercase tracking-widest font-bold mb-0.5`}
                 style={{ color: "#94a3b8" }}
               >
                 Tuổi
               </p>
-              <p className="text-lg font-bold" style={{ color: "#1e293b" }}>
+              <p className={`${isMobile ? "text-sm" : "text-lg"} font-bold`} style={{ color: "#1e293b" }}>
                 45
               </p>
             </div>
             <div>
               <p
-                className="text-xs uppercase tracking-widest font-bold mb-1"
+                className={`${isMobile ? "text-[10px]" : "text-xs"} uppercase tracking-widest font-bold mb-0.5`}
                 style={{ color: "#94a3b8" }}
               >
                 Giới tính
               </p>
-              <p className="text-lg font-bold" style={{ color: "#1e293b" }}>
+              <p className={`${isMobile ? "text-sm" : "text-lg"} font-bold`} style={{ color: "#1e293b" }}>
                 Nam
               </p>
             </div>
             <div>
               <p
-                className="text-xs uppercase tracking-widest font-bold mb-1"
+                className={`${isMobile ? "text-[10px]" : "text-xs"} uppercase tracking-widest font-bold mb-0.5`}
                 style={{ color: "#94a3b8" }}
               >
                 Mã BN
               </p>
-              <p className="text-lg font-mono font-bold" style={{ color: "#1e293b" }}>
+              <p className={`${isMobile ? "text-sm" : "text-lg"} font-mono font-bold`} style={{ color: "#1e293b" }}>
                 P-12345
               </p>
             </div>
@@ -7754,97 +7761,133 @@ function SignedEMRView({ soapeData, onClose }: { soapeData: any; onClose: () => 
         </div>
 
         {/* Clinical Notes (SOAPE) */}
-        <div className="p-8 space-y-8" style={{ backgroundColor: "#ffffff" }}>
+        <div className={`${isMobile ? "p-4 space-y-4" : "p-8 space-y-8"}`} style={{ backgroundColor: "#ffffff" }}>
           <Section
             icon="S"
             title="Lý do vào viện (Subjective)"
             content={soapeData?.subjective}
+            isMobile={isMobile}
           />
-          <Section icon="O" title="Khám lâm sàng (Objective)" content={soapeData?.objective} />
+          <Section icon="O" title="Khám lâm sàng (Objective)" content={soapeData?.objective} isMobile={isMobile} />
           <Section
             icon="A"
             title="Chẩn đoán (Assessment)"
             content={soapeData?.assessment}
             highlight
+            isMobile={isMobile}
           />
-          <Section icon="P" title="Y lệnh & Xử trí (Plan)" content={soapeData?.plan} />
-          <Section icon="E" title="Đánh giá lại (Evaluation)" content={soapeData?.evaluation} />
+          <Section icon="P" title="Y lệnh & Xử trí (Plan)" content={soapeData?.plan} isMobile={isMobile} />
+          <Section icon="E" title="Đánh giá lại (Evaluation)" content={soapeData?.evaluation} isMobile={isMobile} />
         </div>
 
         {/* Footer & Signature */}
         <div
-          className="p-8 flex justify-between items-end border-t"
+          className={`${isMobile ? "p-4" : "p-8"} border-t`}
           style={{ backgroundColor: "#f8fafc", borderColor: "#e2e8f0" }}
         >
-          <div className="text-xs max-w-xs" style={{ color: "#94a3b8" }}>
-            Bệnh án điện tử được ký số và lưu trữ theo chuẩn HL7 FHIR. Bản in
-            chỉ có giá trị tham khảo.
-          </div>
-          <div className="text-center relative">
-            {/* Digital Signature Badge */}
-            <div className="absolute -top-12 -left-12 rotate-[-15deg] opacity-80 print:opacity-100">
-              <div
-                className="border-4 rounded-full w-28 h-28 flex items-center justify-center p-1 relative shadow-sm backdrop-blur-sm"
-                style={{ borderColor: "#ef4444", backgroundColor: "rgba(255,255,255,0.5)" }}
-              >
-                <div
-                  className="border rounded-full w-full h-full flex flex-col items-center justify-center font-bold tracking-tighter"
-                  style={{ borderColor: "#ef4444", color: "#dc2626" }}
-                >
-                  <span className="text-[10px] uppercase">Ký số hợp lệ</span>
-                  <svg
-                    className="w-5 h-5 my-0.5"
-                    style={{ color: "#dc2626" }}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+          {isMobile ? (
+            /* ── MOBILE: compact inline signature ── */
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg w-fit">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                </svg>
+                Ký số hợp lệ — {dateStr.split(" ")[0]}
+              </div>
+              <div className="flex items-end justify-between">
+                <div className="text-[10px] max-w-[200px]" style={{ color: "#94a3b8" }}>
+                  Bệnh án điện tử được ký số và lưu trữ theo chuẩn HL7 FHIR.
+                </div>
+                <div className="text-right">
+                  <div
+                    className="font-[cursive] text-xl opacity-90 select-none"
+                    style={{ color: "#1e40af" }}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="3"
-                      d="M5 13l4 4L19 7"
-                    ></path>
-                  </svg>
-                  <span className="text-[8px] font-mono">{dateStr.split(" ")[0]}</span>
+                    {doctorName}
+                  </div>
+                  <p className="font-bold text-[11px] uppercase tracking-wider" style={{ color: "#0f172a" }}>
+                    {doctorTitle} {doctorName.toUpperCase()}
+                  </p>
+                  <p className="text-[10px] mt-0.5" style={{ color: "#64748b" }}>
+                    Chứng chỉ: {staffCode}
+                  </p>
                 </div>
               </div>
             </div>
+          ) : (
+            /* ── DESKTOP: original layout ── */
+            <div className="flex justify-between items-end">
+              <div className="text-xs max-w-xs" style={{ color: "#94a3b8" }}>
+                Bệnh án điện tử được ký số và lưu trữ theo chuẩn HL7 FHIR. Bản in
+                chỉ có giá trị tham khảo.
+              </div>
+              <div className="text-center relative">
+                {/* Digital Signature Badge */}
+                <div className="absolute -top-12 -left-12 rotate-[-15deg] opacity-80 print:opacity-100">
+                  <div
+                    className="border-4 rounded-full w-28 h-28 flex items-center justify-center p-1 relative shadow-sm backdrop-blur-sm"
+                    style={{ borderColor: "#ef4444", backgroundColor: "rgba(255,255,255,0.5)" }}
+                  >
+                    <div
+                      className="border rounded-full w-full h-full flex flex-col items-center justify-center font-bold tracking-tighter"
+                      style={{ borderColor: "#ef4444", color: "#dc2626" }}
+                    >
+                      <span className="text-[10px] uppercase">Ký số hợp lệ</span>
+                      <svg
+                        className="w-5 h-5 my-0.5"
+                        style={{ color: "#dc2626" }}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="3"
+                          d="M5 13l4 4L19 7"
+                        ></path>
+                      </svg>
+                      <span className="text-[8px] font-mono">{dateStr.split(" ")[0]}</span>
+                    </div>
+                  </div>
+                </div>
 
-            <p className="font-bold mb-6 relative z-10" style={{ color: "#1e293b" }}>
-              BÁC SĨ ĐIỀU TRỊ
-            </p>
-            <div
-              className="font-[cursive] text-4xl mb-4 opacity-90 relative z-10 select-none"
-              style={{ color: "#1e40af" }}
-            >
-              Văn Ngữ
+                <p className="font-bold mb-6 relative z-10" style={{ color: "#1e293b" }}>
+                  BÁC SĨ ĐIỀU TRỊ
+                </p>
+                <div
+                  className="font-[cursive] text-4xl mb-4 opacity-90 relative z-10 select-none"
+                  style={{ color: "#1e40af" }}
+                >
+                  {doctorName}
+                </div>
+                <p
+                  className="font-bold uppercase tracking-widest relative z-10"
+                  style={{ color: "#0f172a" }}
+                >
+                  {doctorTitle} {doctorName.toUpperCase()}
+                </p>
+                <p className="text-sm mt-1 relative z-10" style={{ color: "#64748b" }}>
+                  Chứng chỉ: {staffCode}
+                </p>
+              </div>
             </div>
-            <p
-              className="font-bold uppercase tracking-widest relative z-10"
-              style={{ color: "#0f172a" }}
-            >
-              BS. VĂN NGỮ
-            </p>
-            <p className="text-sm mt-1 relative z-10" style={{ color: "#64748b" }}>
-              Chứng chỉ: CCHN-12345/BYT
-            </p>
-          </div>
+          )}
         </div>
       </div>
 
       {/* Actions */}
-      <div className="mt-8 flex justify-center space-x-4 print:hidden">
+      <div className={`mt-6 md:mt-8 flex ${isMobile ? "flex-col gap-2" : "justify-center space-x-4"} print:hidden`}>
         <button
           onClick={onClose}
-          className="px-6 py-2.5 rounded-full border-2 font-bold transition-all active:scale-95"
+          className={`${isMobile ? "w-full" : ""} px-6 py-2.5 rounded-full border-2 font-bold transition-all active:scale-95`}
           style={{ borderColor: "#e2e8f0", color: "#475569", backgroundColor: "transparent" }}
         >
           Quay lại
         </button>
         <button
           onClick={handleSavePDF}
-          className="px-6 py-2.5 rounded-full font-bold transition-all active:scale-95 shadow-md hover:shadow-lg flex items-center space-x-2"
+          className={`${isMobile ? "w-full" : ""} px-6 py-2.5 rounded-full font-bold transition-all active:scale-95 shadow-md hover:shadow-lg flex items-center justify-center gap-2`}
           style={{ backgroundColor: "#1e293b", color: "#ffffff" }}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -7859,7 +7902,7 @@ function SignedEMRView({ soapeData, onClose }: { soapeData: any; onClose: () => 
         </button>
         <button
           onClick={() => window.print()}
-          className="px-6 py-2.5 rounded-full font-bold transition-all active:scale-95 shadow-md hover:shadow-lg flex items-center space-x-2"
+          className={`${isMobile ? "w-full" : ""} px-6 py-2.5 rounded-full font-bold transition-all active:scale-95 shadow-md hover:shadow-lg flex items-center justify-center gap-2`}
           style={{ backgroundColor: ACCENT, color: "#0f172a" }}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -7882,17 +7925,19 @@ function Section({
   title,
   content,
   highlight = false,
+  isMobile = false,
 }: {
   icon: string;
   title: string;
   content?: string;
   highlight?: boolean;
+  isMobile?: boolean;
 }) {
   if (!content || content === "Chưa có thông tin") return null;
   return (
-    <div className="flex items-start space-x-4">
+    <div className={`flex items-start ${isMobile ? "space-x-2.5" : "space-x-4"}`}>
       <div
-        className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0"
+        className={`${isMobile ? "w-6 h-6 text-[11px]" : "w-8 h-8 text-sm"} rounded-lg flex items-center justify-center font-bold shrink-0`}
         style={{
           backgroundColor: highlight ? "#fee2e2" : "#f1f5f9",
           color: highlight ? "#b91c1c" : "#475569",
@@ -7902,12 +7947,12 @@ function Section({
       </div>
       <div>
         <h3
-          className="font-bold text-sm uppercase tracking-wider mb-1"
+          className={`font-bold ${isMobile ? "text-[11px]" : "text-sm"} uppercase tracking-wider ${isMobile ? "mb-0.5" : "mb-1"}`}
           style={{ color: highlight ? "#b91c1c" : "#94a3b8" }}
         >
           {title}
         </h3>
-        <p className="leading-relaxed text-lg" style={{ color: "#1e293b" }}>
+        <p className={`leading-relaxed ${isMobile ? "text-sm" : "text-lg"}`} style={{ color: "#1e293b" }}>
           {content}
         </p>
       </div>
