@@ -342,7 +342,7 @@ class VnptAPIClient:
             "metadata": metadata or {"button_variables": []},
         }
         try:
-            async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
+            async with httpx.AsyncClient(timeout=60.0) as client:
                 resp = await client.post(
                     "https://assistant-stream.vnpt.vn/v1/conversation",
                     json=payload,

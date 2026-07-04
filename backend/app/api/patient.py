@@ -152,6 +152,10 @@ async def scan_document(
         
         ocr_data = await vnpt_client.call_smartreader_ocr(file_bytes, "doc.jpg")
         
+        # Kiểm tra nếu OCR trả về lỗi 401 hoặc text rỗng do lỗi API
+        if not ocr_data.get("text") and "error" in str(ocr_data.get("raw", "")):
+            return {"status": "error", "message": "API bóc tách VNPT gặp lỗi: " + str(ocr_data.get("raw"))}
+            
         from app.db.models import SmartReaderDoc
         doc = SmartReaderDoc(
             patient_id=user.id,
@@ -196,34 +200,37 @@ async def patient_chatbot(
             except Exception:
                 pass
         elif recent_doc and recent_doc.extracted_data:
-            text_only = recent_doc.extracted_data.get("text", "")
+            words = []
+            def extract_text(obj):
+                if isinstance(obj, dict):
+                    if "text" in obj:
+                        words.append(str(obj["text"]))
+                    for v in obj.values():
+                        if isinstance(v, (dict, list)):
+                            extract_text(v)
+                elif isinstance(obj, list):
+                    for item in obj:
+                        if isinstance(item, (dict, list)):
+                            extract_text(item)
             
-            # Nếu kết quả bóc tách bị lưu dưới dạng string của dictionary chứa tọa độ (phrases)
-            if text_only.startswith("{") and "'phrases':" in text_only:
-                import ast
-                try:
-                    d = ast.literal_eval(text_only)
-                    words = []
-                    def extract_text(obj):
-                        if isinstance(obj, dict):
-                            if "text" in obj:
-                                words.append(str(obj["text"]))
-                            for v in obj.values():
-                                extract_text(v)
-                        elif isinstance(obj, list):
-                            for item in obj:
-                                extract_text(item)
-                    extract_text(d)
-                    text_only = " ".join(words)
-                except Exception:
-                    pass
+            raw_dict = recent_doc.extracted_data.get("raw", {})
+            if "phrases" in raw_dict:
+                extract_text(raw_dict["phrases"])
+            else:
+                extract_text(raw_dict)
             
-            # Giới hạn số lượng ký tự gửi cho Smartbot để tránh lỗi quá tải payload (VD: 1500 ký tự)
-            text_only = text_only[:1500]
+            text_only = " ".join(words)[:5000]
             
-            context = f"Thông tin hồ sơ y tế/đơn thuốc/xét nghiệm gần nhất của tôi: {text_only}. "
+            # Đổi prompt để ép LLM phải đọc dữ liệu
+            context = f"Dưới đây là DỮ LIỆU XÉT NGHIỆM CỦA TÔI:\n{text_only}\n\nDựa vào các số liệu ở trên, hãy trả lời câu hỏi: "
         
-    final_message = context + "Câu hỏi của tôi: " + data.message if context else data.message
+    final_message = context + data.message if context else data.message
+    
+    # In ra console để theo dõi chính xác nội dung gửi lên VNPT Bot
+    print("========== GỬI LÊN VNPT BOT ==========")
+    print(final_message)
+    print("======================================")
+        
     # Gắn thẻ metadata định danh bệnh nhân (CCCD) để bot nhận biết và gọi API Đặt lịch
     metadata = {
         "button_variables": [

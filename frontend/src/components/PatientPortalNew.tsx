@@ -477,7 +477,8 @@ export function PatientPortalNew({
     // Chuẩn bị dữ liệu ngữ cảnh trên màn hình
     let screenContext: any = undefined;
     if (extractedRecordData) {
-      screenContext = extractedRecordData;
+      // Khi đã quét tài liệu, ta KHÔNG gửi screenContext để Backend dùng recent_doc (vốn có hàm parse riêng rất tốt)
+      screenContext = undefined;
     } else if (clinicalBundle) {
       screenContext = clinicalBundle;
     }
@@ -488,8 +489,10 @@ export function PatientPortalNew({
     let cleanScreenContext = screenContext;
     try {
       if (screenContext) {
-        const rawStr = JSON.stringify(screenContext);
-        cleanScreenContext = rawStr.replace(/[\{\}\[\]"]/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 1500);
+        // Tránh lỗi 422: không dùng replace thành chuỗi mà truyền thẳng object
+        cleanScreenContext = screenContext;
+      } else {
+        cleanScreenContext = undefined;
       }
     } catch (e) {}
 
@@ -811,6 +814,7 @@ export function PatientPortalNew({
       stopCamera();
       
       if (res.status === "success") {
+        setExtractedRecordData(res.data);
         setMessages((prev) => [
           ...prev,
           {
@@ -2810,7 +2814,7 @@ export function PatientPortalNew({
                   <Phone className="h-3.5 w-3.5 text-[#0d1f2d]" />
                   <div className="flex flex-col">
                     <span className="text-[12px] font-bold text-[#0d1f2d] leading-none">115</span>
-                    <span className="text-[7px] text-[#0d1f2d] uppercase font-semibold">Hotline hỗ trợ</span>
+                    <span className="text-[7px] text-[#0d1f2d] uppercase font-semibold">Hotline</span>
                   </div>
                 </div>
               </div>
