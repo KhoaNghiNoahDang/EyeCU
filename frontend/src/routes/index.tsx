@@ -7290,6 +7290,10 @@ function VoiceView() {
   const recognitionRef = useRef<any>(null);
   const finalTranscriptRef = useRef<string>("");
 
+  const handleEditField = (field: string, newValue: string) => {
+    setSoapeData((prev: any) => ({ ...prev, [field]: newValue }));
+  };
+
   const startRecording = async () => {
     try {
       setErrorMsg("");
@@ -7507,30 +7511,35 @@ function VoiceView() {
                 value={soapeData?.subjective}
                 filled={!!soapeData}
                 isProcessing={isProcessing}
+                onEdit={(v) => handleEditField("subjective", v)}
               />
               <EMRField
                 label="Khám lâm sàng (O — Objective)"
                 value={soapeData?.objective}
                 filled={!!soapeData}
                 isProcessing={isProcessing}
+                onEdit={(v) => handleEditField("objective", v)}
               />
               <EMRField
                 label="Chẩn đoán (A — Assessment)"
                 value={soapeData?.assessment}
                 filled={!!soapeData}
                 isProcessing={isProcessing}
+                onEdit={(v) => handleEditField("assessment", v)}
               />
               <EMRField
                 label="Xử trí / Y lệnh (P — Plan)"
                 value={soapeData?.plan}
                 filled={!!soapeData}
                 isProcessing={isProcessing}
+                onEdit={(v) => handleEditField("plan", v)}
               />
               <EMRField
                 label="Đánh giá lại (E — Evaluation)"
                 value={soapeData?.evaluation}
                 filled={!!soapeData}
                 isProcessing={isProcessing}
+                onEdit={(v) => handleEditField("evaluation", v)}
               />
             </div>
             <button
@@ -7945,29 +7954,89 @@ function EMRField({
   value,
   filled,
   isProcessing,
+  onEdit,
 }: {
   label: string;
   value?: string;
   filled: boolean;
   isProcessing?: boolean;
+  onEdit?: (newValue: string) => void;
 }) {
-  return (
-    <div
-      className="border border-slate-200 rounded-lg p-3 transition-colors"
-      style={filled ? { borderColor: ACCENT } : undefined}
-    >
-      <p className="text-[12px] font-geist uppercase tracking-wider text-slate-500">{label}</p>
-      {isProcessing ? (
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value || "");
+
+  if (isProcessing) {
+    return (
+      <div className="border border-slate-200 rounded-lg p-3 transition-colors">
+        <p className="text-[12px] font-geist uppercase tracking-wider text-slate-500">{label}</p>
         <div className="animate-pulse flex space-x-2 mt-2">
           <div className="h-4 w-3/4 bg-slate-200 rounded"></div>
         </div>
-      ) : (
-        <p
-          className={`text-[15px] mt-1 ${filled ? "text-slate-900 font-medium whitespace-pre-wrap" : "text-slate-300"}`}
-        >
-          {filled ? value : "— đang chờ —"}
-        </p>
-      )}
+      </div>
+    );
+  }
+
+  if (editing) {
+    return (
+      <div className="border-2 rounded-lg p-3 transition-colors" style={{ borderColor: ACCENT }}>
+        <p className="text-[12px] font-geist uppercase tracking-wider text-slate-500">{label}</p>
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          className="w-full mt-2 p-2 border border-slate-300 rounded-lg text-[15px] text-slate-900 font-medium resize-y focus:outline-none focus:border-[#88E8F2] focus:ring-1 focus:ring-[#88E8F2] transition-colors"
+          rows={3}
+          autoFocus
+        />
+        <div className="flex gap-2 mt-2">
+          <button
+            onClick={() => {
+              if (onEdit) onEdit(draft);
+              setEditing(false);
+            }}
+            className="px-3 py-1.5 rounded-lg text-[12px] font-bold text-slate-900 transition hover:opacity-90"
+            style={{ backgroundColor: ACCENT }}
+          >
+            Lưu
+          </button>
+          <button
+            onClick={() => {
+              setDraft(value || "");
+              setEditing(false);
+            }}
+            className="px-3 py-1.5 rounded-lg text-[12px] font-bold text-slate-600 border border-slate-200 hover:bg-slate-50 transition"
+          >
+            Hủy
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onClick={() => {
+        setDraft(value || "");
+        setEditing(true);
+      }}
+      className="border border-slate-200 rounded-lg p-3 transition-colors group cursor-pointer hover:border-[#88E8F2] hover:bg-slate-50/50"
+      style={filled ? { borderColor: ACCENT } : undefined}
+    >
+      <div className="flex items-center justify-between">
+        <p className="text-[12px] font-geist uppercase tracking-wider text-slate-500">{label}</p>
+        {filled && (
+          <span className="text-[10px] text-slate-400 group-hover:text-slate-600 transition-colors flex items-center gap-1">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+            Nhấn để sửa
+          </span>
+        )}
+      </div>
+      <p
+        className={`text-[15px] mt-1 ${filled ? "text-slate-900 font-medium whitespace-pre-wrap" : "text-slate-300"}`}
+      >
+        {filled ? value : "— đang chờ —"}
+      </p>
     </div>
   );
 }
