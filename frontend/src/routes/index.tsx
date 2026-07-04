@@ -1925,13 +1925,28 @@ function CameraCard({
 }
 
 function CameraFeed({ cam }: { cam: Camera }) {
-  const [streamFrame, setStreamFrame] = useState<string | null>(null);
+  // ── Zero re-render streaming ────────────────────────────────────────────
+  // Thay vi useState (gay re-render moi frame), dung useRef de cap nhat
+  // img.src truc tiep qua DOM. Ket qua: 0 React re-render khi stream chay.
+  // Voi 4 may x 5 FPS = 20 frame/giay -> tiet kiem 20 re-render/giay tren browser.
+  const imgRef = useRef<HTMLImageElement>(null);
+  const placeholderRef = useRef<HTMLDivElement>(null);
+  const hasStreamRef = useRef(false);
 
   useEffect(() => {
     const handleStream = (e: any) => {
-      // cam.room could be "101", "102", "103"
-      if (e.detail.room === cam.room || e.detail.room === `P.${cam.room}`) {
-        setStreamFrame(e.detail.image);
+      // Khop room: "101" hoac "P.101"
+      if (e.detail.room !== cam.room && e.detail.room !== `P.${cam.room}`) return;
+
+      // Cap nhat img.src truc tiep, khong qua React state
+      if (imgRef.current) {
+        imgRef.current.src = e.detail.image;
+        // An placeholder chi 1 lan khi co stream frame dau tien
+        if (!hasStreamRef.current) {
+          hasStreamRef.current = true;
+          if (placeholderRef.current) placeholderRef.current.style.display = "none";
+          imgRef.current.style.opacity = "1";
+        }
       }
     };
     window.addEventListener("camera-stream", handleStream);
@@ -1940,40 +1955,63 @@ function CameraFeed({ cam }: { cam: Camera }) {
 
   return (
     <div className="absolute inset-0">
-      {streamFrame ? (
-        <img
-          src={streamFrame}
-          alt="Live Stream"
-          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-150"
+      {/* Placeholder background — an di khi stream bat dau */}
+      <div ref={placeholderRef} className="absolute inset-0">
+        <div
+          className="absolute inset-0"
+          style={{
+            background: "linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%)",
+          }}
         />
-      ) : (
-        <>
-          <div
-            className="absolute inset-0"
-            style={{
-              background: "linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%)",
-            }}
-          />
-          <div
-            className="absolute inset-0 opacity-20"
-            style={{
-              backgroundImage:
-                "repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 3px)",
-            }}
-          />
-          {/* Faux room geometry */}
-          <svg viewBox="0 0 200 120" className="absolute inset-0 w-full h-full opacity-30">
-            <path d="M0 80 L60 50 L140 50 L200 80 L200 120 L0 120 Z" fill="#334155" />
-            <rect x="70" y="60" width="60" height="30" fill="#475569" opacity="0.6" />
-            <line x1="0" y1="80" x2="200" y2="80" stroke="#64748B" strokeWidth="0.5" />
-          </svg>
-        </>
-      )}
-      {/* Timestamp */}
-      <div className="absolute bottom-7 right-2 text-[9px] font-mono text-white/50">
-        {cam.room === "103" ? "14:32:07" : "14:32:0" + ((parseInt(cam.room) % 10) + 1)}
+        <div
+          className="absolute inset-0 opacity-20"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 3px)",
+          }}
+        />
+        {/* Faux room geometry */}
+        <svg viewBox="0 0 200 120" className="absolute inset-0 w-full h-full opacity-30">
+          <path d="M0 80 L60 50 L140 50 L200 80 L200 120 L0 120 Z" fill="#334155" />
+          <rect x="70" y="60" width="60" height="30" fill="#475569" opacity="0.6" />
+          <line x1="0" y1="80" x2="200" y2="80" stroke="#64748B" strokeWidth="0.5" />
+        </svg>
       </div>
+
+      {/* Live stream img — cap nhat src truc tiep qua DOM, khong qua useState */}
+      <img
+        ref={imgRef}
+        alt="Live Stream"
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ opacity: 0, transition: "opacity 0.3s ease" }}
+      />
+
+      {/* Timestamp realtime — tach thanh component rieng de khong re-render CameraFeed */}
+      <LiveTimestamp />
     </div>
+  );
+}
+
+/** Timestamp cap nhat moi giay — tach thanh component rieng, dung DOM truc tiep */
+function LiveTimestamp() {
+  const tsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const tick = () => {
+      if (tsRef.current) {
+        const now = new Date();
+        tsRef.current.textContent = [
+          String(now.getHours()).padStart(2, "0"),
+          String(now.getMinutes()).padStart(2, "0"),
+          String(now.getSeconds()).padStart(2, "0"),
+        ].join(":");
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <div ref={tsRef} className="absolute bottom-7 right-2 text-[9px] font-mono text-white/50" />
   );
 }
 
@@ -2039,14 +2077,22 @@ function PrivacyCameraFeed() {
   const [pcfState, setPcfState] = useState<PcfState>("normal");
   const [transitioning, setTransitioning] = useState(false);
   const [flashText, setFlashText] = useState(false);
-  const [timestamp, setTimestamp] = useState("14:32:07");
-  const [streamFrame, setStreamFrame] = useState<string | null>(null);
+  // streamFrame va timestamp dung useRef + DOM truc tiep, tranh re-render moi giay/moi frame
+  const streamImgRef = useRef<HTMLImageElement>(null);
+  const streamPlaceholderRef = useRef<HTMLDivElement>(null);
+  const hasStreamRef = useRef(false);
+  const timestampRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     const handleStream = (e: any) => {
-      // Usually "103" or "P.103"
-      if (e.detail.room === "103" || e.detail.room === "P.103") {
-        setStreamFrame(e.detail.image);
+      if (e.detail.room !== "103" && e.detail.room !== "P.103") return;
+      if (streamImgRef.current) {
+        streamImgRef.current.src = e.detail.image;
+        if (!hasStreamRef.current) {
+          hasStreamRef.current = true;
+          if (streamPlaceholderRef.current) streamPlaceholderRef.current.style.display = "none";
+          streamImgRef.current.style.opacity = "1";
+        }
       }
     };
     window.addEventListener("camera-stream", handleStream);
@@ -2055,10 +2101,14 @@ function PrivacyCameraFeed() {
 
   useEffect(() => {
     const id = setInterval(() => {
-      const now = new Date();
-      setTimestamp(
-        `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`,
-      );
+      if (timestampRef.current) {
+        const now = new Date();
+        timestampRef.current.textContent = [
+          String(now.getHours()).padStart(2, "0"),
+          String(now.getMinutes()).padStart(2, "0"),
+          String(now.getSeconds()).padStart(2, "0"),
+        ].join(":") + " · 1080p · 30fps";
+      }
     }, 1000);
     return () => clearInterval(id);
   }, []);
@@ -2126,41 +2176,38 @@ function PrivacyCameraFeed() {
                 : `0 0 16px ${ACCENT}20`,
             }}
           >
-            {/* Background elements */}
-            {!streamFrame && (
-              <>
-                <div
-                  className="absolute inset-0 pointer-events-none z-0"
-                  style={{
-                    backgroundImage:
-                      "repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 3px)",
-                  }}
-                />
-                <div
-                  className="absolute inset-0 z-0"
-                  style={{
-                    background: "radial-gradient(ellipse at center, #0d2030 0%, #060e16 100%)",
-                  }}
-                />
-                <svg
-                  viewBox="0 0 320 180"
-                  className="absolute inset-0 w-full h-full opacity-15 z-0"
-                >
-                  <path d="M0 120 L80 70 L240 70 L320 120 L320 180 L0 180 Z" fill="#1e3a4a" />
-                  <rect x="110" y="80" width="100" height="50" fill="#1a2f3d" rx="2" />
-                  <line x1="0" y1="120" x2="320" y2="120" stroke="#334155" strokeWidth="1" />
-                </svg>
-              </>
-            )}
-
-            {/* Live Stream Image */}
-            {streamFrame && (
-              <img
-                src={streamFrame}
-                alt="Live Privacy Stream"
-                className="absolute inset-0 w-full h-full object-cover z-10 transition-opacity duration-150"
+            {/* Background elements placeholder — an di khi co stream */}
+            <div ref={streamPlaceholderRef} className="absolute inset-0 z-0">
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  backgroundImage:
+                    "repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 3px)",
+                }}
               />
-            )}
+              <div
+                className="absolute inset-0"
+                style={{
+                  background: "radial-gradient(ellipse at center, #0d2030 0%, #060e16 100%)",
+                }}
+              />
+              <svg
+                viewBox="0 0 320 180"
+                className="absolute inset-0 w-full h-full opacity-15"
+              >
+                <path d="M0 120 L80 70 L240 70 L320 120 L320 180 L0 180 Z" fill="#1e3a4a" />
+                <rect x="110" y="80" width="100" height="50" fill="#1a2f3d" rx="2" />
+                <line x1="0" y1="120" x2="320" y2="120" stroke="#334155" strokeWidth="1" />
+              </svg>
+            </div>
+
+            {/* Live Stream Image — cap nhat src truc tiep, khong re-render */}
+            <img
+              ref={streamImgRef}
+              alt="Live Privacy Stream"
+              className="absolute inset-0 w-full h-full object-cover z-10"
+              style={{ opacity: 0, transition: "opacity 0.3s ease" }}
+            />
 
             {/* Top-left badge */}
             <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-full px-2.5 py-1">
@@ -2170,7 +2217,7 @@ function PrivacyCameraFeed() {
 
             {/* Timestamp */}
             <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 text-[11px] font-mono text-white/40">
-              {timestamp} · 1080p · 30fps
+              <span ref={timestampRef}>14:32:07 · 1080p · 30fps</span>
             </div>
 
             {/* Top-right status */}

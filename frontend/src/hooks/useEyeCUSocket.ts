@@ -8,6 +8,7 @@ export type SocketMessageType =
   | "FAST_TRACK_SYNC"
   | "PRE_ALERT"
   | "CAMERA_EVENT"
+  | "CAMERA_STREAM"
   | "INCIDENT_ALERT"
   | "OCR_RESULT_SYNC"
   | "FACE_VERIFY_SUCCESS"

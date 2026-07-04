@@ -52,11 +52,17 @@ def get_incidents(db: Session = Depends(get_db)):
 
 
 class ConnectionManager:
+    # Toc do toi da forward CAMERA_STREAM den dashboard (5 FPS = 200ms)
+    # Giup chong qua tai khi 4 may gui dong thoi
+    STREAM_FORWARD_INTERVAL = 0.20  # 200ms = 5 FPS
+
     def __init__(self):
-        # Danh sach cac ket noi WebSocket dang mo
+        # Danh sach cac ket noi WebSocket dang mo (edge_ai + dashboard)
         self.active_connections: List[WebSocket] = []
         # Theo doi room dang duoc edge_ai su dung: { room_id: websocket }
         self.active_rooms: dict[str, WebSocket] = {}
+        # Throttle per-room: lan cuoi forward CAMERA_STREAM cua room nay
+        self.room_last_forward: dict[str, float] = {}
         self.use_redis = False
 
     async def connect(self, websocket: WebSocket):
@@ -87,6 +93,7 @@ class ConnectionManager:
                 break
         if room_to_remove:
             del self.active_rooms[room_to_remove]
+            self.room_last_forward.pop(room_to_remove, None)
             print(f"[Ambient] Room {room_to_remove} freed. Active rooms: {list(self.active_rooms.keys())}")
 
     def find_available_room(self, prefix: str = "P.10") -> str | None:
@@ -97,6 +104,15 @@ class ConnectionManager:
                 return candidate
         return None
 
+    def get_dashboard_viewers(self) -> List[WebSocket]:
+        """Tra ve danh sach cac dashboard viewer (loai tru edge_ai senders)."""
+        edge_ai_senders = set(self.active_rooms.values())
+        return [c for c in self.active_connections if c not in edge_ai_senders]
+
+    def is_edge_ai_sender(self, websocket: WebSocket) -> bool:
+        """Kiem tra xem websocket nay co phai la edge_ai camera sender khong."""
+        return websocket in self.active_rooms.values()
+
     async def keep_alive(self, websocket: WebSocket):
         """Ping/Pong moi 20 giay de ngan Render/Nginx cat ket noi idle."""
         try:
@@ -106,13 +122,57 @@ class ConnectionManager:
         except Exception:
             self.disconnect(websocket)
 
-    async def broadcast(self, message: dict):
-        """In-memory broadcast den tat ca dashboard dang mo."""
+    async def forward_camera_stream(self, message: dict, sender: WebSocket) -> bool:
+        """Forward CAMERA_STREAM den dashboard viewers voi throttle per-room.
+
+        Logic:
+        1. Neu khong co dashboard nao dang xem -> drop frame (tiet kiem bandwidth)
+        2. Per-room throttle: toi da 5 FPS forward bat ke edge_ai gui nhanh bao nhieu
+        3. Chi gui cho dashboard viewers, KHONG gui lai cho edge_ai senders
+
+        Returns:
+            True neu frame duoc forward, False neu bi drop.
+        """
+        viewers = self.get_dashboard_viewers()
+        if not viewers:
+            return False  # Khong ai xem -> drop sach
+
+        room_id = message.get("room_id", "__unknown__")
+        now = time.time()
+        last = self.room_last_forward.get(room_id, 0.0)
+        if now - last < self.STREAM_FORWARD_INTERVAL:
+            return False  # Throttle: chua den 200ms tu lan gui truoc -> drop
+
+        self.room_last_forward[room_id] = now
+
+        # Forward den tat ca dashboard viewers song song
+        disconnected = []
+        for viewer in viewers:
+            try:
+                await viewer.send_json(message)
+            except Exception:
+                disconnected.append(viewer)
+        for conn in disconnected:
+            self.disconnect(conn)
+        return True
+
+    async def broadcast(self, message: dict, exclude: WebSocket | None = None):
+        """Broadcast thong thong cho tat ca connections (non-stream messages).
+        
+        Dung cho cac message nhu GPS_UPDATE, PRE_ALERT, INCIDENT_ALERT...
+        KHONG dung cho CAMERA_STREAM (dung forward_camera_stream thay the).
+
+        Args:
+            message: Du lieu can gui
+            exclude: WebSocket connection bi loai tru khoi broadcast (VD: nguoi gui)
+        """
         if not self.active_connections:
             return
 
         disconnected = []
         for connection in self.active_connections:
+            if exclude is not None and connection is exclude:
+                continue  # Bo qua nguoi gui (tranh echo loop)
             try:
                 await connection.send_json(message)
             except Exception:
@@ -164,7 +224,24 @@ async def websocket_ambient_endpoint(websocket: WebSocket):
                 except Exception as e:
                     print(f"[Ambient WS] Error saving incident to DB: {e}")
 
-            await ambient_manager.broadcast(data)
+            if data.get("type") == "CAMERA_STREAM":
+                # Dung forward_camera_stream voi throttle + viewer-aware drop
+                # Khong bao gio gui lai cho edge_ai sender (loai tru qua get_dashboard_viewers)
+                await ambient_manager.forward_camera_stream(data, sender=websocket)
+            elif data.get("type") == "FALL_DETECTED":
+                # FALL_DETECTED: broadcast cho tat ca dashboard viewers (khong gui lai sender)
+                viewers = ambient_manager.get_dashboard_viewers()
+                disconnected = []
+                for viewer in viewers:
+                    try:
+                        await viewer.send_json(data)
+                    except Exception:
+                        disconnected.append(viewer)
+                for conn in disconnected:
+                    ambient_manager.disconnect(conn)
+            else:
+                # Tat ca message khac: broadcast cho tat ca (GPS_UPDATE, PRE_ALERT, ...)
+                await ambient_manager.broadcast(data)
     except WebSocketDisconnect:
         ambient_manager.disconnect(websocket)
     except Exception as e:

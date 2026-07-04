@@ -5,6 +5,7 @@ import json
 import websocket
 import threading
 import queue
+import urllib.request
 from config import ROOM_PREFIX, ROOM_ID_FALLBACK, WS_BACKEND_URL, CAMERA_SOURCE, FALL_COOLDOWN_SECONDS
 from modules.vnpt_person_detect import detect_person_bbox
 from modules.pose_extractor import get_landmarks, draw_skeleton
@@ -34,6 +35,26 @@ def ws_reader(ws):
         except:
             break
 
+def wake_up_backend():
+    """Ping HTTP de Wake-up Render.com truoc khi ket noi WebSocket.
+    Render Free Tier spin-down sau 15 phut idle, can ~30-60s de khoi dong lai."""
+    # Chuyen doi wss:// -> https:// de ping HTTP
+    http_url = WS_BACKEND_URL.replace("wss://", "https://").replace("ws://", "http://")
+    # Lay base URL (bo di path /api/ambient/ws/live)
+    base_url = http_url.split("/api/")[0] + "/api/ambient/active-rooms"
+    print(f"[INFO] Dang wake-up backend tai {base_url}...")
+    for attempt in range(3):
+        try:
+            req = urllib.request.urlopen(base_url, timeout=20)
+            if req.status == 200:
+                print(f"[OK] Backend da thuc sau {attempt+1} lan thu.")
+                return True
+        except Exception as e:
+            print(f"[RETRY {attempt+1}/3] Backend chua san sang: {e}. Cho 5s...")
+            time.sleep(5)
+    print("[WARN] Khong wake-up duoc backend, tiep tuc ket noi WebSocket...")
+    return False
+
 def connect_ws():
     for attempt in range(5):
         try:
@@ -47,8 +68,11 @@ def connect_ws():
             time.sleep(3)
     sys.exit(1)
 
-def register_room(ws: websocket.WebSocket, timeout: float = 5.0) -> str:
-    """Gui REGISTER toi server, doi phan hoi ROOM_ASSIGNED. Tra ve room_id."""
+def register_room(ws: websocket.WebSocket, timeout: float = 15.0) -> str:
+    """Gui REGISTER toi server, doi phan hoi ROOM_ASSIGNED. Tra ve room_id.
+    
+    Timeout mac dinh tang len 15s de xu ly Render.com cold-start cham.
+    """
     # Gui yeu cau dang ky room
     ws.send(json.dumps({
         "type": "REGISTER",
@@ -82,6 +106,9 @@ def register_room(ws: websocket.WebSocket, timeout: float = 5.0) -> str:
     return ROOM_ID_FALLBACK
 
 def main():
+    # Wake-up backend truoc (quan trong voi Render.com Free Tier)
+    wake_up_backend()
+    
     ws = connect_ws()
 
     # Dang ky room voi server
@@ -91,6 +118,14 @@ def main():
     cap = cv2.VideoCapture(cam)
     last_alert = 0
     last_stream_time = 0
+
+    # --- Adaptive FPS ---
+    # 4 may x 5 FPS x ~8KB = ~160 KB/s upload tong cong -> Render.com Free an toan
+    # Khi nga: tang len 10 FPS de nhan vien y te thay canh bao nhanh hon
+    FPS_NORMAL = 5          # 5 FPS khi phong on dinh (giam bandwidth 50%)
+    FPS_ALERT  = 10         # 10 FPS khi phat hien nga (uu tien phan hoi nhanh)
+    INTERVAL_NORMAL = 1.0 / FPS_NORMAL   # 0.200s
+    INTERVAL_ALERT  = 1.0 / FPS_ALERT    # 0.100s
 
     print(f"[OK] Camera dang chay. Room: {room_id}. Nhan Ctrl+C de thoat.")
 
@@ -102,11 +137,14 @@ def main():
 
         bboxes = detect_person_bbox(frame)
         if not bboxes:
-            # Khong co ai trong phong -> phat live stream nguyen ban (khong lo lo rieng tu vi phong trong)
+            # Phong trong: gui frame nho 320x180 voi FPS thap de tiet kiem bandwidth
+            # Khong lo lo rieng tu vi khong co nguoi trong phong
             now = time.time()
-            if now - last_stream_time >= 0.1:
+            if now - last_stream_time >= INTERVAL_NORMAL:
                 try:
-                    ws_queue.put_nowait((send_camera_stream, (ws, room_id, frame.copy())))
+                    # Giam resolution khi phong trong: 320x180 thay vi 480x270
+                    small_empty = cv2.resize(frame, (320, 180))
+                    ws_queue.put_nowait((send_camera_stream, (ws, room_id, small_empty)))
                     last_stream_time = now
                 except queue.Full:
                     pass
@@ -151,9 +189,12 @@ def main():
                 except queue.Full:
                     pass
                     
-        # Buoc 5: LIVE STREAMING
+        # Buoc 5: LIVE STREAMING voi Adaptive FPS
         now = time.time()
-        if now - last_stream_time >= 0.1: # 10 FPS
+        # Khi nga: 10 FPS de capture ro rang tinh trang benh nhan
+        # Khi on: 5 FPS de tiet kiem bandwidth (4 may x 5FPS x ~8KB = ~160KB/s)
+        stream_interval = INTERVAL_ALERT if is_falling else INTERVAL_NORMAL
+        if now - last_stream_time >= stream_interval:
             try:
                 # Nhet vao queue. Neu mang cham, queue day -> bo qua frame nay de chong lag
                 ws_queue.put_nowait((send_camera_stream, (ws, room_id, display_frame.copy())))
