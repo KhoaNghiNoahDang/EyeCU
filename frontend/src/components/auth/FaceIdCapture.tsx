@@ -103,7 +103,7 @@ export function FaceIdCapture({ onCapture, capturedUrl }: FaceIdCaptureProps) {
         style={{ borderColor: capturedUrl ? "#10b981" : `${ACCENT}60` }}
       >
         {capturedUrl ? (
-          <img src={capturedUrl} alt="Ảnh khuôn mặt" className="h-full w-full object-cover" />
+          <img src={capturedUrl} alt="Ảnh khuôn mặt" className="h-full w-full object-cover scale-x-[-1]" />
         ) : (
           <>
             <video

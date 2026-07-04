@@ -962,6 +962,102 @@ def get_all_questions_doctor(
         })
     return {"questions": result}
 
+# ── GET replies of a question ───────────────────────────────────────────────
+@router.get("/questions/{question_id}/replies")
+def get_replies(question_id: str, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """Lấy toàn bộ replies của 1 câu hỏi (cả bệnh nhân và bác sĩ)."""
+    from app.db.models import QuestionReply, CommunityQuestion
+    q = db.query(CommunityQuestion).filter(CommunityQuestion.id == question_id).first()
+    if not q:
+        raise HTTPException(status_code=404, detail="Không tìm thấy câu hỏi")
+    replies = (
+        db.query(QuestionReply)
+        .filter(QuestionReply.question_id == question_id)
+        .order_by(QuestionReply.created_at.asc())
+        .all()
+    )
+    return {
+        "replies": [
+            {
+                "id": str(r.id),
+                "sender_type": r.sender_type,
+                "sender_name": r.sender_name,
+                "content": r.content,
+                "created_at": r.created_at.isoformat(),
+            }
+            for r in replies
+        ]
+    }
+
+class ReplyCreate(BaseModel):
+    content: str
+
+# ── POST reply (both patient and doctor can reply) ──────────────────────────
+@router.post("/questions/{question_id}/replies")
+async def post_reply(
+    question_id: str,
+    req: ReplyCreate,
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from app.db.models import QuestionReply, CommunityQuestion
+    import datetime as dt
+    from app.api.ambient import ambient_manager
+
+    q = db.query(CommunityQuestion).filter(CommunityQuestion.id == question_id).first()
+    if not q:
+        raise HTTPException(status_code=404, detail="Không tìm thấy câu hỏi")
+    if not req.content or len(req.content.strip()) < 1:
+        raise HTTPException(status_code=400, detail="Nội dung không được trống")
+
+    # Xác định loại người gửi (patient vs staff/doctor)
+    sender_type = "patient"
+    sender_name = "Bệnh nhân"
+    if hasattr(user, "role"):  # Staff model
+        sender_type = "doctor"
+        sender_name = getattr(user, "name", None) or "Bác sĩ"
+    else:
+        # Patient: dùng tên ẩn danh hoặc "Bạn"
+        sender_name = "Bệnh nhân"
+
+    now = dt.datetime.utcnow()
+    reply = QuestionReply(
+        question_id=q.id,
+        sender_id=user.id,
+        sender_type=sender_type,
+        sender_name=sender_name,
+        content=req.content.strip(),
+        created_at=now,
+    )
+    db.add(reply)
+
+    # Nếu là bác sĩ: cũng cập nhật status và answer gần nhất
+    if sender_type == "doctor":
+        q.answer = req.content.strip()
+        q.status = "answered"
+        q.answered_at = now
+        q.doctor_name = sender_name
+        q.doctor_id = user.id
+
+    db.commit()
+    db.refresh(reply)
+
+    # Broadcast real-time
+    await ambient_manager.broadcast({
+        "type": "QA_NEW_REPLY",
+        "data": {
+            "question_id": question_id,
+            "reply": {
+                "id": str(reply.id),
+                "sender_type": sender_type,
+                "sender_name": sender_name,
+                "content": reply.content,
+                "created_at": now.isoformat(),
+            }
+        }
+    })
+    return {"status": "success", "reply_id": str(reply.id), "sender_type": sender_type}
+
 @router.patch("/questions/{question_id}/answer")
 async def answer_question(
     question_id: str,
@@ -969,25 +1065,33 @@ async def answer_question(
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Bác sĩ trả lời câu hỏi của bệnh nhân, broadcast real-time qua WebSocket."""
-    from app.db.models import CommunityQuestion
-    import datetime
+    """Legacy: Bác sĩ trả lời — vẫn giữ tương thích, tự tạo reply."""
+    from app.db.models import CommunityQuestion, QuestionReply
+    import datetime as dt
     from app.api.ambient import ambient_manager
     q = db.query(CommunityQuestion).filter(CommunityQuestion.id == question_id).first()
     if not q:
         raise HTTPException(status_code=404, detail="Không tìm thấy câu hỏi")
     if not req.answer or len(req.answer.strip()) < 10:
         raise HTTPException(status_code=400, detail="Câu trả lời phải có ít nhất 10 ký tự")
-    # Lưu thông tin bác sĩ trả lời
     doctor_name = getattr(user, "name", None) or getattr(user, "full_name", None) or "Bác sĩ"
-    now = datetime.datetime.utcnow()
+    now = dt.datetime.utcnow()
     q.answer = req.answer.strip()
     q.status = "answered"
     q.answered_at = now
     q.doctor_name = doctor_name
     q.doctor_id = user.id
+    # Tạo reply entry
+    reply = QuestionReply(
+        question_id=q.id,
+        sender_id=user.id,
+        sender_type="doctor",
+        sender_name=doctor_name,
+        content=req.answer.strip(),
+        created_at=now,
+    )
+    db.add(reply)
     db.commit()
-    # Broadcast real-time cho tất cả client đang kết nối WebSocket
     await ambient_manager.broadcast({
         "type": "QA_ANSWERED",
         "data": {
@@ -999,6 +1103,7 @@ async def answer_question(
         }
     })
     return {"status": "success", "question_id": question_id, "doctor_name": doctor_name}
+
 
 @router.get("/consent-forms")
 def get_consent_forms(user = Depends(get_current_user), db: Session = Depends(get_db)):

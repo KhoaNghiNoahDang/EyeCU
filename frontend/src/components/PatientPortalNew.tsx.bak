@@ -1,8 +1,8 @@
 "use client";
-import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
+import React, { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useAuth } from "../lib/auth/auth-context";
 import { fetchApi, API_URL } from "../lib/api/client";
-import { User, LogIn, Calendar, FileText, Settings, Heart, Bell, MessageCircle, MapPin, Menu, X, ArrowLeft, ArrowRight, ShieldCheck, ChevronRight, Mic, Send, Phone, ClipboardList, ScanFace, FileSignature, Info, LogOut, Copy, Download, Eye, Map as MapIcon, Trash2, CalendarClock, Lock, Globe, Users, Activity, Search, Stethoscope, Receipt, Home, Star, Camera, ScanLine, Share, PlusSquare, Volume2, VolumeX, Pause, Loader2, Scan, BriefcaseMedical, ChevronDown, CheckCircle2 , Landmark } from "lucide-react";
+import { User, LogIn, Calendar, FileText, Settings, Heart, Bell, MessageCircle, MapPin, Menu, X, ArrowLeft, ArrowRight, ShieldCheck, ChevronRight, Mic, Send, Phone, ClipboardList, ScanFace, FileSignature, Info, LogOut, Copy, Download, Eye, Map as MapIcon, Trash2, CalendarClock, Lock, Globe, Users, Activity, Search, Stethoscope, Receipt, Home, Star, Camera, ScanLine, Share, PlusSquare, Volume2, VolumeX, Pause, Loader2, Scan, BriefcaseMedical, ChevronDown, CheckCircle2 } from "lucide-react";
 import { getHospitalsByProvince, CENTRAL_HOSPITALS, Hospital } from "../lib/hospitals";
 import { MapErrorBoundary } from "./MapErrorBoundary";
 import { VitalSignsView } from "./health-record/VitalSignsView";
@@ -32,7 +32,7 @@ function getTimeNow() {
   return new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 }
 
-type ViewState = "home" | "health_record" | "record_lookup" | "community_qa" | "ask_question" | "question_thread" | "invoice_list" | "digital_signature" | "hospital_map" | "payment_confirmation" | "payment_face_capture" | "payment_success";
+type ViewState = "home" | "health_record" | "record_lookup" | "community_qa" | "ask_question" | "invoice_list" | "digital_signature" | "hospital_map" | "payment_confirmation" | "payment_face_capture" | "payment_success";
 
 function getAge(dobString?: string) {
   if (!dobString) return "";
@@ -45,94 +45,6 @@ function getAge(dobString?: string) {
   return dobString;
 }
 
-
-
-const FaceIdCapture = ({ onCapture }: { onCapture: (base64: string) => void }) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const [isCapturing, setIsCapturing] = useState(false);
-  const [capturedImg, setCapturedImg] = useState<string | null>(null);
-
-  useEffect(() => {
-    const startCamera = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
-        }
-      } catch (e) {
-        console.error("Camera error:", e);
-      }
-    };
-    startCamera();
-    return () => {
-      streamRef.current?.getTracks().forEach(t => t.stop());
-    };
-  }, []);
-
-  const handleCapture = () => {
-    const video = videoRef.current;
-    if (video && video.videoWidth > 0) {
-      const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.drawImage(video, 0, 0);
-        const base64 = canvas.toDataURL("image/jpeg", 0.9);
-        setCapturedImg(base64);
-        setIsCapturing(true);
-        // Dừng camera
-        streamRef.current?.getTracks().forEach(t => t.stop());
-        // Gọi callback sau 1.5s để có thời gian hiển thị animation
-        setTimeout(() => {
-          onCapture(base64);
-        }, 1500);
-      }
-    }
-  };
-
-  if (isCapturing && capturedImg) {
-    return (
-      <div className="flex flex-col items-center gap-6">
-        {/* Ảnh chụp được với vòng quay */}
-        <div className="relative w-64 h-64 rounded-full overflow-hidden border-4 border-[#88E8F2] shadow-[0_0_30px_rgba(136,232,242,0.5)]">
-          <img src={capturedImg} alt="captured" className="w-full h-full object-cover scale-x-[-1]" />
-          {/* Overlay mờ */}
-          <div className="absolute inset-0 bg-[#0d1f2d]/40 rounded-full flex items-center justify-center" />
-        </div>
-        {/* Vòng xoay ngoài */}
-        <div className="absolute w-[276px] h-[276px] rounded-full border-4 border-transparent border-t-[#88E8F2] border-b-[#88E8F2] animate-spin" style={{animationDuration: '1s'}} />
-        <div className="flex flex-col items-center gap-2 mt-2">
-          <div className="flex gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[#88E8F2] animate-bounce" style={{animationDelay: '0ms'}} />
-            <span className="w-2 h-2 rounded-full bg-[#88E8F2] animate-bounce" style={{animationDelay: '150ms'}} />
-            <span className="w-2 h-2 rounded-full bg-[#88E8F2] animate-bounce" style={{animationDelay: '300ms'}} />
-          </div>
-          <p className="text-[16px] font-semibold text-[#0d1f2d]">Đang xác thực khuôn mặt...</p>
-          <p className="text-[13px] text-slate-500">Vui lòng chờ trong giây lát</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col items-center">
-      <div className="relative w-64 h-64 rounded-full overflow-hidden mb-6 border-4 border-[#88E8F2] shadow-[0_0_20px_rgba(136,232,242,0.4)]">
-        <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
-        <div className="absolute inset-0 border-[6px] border-transparent border-t-[#88E8F2] border-b-[#88E8F2] rounded-full animate-spin-slow opacity-60"></div>
-      </div>
-      <p className="text-[15px] font-medium text-slate-600 mb-8 text-center max-w-[280px]">
-        Vui lòng giữ khuôn mặt trong khung hình để xác thực
-      </p>
-      <button onClick={handleCapture} className="w-full max-w-[280px] bg-[#0d1f2d] text-white rounded-full py-4 text-[16px] font-bold shadow-lg shadow-slate-200 active:scale-95 transition-transform">
-        Xác thực khuôn mặt
-      </button>
-    </div>
-  );
-};
 
 export function PatientPortalNew({
   isInstallEligible,
@@ -154,23 +66,6 @@ export function PatientPortalNew({
   const [appointments, setAppointments] = useState<any[]>([]);
   const [consentForms, setConsentForms] = useState<any[]>([]);
   const [scheduledDoctors, setScheduledDoctors] = useState<any[]>([]);
-  // Community Q&A thread
-  const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
-  const [threadReplies, setThreadReplies] = useState<any[]>([]);
-  const [replyInput, setReplyInput] = useState("");
-  const [sendingReply, setSendingReply] = useState(false);
-  // Departments for specialty picker (from Supabase)
-  const [deptSpecialties, setDeptSpecialties] = useState<string[]>([]);
-  const [qaTab, setQaTab] = useState<"all" | "mine">("all");
-  const [qaSearch, setQaSearch] = useState("");
-  
-  // Refs and hooks for community Q&A thread at top-level to avoid Hook rules violation
-  const threadScrollRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (threadScrollRef.current) {
-      threadScrollRef.current.scrollTop = threadScrollRef.current.scrollHeight;
-    }
-  }, [threadReplies]);
   useEffect(() => {
     if (user) {
       setLoadingBundle(true);
@@ -190,77 +85,8 @@ export function PatientPortalNew({
       fetchApi("/patient/notifications").then((data) => setNotifications(data.notifications || [])).catch(console.error);
       fetchApi("/patient/follow-ups").then((data) => setFollowUps(data.follow_ups || [])).catch(console.error);
       fetchApi("/patient/doctor-schedules").then((data) => setScheduledDoctors(data.doctors || [])).catch(console.error);
-      // Load departments for specialty picker
-      fetchApi("/patient/departments").then((data) => {
-        const names: string[] = (data.departments || []).map((d: any) => d.name);
-        setDeptSpecialties(names.length > 0 ? names : ["Nội tiết", "Tim mạch", "Tiêu hoá", "Thần kinh", "Tai Mũi Họng", "Răng Hàm Mặt"]);
-      }).catch(() => setDeptSpecialties(["Nội tiết", "Tim mạch", "Tiêu hoá", "Thần kinh", "Tai Mũi Họng", "Răng Hàm Mặt"]));
     }
   }, [user]);
-
-  // ── Real-time WebSocket listener for QA_ANSWERED ──────────────────
-  useEffect(() => {
-    const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
-    const WS_BASE = (import.meta.env.VITE_WS_URL ?? `ws://${host}:8000`);
-    const wsUrl = WS_BASE + "/api/ambient/ws/live";
-    let ws: WebSocket | null = null;
-    let pingTimer: ReturnType<typeof setInterval> | null = null;
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-    let unmounted = false;
-
-    const connect = () => {
-      ws = new WebSocket(wsUrl);
-      ws.onopen = () => {
-        pingTimer = setInterval(() => {
-          if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "ping" }));
-        }, 20000);
-      };
-      ws.onmessage = (e) => {
-        try {
-          const msg = JSON.parse(e.data);
-          if (msg.type === "QA_ANSWERED" && msg.data) {
-            const { question_id, answer, doctor_name, answered_at } = msg.data;
-            setQuestions((prev) =>
-              prev.map((q) =>
-                q.id === question_id
-                  ? { ...q, answer, doctor_name, answered_at, status: "answered" }
-                  : q
-              )
-            );
-          }
-          if (msg.type === "QA_NEW_REPLY" && msg.data) {
-            const { question_id, reply } = msg.data;
-            // update thread if open
-            setSelectedQuestion((prev: any) => {
-              if (prev && prev.id === question_id) {
-                setThreadReplies((r) => [...r.filter((x) => x.id !== reply.id), reply].sort((a,b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
-              }
-              return prev;
-            });
-            // mark question as answered
-            setQuestions((prev) =>
-              prev.map((q) =>
-                q.id === question_id ? { ...q, status: "answered" } : q
-              )
-            );
-          }
-        } catch {}
-      };
-      ws.onclose = () => {
-        if (pingTimer) clearInterval(pingTimer);
-        if (!unmounted) reconnectTimer = setTimeout(connect, 5000);
-      };
-    };
-
-    connect();
-    return () => {
-      unmounted = true;
-      if (pingTimer) clearInterval(pingTimer);
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      if (ws) { ws.onclose = null; ws.close(); }
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Floating Bot Logic
   const [botOpen, setBotOpen] = useState(false);
@@ -287,16 +113,10 @@ export function PatientPortalNew({
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showIosPrompt, setShowIosPrompt] = useState(false);
   const [isAppInstalled, setIsAppInstalled] = useState(false);
-  const [showAudioPrompt, setShowAudioPrompt] = useState(false);
-  const [audioUnlocked, setAudioUnlocked] = useState(false);
 
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
     setIsMounted(true);
-    const userAgent = window.navigator.userAgent.toLowerCase();
-    if (/iphone|ipad|ipod/.test(userAgent)) {
-      setShowAudioPrompt(true);
-    }
 
     // Check if already installed
     if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true) {
@@ -763,113 +583,7 @@ export function PatientPortalNew({
   const [askQuestionText, setAskQuestionText] = useState("");
   const [submittingQuestion, setSubmittingQuestion] = useState(false);
 
-  // ── Appointment Booking State ─────────────────────────────────────────
-  const [bookStep, setBookStep] = useState(1);
-  const [deptsList, setDeptsList] = useState<{id:string; name:string}[]>([]);
-  const [selectedDeptId, setSelectedDeptId] = useState<string|null>(null);
-  const [selectedDeptName, setSelectedDeptName] = useState<string>("");
-  const [doctorsList, setDoctorsList] = useState<{id:string; name:string}[]>([]);
-  const [selectedDoctorId, setSelectedDoctorId] = useState<string>("random");
-  const [selectedDoctorName, setSelectedDoctorName] = useState<string>("Bác sĩ ngẫu nhiên");
-  const [bookingTime, setBookingTime] = useState<string|null>(null);
-  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
-  const [bookSuccess, setBookSuccess] = useState<{doctorName:string; dept:string; date:string; time:string}|null>(null);
   const [submittingBooking, setSubmittingBooking] = useState(false);
-  const [bookingDate, setBookingDate] = useState<string>(""); // Date picker
-  const [calendarMonth, setCalendarMonth] = useState<number>(new Date().getMonth());
-  const [calendarYear, setCalendarYear] = useState<number>(new Date().getFullYear());
-
-  // Tạo time slots: 08:00 → 16:30, mỗi 30 phút
-  const TIME_SLOTS: string[] = [];
-  for (let h = 8; h <= 16; h++) {
-    TIME_SLOTS.push(`${String(h).padStart(2,'0')}:00`);
-    if (h < 17) TIME_SLOTS.push(`${String(h).padStart(2,'0')}:30`);
-  }
-
-  const openBookingModal = async () => {
-    setBookStep(1);
-    setSelectedDeptId(null); setSelectedDeptName("");
-    setSelectedDoctorId("random"); setSelectedDoctorName("Bác sĩ ngẫu nhiên");
-    setBookingTime(null); setBookingDate(""); setBookedSlots([]);
-    setBookSuccess(null);
-    setShowBookingModal(true);
-    // Fetch departments
-    try {
-      const data = await fetchApi("/patient/departments");
-      setDeptsList(data.departments || []);
-    } catch { setDeptsList([]); }
-  };
-
-  const handleSelectDept = async (id: string, name: string) => {
-    setSelectedDeptId(id); setSelectedDeptName(name);
-    setSelectedDoctorId("random"); setSelectedDoctorName("Bác sĩ ngẫu nhiên");
-    setBookStep(2);
-    try {
-      const data = await fetchApi(`/patient/doctors-by-department?department_id=${id}`);
-      setDoctorsList(data.doctors || []);
-    } catch { setDoctorsList([]); }
-  };
-
-  const handleSelectDoctor = (id: string, name: string) => {
-    setSelectedDoctorId(id); setSelectedDoctorName(name);
-    setBookStep(3);
-  };
-
-  // Khi bấm sang step 3, fetch booked slots nếu đã có ngày và bác sĩ cụ thể
-  useEffect(() => {
-    if (bookStep === 3 && bookingDate && selectedDoctorId !== "random") {
-      fetchApi(`/patient/appointments/booked-slots?doctor_id=${selectedDoctorId}&date=${bookingDate}`)
-        .then(d => setBookedSlots(d.booked_slots || []))
-        .catch(() => setBookedSlots([]));
-    }
-  }, [bookStep, bookingDate, selectedDoctorId]);
-
-  const handleDateChange = async (date: string) => {
-    setBookingDate(date);
-    setBookingTime(null);
-    if (selectedDoctorId !== "random" && date) {
-      try {
-        const d = await fetchApi(`/patient/appointments/booked-slots?doctor_id=${selectedDoctorId}&date=${date}`);
-        setBookedSlots(d.booked_slots || []);
-      } catch { setBookedSlots([]); }
-    } else {
-      setBookedSlots([]);
-    }
-  };
-
-  const handleBookingSubmit = async () => {
-    if (!selectedDeptId || !bookingDate || !bookingTime) {
-      alert("Vui lòng chọn đủ thông tin.");
-      return;
-    }
-    setSubmittingBooking(true);
-    try {
-      const res = await fetchApi("/patient/appointments", {
-        method: "POST",
-        body: JSON.stringify({
-          department_id: selectedDeptId,
-          doctor_id: selectedDoctorId === "random" ? null : selectedDoctorId,
-          booking_date: bookingDate,
-          booking_time: bookingTime,
-          reason: "Khám bệnh"
-        }),
-      });
-      const data = await fetchApi("/patient/appointments");
-      setAppointments(data.appointments || []);
-      setBookSuccess({
-        doctorName: res.doctor_name || selectedDoctorName,
-        dept: selectedDeptName,
-        date: bookingDate,
-        time: bookingTime,
-      });
-      setBookStep(4);
-    } catch (err) {
-      console.error(err);
-      alert("Đã có lỗi xảy ra khi đặt lịch");
-    } finally {
-      setSubmittingBooking(false);
-    }
-  };
 
   const handleSignConsent = async (formId: string) => {
     try {
@@ -886,22 +600,46 @@ export function PatientPortalNew({
     }
   };
 
-  // (handleBookingSubmit nằm ở trên, line ~792)
-
-  const handleAskSubmit = async () => {
-    if (!askSpecialty) {
-      alert("Vui lòng chọn chuyên khoa.");
+  const handleBookingSubmit = async () => {
+    if (!bookingSpecialty || !bookingDate) {
+      alert("Vui lòng chọn chuyên khoa và ngày khám.");
       return;
     }
-    if (askQuestionText.trim().length < 10) {
-      alert("Câu hỏi phải có ít nhất 10 ký tự.");
+    setSubmittingBooking(true);
+    try {
+      await fetchApi("/patient/appointments", {
+        method: "POST",
+        body: JSON.stringify({
+          department_id: bookingSpecialty,
+          booking_date: bookingDate,
+          booking_time: "08:00", // Default or you can add a time selector
+          reason: "Khám bệnh"
+        }),
+      });
+      const data = await fetchApi("/patient/appointments");
+      setAppointments(data.appointments || []);
+      alert(`Đã đặt lịch khám chuyên khoa ${bookingSpecialty} vào ngày ${bookingDate} thành công!`);
+      setShowBookingModal(false);
+      setBookingSpecialty(null);
+      setBookingDate("");
+    } catch (err) {
+      console.error(err);
+      alert("Đã có lỗi xảy ra khi đặt lịch");
+    } finally {
+      setSubmittingBooking(false);
+    }
+  };
+
+  const handleAskSubmit = async () => {
+    if (!askSpecialty || askQuestionText.length < 50) {
+      alert("Vui lòng chọn chuyên khoa và nhập câu hỏi tối thiểu 50 ký tự.");
       return;
     }
     setSubmittingQuestion(true);
     try {
       await fetchApi("/patient/questions", {
         method: "POST",
-        body: JSON.stringify({ department: askSpecialty, question: askQuestionText.trim() }),
+        body: JSON.stringify({ department: askSpecialty, question: askQuestionText }),
       });
       const data = await fetchApi("/patient/questions");
       setQuestions(data.questions || []);
@@ -910,42 +648,12 @@ export function PatientPortalNew({
       setAskSpecialty(null);
     } catch (err) {
       console.error(err);
-      alert("Đã có lỗi xảy ra khi gửi câu hỏi");
+      alert("Đã có lỗi xảy ra");
     } finally {
       setSubmittingQuestion(false);
     }
   };  const [showSpecialties, setShowSpecialties] = useState(false);
-
-  const handleOpenThread = async (question: any) => {
-    setSelectedQuestion(question);
-    setThreadReplies([]);
-    setReplyInput("");
-    setCurrentView("question_thread");
-    try {
-      const data = await fetchApi(`/patient/questions/${question.id}/replies`);
-      setThreadReplies(data.replies || []);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handleSendReply = async () => {
-    if (!replyInput.trim() || !selectedQuestion) return;
-    setSendingReply(true);
-    try {
-      await fetchApi(`/patient/questions/${selectedQuestion.id}/replies`, {
-        method: "POST",
-        body: JSON.stringify({ content: replyInput.trim() }),
-      });
-      const data = await fetchApi(`/patient/questions/${selectedQuestion.id}/replies`);
-      setThreadReplies(data.replies || []);
-      setReplyInput("");
-    } catch (e) {
-      alert("Đã có lỗi gửi tin nhắn");
-    } finally {
-      setSendingReply(false);
-    }
-  };
+  const specialtiesList = ["Nội tiết", "Tim mạch", "Tiêu hoá", "Thần kinh", "Tai Mũi Họng", "Răng Hàm Mặt"];
 
   // Render Home View
   const renderHome = () => (
@@ -973,7 +681,7 @@ export function PatientPortalNew({
             <div className="grid grid-cols-2 gap-3">
               {/* Primary Button */}
               <button 
-                onClick={() => openBookingModal()}
+                onClick={() => setShowBookingModal(true)}
                 className="flex items-center gap-3 rounded-2xl bg-[#88E8F2] p-4 text-[#0d1f2d] shadow-md active:scale-95 transition-transform"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/40">
@@ -1033,7 +741,26 @@ export function PatientPortalNew({
              </button>
           </div>
 
-
+          {/* 5. Doctor Schedule List */}
+          <div className="px-4 mt-6">
+            <h3 className="text-[15px] font-bold text-[#0d1f2d] mb-3">Bác sĩ có lịch khám</h3>
+            <div className="space-y-3">
+              {scheduledDoctors.length === 0 ? (
+                <div className="bg-white rounded-2xl p-4 text-center border border-slate-100 shadow-sm text-sm text-slate-500">
+                  Chưa cập nhật được lịch của bác sĩ
+                </div>
+              ) : (
+                scheduledDoctors.map((doc, idx) => (
+                  <div key={idx} className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm border border-slate-100">
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-slate-100 border border-slate-200">
+                       <img src={doc.img} alt={doc.name} className="h-full w-full object-cover" />
+                    </div>
+                    <p className="text-[15px] font-medium text-[#0d1f2d]">{doc.name}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
           
           <div className="h-10 shrink-0" />
         </div>
@@ -1179,37 +906,14 @@ export function PatientPortalNew({
       <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide">
         <div className="bg-white px-4 py-3 shadow-sm sticky top-0 z-10">
           <div className="flex rounded-lg bg-slate-100 p-1 mb-3">
-            <button
-              onClick={() => setQaTab("all")}
-              className={`flex-1 rounded-md py-1.5 text-[14px] font-bold transition-all ${
-                qaTab === "all" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              Tất cả
-            </button>
-            <button
-              onClick={() => setQaTab("mine")}
-              className={`flex-1 rounded-md py-1.5 text-[14px] font-bold transition-all ${
-                qaTab === "mine" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              Câu hỏi của bạn
-            </button>
+            <button className="flex-1 rounded-md bg-white py-1.5 text-[14px] font-bold text-blue-600 shadow-sm">Tất cả</button>
+            <button className="flex-1 py-1.5 text-[14px] font-medium text-slate-500">Câu hỏi của bạn</button>
           </div>
           <div className="flex h-11 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
             <div className="flex w-10 shrink-0 items-center justify-center">
               <Search className="h-4 w-4 text-slate-400" />
             </div>
-            <input
-              type="text"
-              placeholder="Tìm kiếm câu hỏi"
-              value={qaSearch}
-              onChange={(e) => setQaSearch(e.target.value)}
-              className="flex-1 bg-transparent px-1 text-[14px] outline-none placeholder:text-slate-400"
-            />
-            {qaSearch && (
-              <button onClick={() => setQaSearch("")} className="px-2 text-slate-400 text-xs">Xóa</button>
-            )}
+            <input type="text" placeholder="Tìm kiếm câu hỏi" className="flex-1 bg-transparent px-1 text-[14px] outline-none placeholder:text-slate-400" />
             <button className="flex w-10 shrink-0 items-center justify-center border-l border-slate-100">
               <FileText className="h-4 w-4 text-blue-600" />
             </button>
@@ -1217,56 +921,39 @@ export function PatientPortalNew({
         </div>
 
         <div className="flex flex-col gap-2 pb-24">
-          {(() => {
-            const filtered = questions.filter((item) => {
-              // 1. Filter by Tab
-              if (qaTab === "mine" && !item.is_mine) return false;
-              // 2. Filter by Search Query
-              if (qaSearch.trim()) {
-                const query = qaSearch.toLowerCase();
-                const qText = (item.question || "").toLowerCase();
-                const qDept = (item.department || "").toLowerCase();
-                return qText.includes(query) || qDept.includes(query);
-              }
-              return true;
-            });
-
-            if (filtered.length === 0) {
-              return (
-                <div className="text-center text-slate-400 py-10 text-[14px]">
-                  {qaTab === "mine" ? "Bạn chưa đặt câu hỏi nào." : "Chưa có câu hỏi phù hợp."}
-                </div>
-              );
-            }
-
-            return filtered.map((item, i) => (
-              <button
-                key={item.id || i}
-                onClick={() => handleOpenThread(item)}
-                className="bg-white p-4 shadow-sm text-left w-full active:bg-slate-50 transition-colors border-b border-slate-100"
-              >
+          {questions.length === 0 ? (
+            <div className="text-center text-slate-500 py-10">Chưa có câu hỏi nào.</div>
+          ) : (
+            questions.map((item, i) => (
+              <div key={i} className="bg-white p-4 shadow-sm">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="h-9 w-9 rounded-full bg-slate-200 overflow-hidden flex items-center justify-center shrink-0">
-                    <User className="h-5 w-5 text-slate-400" />
+                  <div className="h-10 w-10 rounded-full bg-slate-200 overflow-hidden flex items-center justify-center">
+                    <User className="h-6 w-6 text-slate-400" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-bold text-slate-800 truncate">{item.is_mine ? "Bạn" : "Bệnh nhân ẩn danh"}</p>
-                    <p className="text-[11px] text-slate-400">{new Date(item.created_at).toLocaleDateString('vi-VN')}</p>
+                  <div>
+                    <p className="text-[14px] font-bold text-slate-800">{item.name}</p>
+                    <p className="text-[11px] text-slate-500">{new Date(item.created_at).toLocaleDateString('vi-VN')}</p>
                   </div>
-                  <span className={`shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                    item.status === "answered" ? "bg-emerald-100 text-emerald-700" : "bg-orange-100 text-orange-600"
-                  }`}>{item.status === "answered" ? "Đã trả lời" : "Chưa trả lời"}</span>
                 </div>
-                <p className="text-[14px] text-slate-800 leading-relaxed line-clamp-3 mb-2">{item.question}</p>
-                <div className="flex items-center justify-between">
-                  <span className="inline-block rounded bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-600">{item.department}</span>
-                  <span className="text-[12px] text-slate-400 flex items-center gap-1">
-                    <MessageCircle className="h-3.5 w-3.5" /> Xem thảo luận
-                  </span>
+                <p className="text-[14px] text-slate-800 leading-relaxed mb-3">{item.question}</p>
+                {item.answer ? (
+                  <div className="flex gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                    <div className="h-8 w-8 shrink-0 rounded-full border border-blue-200 bg-white flex items-center justify-center">
+                      <Activity className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <p className="text-[13px] text-slate-700 leading-relaxed pt-0.5">{item.answer}</p>
+                  </div>
+                ) : (
+                  <div className="flex gap-3 bg-orange-50/50 p-3 rounded-lg border border-orange-100">
+                    <p className="text-[13px] text-orange-600 italic">Chưa có câu trả lời</p>
+                  </div>
+                )}
+                <div className="mt-3">
+                  <span className="inline-block rounded bg-blue-50 px-3 py-1.5 text-[12px] font-medium text-blue-600">{item.department}</span>
                 </div>
-              </button>
-            ));
-          })()}
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -1376,7 +1063,7 @@ export function PatientPortalNew({
               </button>
             </div>
             <div className="flex-1 overflow-y-auto pb-safe">
-              {(deptSpecialties.length > 0 ? deptSpecialties : ["Nội tiết","Tim mạch","Tiêu hoá","Thần kinh","Tai Mũi Họng","Răng Hàm Mặt"]).map((spec) => (
+              {specialtiesList.map((spec) => (
                 <button 
                   key={spec}
                   onClick={() => {
@@ -1394,120 +1081,6 @@ export function PatientPortalNew({
       )}
     </div>
   );
-
-  // ── Render Question Thread (chat) ─────────────────────────────────────────
-  const renderQuestionThread = () => {
-    return (
-    <div className="flex-1 flex flex-col overflow-hidden" style={{ background: "#f0f2f5" }}>
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-100 shrink-0 shadow-sm">
-        <button onClick={() => setCurrentView("community_qa")} className="p-1 active:scale-95 shrink-0">
-          <ArrowLeft className="h-6 w-6 text-[#0d1f2d]" />
-        </button>
-        <div className="flex-1 min-w-0">
-          <p className="text-[15px] font-bold text-slate-900 truncate">Thảo luận cộng đồng</p>
-          {selectedQuestion && (
-            <p className="text-[11px] text-slate-500 truncate">{selectedQuestion.department}</p>
-          )}
-        </div>
-        <span className={`shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full ${
-          selectedQuestion?.status === "answered" ? "bg-emerald-100 text-emerald-700" : "bg-orange-100 text-orange-600"
-        }`}>
-          {selectedQuestion?.status === "answered" ? "Đã trả lời" : "Chưa trả lời"}
-        </span>
-      </div>
-
-      {/* Messages area */}
-      <div ref={threadScrollRef} className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide px-4 py-4 flex flex-col gap-3">
-        {/* Original question card */}
-        {selectedQuestion && (
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
-                <User className="h-4 w-4 text-slate-500" />
-              </div>
-              <div>
-                <p className="text-[12px] font-bold text-slate-700">{selectedQuestion.is_mine ? "Bạn" : "Bệnh nhân ẩn danh"}</p>
-                <p className="text-[10px] text-slate-400">{new Date(selectedQuestion.created_at).toLocaleString("vi-VN")}</p>
-              </div>
-              <span className="ml-auto text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{selectedQuestion.department}</span>
-            </div>
-            <p className="text-[14px] text-slate-800 leading-relaxed">{selectedQuestion.question}</p>
-          </div>
-        )}
-
-        {/* Divider */}
-        {threadReplies.length > 0 && (
-          <div className="flex items-center gap-2 py-1">
-            <div className="flex-1 h-px bg-slate-200" />
-            <span className="text-[11px] text-slate-400 font-medium">{threadReplies.length} phản hồi</span>
-            <div className="flex-1 h-px bg-slate-200" />
-          </div>
-        )}
-
-        {/* Replies */}
-        {threadReplies.map((r, idx) => {
-          const isDoctor = r.sender_type === "doctor";
-          return (
-            <div key={r.id || idx} className={`flex gap-2 ${isDoctor ? "justify-start" : "justify-end"}`}>
-              {isDoctor && (
-                <div className="h-8 w-8 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0 mt-1">
-                  <Stethoscope className="h-4 w-4 text-emerald-600" />
-                </div>
-              )}
-              <div className={`max-w-[78%] ${isDoctor ? "" : "items-end flex flex-col"}`}>
-                <span className={`text-[10px] font-semibold mb-0.5 ${isDoctor ? "text-emerald-700" : "text-[#0d1f2d]"}`}>
-                  {isDoctor ? `BS. ${r.sender_name}` : "Bạn"}
-                </span>
-                <div className={`px-4 py-2.5 rounded-2xl text-[14px] leading-relaxed ${
-                  isDoctor
-                    ? "bg-white text-slate-800 border border-slate-100 shadow-sm rounded-tl-none"
-                    : "bg-[#0d1f2d] text-white rounded-tr-none"
-                }`}>
-                  {r.content}
-                </div>
-                <span className="text-[10px] text-slate-400 mt-0.5">
-                  {new Date(r.created_at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
-                </span>
-              </div>
-              {!isDoctor && (
-                <div className="h-8 w-8 rounded-full bg-[#0d1f2d] flex items-center justify-center shrink-0 mt-1">
-                  <User className="h-4 w-4 text-white" />
-                </div>
-              )}
-            </div>
-          );
-        })}
-
-        {threadReplies.length === 0 && (
-          <div className="text-center text-slate-400 py-6 text-[13px]">
-            Chưa có phản hồi nào. Hãy là người đầu tiên thảo luận!
-          </div>
-        )}
-      </div>
-
-      {/* Reply input bar */}
-      <div className="shrink-0 bg-white border-t border-slate-100 px-3 py-2 flex items-end gap-2 pb-safe mb-[68px] shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
-        <textarea
-          value={replyInput}
-          onChange={(e) => setReplyInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendReply(); } }}
-          placeholder="Nhập câu hỏi hoặc phản hồi..."
-          rows={1}
-          className="flex-1 resize-none outline-none text-[14px] text-slate-800 placeholder:text-slate-400 max-h-24 py-2.5 px-3 bg-slate-100 rounded-2xl leading-relaxed"
-          style={{ overflowY: replyInput.split("\n").length > 2 ? "auto" : "hidden" }}
-        />
-        <button
-          onClick={handleSendReply}
-          disabled={sendingReply || !replyInput.trim()}
-          className="h-10 w-10 shrink-0 flex items-center justify-center rounded-full bg-[#0d1f2d] text-white shadow-md active:scale-90 transition-transform disabled:opacity-40"
-        >
-          {sendingReply ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-4 w-4" />}
-        </button>
-      </div>
-    </div>
-    );
-  };
 
   // Render Record Lookup View
   const renderRecordLookup = () => (
@@ -1693,9 +1266,17 @@ export function PatientPortalNew({
       const qrs: Record<string, string> = {};
       for (const inv of invoices) {
         if (inv.status !== 'paid') {
-          // Generate VietQR instead of backend fetch
-          const qrUrl = `https://img.vietqr.io/image/vcb-1029837492-qr_only.png?amount=${inv.total}&addInfo=Thanh toan HD ${inv.id.substring(24).toUpperCase()}&accountName=TRUNG TAM EYECU`;
-          qrs[inv.id] = qrUrl;
+          try {
+            const res = await fetch(`http://localhost:8000/api/patient/payment/qr-code?invoice_id=${inv.id}&amount=${inv.total}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.qr_code) {
+                qrs[inv.id] = data.qr_code;
+              }
+            }
+          } catch (e) {
+            console.error("Error fetching QR for invoice", inv.id, e);
+          }
         }
       }
       setInvoiceQrs(qrs);
@@ -1707,7 +1288,9 @@ export function PatientPortalNew({
 
   // Booking logic
   const [showBookingModal, setShowBookingModal] = useState(false);
-  // bookingDate, bookingSpecialty đã chuyển lên phần Booking State (~line 733)
+  const [bookingSpecialty, setBookingSpecialty] = useState<string | null>(null);
+  const [bookingDate, setBookingDate] = useState<string>("");
+  const [showBookingSpecialties, setShowBookingSpecialties] = useState(false);
 
   const handleCopy = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -1780,21 +1363,13 @@ export function PatientPortalNew({
                   </div>
                   
                   {inv.status !== 'paid' && (
-                    <div className="flex flex-col items-center justify-center p-6 bg-white border-2 border-dashed border-[#b6daff] rounded-[32px] my-4 shadow-sm">
-                      <p className="text-[16px] text-slate-500 font-bold mb-6">Mã QR Thanh Toán</p>
+                    <div className="flex flex-col items-center justify-center p-3 bg-slate-50 rounded-xl mb-3 border border-slate-100">
                       {invoiceQrs[inv.id] ? (
-                        <div className="bg-[#f0f7ff] p-5 rounded-[24px] w-full max-w-[280px] flex items-center justify-center">
-                          <img 
-                            src={invoiceQrs[inv.id]} 
-                            alt="QR Code" 
-                            className="w-full object-contain rounded-xl mix-blend-multiply"
-                          />
-                        </div>
+                        <img src={invoiceQrs[inv.id]} alt="QR Code" className="w-32 h-32 rounded-lg border border-slate-200" />
                       ) : (
-                        <div className="bg-[#f0f7ff] p-5 rounded-[24px] w-full max-w-[280px] h-[300px] flex items-center justify-center">
-                          <Loader2 className="w-8 h-8 text-[#88E8F2] animate-spin" />
-                        </div>
+                        <div className="w-32 h-32 bg-slate-200 animate-pulse rounded-lg flex items-center justify-center text-[11px] text-slate-400">Đang tải QR...</div>
                       )}
+                      <p className="text-[11px] text-slate-500 mt-2">Quét mã QR để thanh toán nhanh qua ứng dụng ngân hàng</p>
                     </div>
                   )}
 
@@ -1820,168 +1395,157 @@ export function PatientPortalNew({
                       <span className="text-slate-600">Thời gian phát hành:</span>
                       <span className="font-medium text-slate-800">{formattedDate}</span>
                     </div>
+                    <div className="flex justify-between items-center text-[13px]">
+                      <span className="text-slate-600">Trạng thái:</span>
+                      <span className={`font-medium ${inv.status === 'paid' ? 'text-green-600' : 'text-orange-500'}`}>
+                        {inv.status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                      </span>
+                    </div>
                   </div>
                   
-                  <button 
-                    onClick={() => {
-                      setViewingInvoice(inv);
-                      if (inv.status === 'paid') {
-                        // overlay will show
-                      } else {
-                        setCurrentView("payment_confirmation");
-                      }
-                    }}
-                    className={`w-full rounded-xl py-3 text-[15px] font-bold shadow-sm active:scale-95 transition-transform ${inv.status === 'paid' ? 'bg-slate-200 text-slate-500' : 'bg-[#88E8F2] text-[#0d1f2d]'}`}
-                  >
-                    {inv.status === 'paid' ? 'Đã thanh toán' : 'THANH TOÁN NGAY'}
-                  </button>
-                </div>
-              );
-            })
-          )}
+                  <div className="flex pt-2 gap-2">
+                <button 
+                  onClick={() => {
+                    setViewingInvoice(inv);
+                    if (inv.status !== 'paid') {
+                      setCurrentView("payment_confirmation");
+                    }
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 py-2 text-[13px] font-medium text-blue-600 bg-blue-50/50 hover:bg-blue-50 active:bg-blue-100 rounded-lg transition-colors">
+                  <Eye className="h-4 w-4" /> Xem hóa đơn
+                </button>
+                <button 
+                  onClick={() => handleDownload(inv)}
+                  className="flex-1 flex items-center justify-center gap-2 py-2 text-[13px] font-medium text-[#0d1f2d] bg-slate-50 hover:bg-slate-100 active:bg-slate-200 rounded-lg transition-colors">
+                  <Download className="h-4 w-4" /> Tải về
+                </button>
+              </div>
+              </div>
+            );
+          })
+        )}
         </div>
       </div>
 
-      {viewingInvoice && viewingInvoice.status === 'paid' && (
-        <div className="absolute inset-0 z-50 flex flex-col bg-[#f8f9fc] animate-in fade-in duration-200">
-          <div className="flex items-center justify-between px-4 py-3 bg-[#88E8F2] text-[#0d1f2d] pt-safe shadow-sm">
-            <button onClick={() => setViewingInvoice(null)} className="p-1 active:scale-95">
-              <ArrowLeft className="h-6 w-6" />
-            </button>
-            <span className="text-[17px] font-bold">Chi tiết hóa đơn</span>
-            <div className="w-8" />
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-4 py-6 pb-24">
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-              <div className="text-center mb-6">
-                <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 mb-3">
-                  <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+      {/* View Invoice Modal */}
+      {viewingInvoice && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 px-4 animate-in fade-in">
+          <div className="w-full max-w-[340px] rounded-2xl bg-white shadow-2xl animate-in zoom-in-95 duration-200">
+             <div className="flex items-center justify-between border-b border-slate-100 p-4">
+                <span className="font-bold text-slate-800">Chi tiết hóa đơn</span>
+                <button onClick={() => setViewingInvoice(null)} className="p-1 active:bg-slate-100 rounded-full"><X className="h-5 w-5 text-slate-500" /></button>
+             </div>
+             
+             {/* Fake invoice ticket */}
+             <div className="p-6 bg-slate-50 relative overflow-hidden">
+                {/* Sawtooth top & bottom borders with CSS radial gradients */}
+                <div className="absolute top-0 left-0 right-0 h-2 bg-[radial-gradient(circle,transparent,transparent_4px,white_4px,white)] bg-[length:12px_12px] -mt-1" />
+                <div className="absolute bottom-0 left-0 right-0 h-2 bg-[radial-gradient(circle,transparent,transparent_4px,white_4px,white)] bg-[length:12px_12px] -mb-1 rotate-180" />
+                
+                <div className="text-center mb-6">
+                   <h3 className="font-bold text-[18px] text-[#0d1f2d] tracking-wide">BỆNH VIỆN MẮT EYECU</h3>
+                   <p className="text-[12px] text-slate-500 uppercase tracking-widest mt-1">Hóa đơn điện tử</p>
                 </div>
-                <h3 className="text-[18px] font-bold text-slate-800">Thanh toán thành công</h3>
-                <p className="text-[24px] font-bold text-blue-600 mt-2">
-                  {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(viewingInvoice.total)}
-                </p>
-              </div>
-
-              <div className="border-t border-dashed border-slate-200 my-5" />
-
-              <div className="space-y-4">
-                <div className="flex justify-between items-center text-[14px]">
-                  <span className="text-slate-500">Mã giao dịch</span>
-                  <span className="font-bold text-slate-800">{viewingInvoice.id.substring(24).toUpperCase()}</span>
+                
+                <div className="space-y-3 text-[14px]">
+                   <div className="flex justify-between border-b border-dashed border-slate-200 pb-2">
+                     <span className="text-slate-500">Mã:</span>
+                     <span className="font-mono font-medium">{viewingInvoice.id.substring(24).toUpperCase()}</span>
+                   </div>
+                   <div className="flex justify-between border-b border-dashed border-slate-200 pb-2">
+                     <span className="text-slate-500">Số:</span>
+                     <span className="font-mono font-medium">{viewingInvoice.id.substring(0,8).toUpperCase()}</span>
+                   </div>
+                   <div className="flex justify-between border-b border-dashed border-slate-200 pb-2">
+                     <span className="text-slate-500">Ngày:</span>
+                     <span>{new Date(viewingInvoice.created_at || new Date()).toLocaleString('vi-VN')}</span>
+                   </div>
+                   <div className="flex flex-col mt-4 pt-2">
+                     <span className="text-slate-500 text-[12px] uppercase">Tổng tiền thanh toán</span>
+                     <span className="text-[24px] font-bold text-blue-600 text-right mt-1">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(viewingInvoice.total)}</span>
+                   </div>
                 </div>
-                <div className="flex justify-between items-center text-[14px]">
-                  <span className="text-slate-500">Thời gian</span>
-                  <span className="font-medium text-slate-800">{new Date(viewingInvoice.paid_at || viewingInvoice.created_at).toLocaleString('vi-VN')}</span>
+                
+                <div className="mt-8 text-center text-[10px] text-slate-400">
+                  Đây là hóa đơn điện tử hợp lệ.<br/>Cảm ơn quý khách đã sử dụng dịch vụ.
                 </div>
-                <div className="flex justify-between items-center text-[14px]">
-                  <span className="text-slate-500">Phương thức</span>
-                  <span className="font-medium text-slate-800">Face ID & Sinh trắc</span>
-                </div>
-                <div className="flex justify-between items-center text-[14px]">
-                  <span className="text-slate-500">Chi tiết dịch vụ</span>
-                  <span className="font-medium text-blue-600">Xem danh sách</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-4 border-t border-slate-200 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.02)] flex gap-3 absolute bottom-0 left-0 right-0">
-             <button onClick={() => setViewingInvoice(null)} className="flex-1 rounded-xl border border-slate-200 py-3 font-bold text-slate-700 active:bg-slate-50">Đóng</button>
-             <button onClick={() => handleDownload(viewingInvoice)} className="flex-1 rounded-xl bg-[#88E8F2] py-3 font-bold text-slate-900 active:bg-[#68c6cf]">Lưu PDF</button>
+             </div>
+             
+             <div className="p-4 flex gap-3">
+               <button onClick={() => setViewingInvoice(null)} className="flex-1 rounded-xl bg-slate-100 py-3 font-medium text-slate-700 active:bg-slate-200">Đóng</button>
+               <button onClick={() => handleDownload(viewingInvoice)} className="flex-1 rounded-xl bg-[#88E8F2] py-3 font-bold text-slate-900 active:bg-[#68c6cf]">Lưu PDF</button>
+             </div>
           </div>
         </div>
       )}
     </div>
   );
 
-  const BANK_LIST = [
-    { id: "vcb", name: "Vietcombank", fullName: "NH TMCP Ngoại thương Việt Nam", img: "/img/vcb.webp" },
-    { id: "bidv", name: "BIDV", fullName: "NH TMCP Đầu tư và Phát triển VN", img: "/img/bidv.webp" },
-    { id: "vtb", name: "VietinBank", fullName: "NH TMCP Công thương Việt Nam", img: "/img/vtb.webp" },
-    { id: "tcb", name: "Techcombank", fullName: "NH TMCP Kỹ thương Việt Nam", img: "/img/tcb.webp" },
-    { id: "mb", name: "MB", fullName: "NH TMCP Quân đội", img: "/img/mb.webp" },
-    { id: "acb", name: "ACB", fullName: "NH TMCP Á Châu", img: "/img/acb.png" },
-    { id: "vpb", name: "VPBank", fullName: "NH TMCP Việt Nam Thịnh Vượng", img: "/img/vpb.webp" },
-    { id: "shb", name: "SHB", fullName: "NH TMCP Sài Gòn - Hà Nội", img: "/img/shb.png" }
-  ];
+  // Digital Signature Logic
+  const [signTab, setSignTab] = useState<"unsigned" | "signed">("unsigned");
 
-  const handlePaymentFaceVerified = async (base64: string) => {
+  const handlePaymentFaceVerified = async (faceBase64: string) => {
+    if (!viewingInvoice) return;
     setIsVerifyingPaymentFace(true);
     setPaymentError(null);
     try {
-      // Backend trả về { success: bool, match: bool, message: str }
       const res = await fetchApi("/patient/payment/verify-face", {
         method: "POST",
-        body: { face_base64: base64 }
+        body: JSON.stringify({ face_base64: faceBase64 }),
       });
-
-      // Xác thực thành công nếu match === true
-      if (res.match === true || res.success === true) {
-        if (viewingInvoice) {
-          // Cập nhật trạng thái hoá đơn thành đã thanh toán
-          setInvoices(prev => prev.map(inv =>
-            inv.id === viewingInvoice.id ? { ...inv, status: 'paid' } : inv
-          ));
-        }
+      if (res.success && res.match) {
+        // Mark invoice as paid locally
+        setInvoices(prev => prev.map(inv => inv.id === viewingInvoice.id ? { ...inv, status: 'paid' } : inv));
         setCurrentView("payment_success");
       } else {
-        setPaymentError(res.message || "Khuôn mặt không khớp. Vui lòng thử lại.");
-        setCurrentView("payment_confirmation");
+        setPaymentError(res.message || "Xác nhận khuôn mặt thất bại");
+        setTimeout(() => setCurrentView("payment_confirmation"), 2000);
       }
     } catch (err: any) {
-      setPaymentError(err.message || "Lỗi xác thực khuôn mặt. Vui lòng thử lại.");
-      setCurrentView("payment_confirmation");
+      console.error(err);
+      setPaymentError(err.message || "Lỗi hệ thống");
+      setTimeout(() => setCurrentView("payment_confirmation"), 2000);
     } finally {
       setIsVerifyingPaymentFace(false);
     }
   };
 
-  const renderPaymentConfirmation = () => (
-    <div className="flex-1 flex flex-col bg-[#f4f7f9] overflow-hidden relative">
-      <div className="flex items-center justify-between px-4 py-3 bg-[#88E8F2] text-[#0d1f2d] pt-safe z-10 shrink-0 shadow-sm">
-        <button onClick={() => setCurrentView("invoice_list")} className="p-1 active:scale-95">
-          <ArrowLeft className="h-6 w-6" />
-        </button>
-        <span className="text-[17px] font-bold flex-1 text-center pr-8">Chuyển khoản</span>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-4 py-6">
-        {paymentError && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-5">
-            <p className="text-red-600 text-[13px] font-medium">{paymentError}</p>
+  const renderPaymentConfirmation = () => {
+    if (!viewingInvoice) return null;
+    const formattedTotal = new Intl.NumberFormat('vi-VN').format(viewingInvoice.total);
+    const invoiceCode = viewingInvoice.id.substring(24).toUpperCase();
+    
+    return (
+      <div className="flex-1 flex flex-col bg-[#f0f2f5] overflow-hidden relative">
+        {/* Top App Bar */}
+        <div className="flex items-center justify-between px-4 py-3 bg-[#88E8F2] text-[#0d1f2d] pt-safe z-10 shrink-0 shadow-sm">
+          <button onClick={() => setCurrentView("invoice_list")} className="p-1 active:scale-95 text-[#0d1f2d]">
+            <ArrowLeft className="h-6 w-6" />
+          </button>
+          <span className="text-[17px] font-bold flex-1 text-center pr-8">Chuyển tiền trong nước</span>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-4 overscroll-contain pb-28">
+          {/* Chọn ngân hàng chủ quản */}
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-slate-800 font-bold text-[16px]">Chọn ngân hàng chủ quản</h3>
           </div>
-        )}
 
-        <div className="flex flex-col gap-5">
-          {/* Tài khoản nguồn */}
-          <div>
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-slate-800 font-bold text-[16px]">Tài khoản nguồn</h3>
-            </div>
-            
+          <div className="space-y-4 mb-5">
             <div 
               onClick={() => setShowBankList(true)}
-              className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between shadow-sm active:bg-slate-50 mb-3"
+              className="bg-white border border-slate-200 rounded-2xl p-4 flex justify-between items-center active:bg-slate-50 transition-colors cursor-pointer shadow-sm"
             >
               <div className="flex items-center gap-3">
-                {selectedBank ? (
-                  <>
-                    <img src={selectedBank.img} alt={selectedBank.name} className="w-8 h-8 rounded-full object-contain shrink-0 border border-slate-100" />
-                    <div>
-                      <p className="text-slate-800 font-bold text-[15px]">{selectedBank.name}</p>
-                      <p className="text-slate-500 text-[12px]">{selectedBank.fullName}</p>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
-                      <Landmark className="w-4 h-4 text-slate-400" />
-                    </div>
-                    <span className="text-slate-400 font-medium text-[15px]">Chọn ngân hàng chủ quản</span>
-                  </>
+                {selectedBank && (
+                  <img src={selectedBank.logo} alt="" className="w-8 h-8 rounded-full object-contain shrink-0" />
                 )}
+                <div>
+                  <p className="text-slate-400 text-[11px] mb-0.5">Ngân hàng của bạn</p>
+                  <p className={`text-[15px] font-bold ${selectedBank ? 'text-slate-800' : 'text-slate-400'}`}>
+                    {selectedBank ? selectedBank.name : "Chọn ngân hàng chuyển"}
+                  </p>
+                </div>
               </div>
               <ChevronDown className="w-5 h-5 text-slate-400" />
             </div>
@@ -2005,165 +1569,236 @@ export function PatientPortalNew({
           </div>
 
           {/* Đến tài khoản */}
-          <div className="flex justify-between items-center mb-3 mt-2">
+          <div className="flex justify-between items-center mb-3">
             <h3 className="text-slate-800 font-bold text-[16px]">Đến tài khoản</h3>
           </div>
 
           <div className="space-y-4 mb-5">
             <div className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center shadow-sm">
-              <img src="/img/vcb.webp" alt="Vietcombank" className="w-10 h-10 rounded-full object-contain mr-4 shrink-0 border border-slate-100" />
+              <img src="/img/vcb.webp" alt="Vietcombank" className="w-10 h-10 rounded-full object-contain mr-4 shrink-0" />
               <div>
                 <p className="text-slate-400 text-[11px] mb-0.5">Ngân hàng nhận</p>
-                <p className="text-slate-800 font-bold text-[15px] uppercase">VIETCOMBANK</p>
+                <p className="text-slate-800 text-[15px] font-bold">Vietcombank</p>
+                <p className="text-slate-500 text-[12px]">Ngân hàng TMCP Ngoại thương Việt Nam</p>
               </div>
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-              <div className="flex flex-col mb-4">
-                <span className="text-slate-400 text-[12px] mb-1">Số tài khoản nhận</span>
-                <span className="text-slate-800 font-bold text-[18px] tracking-wide">1029837492 <span className="text-[14px] font-medium text-slate-500 block mt-1">(TRUNG TÂM EYECU)</span></span>
-              </div>
-              <div className="border-t border-slate-100 my-4" />
-              <div className="flex flex-col">
-                <span className="text-slate-400 text-[12px] block mb-1">Số tiền chuyển</span>
-                <span className="text-blue-600 font-bold text-[24px]">
-                  {new Intl.NumberFormat('vi-VN').format(viewingInvoice?.total || 0)} VND
-                </span>
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 flex justify-between items-center shadow-sm">
+              <div className="flex-1">
+                <p className="text-slate-400 text-[11px] mb-1">Số tài khoản nhận</p>
+                <p className="text-slate-800 text-[15px] font-bold uppercase">1029837492 (TRUNG TÂM EYECU)</p>
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="bg-white p-4 border-t border-slate-200 mt-auto shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.04)] pb-[100px]">
-        <button 
-          disabled={!selectedBank || isVerifyingPaymentFace}
-          onClick={() => setCurrentView("payment_face_capture")} 
-          className="w-full rounded-2xl bg-[#88E8F2] py-4 text-[16px] font-bold text-[#0d1f2d] shadow-lg disabled:opacity-50 active:scale-95 transition-transform"
-        >
-          {isVerifyingPaymentFace ? "Đang xử lý..." : "Xác nhận thanh toán"}
-        </button>
-      </div>
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-slate-800 font-bold text-[16px]">Thông tin giao dịch</h3>
+          </div>
 
-      {showBankList && (
-        <div className="absolute inset-0 z-50 flex flex-col bg-slate-900/40 animate-in fade-in duration-200">
-          <div className="flex-1" onClick={() => setShowBankList(false)} />
-          <div className="bg-white rounded-t-3xl flex flex-col h-[75vh] shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-              <span className="text-[17px] font-bold text-slate-800">Chọn ngân hàng</span>
-              <button onClick={() => setShowBankList(false)} className="p-2 bg-slate-100 rounded-full active:scale-95 transition-transform">
-                <X className="w-5 h-5 text-slate-500" />
-              </button>
+          <div className="space-y-4 mb-6">
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 flex justify-between items-center shadow-sm">
+              <div className="flex-1">
+                <p className="text-slate-400 text-[11px] mb-1">Số tiền</p>
+                <p className="text-[#0d6db7] text-[17px] font-bold">{formattedTotal} VND</p>
+              </div>
             </div>
-            
-            <div className="px-5 py-3 border-b border-slate-50 bg-slate-50/50">
-              <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 flex items-center gap-2 shadow-sm">
-                <Search className="w-5 h-5 text-slate-400" />
+
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+              <p className="text-slate-400 text-[11px] mb-1">Nội dung</p>
+              <p className="text-slate-800 text-[14px] font-medium uppercase">{user?.name || "Bệnh nhân"} thanh toan vien phi {invoiceCode}</p>
+            </div>
+          </div>
+        </div>
+        
+        {/* Bottom Action Bar raised above the taskbar */}
+        <div className="p-4 pb-24 bg-white border-t border-slate-200/60 flex gap-3 z-10 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] shrink-0">
+          <button 
+            onClick={() => setCurrentView("payment_face_capture")}
+            disabled={!selectedBank}
+            className={`flex-1 rounded-2xl py-4 text-[16px] font-bold transition-transform ${selectedBank ? 'bg-[#88E8F2] text-[#0d1f2d] active:scale-[0.98]' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
+            Tiếp tục
+          </button>
+        </div>
+
+        {/* Bank List Bottom Sheet */}
+        {showBankList && (
+          <div className="absolute inset-0 z-50 flex flex-col bg-[#f0f2f5] animate-in slide-in-from-bottom duration-300">
+            <div className="p-4 bg-[#88E8F2] text-[#0d1f2d] flex items-center gap-3 shadow-sm pt-safe">
+              <button onClick={() => setShowBankList(false)} className="p-2 -ml-2 text-[#0d1f2d]">
+                <ArrowLeft className="w-6 h-6" />
+              </button>
+              <div className="flex-1 relative">
+                <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input 
                   type="text" 
-                  placeholder="Tìm kiếm ngân hàng..." 
-                  className="bg-transparent border-none outline-none text-[15px] w-full placeholder:text-slate-400 text-slate-800"
+                  autoFocus
+                  placeholder="Tìm kiếm ngân hàng" 
                   value={searchBank}
-                  onChange={e => setSearchBank(e.target.value)}
+                  onChange={(e) => setSearchBank(e.target.value)}
+                  className="w-full bg-white text-slate-800 rounded-xl py-2.5 pl-10 pr-4 outline-none border border-slate-200"
                 />
               </div>
             </div>
-
-            <div className="flex-1 overflow-y-auto px-5 pb-safe">
-              <div className="grid grid-cols-1 gap-2 py-2">
-                {BANK_LIST.filter(b => b.name.toLowerCase().includes(searchBank.toLowerCase()) || b.fullName.toLowerCase().includes(searchBank.toLowerCase())).map(bank => (
-                  <button
-                    key={bank.id}
-                    onClick={() => { setSelectedBank(bank); setShowBankList(false); }}
-                    className="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 active:bg-slate-100 transition-colors border border-transparent hover:border-slate-100 text-left"
-                  >
-                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shrink-0 shadow-sm border border-slate-100 p-1">
-                      <img src={bank.img} alt={bank.name} className="w-full h-full object-contain rounded-full" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-[15px] font-bold text-slate-800">{bank.name}</p>
-                      <p className="text-[12px] text-slate-500 line-clamp-1">{bank.fullName}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {[
+                { id: 'vcb', name: 'Vietcombank', desc: 'Ngân hàng TMCP Ngoại thương Việt Nam', logo: '/img/vcb.webp', color: 'bg-green-50' },
+                { id: 'shb', name: 'SHB', desc: 'Ngân hàng TMCP Sài Gòn - Hà Nội', logo: '/img/shb.png', color: 'bg-orange-50' },
+                { id: 'tcb', name: 'Techcombank', desc: 'Ngân hàng TMCP Kỹ thương Việt Nam', logo: '/img/tcb.webp', color: 'bg-red-50' },
+                { id: 'mb', name: 'MB Bank', desc: 'Ngân hàng TMCP Quân đội', logo: '/img/mb.webp', color: 'bg-blue-50' },
+                { id: 'bidv', name: 'BIDV', desc: 'Ngân hàng TMCP Đầu tư và Phát triển Việt Nam', logo: '/img/bidv.webp', color: 'bg-blue-50' },
+                { id: 'vtb', name: 'Vietinbank', desc: 'Ngân hàng TMCP Công thương Việt Nam', logo: '/img/vtb.webp', color: 'bg-blue-50' },
+                { id: 'acb', name: 'ACB', desc: 'Ngân hàng TMCP Á Châu', logo: '/img/acb.png', color: 'bg-blue-50' },
+                { id: 'vpb', name: 'VP Bank', desc: 'Ngân hàng TMCP Việt Nam Thịnh Vượng', logo: '/img/vpb.webp', color: 'bg-green-50' }
+              ].filter(b => b.name.toLowerCase().includes(searchBank.toLowerCase()) || b.desc.toLowerCase().includes(searchBank.toLowerCase())).map((bank) => (
+                <div 
+                  key={bank.id}
+                  onClick={() => {
+                    setSelectedBank(bank);
+                    setShowBankList(false);
+                  }}
+                  className="flex items-center gap-4 bg-white border border-slate-100 p-4 rounded-xl active:bg-slate-50 cursor-pointer shadow-sm"
+                >
+                  <img src={bank.logo} alt={bank.name} className="w-12 h-12 rounded-full object-contain shrink-0" />
+                  <div>
+                    <p className="text-slate-800 font-bold text-[15px]">{bank.name}</p>
+                    <p className="text-slate-500 text-[12px]">{bank.desc}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-      )}
-    </div>
-  );
+        )}
+      </div>
+    );
+  };
 
   const renderPaymentFaceCapture = () => (
-    <div className="flex-1 flex flex-col bg-[#f0f2f5] overflow-hidden relative">
-      <div className="flex items-center justify-between px-4 py-3 bg-[#88E8F2] text-[#0d1f2d] pt-safe z-10 shrink-0 shadow-sm">
-        <button onClick={() => setCurrentView("payment_confirmation")} className="p-1 active:scale-95">
+    <div className="flex-1 flex flex-col bg-black overflow-hidden relative">
+      <div className="flex items-center justify-between px-4 py-3 bg-black text-white pt-safe z-10 shrink-0">
+        <button onClick={() => setCurrentView("payment_confirmation")} className="p-1 active:scale-95" disabled={isVerifyingPaymentFace}>
           <ArrowLeft className="h-6 w-6" />
         </button>
         <span className="text-[17px] font-bold flex-1 text-center pr-8">Xác thực khuôn mặt</span>
       </div>
-      <div className="flex-1 flex items-center justify-center px-4">
+      <div className="flex-1 relative">
+        {paymentError && (
+          <div className="absolute inset-x-0 top-10 z-50 mx-4 rounded-xl bg-red-500/90 p-4 text-center text-white backdrop-blur-sm">
+            <p className="font-bold">{paymentError}</p>
+          </div>
+        )}
         <FaceIdCapture onCapture={handlePaymentFaceVerified} />
+        {isVerifyingPaymentFace && (
+          <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#88E8F2] border-t-transparent" />
+            <p className="mt-4 text-white font-medium">Đang xác thực sinh trắc học...</p>
+          </div>
+        )}
       </div>
     </div>
   );
 
-  const renderPaymentSuccess = () => (
-    <div className="flex-1 flex flex-col bg-[#0f172a] overflow-hidden relative">
-      <div className="flex-1 overflow-y-auto px-5 py-8 flex flex-col items-center">
-        <div className="animate-in zoom-in duration-500 flex flex-col items-center w-full max-w-sm mt-8">
-          {/* Glowing checkmark */}
-          <div className="w-24 h-24 bg-[#def7ec] rounded-full flex items-center justify-center mb-6 relative">
-            <div className="absolute inset-0 bg-[#def7ec] rounded-full animate-ping opacity-50"></div>
-            <CheckCircle2 className="w-14 h-14 text-emerald-500 relative z-10" />
+  const renderPaymentSuccess = () => {
+    const formattedTotal = new Intl.NumberFormat('vi-VN').format(viewingInvoice?.total || 0);
+    return (
+      <div className="flex-1 flex flex-col bg-[#0d1f2d] overflow-hidden relative">
+        <div className="flex-1 flex flex-col items-center pt-20 px-6 overscroll-contain overflow-y-auto pb-10">
+          <div className="w-24 h-24 bg-[#E0FF6A] rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(224,255,106,0.3)] mb-8">
+            <CheckCircle2 className="w-12 h-12 text-[#0d1f2d]" strokeWidth={3} />
           </div>
           
-          <h2 className="text-[26px] font-bold text-white mb-2">Thanh toán thành công</h2>
-          <p className="text-[14px] text-slate-400 mb-6 text-center leading-relaxed">
-            Hóa đơn viện phí của bạn đã được thanh toán. Thông tin đã gửi qua SMS & email.
+          <h2 className="text-white text-[24px] font-bold mb-2 text-center">Thanh toán thành công</h2>
+          <p className="text-slate-400 text-[14px] text-center mb-8 px-4">
+            Hóa đơn của bạn đã được thanh toán. Biên lai đã được gửi qua Email đăng ký.
           </p>
           
-          <div className="mb-8">
-            <p className="text-[36px] font-black text-[#88E8F2] drop-shadow-[0_0_15px_rgba(136,232,242,0.4)]">
-              {new Intl.NumberFormat('vi-VN').format(viewingInvoice?.total || 0)} <span className="text-[20px] text-slate-300 font-bold">VND</span>
-            </p>
+          <div className="text-center mb-8">
+            <span className="text-[#E0FF6A] text-[40px] font-bold">{formattedTotal}</span>
+            <span className="text-slate-400 text-[16px] font-bold ml-2">VND</span>
           </div>
           
-          {/* Details Card */}
-          <div className="bg-[#1e293b] w-full rounded-2xl border border-[#334155] p-5 shadow-lg mb-10">
-            <div className="flex justify-between py-3 border-b border-[#334155]">
-              <span className="text-[14px] text-slate-400">Mã hóa đơn</span>
-              <span className="text-[14px] font-medium text-white">{viewingInvoice?.id.substring(24).toUpperCase()}</span>
-            </div>
-            <div className="flex justify-between py-3 border-b border-[#334155]">
-              <span className="text-[14px] text-slate-400">Dịch vụ</span>
-              <span className="text-[14px] font-medium text-white">Thanh toán viện phí</span>
-            </div>
-            <div className="flex justify-between py-3 border-b border-[#334155]">
-              <span className="text-[14px] text-slate-400">Thời gian</span>
-              <span className="text-[14px] font-medium text-white">{new Date(viewingInvoice?.date || '').toLocaleDateString('vi-VN')}</span>
-            </div>
-            <div className="flex justify-between py-3">
-              <span className="text-[14px] text-slate-400">Nơi khám</span>
-              <span className="text-[14px] font-bold text-white">TRUNG TÂM EYECU</span>
+          <div className="w-full bg-[#1a2c3d] rounded-2xl p-5 border border-[#2a3c4d]">
+            <div className="space-y-4 text-[14px]">
+              <div className="flex justify-between items-center border-b border-[#2a3c4d] pb-3">
+                <span className="text-slate-400">Mã hóa đơn</span>
+                <span className="text-white font-medium uppercase">{viewingInvoice?.id?.substring(24).toUpperCase() || ''}</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-[#2a3c4d] pb-3">
+                <span className="text-slate-400">Dịch vụ</span>
+                <span className="text-white font-medium text-right max-w-[60%] line-clamp-1">Khám lâm sàng</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Thời gian GD</span>
+                <span className="text-white font-medium">{new Date().toLocaleString('vi-VN')}</span>
+              </div>
             </div>
           </div>
-          
+        </div>
+        
+        <div className="p-5 pb-8 bg-[#0d1f2d]">
           <button 
             onClick={() => {
-              setViewingInvoice(null);
-              setCurrentView("home");
-            }} 
-            className="w-full py-4 bg-[#88E8F2] text-[#0d1f2d] rounded-xl font-bold text-[16px] active:scale-95 transition-transform"
-          >
+              setShowRatingPopup(true);
+            }}
+            className="w-full rounded-2xl bg-[#E0FF6A] py-4 text-[16px] font-bold text-[#0d1f2d] active:scale-[0.98] transition-transform">
             Về trang chủ
           </button>
         </div>
+        
+        {showRatingPopup && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
+            <div className="w-full max-w-sm rounded-3xl bg-[#1a2c3d] border border-[#2a3c4d] p-6 text-center animate-in fade-in zoom-in-95 duration-200">
+              <h3 className="text-[20px] font-bold text-white mb-2">Bạn thấy phiên vừa rồi thế nào?</h3>
+              <p className="text-[14px] text-slate-400 mb-6">Đánh giá phiên với <strong className="text-slate-300">Thanh toán viện phí</strong></p>
+              
+              <div className="flex justify-center gap-3 mb-4">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button 
+                    key={star} 
+                    onClick={() => setRating(star)}
+                    className="p-1 active:scale-90 transition-transform"
+                  >
+                    <svg 
+                      width="36" height="36" viewBox="0 0 24 24" 
+                      fill={star <= rating ? "#E0FF6A" : "transparent"} 
+                      stroke={star <= rating ? "#E0FF6A" : "#64748b"} 
+                      strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+                    >
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                    </svg>
+                  </button>
+                ))}
+              </div>
+              <p className="text-[14px] font-bold text-[#E0FF6A] mb-8">Chạm vào sao để chấm điểm</p>
+              
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => {
+                    setShowRatingPopup(false);
+                    setViewingInvoice(null);
+                    setCurrentView("home");
+                  }}
+                  className="flex-1 rounded-2xl bg-slate-100 py-3.5 text-[15px] font-bold text-slate-700 active:bg-slate-200 transition-colors"
+                >
+                  Bỏ qua
+                </button>
+                <button 
+                  onClick={() => {
+                    setShowRatingPopup(false);
+                    setViewingInvoice(null);
+                    setCurrentView("home");
+                  }}
+                  className={`flex-1 rounded-2xl py-3.5 text-[15px] font-bold transition-colors ${rating > 0 ? 'bg-[#88E8F2] text-[#0d1f2d] active:bg-[#68c6cf]' : 'bg-[#2a3c4d] text-slate-400'}`}
+                  disabled={rating === 0}
+                >
+                  Gửi đánh giá
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
-  );
-
-  const [signTab, setSignTab] = useState<"unsigned" | "signed">("unsigned");
+    );
+  };
 
   const renderDigitalSignature = () => (
     <div className="flex-1 flex flex-col bg-[#f0f2f5] overflow-hidden relative">
@@ -2683,8 +2318,6 @@ export function PatientPortalNew({
             renderCommunityQa()
           ) : currentView === "ask_question" ? (
             renderAskQuestion()
-          ) : currentView === "question_thread" ? (
-            renderQuestionThread()
           ) : currentView === "invoice_list" ? (
             renderInvoiceList()
           ) : currentView === "payment_confirmation" ? (
@@ -2768,281 +2401,79 @@ export function PatientPortalNew({
         {/* Booking Appointment Modal */}
         {showBookingModal && (
           <div className="absolute inset-0 z-[60] flex flex-col justify-end bg-black/60 animate-in fade-in duration-200">
-            <div className="flex-1 w-full" onClick={() => { if(bookStep !== 4) setShowBookingModal(false); }} />
-            <div className="bg-white rounded-t-3xl flex flex-col max-h-[90%] animate-in slide-in-from-bottom-full duration-300 shadow-2xl">
-
-              {/* Header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  {bookStep > 1 && bookStep < 4 && (
-                    <button onClick={() => setBookStep(s => s-1)} className="p-1 rounded-full active:bg-slate-100">
-                      <ArrowLeft className="h-5 w-5 text-slate-600" />
-                    </button>
-                  )}
-                  <span className="text-[17px] font-bold text-slate-800">
-                    {bookStep === 1 && "Chọn chuyên khoa"}
-                    {bookStep === 2 && "Chọn bác sĩ"}
-                    {bookStep === 3 && "Chọn ngày & giờ"}
-                    {bookStep === 4 && "Đặt lịch thành công!"}
-                  </span>
-                </div>
-                {bookStep < 4 && (
-                  <button onClick={() => setShowBookingModal(false)} className="p-1 active:bg-slate-100 rounded-full">
-                    <X className="h-6 w-6 text-slate-400" />
-                  </button>
-                )}
+            <div className="flex-1 w-full" onClick={() => setShowBookingModal(false)} />
+            <div className="bg-white rounded-t-3xl flex flex-col max-h-[85%] animate-in slide-in-from-bottom-full duration-300 shadow-2xl">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                <span className="text-[18px] font-bold text-slate-800">Đặt lịch khám</span>
+                <button onClick={() => setShowBookingModal(false)} className="p-1 active:bg-slate-100 rounded-full">
+                  <X className="h-6 w-6 text-slate-500" />
+                </button>
               </div>
-
-              {/* Step indicators */}
-              {bookStep < 4 && (
-                <div className="flex gap-1.5 px-5 py-3 border-b border-slate-50">
-                  {[1,2,3].map(s => (
-                    <div key={s} className={`flex-1 h-1.5 rounded-full transition-all ${
-                      s <= bookStep ? "bg-[#88E8F2]" : "bg-slate-200"
-                    }`} />
-                  ))}
+              
+              <div className="p-6 overflow-y-auto pb-24">
+                <div className="mb-6">
+                  <label className="block text-[14px] font-bold text-slate-700 mb-2">1. Chọn chuyên khoa</label>
+                  <button 
+                    onClick={() => setShowBookingSpecialties(true)}
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 active:bg-slate-100"
+                  >
+                    <span className={`text-[15px] ${bookingSpecialty ? "text-[#0d1f2d] font-medium" : "text-slate-400"}`}>
+                      {bookingSpecialty || "Nhấn để chọn chuyên khoa"}
+                    </span>
+                    <ChevronRight className="h-5 w-5 text-slate-400" />
+                  </button>
                 </div>
-              )}
 
-              <div className="flex-1 overflow-y-auto pb-safe">
-
-                {/* ── Step 1: Chọn chuyên khoa ───────────────────── */}
-                {bookStep === 1 && (
-                  <div className="p-4">
-                    {deptsList.length === 0 ? (
-                      <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 className="h-6 w-6 animate-spin" /></div>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-3">
-                        {deptsList.map(d => (
-                          <button
-                            key={d.id}
-                            onClick={() => handleSelectDept(d.id, d.name)}
-                            className="flex flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-white p-4 active:bg-[#88E8F2]/30 active:border-[#88E8F2] transition-all shadow-sm text-center"
-                          >
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-50">
-                              <Stethoscope className="h-5 w-5 text-[#0d1f2d]" />
-                            </div>
-                            <span className="text-[12px] font-semibold text-slate-700 leading-tight">{d.name.replace("Khoa ", "")}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                <div className="mb-8">
+                  <label className="block text-[14px] font-bold text-slate-700 mb-2">2. Chọn ngày khám</label>
+                  <div className="relative">
+                    <input 
+                      type="date"
+                      value={bookingDate}
+                      onChange={(e) => setBookingDate(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-[15px] font-medium text-[#0d1f2d] outline-none focus:border-[#88E8F2] focus:ring-1 focus:ring-[#88E8F2]"
+                    />
                   </div>
-                )}
+                </div>
 
-                {/* ── Step 2: Chọn bác sĩ ──────────────────────────── */}
-                {bookStep === 2 && (
-                  <div className="p-4 flex flex-col gap-3">
-                    <p className="text-[13px] text-slate-500 mb-1">Chuyên khoa: <span className="font-semibold text-slate-800">{selectedDeptName}</span></p>
-
-                    {/* Chọn ngẫu nhiên */}
-                    <button
-                      onClick={() => handleSelectDoctor("random", "Bác sĩ ngẫu nhiên")}
-                      className="flex items-center gap-4 rounded-2xl border-2 border-[#88E8F2] bg-cyan-50 p-4 active:bg-[#88E8F2]/40 transition-all"
-                    >
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#0d1f2d]">
-                        <Users className="h-6 w-6 text-[#88E8F2]" />
-                      </div>
-                      <div className="text-left">
-                        <p className="font-bold text-[#0d1f2d]">Bác sĩ ngẫu nhiên</p>
-                        <p className="text-[12px] text-slate-500">Hệ thống tự phân công bác sĩ phù hợp nhất</p>
-                      </div>
-                    </button>
-
-                    {/* Danh sách bác sĩ cụ thể */}
-                    {doctorsList.length > 0 && (
-                      <>
-                        <p className="text-[12px] font-bold text-slate-400 uppercase tracking-wider mt-1">Hoặc chọn bác sĩ</p>
-                        {doctorsList.map(doc => (
-                          <button
-                            key={doc.id}
-                            onClick={() => handleSelectDoctor(doc.id, doc.name)}
-                            className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 active:bg-slate-50 transition-all"
-                          >
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-100">
-                              <User className="h-6 w-6 text-slate-500" />
-                            </div>
-                            <div className="text-left">
-                              <p className="font-bold text-slate-800">{doc.name}</p>
-                              <p className="text-[12px] text-slate-400">Bác sĩ chuyên khoa</p>
-                            </div>
-                          </button>
-                        ))}
-                      </>
-                    )}
-                    {doctorsList.length === 0 && (
-                      <p className="text-center text-[13px] text-slate-400 py-4">Không tìm thấy bác sĩ nào trong khoa. Hệ thống sẽ tự động phân công.</p>
-                    )}
-                  </div>
-                )}
-
-                {/* ── Step 3: Chọn ngày & giờ ─────────────────────── */}
-                {bookStep === 3 && (() => {
-                  const today = new Date();
-                  today.setHours(0,0,0,0);
-                  const maxDate = new Date(Date.now() + 30*24*60*60*1000);
-                  maxDate.setHours(0,0,0,0);
-                  const firstDay = new Date(calendarYear, calendarMonth, 1);
-                  const startDow = firstDay.getDay(); // 0=Sun
-                  const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
-                  const DAYS_VI = ["CN","T2","T3","T4","T5","T6","T7"];
-                  const MONTHS_VI = ["Tháng 1","Tháng 2","Tháng 3","Tháng 4","Tháng 5","Tháng 6","Tháng 7","Tháng 8","Tháng 9","Tháng 10","Tháng 11","Tháng 12"];
-                  const cells: (number|null)[] = [...Array(startDow).fill(null), ...Array.from({length:daysInMonth},(_,i)=>i+1)];
-                  while (cells.length % 7 !== 0) cells.push(null);
-
-                  const prevMonth = () => {
-                    if (calendarMonth === 0) { setCalendarMonth(11); setCalendarYear(y=>y-1); }
-                    else setCalendarMonth(m=>m-1);
-                    setBookingTime(null);
-                  };
-                  const nextMonth = () => {
-                    if (calendarMonth === 11) { setCalendarMonth(0); setCalendarYear(y=>y+1); }
-                    else setCalendarMonth(m=>m+1);
-                    setBookingTime(null);
-                  };
-
-                  const canGoPrev = new Date(calendarYear, calendarMonth, 1) > new Date(today.getFullYear(), today.getMonth(), 1);
-                  const canGoNext = new Date(calendarYear, calendarMonth, 1) < new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
-
-                  return (
-                  <div className="p-4">
-                    <p className="text-[13px] text-slate-500 mb-3">
-                      Bác sĩ: <span className="font-semibold text-slate-800">{selectedDoctorName}</span>
-                    </p>
-
-                    {/* Custom calendar */}
-                    <div className="mb-4">
-                      <label className="block text-[13px] font-bold text-slate-600 mb-2">Chọn ngày khám</label>
-                      <div className="bg-slate-50 rounded-2xl p-3 border border-slate-200">
-                        {/* Month nav */}
-                        <div className="flex items-center justify-between mb-3">
-                          <button
-                            onClick={prevMonth}
-                            disabled={!canGoPrev}
-                            className="w-9 h-9 flex items-center justify-center rounded-full active:bg-slate-200 disabled:opacity-30 text-slate-600 text-lg font-bold"
-                          >‹</button>
-                          <span className="text-[14px] font-bold text-slate-800">{MONTHS_VI[calendarMonth]} {calendarYear}</span>
-                          <button
-                            onClick={nextMonth}
-                            disabled={!canGoNext}
-                            className="w-9 h-9 flex items-center justify-center rounded-full active:bg-slate-200 disabled:opacity-30 text-slate-600 text-lg font-bold"
-                          >›</button>
-                        </div>
-                        {/* Day headers */}
-                        <div className="grid grid-cols-7 mb-1">
-                          {DAYS_VI.map(d => (
-                            <div key={d} className="text-center text-[10px] font-bold text-slate-400 py-1">{d}</div>
-                          ))}
-                        </div>
-                        {/* Date cells */}
-                        <div className="grid grid-cols-7 gap-y-1">
-                          {cells.map((day, idx) => {
-                            if (!day) return <div key={idx} />;
-                            const thisDate = new Date(calendarYear, calendarMonth, day);
-                            thisDate.setHours(0,0,0,0);
-                            const isDisabled = thisDate < today || thisDate > maxDate;
-                            const dateStr = `${calendarYear}-${String(calendarMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-                            const isSelected = bookingDate === dateStr;
-                            const isToday = thisDate.getTime() === today.getTime();
-                            return (
-                              <button
-                                key={idx}
-                                disabled={isDisabled}
-                                onClick={() => { if (!isDisabled) { handleDateChange(dateStr); setBookingTime(null); } }}
-                                className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full text-[13px] font-semibold transition-all ${
-                                  isDisabled ? "text-slate-300 cursor-not-allowed" :
-                                  isSelected ? "bg-[#0d1f2d] text-white shadow-md" :
-                                  isToday ? "border-2 border-[#88E8F2] text-[#0A9BAD] font-bold" :
-                                  "text-slate-700 active:bg-[#88E8F2]/40"
-                                }`}
-                              >{day}</button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Time slots grid */}
-                    {bookingDate && (
-                      <div>
-                        <label className="block text-[13px] font-bold text-slate-600 mb-2">
-                          Chọn giờ · <span className="text-[#0A9BAD]">{new Date(bookingDate + 'T00:00:00').toLocaleDateString('vi-VN', {weekday:'long', day:'numeric', month:'long'})}</span>
-                        </label>
-                        <div className="grid grid-cols-3 gap-2">
-                          {TIME_SLOTS.map(slot => {
-                            const isBooked = bookedSlots.includes(slot);
-                            const isSelected = bookingTime === slot;
-                            return (
-                              <button
-                                key={slot}
-                                disabled={isBooked}
-                                onClick={() => !isBooked && setBookingTime(slot)}
-                                className={`rounded-xl py-3 text-[14px] font-semibold border transition-all ${
-                                  isBooked
-                                    ? "bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed line-through"
-                                    : isSelected
-                                    ? "bg-[#0d1f2d] text-white border-[#0d1f2d] shadow-lg"
-                                    : "bg-white text-slate-700 border-slate-200 active:bg-[#88E8F2]/40"
-                                }`}
-                              >
-                                {slot}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Confirm button */}
-                    {bookingTime && bookingDate && (
-                      <button
-                        onClick={handleBookingSubmit}
-                        disabled={submittingBooking}
-                        className="mt-6 w-full rounded-full bg-[#88E8F2] py-4 text-[16px] font-bold text-[#0d1f2d] shadow-lg active:scale-95 transition-transform disabled:opacity-50"
-                      >
-                        {submittingBooking ? "Đang xử lý..." : `Xác nhận đặt lịch · ${bookingTime}`}
-                      </button>
-                    )}
-                  </div>
-                  );
-                })()}
-
-                {/* ── Step 4: Thành công ─────────────────────────────── */}
-                {bookStep === 4 && bookSuccess && (
-                  <div className="flex flex-col items-center justify-center p-8 gap-4">
-                    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-50 border-4 border-emerald-200">
-                      <CheckCircle2 className="h-10 w-10 text-emerald-500" />
-                    </div>
-                    <h2 className="text-[20px] font-bold text-slate-800 text-center">Đặt lịch thành công!</h2>
-                    <div className="w-full bg-slate-50 rounded-2xl p-4 flex flex-col gap-2">
-                      <div className="flex justify-between text-[14px]">
-                        <span className="text-slate-500">Chuyên khoa</span>
-                        <span className="font-semibold text-slate-800">{bookSuccess.dept}</span>
-                      </div>
-                      <div className="flex justify-between text-[14px]">
-                        <span className="text-slate-500">Bác sĩ</span>
-                        <span className="font-semibold text-slate-800">{bookSuccess.doctorName}</span>
-                      </div>
-                      <div className="flex justify-between text-[14px]">
-                        <span className="text-slate-500">Ngày khám</span>
-                        <span className="font-semibold text-slate-800">{new Date(bookSuccess.date + "T00:00:00").toLocaleDateString("vi-VN", {day:"2-digit",month:"2-digit",year:"numeric"})}</span>
-                      </div>
-                      <div className="flex justify-between text-[14px]">
-                        <span className="text-slate-500">Giờ khám</span>
-                        <span className="font-semibold text-[#0d1f2d] text-[16px]">{bookSuccess.time}</span>
-                      </div>
-                    </div>
-                    <p className="text-[12px] text-slate-400 text-center">Vui lòng đến đúng giờ. Bác sĩ sẽ nhận thông báo ngay lập tức.</p>
-                    <button
-                      onClick={() => { setShowBookingModal(false); setBookStep(1); }}
-                      className="w-full rounded-full bg-[#0d1f2d] py-4 text-[16px] font-bold text-white active:scale-95 transition-transform"
-                    >
-                      Hoàn tất
-                    </button>
-                  </div>
-                )}
+                <button 
+                  onClick={handleBookingSubmit}
+                  disabled={submittingBooking}
+                  className="w-full rounded-full bg-[#88E8F2] py-4 text-[16px] font-bold text-[#0d1f2d] shadow-lg active:scale-95 transition-transform disabled:opacity-50"
+                >
+                  {submittingBooking ? "Đang xử lý..." : "Xác nhận đặt lịch"}
+                </button>
               </div>
             </div>
+
+            {/* Nested Specialty Selector */}
+            {showBookingSpecialties && (
+              <div className="absolute inset-0 z-[70] flex flex-col justify-end bg-black/50 animate-in fade-in duration-200">
+                <div className="flex-1 w-full" onClick={() => setShowBookingSpecialties(false)} />
+                <div className="bg-white rounded-t-2xl flex flex-col h-[60%] animate-in slide-in-from-bottom-full duration-300">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                    <span className="text-[16px] font-bold text-slate-800">Chọn chuyên khoa</span>
+                    <button onClick={() => setShowBookingSpecialties(false)} className="p-1 active:bg-slate-100 rounded-full">
+                      <X className="h-5 w-5 text-slate-500" />
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto pb-safe">
+                    {specialtiesList.map((spec) => (
+                      <button 
+                        key={spec}
+                        onClick={() => {
+                          setBookingSpecialty(spec);
+                          setShowBookingSpecialties(false);
+                        }}
+                        className="w-full text-left px-4 py-4 border-b border-slate-100 active:bg-slate-50 text-[15px] text-slate-700 font-medium"
+                      >
+                        {spec}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -3446,45 +2877,6 @@ export function PatientPortalNew({
                 className="w-full py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold active:bg-slate-300"
               >
                 Đóng
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Audio Prompt Modal for iOS */}
-      {showAudioPrompt && !audioUnlocked && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden p-6 text-center animate-in zoom-in-95 duration-200">
-            <div className="mx-auto w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mb-4">
-              <span className="text-3xl">🔊</span>
-            </div>
-            <h3 className="text-lg font-bold text-[#0d1f2d] mb-2">Bật âm thanh tự động?</h3>
-            <p className="text-[14px] text-slate-500 mb-6">
-              Bạn có muốn trợ lý tự động phát âm thanh khi phản hồi không? Bạn có thể thay đổi sau.
-            </p>
-            <div className="flex gap-3">
-              <button 
-                onClick={() => {
-                  setAutoPlayTTS(false);
-                  setShowAudioPrompt(false);
-                  setAudioUnlocked(true);
-                }}
-                className="flex-1 py-3 rounded-xl bg-slate-100 text-slate-600 font-bold active:bg-slate-200"
-              >
-                Không
-              </button>
-              <button 
-                onClick={() => {
-                  setAutoPlayTTS(true);
-                  setShowAudioPrompt(false);
-                  setAudioUnlocked(true);
-                  const silentAudio = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
-                  silentAudio.play().catch(() => {});
-                }}
-                className="flex-1 py-3 rounded-xl bg-[#88E8F2] text-[#0d1f2d] font-bold active:bg-cyan-300"
-              >
-                Có, bật
               </button>
             </div>
           </div>

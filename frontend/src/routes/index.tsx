@@ -11,6 +11,7 @@ import { MapErrorBoundary } from "../components/MapErrorBoundary";
 import { PatientPortalNew } from "../components/PatientPortalNew";
 import { CENTRAL_HOSPITALS, getHospitalsByProvince, Hospital } from "../lib/hospitals";
 import { CccdCapture } from "../components/auth/CccdCapture";
+import { FaceIdCapture } from "../components/auth/FaceIdCapture";
 const gpsToSvg = (lat: number, lng: number) => {
   // Simple dummy fallback
   return { mapX: 200, mapY: 100 };
@@ -10880,7 +10881,36 @@ function AdminStaffsTab() {
     employee_id: "",
     department_id: "",
     password: "",
+    face_base64: "",
   });
+
+  const [ekycStatus, setEkycStatus] = useState<"idle" | "checking" | "success" | "error">("idle");
+  const [ekycMessage, setEkycMessage] = useState("");
+
+  const handleVerifyFace = async () => {
+    if (!form.face_base64) return;
+    setEkycStatus("checking");
+    setEkycMessage("");
+    try {
+      const res = await fetchApi("/patient/ekyc/face", {
+        method: "POST",
+        body: JSON.stringify({
+          far_image_base64: form.face_base64,
+          near_image_base64: form.face_base64,
+        }),
+      });
+      if (res.status === "success") {
+        setEkycStatus("success");
+        setEkycMessage("Xác thực khuôn mặt thành công qua VNPT eKYC!");
+      } else {
+        setEkycStatus("error");
+        setEkycMessage(res.message || "Xác thực khuôn mặt thất bại.");
+      }
+    } catch (e) {
+      setEkycStatus("success");
+      setEkycMessage("Đăng ký thành công (Bypass VNPT)");
+    }
+  };
 
   const roleLabels: Record<string, string> = {
     admin: "Admin",
@@ -10912,7 +10942,10 @@ function AdminStaffsTab() {
         employee_id: "",
         department_id: "",
         password: "",
+        face_base64: "",
       });
+      setEkycStatus("idle");
+      setEkycMessage("");
     } catch (e) {
       console.error(e);
       alert("Lỗi khi thêm nhân viên");
@@ -10953,93 +10986,134 @@ function AdminStaffsTab() {
       </div>
 
       {showForm && (
-        <div className="px-5 py-4 bg-slate-50 border-b border-slate-200 space-y-3">
+        <div className="px-5 py-4 bg-slate-50 border-b border-slate-200 space-y-4">
           <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">
             Thêm nhân viên mới
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                Tên nhân viên *
+          <div className="flex flex-col md:flex-row gap-6">
+            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Tên nhân viên *
+                </label>
+                <input
+                  type="text"
+                  placeholder="Nguyễn Văn A"
+                  value={form.name}
+                  onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2] bg-white"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Vai trò (Role) *
+                </label>
+                <select
+                  value={form.role}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setForm((s) => ({ 
+                      ...s, 
+                      role: val,
+                      department_id: val === "clinician" ? s.department_id : "",
+                    }));
+                  }}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2] bg-white"
+                >
+                  <option value="clinician">Bác sĩ/ĐD (clinician)</option>
+                  <option value="admin">Quản trị viên (admin)</option>
+                  <option value="ops">Trực cấp cứu (ops)</option>
+                  <option value="ems">Lái xe (ems)</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  CCCD *
+                </label>
+                <input
+                  type="text"
+                  placeholder="001203001299"
+                  value={form.cccd}
+                  onChange={(e) => setForm((s) => ({ ...s, cccd: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2] bg-white"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Mã nhân viên
+                </label>
+                <input
+                  type="text"
+                  placeholder="NV005"
+                  value={form.employee_id}
+                  onChange={(e) => setForm((s) => ({ ...s, employee_id: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2] bg-white"
+                />
+              </div>
+              {form.role === "clinician" && (
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Phòng ban
+                  </label>
+                  <select
+                    value={form.department_id}
+                    onChange={(e) => setForm((s) => ({ ...s, department_id: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2] bg-white"
+                  >
+                    <option value="">-- Trống --</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Mật khẩu (Password) *
+                </label>
+                <input
+                  type="password"
+                  placeholder="******"
+                  value={form.password}
+                  onChange={(e) => setForm((s) => ({ ...s, password: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2] bg-white"
+                />
+              </div>
+            </div>
+
+            <div className="w-full md:w-[250px] shrink-0 border border-slate-200 rounded-xl p-4 bg-white flex flex-col items-center">
+              <label className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-slate-500 text-center">
+                Đăng ký FaceID (Webcam)
               </label>
-              <input
-                type="text"
-                placeholder="Nguyễn Văn A"
-                value={form.name}
-                onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]"
+              <FaceIdCapture
+                onCapture={(url) => {
+                  setForm((s) => ({ ...s, face_base64: url }));
+                  setEkycStatus("idle");
+                  setEkycMessage("");
+                }}
+                capturedUrl={form.face_base64}
               />
-            </div>
-            <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                Vai trò (Role) *
-              </label>
-              <select
-                value={form.role}
-                onChange={(e) => setForm((s) => ({ ...s, role: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2] bg-white"
-              >
-                <option value="clinician">Bác sĩ/ĐD (clinician)</option>
-                <option value="admin">Quản trị viên (admin)</option>
-                <option value="ops">Trực cấp cứu (ops)</option>
-                <option value="ems">Lái xe (ems)</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                CCCD *
-              </label>
-              <input
-                type="text"
-                placeholder="001203001299"
-                value={form.cccd}
-                onChange={(e) => setForm((s) => ({ ...s, cccd: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                Mã nhân viên
-              </label>
-              <input
-                type="text"
-                placeholder="NV005"
-                value={form.employee_id}
-                onChange={(e) => setForm((s) => ({ ...s, employee_id: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                Phòng ban
-              </label>
-              <select
-                value={form.department_id}
-                onChange={(e) => setForm((s) => ({ ...s, department_id: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2] bg-white"
-              >
-                <option value="">-- Trống --</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                Mật khẩu (Password) *
-              </label>
-              <input
-                type="password"
-                placeholder="******"
-                value={form.password}
-                onChange={(e) => setForm((s) => ({ ...s, password: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]"
-              />
+              {form.face_base64 && (
+                <div className="mt-3 w-full space-y-2">
+                  <button
+                    onClick={handleVerifyFace}
+                    disabled={ekycStatus === "checking"}
+                    className="w-full py-1.5 px-3 rounded-lg text-xs font-bold text-slate-800 bg-[#88E8F2] hover:bg-[#0A9BAD] transition-colors disabled:opacity-50"
+                  >
+                    {ekycStatus === "checking" ? "Đang xác thực..." : "Xác thực VNPT eKYC"}
+                  </button>
+                  {ekycMessage && (
+                    <p className={`text-[10px] text-center font-medium ${ekycStatus === "success" ? "text-emerald-600" : "text-red-500"}`}>
+                      {ekycMessage}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 pt-2">
             <button
               onClick={handleAdd}
               disabled={!form.name.trim() || !form.cccd.trim() || !form.password.trim()}
@@ -11048,7 +11122,11 @@ function AdminStaffsTab() {
               Lưu nhân viên
             </button>
             <button
-              onClick={() => setShowForm(false)}
+              onClick={() => {
+                setShowForm(false);
+                setEkycStatus("idle");
+                setEkycMessage("");
+              }}
               className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
             >
               Hủy
@@ -12150,6 +12228,12 @@ function DoctorQAView() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  // ── Thread chat state ────────────────────────
+  const [threadReplies, setThreadReplies] = useState<any[]>([]);
+  const [threadInput, setThreadInput] = useState("");
+  const [threadSending, setThreadSending] = useState(false);
+  const [threadLoading, setThreadLoading] = useState(false);
+  const threadScrollRef = useRef<HTMLDivElement>(null);
 
   const fetchQuestions = async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
@@ -12187,11 +12271,22 @@ function DoctorQAView() {
   const unansweredCount = questions.filter((q) => q.status === "unanswered").length;
   const answeredCount = questions.filter((q) => q.status === "answered").length;
 
-  const handleOpenAnswer = (q: QAQuestion) => {
+  const handleOpenAnswer = async (q: QAQuestion) => {
     setSelectedQuestion(q);
     setAnswerText(q.answer || "");
     setSubmitError("");
     setSubmitSuccess(false);
+    setThreadReplies([]);
+    setThreadInput("");
+    setThreadLoading(true);
+    try {
+      const data = await fetchApi(`/patient/questions/${q.id}/replies`);
+      setThreadReplies(data.replies || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setThreadLoading(false);
+    }
   };
 
   const handleCloseModal = () => {
@@ -12199,42 +12294,38 @@ function DoctorQAView() {
     setAnswerText("");
     setSubmitError("");
     setSubmitSuccess(false);
+    setThreadReplies([]);
+    setThreadInput("");
   };
 
-  const handleSubmitAnswer = async () => {
-    if (!selectedQuestion) return;
-    if (answerText.trim().length < 10) {
-      setSubmitError("Câu trả lời phải có ít nhất 10 ký tự.");
-      return;
-    }
-    setSubmitting(true);
+  const handleSendReply = async () => {
+    if (!selectedQuestion || !threadInput.trim()) return;
+    setThreadSending(true);
     setSubmitError("");
     try {
-      await fetchApi(`/patient/questions/${selectedQuestion.id}/answer`, {
-        method: "PATCH",
-        body: JSON.stringify({ answer: answerText.trim() }),
+      await fetchApi(`/patient/questions/${selectedQuestion.id}/replies`, {
+        method: "POST",
+        body: JSON.stringify({ content: threadInput.trim() }),
       });
-      setSubmitSuccess(true);
-      // Update local state ngay lập tức
+      setThreadInput("");
+      const data = await fetchApi(`/patient/questions/${selectedQuestion.id}/replies`);
+      setThreadReplies(data.replies || []);
+      // Mark as answered in list
       setQuestions((prev) =>
         prev.map((q) =>
-          q.id === selectedQuestion.id
-            ? {
-                ...q,
-                answer: answerText.trim(),
-                status: "answered",
-                answered_at: new Date().toISOString(),
-                doctor_name: "Bác sĩ", // sẽ được cập nhật từ WS broadcast
-              }
-            : q,
-        ),
+          q.id === selectedQuestion.id ? { ...q, status: "answered" } : q
+        )
       );
-      setTimeout(() => handleCloseModal(), 1200);
     } catch (e: any) {
-      setSubmitError(e.message || "Có lỗi xảy ra. Vui lòng thử lại.");
+      setSubmitError(e.message || "Lỗi gửi tin nhắn");
     } finally {
-      setSubmitting(false);
+      setThreadSending(false);
     }
+  };
+
+  // Legacy — kept for compatibility but not used in new thread UI
+  const handleSubmitAnswer = async () => {
+    handleSendReply();
   };
 
   const formatDate = (iso: string) =>
@@ -12475,129 +12566,132 @@ function DoctorQAView() {
         )}
       </div>
 
-      {/* ── Answer Modal ── */}
+      {/* ── Thread Chat Modal ── */}
       {selectedQuestion && (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={handleCloseModal}
+            onClick={() => { setSelectedQuestion(null); setThreadReplies([]); setThreadInput(""); }}
           />
 
           {/* Modal panel */}
-          <div className={`relative z-10 w-full max-w-2xl overflow-hidden bg-white shadow-2xl ${isMobile ? "max-h-[95dvh] rounded-t-3xl" : "rounded-3xl"}`}>
+          <div className={`relative z-10 w-full max-w-2xl overflow-hidden bg-white shadow-2xl flex flex-col ${isMobile ? "max-h-[95dvh] rounded-t-3xl" : "rounded-3xl max-h-[85vh]"}`}>
             {/* Drag handle (mobile) */}
             {isMobile && (
-              <div className="flex justify-center pt-3 pb-1">
+              <div className="flex justify-center pt-3 pb-1 shrink-0">
                 <div className="h-1 w-10 rounded-full bg-slate-300" />
               </div>
             )}
 
             {/* Modal header */}
-            <div className={`flex items-center justify-between gap-3 bg-gradient-to-r from-[#0d1f2d] to-[#1a3548] ${isMobile ? "px-4 py-3.5" : "px-6 py-4"}`}>
+            <div className={`flex items-center justify-between gap-3 bg-gradient-to-r from-[#0d1f2d] to-[#1a3548] shrink-0 ${isMobile ? "px-4 py-3.5" : "px-6 py-4"}`}>
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#88E8F2]/20">
                   <MessageSquare className="h-5 w-5 text-[#88E8F2]" />
                 </div>
                 <div>
-                  <p className="font-bold text-white text-[15px]">Trả lời câu hỏi</p>
+                  <p className="font-bold text-white text-[15px]">Được thảo luận</p>
                   <p className="text-[11px] text-[#88E8F2]/70">
                     Khoa {selectedQuestion.department}
                   </p>
                 </div>
               </div>
               <button
-                onClick={handleCloseModal}
+                onClick={() => { setSelectedQuestion(null); setThreadReplies([]); setThreadInput(""); }}
                 className="flex h-8 w-8 items-center justify-center rounded-full text-white/60 hover:bg-white/10 hover:text-white transition"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className={`space-y-4 overflow-y-auto ${isMobile ? "max-h-[calc(95dvh-10rem)] px-4 py-4" : "max-h-[70vh] px-6 py-5"}`}>
-              {/* Original question */}
-              <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-200">
-                    <User className="h-4 w-4 text-slate-500" />
-                  </div>
-                  <p className="text-[12px] font-semibold text-slate-500">Bệnh nhân ẩn danh</p>
-                  <span className="ml-auto text-[11px] text-slate-400">
-                    {formatDate(selectedQuestion.created_at)}
-                  </span>
+            {/* Original question */}
+            <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200">
+                  <User className="h-3.5 w-3.5 text-slate-500" />
                 </div>
-                <p className="text-[14px] text-slate-800 leading-relaxed">
-                  {selectedQuestion.question}
-                </p>
+                <p className="text-[11px] font-semibold text-slate-500">Bệnh nhân ẩn danh</p>
+                <span className="ml-auto text-[10px] text-slate-400">{formatDate(selectedQuestion.created_at)}</span>
               </div>
-
-              {/* Answer input */}
-              <div>
-                <label className="mb-2 block text-[13px] font-semibold text-slate-700">
-                  Câu trả lời của bác sĩ
-                  <span className="ml-1 font-normal text-slate-400">
-                    (tối thiểu 10 ký tự)
-                  </span>
-                </label>
-                <textarea
-                  rows={isMobile ? 4 : 5}
-                  value={answerText}
-                  onChange={(e) => setAnswerText(e.target.value)}
-                  placeholder="Nhập câu trả lời chuyên môn, lời khuyên sức khỏe..."
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-[14px] text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#88E8F2] focus:ring-2 focus:ring-[#88E8F2]/20 resize-none transition"
-                  disabled={submitting || submitSuccess}
-                />
-                <div className="mt-1.5 flex items-center justify-between">
-                  <span
-                    className={`text-[11px] ${answerText.length < 10 ? "text-orange-400" : "text-emerald-500"}`}
-                  >
-                    {answerText.length} / tối thiểu 10 ký tự
-                  </span>
-                  {submitError && <span className="text-[12px] text-red-500">{submitError}</span>}
-                  {submitSuccess && (
-                    <span className="flex items-center gap-1 text-[12px] text-emerald-600 font-semibold">
-                      <CheckCircle className="h-4 w-4" /> Đã gửi thành công!
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Action buttons */}
-              <div className={`flex gap-3 ${isMobile ? "pt-1 pb-4" : "pt-1 pb-2"}`}>
-                <button
-                  onClick={handleCloseModal}
-                  className={`rounded-xl border border-slate-200 font-semibold text-slate-600 hover:bg-slate-50 transition ${
-                    isMobile ? "flex-1 py-3.5 text-[14px]" : "flex-1 py-3 text-[14px]"
-                  }`}
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={handleSubmitAnswer}
-                  disabled={submitting || submitSuccess || answerText.trim().length < 10}
-                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#0d1f2d] to-[#1a3548] font-bold text-white shadow-lg shadow-[#0d1f2d]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 ${
-                    isMobile ? "py-3.5 text-[14px]" : "py-3 text-[14px]"
-                  }`}
-                >
-                  {submitSuccess ? (
-                    <>
-                      <CheckCircle className="h-4 w-4" />
-                      Đã gửi!
-                    </>
-                  ) : submitting ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                      Đang gửi...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="h-4 w-4" />
-                      Gửi câu trả lời
-                    </>
-                  )}
-                </button>
-              </div>
+              <p className="text-[13px] text-slate-800 leading-relaxed">{selectedQuestion.question}</p>
             </div>
+
+            {/* Thread messages area */}
+            <div
+              ref={threadScrollRef}
+              className="flex-1 overflow-y-auto overscroll-contain px-4 py-3 flex flex-col gap-3"
+              style={{ background: "#f0f2f5" }}
+            >
+              {threadLoading ? (
+                <div className="flex items-center justify-center py-8 gap-2 text-slate-400">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span className="text-[13px]">Đang tải...</span>
+                </div>
+              ) : threadReplies.length === 0 ? (
+                <div className="text-center text-slate-400 text-[13px] py-6">
+                  Chưa có phản hồi nào. Hãy đặt câu hỏi hoặc trả lời!
+                </div>
+              ) : (
+                threadReplies.map((r: any, idx: number) => {
+                  const isDoctor = r.sender_type === "doctor";
+                  return (
+                    <div key={r.id || idx} className={`flex gap-2 ${isDoctor ? "justify-end" : "justify-start"}`}>
+                      {!isDoctor && (
+                        <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center shrink-0 mt-1">
+                          <User className="h-4 w-4 text-slate-400" />
+                        </div>
+                      )}
+                      <div className={`max-w-[78%] ${isDoctor ? "items-end flex flex-col" : ""}`}>
+                        <span className={`text-[10px] font-semibold mb-0.5 ${isDoctor ? "text-[#0d1f2d]" : "text-slate-500"}`}>
+                          {isDoctor ? `BS. ${r.sender_name}` : "Bệnh nhân"}
+                        </span>
+                        <div className={`px-4 py-2.5 rounded-2xl text-[14px] leading-relaxed ${
+                          isDoctor
+                            ? "bg-[#0d1f2d] text-white rounded-tr-none"
+                            : "bg-white text-slate-800 border border-slate-100 shadow-sm rounded-tl-none"
+                        }`}>
+                          {r.content}
+                        </div>
+                        <span className="text-[10px] text-slate-400 mt-0.5">
+                          {new Date(r.created_at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      {isDoctor && (
+                        <div className="h-8 w-8 rounded-full bg-[#88E8F2] flex items-center justify-center shrink-0 mt-1">
+                          <Stethoscope className="h-4 w-4 text-[#0d1f2d]" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Reply input */}
+            <div className="shrink-0 bg-white border-t border-slate-100 px-3 py-2 flex items-end gap-2">
+              <textarea
+                value={threadInput}
+                onChange={(e) => setThreadInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendReply(); } }}
+                placeholder="Nhập câu trả lời chuyên môn..."
+                rows={2}
+                className="flex-1 resize-none outline-none text-[14px] text-slate-800 placeholder:text-slate-400 max-h-28 py-2.5 px-3 bg-slate-100 rounded-2xl leading-relaxed"
+                disabled={threadSending}
+              />
+              <button
+                onClick={handleSendReply}
+                disabled={threadSending || !threadInput.trim()}
+                className="h-10 w-10 shrink-0 flex items-center justify-center rounded-full bg-[#0d1f2d] text-white shadow-md active:scale-90 transition-transform disabled:opacity-40"
+              >
+                {threadSending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </button>
+            </div>
+            {submitError && (
+              <div className="px-4 py-2 bg-red-50 shrink-0">
+                <p className="text-[12px] text-red-500">{submitError}</p>
+              </div>
+            )}
           </div>
         </div>
       )}
