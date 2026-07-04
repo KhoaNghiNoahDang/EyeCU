@@ -3494,7 +3494,7 @@ function AmbulanceMap({
           stroke="#EF4444"
           strokeWidth="4.5"
           strokeLinecap="round"
-          opacity={rOpacity(ambulances[0] ? AMBULANCES_INIT[0])}
+          opacity={rOpacity(ambulances[0] ?? AMBULANCES_INIT[0])}
         />
         <path
           d="M 420 160 L 462 160 L 462 130"
@@ -3503,7 +3503,7 @@ function AmbulanceMap({
           strokeWidth="1.5"
           strokeDasharray="5 5"
           strokeLinecap="round"
-          opacity={rOpacity(ambulances[0] ? AMBULANCES_INIT[0]) * 0.7}
+          opacity={rOpacity(ambulances[0] ?? AMBULANCES_INIT[0]) * 0.7}
         />
         <path
           d="M 70 375 L 70 258 L 186 258 L 186 178 L 372 178 L 462 178 L 462 130"
@@ -3511,7 +3511,7 @@ function AmbulanceMap({
           stroke="#F59E0B"
           strokeWidth="4"
           strokeLinecap="round"
-          opacity={rOpacity(ambulances[1] ? AMBULANCES_INIT[1])}
+          opacity={rOpacity(ambulances[1] ?? AMBULANCES_INIT[1])}
         />
         <path
           d="M 70 375 L 70 258 L 186 258 L 186 178 L 372 178 L 462 178 L 462 130"
@@ -3520,7 +3520,7 @@ function AmbulanceMap({
           strokeWidth="1.2"
           strokeDasharray="6 5"
           strokeLinecap="round"
-          opacity={rOpacity(ambulances[1] ? AMBULANCES_INIT[1]) * 0.6}
+          opacity={rOpacity(ambulances[1] ?? AMBULANCES_INIT[1]) * 0.6}
         />
         <path
           d="M 282 250 L 282 178 L 372 178"
@@ -3529,7 +3529,7 @@ function AmbulanceMap({
           strokeWidth="3"
           strokeDasharray="7 5"
           strokeLinecap="round"
-          opacity={rOpacity(ambulances[2] ? AMBULANCES_INIT[2]) * 0.7}
+          opacity={rOpacity(ambulances[2] ?? AMBULANCES_INIT[2]) * 0.7}
         />
         <g transform="translate(462,112)">
           <rect
@@ -4420,7 +4420,7 @@ function AmbulanceView() {
   }, []);
 
   const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
-  const WS_URL = (import.meta.env.VITE_WS_URL ? `ws://${host}:8000`) + "/api/ambient/ws/live";
+  const WS_URL = (import.meta.env.VITE_WS_URL ?? `ws://${host}:8000`) + "/api/ambient/ws/live";
 
   const handleSocketMessage = useCallback(
     (msg: {
@@ -4445,19 +4445,19 @@ function AmbulanceView() {
               plate,
               eta: typeof eta_seconds === "number" ? eta_seconds : null,
               status: "active",
-              lat: lat ? null,
-              lng: lng ? null,
+              lat: lat ?? null,
+              lng: lng ?? null,
               added_at: Date.now(),
-              pre_alert_text: d.pre_alert_text ? null,
-              patient_name: d.name ? null,
-              gender: d.gender ? null,
-              age: d.age ? null,
-              cccd: d.cccd ? null,
-              bhxh_code: d.bhxh_code ? null,
-              emergency_contact_name: d.emergency_contact_name ? null,
-              emergency_contact_phone: d.emergency_contact_phone ? null,
-              chronic_conditions: d.chronic_conditions ? [],
-              allergies: d.allergies ? [],
+              pre_alert_text: d.pre_alert_text ?? null,
+              patient_name: d.name ?? null,
+              gender: d.gender ?? null,
+              age: d.age ?? null,
+              cccd: d.cccd ?? null,
+              bhxh_code: d.bhxh_code ?? null,
+              emergency_contact_name: d.emergency_contact_name ?? null,
+              emergency_contact_phone: d.emergency_contact_phone ?? null,
+              chronic_conditions: d.chronic_conditions ?? [],
+              allergies: d.allergies ?? [],
             })
             .then();
 
@@ -4469,16 +4469,16 @@ function AmbulanceView() {
               eta: typeof eta_seconds === "number" ? eta_seconds : null,
               status: "active",
               addedAt: Date.now(),
-              patient_name: d.name ? null,
-              gender: d.gender ? null,
-              age: d.age ? null,
-              cccd: d.cccd ? null,
-              bhxhCode: d.bhxh_code ? null,
-              emergencyContactName: d.emergency_contact_name ? null,
-              emergencyContactPhone: d.emergency_contact_phone ? null,
-              chronic_conditions: d.chronic_conditions ? [],
-              allergies: d.allergies ? [],
-              preAlertText: d.pre_alert_text ? null,
+              patient_name: d.name ?? null,
+              gender: d.gender ?? null,
+              age: d.age ?? null,
+              cccd: d.cccd ?? null,
+              bhxhCode: d.bhxh_code ?? null,
+              emergencyContactName: d.emergency_contact_name ?? null,
+              emergencyContactPhone: d.emergency_contact_phone ?? null,
+              chronic_conditions: d.chronic_conditions ?? [],
+              allergies: d.allergies ?? [],
+              preAlertText: d.pre_alert_text ?? null,
             },
           }));
 
@@ -4498,8 +4498,8 @@ function AmbulanceView() {
                 mapX: 0,
                 mapY: 0,
                 departmentId: "er",
-                lat: lat ? undefined,
-                lng: lng ? undefined,
+                lat: lat ?? undefined,
+                lng: lng ?? undefined,
               },
             ];
           });
@@ -4527,7 +4527,7 @@ function AmbulanceView() {
               (ambulance_id === "current" && a.id === "xe1") ||
               (msgPlate && a.plate === msgPlate)
             ) {
-              return { ...a, lat, lng, etaSeconds: eta_seconds ? a.etaSeconds };
+              return { ...a, lat, lng, etaSeconds: eta_seconds ?? a.etaSeconds };
             }
             return a;
           }),
@@ -4539,7 +4539,7 @@ function AmbulanceView() {
             .update({
               lat,
               lng,
-              eta: eta_seconds ? null,
+              eta: eta_seconds ?? null,
             })
             .eq("plate", msgPlate)
             .then();
@@ -4550,7 +4550,7 @@ function AmbulanceView() {
               ...prev,
               [msgPlate]: {
                 ...prev[msgPlate],
-                eta: eta_seconds ? prev[msgPlate].eta,
+                eta: eta_seconds ?? prev[msgPlate].eta,
               },
             };
           });
@@ -4671,7 +4671,7 @@ function AmbulanceView() {
     showToast("✓ Đã gửi OTT cho kíp trực · Phản hồi trong 30s");
 
   const visibleAmbs = filter === "all" ? ambulances : ambulances.filter((a) => a.status === filter);
-  const selectedAmb = ambulances.find((a) => a.id === selectedId) ? null;
+    const selectedAmb = ambulances.find((a) => a.id === selectedId) ?? null;
 
   // Danh sách hồ sơ dispatch — sắp xếp theo thời gian đến mới nhất
   const dispatchList = Object.values(dispatchRecords).sort((a, b) => b.addedAt - a.addedAt);
@@ -5370,7 +5370,7 @@ function RealAmbulanceMap({
       </div>
       {/* Ambulance markers overlay */}
       {ambulances.map((amb) => {
-        const pos = positions[amb.id] ? { top: "50%", left: "50%" };
+              const pos = positions[amb.id] ?? { top: "50%", left: "50%" };
         const color =
           amb.status === "critical" ? "#EF4444" : amb.status === "urgent" ? "#F59E0B" : "#10B981";
         const isSel = selectedId === amb.id;
@@ -7837,10 +7837,10 @@ function PatientClinicalSheet({
                     <div className="mb-3 flex items-start justify-between gap-2">
                       <div>
                         <p className="text-[10px] font-geist uppercase tracking-wider text-blue-600">
-                          EMR #{record.id?.slice(-8).toUpperCase() ? "—"}
+                          EMR #{record.id?.slice(-8).toUpperCase() ?? "—"}
                         </p>
                         <p className="text-sm font-bold text-slate-900">
-                          {record.department ? "—"}
+                          {record.department ?? "—"}
                         </p>
                       </div>
                       {record.is_signed && (
@@ -7860,7 +7860,7 @@ function PatientClinicalSheet({
                       <div className="rounded-xl bg-white/80 p-2.5">
                         <p className="text-slate-400">Bác sĩ</p>
                         <p className="font-semibold text-slate-900">
-                          {record.doctor_name ? "—"}
+                          {record.doctor_name ?? "—"}
                         </p>
                       </div>
                     </div>
@@ -7871,7 +7871,7 @@ function PatientClinicalSheet({
                         Triệu chứng
                       </p>
                       <p className="text-sm leading-relaxed text-slate-700">
-                        {record.symptoms ? "—"}
+                        {record.symptoms ?? "—"}
                       </p>
                     </div>
                     <div className="rounded-xl border border-slate-100 p-3">
@@ -7879,7 +7879,7 @@ function PatientClinicalSheet({
                         Chẩn đoán
                       </p>
                       <p className="text-sm font-semibold text-slate-900">
-                        {record.diagnosis ? "—"}
+                        {record.diagnosis ?? "—"}
                       </p>
                     </div>
                     {record.notes && (
@@ -7912,7 +7912,7 @@ function PatientClinicalSheet({
                 <>
                   <div className="rounded-xl border border-violet-100 bg-violet-50/60 p-3">
                     <p className="text-[10px] font-geist uppercase tracking-wider text-violet-600">
-                      record_id · {record?.id ? "—"}
+                      record_id · {record?.id ?? "—"}
                     </p>
                     <p className="mt-1 text-sm text-slate-600">
                       {data.medications.length} loại thuốc
@@ -7985,7 +7985,7 @@ function PatientClinicalSheet({
                   )}
                   <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
                     <Clock className="h-4 w-4 shrink-0 text-slate-400" />
-                    BHYT: {data.bhxh_code ? "—"} · Bệnh nhân: {data.patientName}
+                    BHYT: {data.bhxh_code ?? "—"} · Bệnh nhân: {data.patientName}
                   </div>
                 </>
               )}
@@ -8060,7 +8060,7 @@ function PatientClinicalSheet({
                     </div>
                   )}
                   <p className="text-[10px] text-slate-400">
-                    Liên kết record_id: {data.fees.record_id ? "—"}
+                    Liên kết record_id: {data.fees.record_id ?? "—"}
                   </p>
                 </>
               )}
@@ -8412,7 +8412,7 @@ function PatientPortalView({
                 <div className="absolute right-0 top-[calc(100%+0.5rem)] z-40 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
                   <div className="border-b border-slate-100 px-3 py-2.5">
                     <p className="truncate text-sm font-semibold text-slate-900">
-                      {user?.name ? "Bệnh nhân"}
+                      {user?.name ?? "Bệnh nhân"}
                     </p>
                     <p className="truncate text-[11px] text-slate-500">
                       Cổng thông tin bệnh nhân
@@ -8634,7 +8634,7 @@ function PatientPortalView({
                   recognition.continuous = false;
                   recognition.interimResults = false;
                   recognition.onresult = (event: SpeechRecognitionEvent) => {
-                    const transcript = event.results[0]?.[0]?.transcript?.trim() ? "";
+                    const transcript = event.results[0]?.[0]?.transcript?.trim() ?? "";
                     if (transcript) sendMessage(transcript);
                     setListening(false);
                   };
@@ -8821,7 +8821,7 @@ function EmsView() {
 
   const alertTypes = ["Nhoi mau co tim", "Dot quy", "Chan thuong nang", "Ngo doc"];
 
-  const WS_URL = (import.meta.env.VITE_WS_URL ? "ws://localhost:8000") + "/api/ambient/ws/live";
+  const WS_URL = (import.meta.env.VITE_WS_URL ?? "ws://localhost:8000") + "/api/ambient/ws/live";
   const [gpsState, setGpsState] = useState<{ lat: number; lng: number } | null>(null);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const watchIdRef = useRef<number | null>(null);
@@ -9029,7 +9029,7 @@ function EmsView() {
       const activePlate = plate.trim() || localStorage.getItem("ems_plate") || "";
       if (!activePlate || !patient) return;
 
-      let age = patient.age ? null;
+      let age = patient.age ?? null;
       if (patient.dob) {
         const parts = patient.dob.split(/[/-]/);
         if (parts.length === 3) {
@@ -9155,8 +9155,8 @@ function EmsView() {
       }
 
       // GỬI NGAY LẬP TỨC để bảng nhận được thông tin mà không cần chờ thiết bị định vị
-      const initLat = gpsState?.lat ? 21.0011;
-      const initLng = gpsState?.lng ? 105.8418;
+      const initLat = gpsState?.lat ?? 21.0011;
+      const initLng = gpsState?.lng ?? 105.8418;
       const initDistKm =
         Math.sqrt(Math.pow(initLat - 21.0011, 2) + Math.pow(initLng - 105.8418, 2)) * 111;
       const initEta = routeInfoRef.current
@@ -9387,8 +9387,8 @@ function EmsView() {
 
   progress = Math.min(100, Math.max(0, 100 - (distanceKm / 10) * 100)); // giả định quãng đường tối đa là 10km
 
-  const mapCenterLat = gpsState?.lat ? 21.0011;
-  const mapCenterLng = gpsState?.lng ? 105.8418;
+  const mapCenterLat = gpsState?.lat ?? 21.0011;
+  const mapCenterLng = gpsState?.lng ?? 105.8418;
 
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
@@ -10301,8 +10301,8 @@ function AdminPatientsTab() {
                 <td className="px-4 py-3 text-[11px] font-mono text-slate-400">{p.id}</td>
                 <td className="px-4 py-3 font-bold text-slate-900">{p.name}</td>
                 <td className="px-4 py-3 font-mono text-[13px] text-slate-700">{p.cccd}</td>
-                <td className="px-4 py-3 text-[13px] text-slate-600">{p.phone ? "—"}</td>
-                <td className="px-4 py-3 text-[13px] text-slate-600">{p.bhxh_code ? "—"}</td>
+                <td className="px-4 py-3 text-[13px] text-slate-600">{p.phone ?? "—"}</td>
+                <td className="px-4 py-3 text-[13px] text-slate-600">{p.bhxh_code ?? "—"}</td>
                 <td className="px-4 py-3 text-[12px] text-slate-500">
                   {p.emergency_contact_name
                     ? `${p.emergency_contact_name} · ${p.emergency_contact_phone}`
@@ -10557,14 +10557,14 @@ function AdminStaffsTab() {
                 <td className="px-4 py-3 font-bold text-slate-900">{u.name}</td>
                 <td className="px-4 py-3">
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${roleColors[u.role] ? "bg-slate-100 text-slate-600"}`}
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${roleColors[u.role] ?? "bg-slate-100 text-slate-600"}`}
                   >
                     {u.role}
                   </span>
                 </td>
                 <td className="px-4 py-3 font-mono text-[13px] text-slate-700">{u.cccd}</td>
                 <td className="px-4 py-3 font-mono text-[13px] text-slate-600">
-                  {u.employee_id ? "—"}
+                  {u.employee_id ?? "—"}
                 </td>
                 <td className="px-4 py-3 text-[13px] text-slate-600">
                   {u.department_id
@@ -10913,9 +10913,9 @@ function AdminDevicesTab() {
                 <td className="px-4 py-3 text-[11px] font-mono text-slate-400">{d.id}</td>
                 <td className="px-4 py-3">
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${typeLabels[d.device_type]?.color ? "bg-slate-100 text-slate-600"}`}
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${typeLabels[d.device_type]?.color ?? "bg-slate-100 text-slate-600"}`}
                   >
-                    {typeLabels[d.device_type]?.label ? d.device_type}
+                    {typeLabels[d.device_type]?.label ?? d.device_type}
                   </span>
                 </td>
                 <td className="px-4 py-3 font-bold text-slate-900">{d.name}</td>
@@ -10923,7 +10923,7 @@ function AdminDevicesTab() {
                 <td className="px-4 py-3 font-mono text-[13px] text-slate-500">{d.ip_address}</td>
                 <td className="px-4 py-3">
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusStyle[d.status] ? ""}`}
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusStyle[d.status] ?? ""}`}
                   >
                     {d.status}
                   </span>
@@ -11091,9 +11091,9 @@ function AdminAmbulancesTab() {
                 <td className="px-4 py-3 text-[13px] text-slate-700">{a.driver_name}</td>
                 <td className="px-4 py-3">
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${ambStatus[a.status]?.color ? ""}`}
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${ambStatus[a.status]?.color ?? ""}`}
                   >
-                    {ambStatus[a.status]?.label ? a.status}
+                    {ambStatus[a.status]?.label ?? a.status}
                   </span>
                 </td>
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-500">{a.last_lat}</td>
@@ -11164,7 +11164,7 @@ function AdminQueueTab() {
           </thead>
           <tbody>
             {queue.map((q) => {
-              const triage = triageColors[q.triage_level] ? triageColors[3];
+              const triage = triageColors[q.triage_level] ?? triageColors[3];
               return (
                 <tr
                   key={q.id}
@@ -11277,9 +11277,9 @@ function AdminLogsTab() {
                 <td className="px-4 py-3 text-[11px] font-mono text-slate-400">{l.id}</td>
                 <td className="px-4 py-3">
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${logTypeLabels[l.log_type]?.color ? "bg-slate-100 text-slate-600"}`}
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${logTypeLabels[l.log_type]?.color ?? "bg-slate-100 text-slate-600"}`}
                   >
-                    {logTypeLabels[l.log_type]?.label ? l.log_type}
+                    {logTypeLabels[l.log_type]?.label ?? l.log_type}
                   </span>
                 </td>
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-500">{l.device_id}</td>
@@ -11297,7 +11297,7 @@ function AdminLogsTab() {
                   )}
                 </td>
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-500">
-                  {l.resolved_at ? "—"}
+                  {l.resolved_at ?? "—"}
                 </td>
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-500">{l.created_at}</td>
 
@@ -11471,7 +11471,7 @@ function AdminMedicalBooksTab() {
                 <td className="px-4 py-3 font-mono text-[13px] text-slate-700">{b.qr_token}</td>
                 <td className="px-4 py-3">
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusStyle[b.status] ? ""}`}
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusStyle[b.status] ?? ""}`}
                   >
                     {b.status}
                   </span>
