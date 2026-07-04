@@ -589,24 +589,26 @@ function PatientRounds() {
                 alt="EyeCU Logo"
                 className="h-9 w-9 rounded-xl shadow-sm object-contain ring-2 ring-[#88E8F2]/30"
               />
-              {!isClinicianMobile && <span className="text-sm font-bold text-slate-900">EyeCU</span>}
+              {!isPatientRole && isMobile && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWorkspaceSheetOpen(true);
+                    setNotifOpen(false);
+                    setProfileMenuOpen(false);
+                  }}
+                  className="inline-flex items-center gap-0.5 rounded-full bg-[#88E8F2]/20 px-2.5 py-1 text-[10px] font-bold text-[#0A9BAD] transition-all active:scale-95 hover:bg-[#88E8F2]/40"
+                >
+                  {roleConfig[workMode].label}
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+              )}
+              {!isClinicianMobile && !isMobile && <span className="text-sm font-bold text-slate-900">EyeCU</span>}
             </div>
             {isClinicianMobile && (
               <div className="min-w-0 flex-1 md:hidden">
                 <div className="flex items-center gap-1.5">
                   <p className="truncate text-[15px] font-bold text-slate-900">{meta.title.split("—")[0].trim()}</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setWorkspaceSheetOpen(true);
-                      setNotifOpen(false);
-                      setProfileMenuOpen(false);
-                    }}
-                    className="inline-flex items-center gap-0.5 rounded-full bg-[#88E8F2]/20 px-2 py-0.5 text-[9px] font-bold text-[#0A9BAD] transition-all active:scale-95 hover:bg-[#88E8F2]/40"
-                  >
-                    {roleConfig[workMode].label}
-                    <ChevronDown className="h-2.5 w-2.5" />
-                  </button>
                 </div>
                 <p className="truncate text-[11px] text-slate-500 mt-0.5">{meta.subtitle}</p>
               </div>
