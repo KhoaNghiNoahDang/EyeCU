@@ -105,7 +105,7 @@ def demo_room_thread(room_id, prefix, ws_url, fall_interval_range):
 
 def main():
     parser = argparse.ArgumentParser(description="EyeCU Demo Mode - Animated Scene")
-    parser.add_argument("--rooms", type=int, default=5, help="So phong demo (mac dinh: 5)")
+    parser.add_argument("--rooms", type=int, default=1, help="So phong demo (mac dinh: 1)")
     parser.add_argument("--prefix", default="P.20", help="Tien to room (mac dinh: P.20)")
     parser.add_argument("--url", default=None, help="WebSocket URL (mac dinh: tu config)")
     parser.add_argument(

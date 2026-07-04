@@ -1401,6 +1401,7 @@ function AmbientView({
   const emergencyAudioRef = useRef<HTMLAudioElement | null>(null);
   const [selectedDept, setSelectedDept] = useState("internal");
   const [onlyAlerts, setOnlyAlerts] = useState(false);
+  const [demoActive, setDemoActive] = useState(false);
   const [fullscreen, setFullscreen] = useState<Camera | null>(null);
   const [ambientToast, setAmbientToast] = useState("");
   const ambientShowToast = useCallback((msg: string) => {
@@ -1416,14 +1417,13 @@ function AmbientView({
   } | null>(null);
 
   const handleEmergency = useCallback((room: string) => {
-    // Phat am thanh cap cuu loop
+    // Dung am thanh cap cuu
     if (emergencyAudioRef.current) {
       emergencyAudioRef.current.pause();
+      emergencyAudioRef.current = null;
     }
-    const audio = new Audio("/alert.mp3");
-    audio.loop = true;
-    audio.play().catch(() => {});
-    emergencyAudioRef.current = audio;
+    // Dong popup
+    setFallAlert(null);
     // Hien thi thong bao
     ambientShowToast(`🚨 Đã kích hoạt cấp cứu phòng ${room} · Đã gửi thông báo đến kíp trực`);
   }, [ambientShowToast]);
@@ -1436,6 +1436,20 @@ function AmbientView({
     setFallAlert(null);
   }, []);
 
+  const handleDemoEnd = useCallback(() => {
+    setFallAlert({
+      room: "P.201",
+      imageUrl: "/fall_demo2.png",
+      time: new Date().toLocaleTimeString(),
+    });
+    try {
+      const audio = new Audio("/alert.mp3");
+      audio.loop = true;
+      audio.play().catch(() => {});
+      emergencyAudioRef.current = audio;
+    } catch (e) {}
+  }, []);
+
   const WS_URL = "wss://eyecu.onrender.com/api/ambient/ws/live";
 
   const handleSocketMessage = useCallback((msg: any) => {
@@ -1445,6 +1459,22 @@ function AmbientView({
           detail: { room: msg.room_id, image: msg.image_base64 },
         }),
       );
+      // Tu dong them camera moi neu room chua co trong danh sach
+      if (msg.room_id) {
+        setCameras((prev) => {
+          const rawRoom = String(msg.room_id).replace(/^P\./, "");
+          const exists = prev.some((c) => c.room === rawRoom || c.room === msg.room_id);
+          if (exists) return prev;
+          const newCam: Camera = {
+            room: rawRoom,
+            zone: rawRoom.charAt(0) >= "0" && rawRoom.charAt(0) <= "9" ? "A" : rawRoom.substring(0, 2),
+            status: "stable",
+            label: `Phòng ${rawRoom}`,
+            dept: "internal",
+          };
+          return [...prev, newCam];
+        });
+      }
     }
     if (msg.type === "FALL_DETECTED") {
       setFallAlert({
@@ -1481,10 +1511,18 @@ function AmbientView({
       .catch(() => setCameras(ALL_CAMERAS));
   }, []);
 
-  const deptCameras =
-    cameras.length > 0
+  const deptCameras = (() => {
+    const base = cameras.length > 0
       ? cameras.filter((c) => c.dept === selectedDept)
       : ALL_CAMERAS.filter((c) => c.dept === selectedDept);
+    if (demoActive) {
+      const has201 = base.some((c) => c.room === "201");
+      if (!has201) {
+        return [...base, { room: "201", zone: "A", status: "alert" as const, overlay: "fall" as const, label: "Demo P.201", dept: "internal" }];
+      }
+    }
+    return base;
+  })();
   const filtered = onlyAlerts ? deptCameras.filter((c) => c.status === "alert") : deptCameras;
   const alertCount = deptCameras.filter((c) => c.status === "alert").length;
   const currentTab = DEPT_TABS.find((t) => t.id === selectedDept);
@@ -1578,18 +1616,31 @@ function AmbientView({
 
         {/* Controls */}
         <div className="flex flex-wrap items-center justify-between gap-2 md:gap-3 mb-3 md:mb-5 pb-3 md:pb-4 border-b border-slate-200">
-          <button
-            onClick={() => setOnlyAlerts((v) => !v)}
-            className={`flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1.5 md:py-2 rounded-lg border ${isMobile ? "text-[11px]" : "text-[12px]"} font-geist uppercase tracking-wider transition-colors ${
-              onlyAlerts
-                ? "text-slate-900 border-transparent"
-                : "bg-white border-slate-200 text-slate-700 hover:border-[#88E8F2]"
-            }`}
-            style={onlyAlerts ? { backgroundColor: ACCENT } : undefined}
-          >
-            <AlertTriangle className="w-3 h-3 md:w-3.5 md:h-3.5" />
-            {onlyAlerts ? `Cảnh báo (${alertCount})` : (isMobile ? "Chỉ cảnh báo" : "Chỉ hiện Cảnh báo")}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setOnlyAlerts((v) => !v)}
+              className={`flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1.5 md:py-2 rounded-lg border ${isMobile ? "text-[11px]" : "text-[12px]"} font-geist uppercase tracking-wider transition-colors ${
+                onlyAlerts
+                  ? "text-slate-900 border-transparent"
+                  : "bg-white border-slate-200 text-slate-700 hover:border-[#88E8F2]"
+              }`}
+              style={onlyAlerts ? { backgroundColor: ACCENT } : undefined}
+            >
+              <AlertTriangle className="w-3 h-3 md:w-3.5 md:h-3.5" />
+              {onlyAlerts ? `Cảnh báo (${alertCount})` : (isMobile ? "Chỉ cảnh báo" : "Chỉ hiện Cảnh báo")}
+            </button>
+            <button
+              onClick={() => setDemoActive((v) => !v)}
+              className={`flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1.5 md:py-2 rounded-lg border ${isMobile ? "text-[11px]" : "text-[12px]"} font-geist uppercase tracking-wider transition-colors ${
+                demoActive
+                  ? "text-white border-transparent bg-emerald-600 hover:bg-emerald-500"
+                  : "bg-white border-slate-200 text-slate-700 hover:border-[#88E8F2]"
+              }`}
+            >
+              <Play className="w-3 h-3 md:w-3.5 md:h-3.5" />
+              {demoActive ? "Đang Demo" : "Demo"}
+            </button>
+          </div>
           <span className="text-[10px] md:text-[11px] font-geist text-slate-400">
             {filtered.length} / {deptCameras.length} camera
           </span>
@@ -1617,6 +1668,8 @@ function AmbientView({
                       highlighted={highlightedRoom === cam.room}
                       onClick={() => setFullscreen(cam)}
                       isMobile={isMobile}
+                      demoActive={demoActive}
+                      onDemoEnd={handleDemoEnd}
                     />
                   ))}
                 </div>
@@ -1639,6 +1692,8 @@ function AmbientView({
                         highlighted={highlightedRoom === cam.room}
                         onClick={() => setFullscreen(cam)}
                         isMobile={isMobile}
+                        demoActive={demoActive}
+                        onDemoEnd={handleDemoEnd}
                       />
                     ))}
                   </div>
@@ -1787,12 +1842,18 @@ function CameraCard({
   highlighted,
   onClick,
   isMobile,
+  demoActive,
+  onDemoEnd,
 }: {
   cam: Camera;
   highlighted: boolean;
   onClick: () => void;
   isMobile?: boolean;
+  demoActive?: boolean;
+  onDemoEnd?: () => void;
 }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const isDemo = demoActive && cam.room === "201";
   const isAlert = cam.status === "alert";
   const ring = highlighted ? "ring-2 md:ring-4 ring-offset-1 md:ring-offset-2 ring-[#88E8F2]" : "";
   const borderCls = isAlert ? "border-2 md:border-4 border-red-500 animate-pulse" : "border border-slate-200";
@@ -1801,7 +1862,18 @@ function CameraCard({
       onClick={onClick}
       className={`group relative aspect-video rounded-lg md:rounded-xl overflow-hidden bg-slate-800 text-left ${borderCls} ${ring} hover:scale-[1.02] cursor-pointer transition-all duration-200`}
     >
-      <CameraFeed cam={cam} />
+      {isDemo ? (
+        <video
+          ref={videoRef}
+          src="/fall_demo.mp4"
+          autoPlay
+          muted
+          className="absolute inset-0 w-full h-full object-cover"
+          onEnded={onDemoEnd}
+        />
+      ) : (
+        <CameraFeed cam={cam} />
+      )}
 
       {/* Room pill */}
       <div className={`absolute top-1.5 left-1.5 md:top-2 md:left-2 z-10 backdrop-blur-sm bg-black/40 text-white ${isMobile ? "text-[9px] px-1.5 py-0.5" : "text-[11px] px-2 py-1"} rounded-full flex items-center gap-1`}>
