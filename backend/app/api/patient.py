@@ -182,9 +182,17 @@ async def patient_chatbot(
     if not is_payload and data.message.strip().lower() not in ["xin chào", "xin chao", "hello", "hi", "chào", "bắt đầu"]:
         if getattr(data, "screen_context", None):
             import json
+            import re
             try:
-                screen_context_str = json.dumps(data.screen_context, ensure_ascii=False)[:2500]
-                context = f"Thông tin hồ sơ/kết quả đang hiển thị trên màn hình của tôi: {screen_context_str}. "
+                # Chuyển thành JSON string
+                raw_str = json.dumps(data.screen_context, ensure_ascii=False)
+                # Loại bỏ các ký tự ngoặc nhọn, ngoặc vuông và dấu nháy kép để tránh lỗi Template/WAF của VNPT Bot
+                safe_str = re.sub(r'[\{\}\[\]"]', ' ', raw_str)
+                # Xóa bớt khoảng trắng thừa
+                safe_str = re.sub(r'\s+', ' ', safe_str).strip()
+                # Giới hạn độ dài để tránh Payload Too Large
+                safe_str = safe_str[:1500]
+                context = f"Thông tin hồ sơ/kết quả đang hiển thị trên màn hình: {safe_str}. "
             except Exception:
                 pass
         elif recent_doc and recent_doc.extracted_data:

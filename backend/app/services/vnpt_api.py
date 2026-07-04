@@ -376,7 +376,7 @@ class VnptAPIClient:
                     except Exception:
                         return {"reply": "", "raw": {"error": "Lỗi đọc phản hồi từ SmartBot: " + text_response}}
         except Exception as e:
-            return {"reply": "", "raw": {"error": f"Lỗi gọi VNPT SmartBot: {str(e)}" }}
+            return {"reply": "", "raw": {"error": f"Lỗi gọi VNPT SmartBot: {type(e).__name__} - {str(e)}" }}
 
         # ── SmartVoice: Speech To Text ───────────────────────────────
 
