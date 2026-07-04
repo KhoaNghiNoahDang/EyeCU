@@ -430,6 +430,14 @@ export function PatientPortalNew({
   };
 
   const sendMessage = (textStr?: string, payloadStr?: string) => {
+    // Lách luật iOS: Mở khóa thẻ audio ngay lúc người dùng bấm nút Gửi
+    if (audioRef.current && !audioRef.current.src) {
+      audioRef.current.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA"; // âm thanh câm (silent) 1 byte
+      audioRef.current.play().then(() => {
+        audioRef.current?.pause();
+      }).catch(() => {});
+    }
+
     const text = textStr || chatInput.trim();
     if (!text) return;
     setMessages((prev) => [...prev, { from: "user", text, time: getTimeNow() }]);
