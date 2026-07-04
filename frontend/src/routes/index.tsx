@@ -2414,7 +2414,7 @@ function PrivacyCameraFeed() {
                 ) : (
                   <>
                     <div className="flex gap-2 text-emerald-600">
-                      <span className="text-slate-400">{timestamp}</span> Tư thế bình thường
+                      <span className="text-slate-400">14:32:07</span> Tư thế bình thường
                       · Dáng đi ổn định
                     </div>
                     <div className="flex gap-2 text-slate-400">
