@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.db.database import engine
 from sqlmodel import SQLModel
-from app.api import auth, admin, ambulance, ambient, ems, patient, records, voice, smartbot_webhook
+from app.api import auth, admin, ambulance, ambient, ems, patient, records, voice
 from app.api.ambulance import background_db_updater
 
 SQLModel.metadata.create_all(bind=engine)
@@ -54,7 +54,6 @@ app.include_router(ems.router, prefix="/api/ems", tags=["EMS & ER Ops"])
 app.include_router(patient.router, prefix="/api/patient", tags=["Patient Portal"])
 app.include_router(records.router, prefix="/api/records", tags=["Medical Records OCR"])
 app.include_router(voice.router, prefix="/api/voice", tags=["Voice EMR"])
-app.include_router(smartbot_webhook.router, prefix="/api", tags=["SmartBot Webhook"])
 
 
 @app.get("/")
