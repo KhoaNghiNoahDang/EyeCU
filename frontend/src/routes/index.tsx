@@ -2927,6 +2927,7 @@ function LprScanner({
   onSelectQueue,
   hospitalId,
   onScanComplete,
+  isMobile,
 }: {
   plate: string;
   onNotify: () => void;
@@ -2935,6 +2936,7 @@ function LprScanner({
   onSelectQueue: (id: string) => void;
   hospitalId?: string;
   onScanComplete?: (plate: string) => void;
+  isMobile?: boolean;
 }) {
   // ── Camera state ─────────────────────────────────────────────────────
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -3197,16 +3199,18 @@ function LprScanner({
   const queueRest = queue.filter((a) => a.plate !== plate);
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-3 space-y-2.5">
-      <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-        <Camera className="w-3.5 h-3.5" style={{ color: ACCENT }} />
-        LPR Cổng vào · Camera · Cấp cứu
-      </h4>
+    <div className={`${isMobile ? "space-y-2" : "bg-white border border-slate-200 rounded-xl p-3 space-y-2.5"}`}>
+      {!isMobile && (
+        <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+          <Camera className="w-3.5 h-3.5" style={{ color: ACCENT }} />
+          LPR Cổng vào · Camera · Cấp cứu
+        </h4>
+      )}
 
       {/* ── Khu vực Camera / Video ── */}
       <div
         className="relative rounded-lg overflow-hidden bg-slate-900"
-        style={{ aspectRatio: "16/9" }}
+        style={{ aspectRatio: isMobile ? "16/7" : "16/9" }}
       >
         {/* Canvas ẩn để chụp frame */}
         <canvas ref={canvasRef} className="hidden" />
@@ -3371,63 +3375,63 @@ function LprScanner({
       )}
 
       {/* ── Nút điều khiển camera ── */}
-      <div className="flex flex-wrap gap-1.5">
+      <div className={`flex ${isMobile ? "flex-wrap gap-1" : "flex-wrap gap-1.5"}`}>
         {!cameraActive ? (
           <button
             onClick={startCamera}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-900 hover:opacity-90 transition"
+            className={`flex items-center gap-1.5 ${isMobile ? "px-2 py-1 text-[10px]" : "px-3 py-1.5 text-xs"} rounded-lg font-bold text-slate-900 hover:opacity-90 transition`}
             style={{ backgroundColor: ACCENT }}
           >
-            <Camera className="w-3.5 h-3.5" />
+            <Camera className={`${isMobile ? "w-3 h-3" : "w-3.5 h-3.5"}`} />
             Bật Camera
           </button>
         ) : (
           <>
             <button
               onClick={toggleAutoScan}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+              className={`flex items-center gap-1 ${isMobile ? "px-2 py-1 text-[10px]" : "px-3 py-1.5 text-xs"} rounded-lg font-bold transition ${
                 autoScan ? "bg-red-500 text-white animate-pulse" : "bg-cyan-500 text-white"
               }`}
             >
-              {autoScan ? <StopCircle className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-              {autoScan ? "Dừng tự động" : "Quét tự động (3s)"}
+              {autoScan ? <StopCircle className={`${isMobile ? "w-2.5 h-2.5" : "w-3.5 h-3.5"}`} /> : <Play className={`${isMobile ? "w-2.5 h-2.5" : "w-3.5 h-3.5"}`} />}
+              {autoScan ? "Dừng" : "Tự động (3s)"}
             </button>
             <button
               onClick={captureAndScan}
               disabled={scanning || autoScan}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-white disabled:opacity-40 hover:bg-slate-700 transition"
+              className={`flex items-center gap-1 ${isMobile ? "px-2 py-1 text-[10px]" : "px-3 py-1.5 text-xs"} rounded-lg font-bold bg-slate-800 text-white disabled:opacity-40 hover:bg-slate-700 transition`}
             >
-              <ScanLine className="w-3.5 h-3.5" />
-              Chụp thủ công
+              <ScanLine className={`${isMobile ? "w-2.5 h-2.5" : "w-3.5 h-3.5"}`} />
+              Chụp
             </button>
             <button
               onClick={stopCamera}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition"
+              className={`flex items-center gap-1 ${isMobile ? "px-2 py-1 text-[10px]" : "px-3 py-1.5 text-xs"} rounded-lg font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition`}
             >
-              <X className="w-3.5 h-3.5" />
+              <X className={`${isMobile ? "w-2.5 h-2.5" : "w-3.5 h-3.5"}`} />
               Tắt
             </button>
           </>
         )}
 
         {/* Upload ảnh thay vì dùng camera */}
-        <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition cursor-pointer">
-          <Upload className="w-3.5 h-3.5" />
-          Upload ảnh
+        <label className={`flex items-center gap-1 ${isMobile ? "px-2 py-1 text-[10px]" : "px-3 py-1.5 text-xs"} rounded-lg font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition cursor-pointer`}>
+          <Upload className={`${isMobile ? "w-2.5 h-2.5" : "w-3.5 h-3.5"}`} />
+          Upload
           <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
         </label>
 
         {/* Nút mở Demo Mode */}
         <button
           onClick={() => setDemoMode((v) => !v)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition ${
+          className={`flex items-center gap-1 ${isMobile ? "px-2 py-1 text-[10px]" : "px-3 py-1.5 text-xs"} rounded-lg font-bold border transition ${
             demoMode
               ? "bg-amber-50 border-amber-400 text-amber-700"
               : "border-slate-200 text-slate-600 hover:bg-slate-50"
           }`}
           title="Nhập thủ công"
         >
-          ⚡ Nhập thủ công
+          ⚡ {isMobile ? "Nhập" : "Nhập thủ công"}
         </button>
       </div>
 
@@ -4633,6 +4637,7 @@ interface DispatchRecord {
 }
 
 function AmbulanceView() {
+  const isMobile = useIsMobile();
   const [ambulances, setAmbulances] = useState<AmbulanceUnit[]>([]);
   const [dispatchRecords, setDispatchRecords] = useState<Record<string, any>>({});
 
@@ -5028,47 +5033,43 @@ function AmbulanceView() {
         ═══════════════════════════════════════════════════════════════ */}
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
           {/* Header Box 1 */}
-          <div className="flex flex-wrap justify-between items-center px-4 py-3 border-b border-slate-100 gap-2">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <MapIcon className="w-4 h-4" style={{ color: ACCENT }} />
-                Theo dõi Cấp cứu — BV Bạch Mai
+          <div className={`flex flex-wrap justify-between items-center ${isMobile ? "px-3 py-2" : "px-4 py-3"} border-b border-slate-100 gap-2`}>
+            <div className="min-w-0">
+              <h3 className={`${isMobile ? "text-sm" : "text-base"} font-bold text-slate-900 flex items-center gap-2`}>
+                <MapIcon className={`${isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} flex-shrink-0`} style={{ color: ACCENT }} />
+                <span className="truncate">Theo dõi Cấp cứu — BV Bạch Mai</span>
               </h3>
-              <p className="text-[11px] text-slate-500 font-geist">
-                {ambulances.length} xe đang giám sát · GPS Galileo · Thời gian thực
-              </p>
+              {!isMobile && (
+                <p className="text-[11px] text-slate-500 font-geist">
+                  {ambulances.length} xe đang giám sát · GPS Galileo · Thời gian thực
+                </p>
+              )}
             </div>
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center gap-1 flex-wrap flex-shrink-0">
               {(["all", "critical", "urgent", "standby"] as MapFilter[]).map((f) => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition ${filter === f ? "text-slate-900" : "bg-white border border-slate-200 text-slate-500 hover:border-slate-400"}`}
+                  className={`${isMobile ? "px-2 py-0.5 text-[9px]" : "px-2.5 py-1 text-[10px]"} rounded-full font-bold uppercase tracking-wider transition border ${filter === f ? "text-slate-900 border-transparent" : "bg-white border-slate-200 text-slate-500"}`}
                   style={filter === f ? { backgroundColor: ACCENT } : undefined}
                 >
-                  {f === "all"
-                    ? "Tất cả"
-                    : f === "critical"
-                      ? "Critical"
-                      : f === "urgent"
-                        ? "Urgent"
-                        : "Standby"}
+                  {f === "all" ? "Tất cả" : f === "critical" ? "Khẩn" : f === "urgent" ? "Cấp" : "Chờ"}
                 </button>
               ))}
               <span
-                className="px-2 py-1 rounded text-[10px] font-geist uppercase tracking-wider text-slate-900 flex items-center gap-1"
+                className={`${isMobile ? "px-1.5 py-0.5 text-[9px]" : "px-2 py-1 text-[10px]"} rounded font-geist uppercase tracking-wider text-slate-900 flex items-center gap-1`}
                 style={{ backgroundColor: ACCENT }}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
-                Live
+                LIVE
               </span>
             </div>
           </div>
 
           {/* 2 cột ngang: Map trái | LPR phải */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 lg:h-[400px]">
+          <div className={`grid grid-cols-1 lg:grid-cols-2 ${isMobile ? "" : "lg:h-[400px]"}`}>
             {/* COL LEFT: Bản đồ xe cấp cứu */}
-            <div className="relative border-r border-slate-100 overflow-hidden bg-slate-100 h-[300px] lg:h-auto min-h-[300px]">
+            <div className={`relative border-r border-slate-100 overflow-hidden bg-slate-100 ${isMobile ? "h-[220px]" : "h-[300px] lg:h-auto min-h-[300px]"}`}>
               <ClientAmbulanceMap
                 ambulances={visibleAmbs}
                 selectedId={selectedId}
@@ -5080,10 +5081,10 @@ function AmbulanceView() {
             </div>
 
             {/* COL RIGHT: Quét biển số mở barrier */}
-            <div className="overflow-y-auto scrollbar-hide bg-slate-50/50 p-3 flex flex-col gap-3">
-              <div className="bg-white border border-slate-200 rounded-xl p-3">
-                <h4 className="text-xs font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                  <ScanLine className="w-3.5 h-3.5" style={{ color: ACCENT }} />
+            <div className={`overflow-y-auto scrollbar-hide bg-slate-50/50 ${isMobile ? "p-2" : "p-3"} flex flex-col gap-2 md:gap-3`}>
+              <div className={`bg-white border border-slate-200 rounded-xl ${isMobile ? "p-2" : "p-3"}`}>
+                <h4 className={`${isMobile ? "text-[11px]" : "text-xs"} font-bold text-slate-900 mb-1.5 md:mb-2 flex items-center gap-1.5`}>
+                  <ScanLine className={`${isMobile ? "w-3 h-3" : "w-3.5 h-3.5"} flex-shrink-0`} style={{ color: ACCENT }} />
                   Quét biển số · Mở cửa Barrier
                 </h4>
                 <LprScanner
@@ -5095,6 +5096,7 @@ function AmbulanceView() {
                   onScanComplete={(plate) =>
                     handleSocketMessage({ type: "GATE_OPEN", data: { plate } })
                   }
+                  isMobile={isMobile}
                 />
               </div>
             </div>
@@ -5106,40 +5108,187 @@ function AmbulanceView() {
         ═══════════════════════════════════════════════════════════════ */}
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
           {/* Header Box 2 */}
-          <div className="flex flex-wrap justify-between items-center px-4 py-3 border-b border-slate-100 gap-2">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <UserCheck className="w-4 h-4" style={{ color: ACCENT }} />
+          <div className={`flex flex-wrap justify-between items-center ${isMobile ? "px-3 py-2" : "px-4 py-3"} border-b border-slate-100 gap-2`}>
+            <div className="min-w-0">
+              <h3 className={`${isMobile ? "text-sm" : "text-base"} font-bold text-slate-900 flex items-center gap-2`}>
+                <UserCheck className={`${isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} flex-shrink-0`} style={{ color: ACCENT }} />
                 Xử lý Hồ sơ Cấp cứu
               </h3>
-              <p className="text-[11px] text-slate-500 font-geist">
-                {dispatchList.length > 0
-                  ? `${dispatchList.length} xe đang trên đường`
-                  : "Chưa có xe nào đang trên đường"}
-                {" · "}Cập nhật tự động từ xe EMS
-              </p>
+              {!isMobile && (
+                <p className="text-[11px] text-slate-500 font-geist">
+                  {dispatchList.length > 0
+                    ? `${dispatchList.length} xe đang trên đường`
+                    : "Chưa có xe nào đang trên đường"}
+                  {" · "}Cập nhật tự động từ xe EMS
+                </p>
+              )}
             </div>
             <span
-              className="px-2 py-1 rounded text-[10px] font-geist uppercase tracking-wider text-slate-900 flex items-center gap-1"
+              className={`${isMobile ? "px-1.5 py-0.5 text-[9px]" : "px-2 py-1 text-[10px]"} rounded font-geist uppercase tracking-wider text-slate-900 flex items-center gap-1 flex-shrink-0`}
               style={{ backgroundColor: ACCENT }}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
-              Realtime
+              {isMobile ? `${dispatchList.length} xe` : "REALTIME"}
             </span>
           </div>
 
           {/* Bảng hồ sơ */}
           {dispatchList.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-              <Ambulance className="w-12 h-12 mb-3 opacity-30" />
-              <p className="text-sm font-medium">
+            <div className="flex flex-col items-center justify-center py-10 md:py-16 text-slate-400">
+              <Ambulance className="w-10 h-10 md:w-12 md:h-12 mb-3 opacity-30" />
+              <p className="text-xs md:text-sm font-medium">
                 Chưa có xe cấp cứu nào đang trên đường
               </p>
-              <p className="text-xs mt-1">
+              <p className="text-[10px] md:text-xs mt-1">
                 Khi đội EMS bật GPS từ xe, thông tin sẽ hiển thị tại đây
               </p>
             </div>
+          ) : isMobile ? (
+            /* ── MOBILE: Card layout ── */
+            <div className="p-2 space-y-2">
+              {dispatchList.map((rec) => {
+                const hasPatient = rec.patient_name !== null;
+                const isArrived = rec.eta === -1;
+                const etaText =
+                  rec.eta !== null && rec.eta !== -1
+                    ? `${Math.max(0, Math.round(rec.eta / 60))} phút`
+                    : null;
+                return (
+                  <div key={rec.plate} className="border border-slate-200 rounded-xl p-3 space-y-2">
+                    {/* Row 1: Plate + ETA */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="relative flex w-2 h-2 flex-shrink-0">
+                          <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                        </span>
+                        <span className="font-mono font-bold text-slate-900 text-sm">
+                          {rec.plate}
+                        </span>
+                      </div>
+                      {isArrived ? (
+                        <span className="font-bold text-emerald-600 text-[11px] bg-emerald-100 px-2 py-0.5 rounded-md">
+                          Đã đến
+                        </span>
+                      ) : etaText ? (
+                        <span className="font-bold text-orange-600 text-[11px]">{etaText}</span>
+                      ) : (
+                        <LoadingCell />
+                      )}
+                    </div>
+
+                    {/* Row 2: Patient info */}
+                    {hasPatient && (
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                        <div>
+                          <span className="text-slate-500">Tên: </span>
+                          <span className="font-semibold text-slate-900">{rec.patient_name || "—"}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">Tuổi: </span>
+                          <span className="text-slate-700">{rec.age || "—"}</span>, {rec.gender || "—"}
+                        </div>
+                        <div>
+                          <span className="text-slate-500">CCCD: </span>
+                          <span className="font-mono text-slate-700">{rec.cccd || "—"}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">BH: </span>
+                          <span className="font-mono text-slate-700">{rec.bhxhCode || "—"}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Row 3: Emergency contact */}
+                    {hasPatient && rec.emergencyContactName && (
+                      <div className="text-[11px]">
+                        <span className="text-slate-500">Liên hệ KH: </span>
+                        <span className="font-semibold text-slate-900">{rec.emergencyContactName}</span>
+                        {rec.emergencyContactPhone && (
+                          <span className="text-slate-500"> — {rec.emergencyContactPhone}</span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Row 4: Conditions + Allergies */}
+                    {hasPatient && (
+                      <div className="flex flex-wrap gap-1">
+                        {rec.chronic_conditions?.map((c: string) => (
+                          <span key={c} className="px-1.5 py-0.5 rounded-full bg-slate-100 text-[9px] font-bold text-slate-700">
+                            {c}
+                          </span>
+                        ))}
+                        {rec.allergies?.map((a: string) => (
+                          <span key={a} className="px-1.5 py-0.5 rounded-full bg-red-100 text-[9px] font-bold text-red-700 border border-red-200">
+                            🔴 {a}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Row 5: Alert label */}
+                    {hasPatient && rec.alert_label && (
+                      <span className="inline-block px-2 py-0.5 rounded-lg text-[10px] font-bold text-red-700 bg-red-100 border border-red-200">
+                        {rec.alert_label}
+                      </span>
+                    )}
+
+                    {/* Row 6: Pre-alert text */}
+                    {rec.preAlertText && (
+                      <div className="bg-slate-50 rounded-lg p-2 text-[10px]">
+                        <span className="text-slate-500 font-bold">Cảnh báo trước: </span>
+                        <span className="text-slate-800 font-semibold line-clamp-2">{rec.preAlertText}</span>
+                        <button
+                          type="button"
+                          onClick={() => playTts(rec.preAlertText)}
+                          className="inline-flex items-center gap-1 mt-1 text-[9px] text-cyan-600 hover:text-cyan-700 font-bold bg-cyan-50 px-1.5 py-0.5 rounded border border-cyan-100 active:scale-95 transition-transform"
+                        >
+                          <Volume2 className="w-2.5 h-2.5 animate-pulse" />
+                          Nghe đọc
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Row 7: Actions */}
+                    <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                      <div className="flex-1">
+                        <AssignDepartmentCell
+                          plate={rec.plate}
+                          currentTeam={rec.er_team || rec.erTeam}
+                          onUpdate={(val) => {
+                            supabase
+                              .from("dispatch_records")
+                              .update({ er_team: val })
+                              .eq("plate", rec.plate)
+                              .then();
+                            setDispatchRecords((prev) => ({
+                              ...prev,
+                              [rec.plate]: { ...prev[rec.plate], er_team: val, erTeam: val },
+                            }));
+                          }}
+                        />
+                      </div>
+                      <button
+                        onClick={() => {
+                          supabase
+                            .from("dispatch_records")
+                            .update({ status: "completed", completed_at: Date.now() })
+                            .eq("plate", rec.plate)
+                            .then(() => {
+                              showToast(`Đã hoàn thành hồ sơ xe ${rec.plate}`);
+                            });
+                        }}
+                        className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-bold rounded-lg transition-colors"
+                      >
+                        ✓ Hoàn thành
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           ) : (
+            /* ── DESKTOP: Table layout ── */
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left min-w-[1100px]">
                 <thead className="text-[10px] text-slate-500 font-geist uppercase tracking-wider bg-slate-50 border-b border-slate-200 sticky top-0">
