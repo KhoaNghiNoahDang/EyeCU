@@ -328,8 +328,12 @@ export function PatientPortalNew({
   }, [botOpen, messages.length]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, botTyping]);
+    if (botOpen) {
+      setTimeout(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 50);
+    }
+  }, [messages, botTyping, botOpen]);
 
   useEffect(() => {
     if (autoPlayTTS && messages.length > 0) {
@@ -343,6 +347,13 @@ export function PatientPortalNew({
       }
     }
   }, [messages.length, autoPlayTTS]);
+
+  // Initialize Audio object once for iOS compatibility
+  useEffect(() => {
+    if (!audioRef.current && typeof window !== "undefined") {
+      audioRef.current = new Audio();
+    }
+  }, []);
 
   const playTTS = (text: string, idx: number) => {
     if (playingTTSMsgIdx === idx && audioRef.current) {
@@ -366,18 +377,18 @@ export function PatientPortalNew({
     let spokenText = text;
     spokenText = spokenText.replace(/EyeCU/gi, "ai xi diu");
     
-    const audio = new Audio(`${API_URL}/voice/tts?text=${encodeURIComponent(spokenText)}`);
-    audioRef.current = audio;
-    audio.play().catch(e => {
-      console.error("Audio playback failed:", e);
-      setPlayingTTSMsgIdx(null);
-      setIsTTSPaused(false);
-    });
-    audio.onended = () => {
-      setPlayingTTSMsgIdx(null);
-      setIsTTSPaused(false);
-      audioRef.current = null;
-    };
+    if (audioRef.current) {
+      audioRef.current.src = `${API_URL}/voice/tts?text=${encodeURIComponent(spokenText)}`;
+      audioRef.current.play().catch(e => {
+        console.error("Audio playback failed:", e);
+        setPlayingTTSMsgIdx(null);
+        setIsTTSPaused(false);
+      });
+      audioRef.current.onended = () => {
+        setPlayingTTSMsgIdx(null);
+        setIsTTSPaused(false);
+      };
+    }
   };
 
   const sendMessage = (textStr?: string, payloadStr?: string) => {
@@ -3192,8 +3203,10 @@ export function PatientPortalNew({
                   setAutoPlayTTS(true);
                   setShowAudioPrompt(false);
                   setAudioUnlocked(true);
-                  const silentAudio = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
-                  silentAudio.play().catch(() => {});
+                  if (audioRef.current) {
+                    audioRef.current.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+                    audioRef.current.play().catch(() => {});
+                  }
                 }}
                 className="flex-1 py-3 rounded-xl bg-[#88E8F2] text-[#0d1f2d] font-bold active:bg-cyan-300"
               >
