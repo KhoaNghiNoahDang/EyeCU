@@ -4685,7 +4685,7 @@ function HistoryView() {
       .eq("status", "completed")
       .order("completed_at", { ascending: false })
       .then(({ data }) => {
-        if (data) setHistoryRecords(data);
+        if (data) setHistoryRecords(data.map(normalizeDispatchRec));
       });
 
     const sub = supabase
@@ -4695,13 +4695,14 @@ function HistoryView() {
         { event: "*", schema: "public", table: "dispatch_records", filter: "status=eq.completed" },
         (payload) => {
           if (payload.eventType === "INSERT") {
-            setHistoryRecords((prev) => [payload.new, ...prev]);
+            setHistoryRecords((prev) => [normalizeDispatchRec(payload.new), ...prev]);
           } else if (payload.eventType === "UPDATE") {
             setHistoryRecords((prev) => {
               const idx = prev.findIndex((r) => r.plate === payload.new.plate);
-              if (idx === -1) return [payload.new, ...prev];
+              const normalized = normalizeDispatchRec(payload.new);
+              if (idx === -1) return [normalized, ...prev];
               const copy = [...prev];
-              copy[idx] = payload.new;
+              copy[idx] = normalized;
               return copy;
             });
           }
@@ -4849,7 +4850,7 @@ function HistoryView() {
                             <div className="col-span-2">
                               <span className="text-slate-400">Bệnh nền</span>
                               <div className="flex flex-wrap gap-1 mt-0.5">
-                                {rec.chronic_conditions.map((c: string) => (
+                                {toStrArray(rec.chronic_conditions).map((c: string) => (
                                   <span
                                     key={c}
                                     className="inline-block rounded-full bg-slate-200/70 px-2 py-0.5 text-[10px] font-semibold text-slate-600"
@@ -4864,7 +4865,7 @@ function HistoryView() {
                             <div className="col-span-2">
                               <span className="text-slate-400">Dị ứng thuốc</span>
                               <div className="flex flex-wrap gap-1 mt-0.5">
-                                {rec.allergies.map((a: string) => (
+                                {toStrArray(rec.allergies).map((a: string) => (
                                   <span
                                     key={a}
                                     className="inline-block rounded-full bg-red-100/70 px-2 py-0.5 text-[10px] font-semibold text-red-600"
@@ -4952,7 +4953,7 @@ function HistoryView() {
                       <td className="px-3 py-3 max-w-[150px]">
                         {rec.chronic_conditions && rec.chronic_conditions.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
-                            {rec.chronic_conditions.map((c: string) => (
+                            {toStrArray(rec.chronic_conditions).map((c: string) => (
                               <span
                                 key={c}
                                 className="px-1.5 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-500"
@@ -4968,7 +4969,7 @@ function HistoryView() {
                       <td className="px-3 py-3 max-w-[160px]">
                         {rec.allergies && rec.allergies.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
-                            {rec.allergies.map((a: string) => (
+                            {toStrArray(rec.allergies).map((a: string) => (
                               <span
                                 key={a}
                                 className="px-1.5 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-500"
@@ -5030,6 +5031,18 @@ interface DispatchRecord {
   emergencyContactPhone?: string | null;
 }
 
+const toStrArray = (v: unknown): string[] => {
+  if (Array.isArray(v)) return v;
+  if (typeof v === "string" && v.trim()) return v.split(",").map((s) => s.trim()).filter(Boolean);
+  return [];
+};
+
+const normalizeDispatchRec = (rec: any) => ({
+  ...rec,
+  chronic_conditions: toStrArray(rec.chronic_conditions),
+  allergies: toStrArray(rec.allergies),
+});
+
 function AmbulanceView() {
   const isMobile = useIsMobile();
   const [ambulances, setAmbulances] = useState<AmbulanceUnit[]>([]);
@@ -5061,8 +5074,8 @@ function AmbulanceView() {
                 gender: d.gender,
                 age: d.age,
                 cccd: d.cccd,
-                chronic_conditions: d.chronic_conditions,
-                allergies: d.allergies,
+                chronic_conditions: toStrArray(d.chronic_conditions),
+                allergies: toStrArray(d.allergies),
                 alert_label: d.alert_label,
                 er_team: d.er_team,
                 addedAt: d.added_at || Date.now(),
@@ -5158,8 +5171,8 @@ function AmbulanceView() {
               bhxh_code: d.bhxh_code ?? null,
               emergency_contact_name: d.emergency_contact_name ?? null,
               emergency_contact_phone: d.emergency_contact_phone ?? null,
-              chronic_conditions: d.chronic_conditions ?? [],
-              allergies: d.allergies ?? [],
+              chronic_conditions: toStrArray(d.chronic_conditions),
+              allergies: toStrArray(d.allergies),
             })
             .then();
 
@@ -5178,8 +5191,8 @@ function AmbulanceView() {
               bhxhCode: d.bhxh_code ?? null,
               emergencyContactName: d.emergency_contact_name ?? null,
               emergencyContactPhone: d.emergency_contact_phone ?? null,
-              chronic_conditions: d.chronic_conditions ?? [],
-              allergies: d.allergies ?? [],
+              chronic_conditions: toStrArray(d.chronic_conditions),
+              allergies: toStrArray(d.allergies),
               preAlertText: d.pre_alert_text ?? null,
             },
           }));
@@ -5316,9 +5329,9 @@ function AmbulanceView() {
                     : prev[d.plate].emergencyContactPhone,
                 chronic_conditions:
                   d.chronic_conditions !== undefined
-                    ? d.chronic_conditions
+                    ? toStrArray(d.chronic_conditions)
                     : prev[d.plate].chronic_conditions,
-                allergies: d.allergies !== undefined ? d.allergies : prev[d.plate].allergies,
+                allergies: d.allergies !== undefined ? toStrArray(d.allergies) : prev[d.plate].allergies,
                 preAlertText:
                   d.pre_alert_text !== undefined ? d.pre_alert_text : prev[d.plate].preAlertText,
               },
@@ -5607,12 +5620,12 @@ function AmbulanceView() {
                     {/* Row 4: Conditions + Allergies */}
                     {hasPatient && (
                       <div className="flex flex-wrap gap-1">
-                        {rec.chronic_conditions?.map((c: string) => (
+                        {toStrArray(rec.chronic_conditions).map((c: string) => (
                           <span key={c} className="px-1.5 py-0.5 rounded-full bg-slate-100 text-[9px] font-bold text-slate-700">
                             {c}
                           </span>
                         ))}
-                        {rec.allergies?.map((a: string) => (
+                        {toStrArray(rec.allergies).map((a: string) => (
                           <span key={a} className="px-1.5 py-0.5 rounded-full bg-red-100 text-[9px] font-bold text-red-700 border border-red-200">
                             🔴 {a}
                           </span>
@@ -5806,7 +5819,7 @@ function AmbulanceView() {
                           {hasPatient ? (
                             rec.chronic_conditions && rec.chronic_conditions.length > 0 ? (
                               <div className="flex flex-wrap gap-1">
-                                {rec.chronic_conditions.map((c: string) => (
+                                {toStrArray(rec.chronic_conditions).map((c: string) => (
                                   <span
                                     key={c}
                                     className="px-1.5 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-700"
@@ -5827,7 +5840,7 @@ function AmbulanceView() {
                           {hasPatient ? (
                             rec.allergies && rec.allergies.length > 0 ? (
                               <div className="flex flex-wrap gap-1">
-                                {rec.allergies.map((a: string) => (
+                                {toStrArray(rec.allergies).map((a: string) => (
                                   <span
                                     key={a}
                                     className="px-1.5 py-0.5 rounded-full bg-red-100 text-[10px] font-bold text-red-700 border border-red-200"
