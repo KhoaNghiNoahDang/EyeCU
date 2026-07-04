@@ -1398,8 +1398,10 @@ function AmbientView({
 }) {
   const isMobile = useIsMobile();
   const gridRef = useRef<HTMLDivElement>(null);
+  const emergencyAudioRef = useRef<HTMLAudioElement | null>(null);
   const [selectedDept, setSelectedDept] = useState("internal");
   const [onlyAlerts, setOnlyAlerts] = useState(false);
+  const [demoActive, setDemoActive] = useState(false);
   const [fullscreen, setFullscreen] = useState<Camera | null>(null);
   const [ambientToast, setAmbientToast] = useState("");
   const ambientShowToast = useCallback((msg: string) => {
@@ -1414,6 +1416,40 @@ function AmbientView({
     time: string;
   } | null>(null);
 
+  const handleEmergency = useCallback((room: string) => {
+    // Dung am thanh cap cuu
+    if (emergencyAudioRef.current) {
+      emergencyAudioRef.current.pause();
+      emergencyAudioRef.current = null;
+    }
+    // Dong popup
+    setFallAlert(null);
+    // Hien thi thong bao
+    ambientShowToast(`🚨 Đã kích hoạt cấp cứu phòng ${room} · Đã gửi thông báo đến kíp trực`);
+  }, [ambientShowToast]);
+
+  const dismissAlert = useCallback(() => {
+    if (emergencyAudioRef.current) {
+      emergencyAudioRef.current.pause();
+      emergencyAudioRef.current = null;
+    }
+    setFallAlert(null);
+  }, []);
+
+  const handleDemoEnd = useCallback(() => {
+    setFallAlert({
+      room: "P.201",
+      imageUrl: "/fall_demo2.png",
+      time: new Date().toLocaleTimeString(),
+    });
+    try {
+      const audio = new Audio("/alert.mp3");
+      audio.loop = true;
+      audio.play().catch(() => {});
+      emergencyAudioRef.current = audio;
+    } catch (e) {}
+  }, []);
+
   const WS_URL = "wss://eyecu.onrender.com/api/ambient/ws/live";
 
   const handleSocketMessage = useCallback((msg: any) => {
@@ -1423,6 +1459,22 @@ function AmbientView({
           detail: { room: msg.room_id, image: msg.image_base64 },
         }),
       );
+      // Tu dong them camera moi neu room chua co trong danh sach
+      if (msg.room_id) {
+        setCameras((prev) => {
+          const rawRoom = String(msg.room_id).replace(/^P\./, "");
+          const exists = prev.some((c) => c.room === rawRoom || c.room === msg.room_id);
+          if (exists) return prev;
+          const newCam: Camera = {
+            room: rawRoom,
+            zone: rawRoom.charAt(0) >= "0" && rawRoom.charAt(0) <= "9" ? "A" : rawRoom.substring(0, 2),
+            status: "stable",
+            label: `Phòng ${rawRoom}`,
+            dept: "internal",
+          };
+          return [...prev, newCam];
+        });
+      }
     }
     if (msg.type === "FALL_DETECTED") {
       setFallAlert({
@@ -1459,10 +1511,18 @@ function AmbientView({
       .catch(() => setCameras(ALL_CAMERAS));
   }, []);
 
-  const deptCameras =
-    cameras.length > 0
+  const deptCameras = (() => {
+    const base = cameras.length > 0
       ? cameras.filter((c) => c.dept === selectedDept)
       : ALL_CAMERAS.filter((c) => c.dept === selectedDept);
+    if (demoActive) {
+      const has201 = base.some((c) => c.room === "201");
+      if (!has201) {
+        return [...base, { room: "201", zone: "A", status: "alert" as const, overlay: "fall" as const, label: "Demo P.201", dept: "internal" }];
+      }
+    }
+    return base;
+  })();
   const filtered = onlyAlerts ? deptCameras.filter((c) => c.status === "alert") : deptCameras;
   const alertCount = deptCameras.filter((c) => c.status === "alert").length;
   const currentTab = DEPT_TABS.find((t) => t.id === selectedDept);
@@ -1556,18 +1616,31 @@ function AmbientView({
 
         {/* Controls */}
         <div className="flex flex-wrap items-center justify-between gap-2 md:gap-3 mb-3 md:mb-5 pb-3 md:pb-4 border-b border-slate-200">
-          <button
-            onClick={() => setOnlyAlerts((v) => !v)}
-            className={`flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1.5 md:py-2 rounded-lg border ${isMobile ? "text-[11px]" : "text-[12px]"} font-geist uppercase tracking-wider transition-colors ${
-              onlyAlerts
-                ? "text-slate-900 border-transparent"
-                : "bg-white border-slate-200 text-slate-700 hover:border-[#88E8F2]"
-            }`}
-            style={onlyAlerts ? { backgroundColor: ACCENT } : undefined}
-          >
-            <AlertTriangle className="w-3 h-3 md:w-3.5 md:h-3.5" />
-            {onlyAlerts ? `Cảnh báo (${alertCount})` : (isMobile ? "Chỉ cảnh báo" : "Chỉ hiện Cảnh báo")}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setOnlyAlerts((v) => !v)}
+              className={`flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1.5 md:py-2 rounded-lg border ${isMobile ? "text-[11px]" : "text-[12px]"} font-geist uppercase tracking-wider transition-colors ${
+                onlyAlerts
+                  ? "text-slate-900 border-transparent"
+                  : "bg-white border-slate-200 text-slate-700 hover:border-[#88E8F2]"
+              }`}
+              style={onlyAlerts ? { backgroundColor: ACCENT } : undefined}
+            >
+              <AlertTriangle className="w-3 h-3 md:w-3.5 md:h-3.5" />
+              {onlyAlerts ? `Cảnh báo (${alertCount})` : (isMobile ? "Chỉ cảnh báo" : "Chỉ hiện Cảnh báo")}
+            </button>
+            <button
+              onClick={() => setDemoActive((v) => !v)}
+              className={`flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1.5 md:py-2 rounded-lg border ${isMobile ? "text-[11px]" : "text-[12px]"} font-geist uppercase tracking-wider transition-colors ${
+                demoActive
+                  ? "text-white border-transparent bg-emerald-600 hover:bg-emerald-500"
+                  : "bg-white border-slate-200 text-slate-700 hover:border-[#88E8F2]"
+              }`}
+            >
+              <Play className="w-3 h-3 md:w-3.5 md:h-3.5" />
+              {demoActive ? "Đang Demo" : "Demo"}
+            </button>
+          </div>
           <span className="text-[10px] md:text-[11px] font-geist text-slate-400">
             {filtered.length} / {deptCameras.length} camera
           </span>
@@ -1595,6 +1668,8 @@ function AmbientView({
                       highlighted={highlightedRoom === cam.room}
                       onClick={() => setFullscreen(cam)}
                       isMobile={isMobile}
+                      demoActive={demoActive}
+                      onDemoEnd={handleDemoEnd}
                     />
                   ))}
                 </div>
@@ -1617,6 +1692,8 @@ function AmbientView({
                         highlighted={highlightedRoom === cam.room}
                         onClick={() => setFullscreen(cam)}
                         isMobile={isMobile}
+                        demoActive={demoActive}
+                        onDemoEnd={handleDemoEnd}
                       />
                     ))}
                   </div>
@@ -1680,7 +1757,7 @@ function AmbientView({
                   Cảnh báo cấp cứu
                 </h3>
               </div>
-              <button onClick={() => setFallAlert(null)} className="text-gray-400 hover:text-white p-1">
+              <button onClick={dismissAlert} className="text-gray-400 hover:text-white p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1696,13 +1773,13 @@ function AmbientView({
             )}
             <div className="flex gap-2 mt-1 pb-safe">
               <button
-                onClick={() => setFallAlert(null)}
+                onClick={dismissAlert}
                 className="flex-1 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-semibold transition"
               >
                 Bỏ qua
               </button>
               <button
-                onClick={() => setFallAlert(null)}
+                onClick={() => handleEmergency(fallAlert.room)}
                 className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-semibold shadow-lg shadow-red-500/20 transition"
               >
                 Cấp cứu
@@ -1718,7 +1795,7 @@ function AmbientView({
                   Cảnh báo cấp cứu
                 </h3>
               </div>
-              <button onClick={() => setFallAlert(null)} className="text-gray-400 hover:text-white">
+              <button onClick={dismissAlert} className="text-gray-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1734,13 +1811,13 @@ function AmbientView({
             )}
             <div className="flex gap-2 mt-2">
               <button
-                onClick={() => setFallAlert(null)}
+                onClick={dismissAlert}
                 className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-semibold transition"
               >
                 Bỏ qua (Giả)
               </button>
               <button
-                onClick={() => setFallAlert(null)}
+                onClick={() => handleEmergency(fallAlert.room)}
                 className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-semibold shadow-lg shadow-red-500/20 transition"
               >
                 Cấp cứu
@@ -1765,12 +1842,18 @@ function CameraCard({
   highlighted,
   onClick,
   isMobile,
+  demoActive,
+  onDemoEnd,
 }: {
   cam: Camera;
   highlighted: boolean;
   onClick: () => void;
   isMobile?: boolean;
+  demoActive?: boolean;
+  onDemoEnd?: () => void;
 }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const isDemo = demoActive && cam.room === "201";
   const isAlert = cam.status === "alert";
   const ring = highlighted ? "ring-2 md:ring-4 ring-offset-1 md:ring-offset-2 ring-[#88E8F2]" : "";
   const borderCls = isAlert ? "border-2 md:border-4 border-red-500 animate-pulse" : "border border-slate-200";
@@ -1779,7 +1862,18 @@ function CameraCard({
       onClick={onClick}
       className={`group relative aspect-video rounded-lg md:rounded-xl overflow-hidden bg-slate-800 text-left ${borderCls} ${ring} hover:scale-[1.02] cursor-pointer transition-all duration-200`}
     >
-      <CameraFeed cam={cam} />
+      {isDemo ? (
+        <video
+          ref={videoRef}
+          src="/fall_demo.mp4"
+          autoPlay
+          muted
+          className="absolute inset-0 w-full h-full object-cover"
+          onEnded={onDemoEnd}
+        />
+      ) : (
+        <CameraFeed cam={cam} />
+      )}
 
       {/* Room pill */}
       <div className={`absolute top-1.5 left-1.5 md:top-2 md:left-2 z-10 backdrop-blur-sm bg-black/40 text-white ${isMobile ? "text-[9px] px-1.5 py-0.5" : "text-[11px] px-2 py-1"} rounded-full flex items-center gap-1`}>
@@ -1798,18 +1892,13 @@ function CameraCard({
         </span>
       </div>
 
-      {/* Fall alert overlay — skeleton centered + badge bottom-center */}
+      {/* Fall alert overlay */}
       {cam.overlay === "fall" && (
-        <>
-          <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-            <SkeletonOverlay />
-          </div>
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-9 z-20 pointer-events-none">
-            <span className="bg-black/80 backdrop-blur px-3 py-1 rounded-md text-red-500 font-bold text-xs tracking-wider whitespace-nowrap">
-              PHÁT HIỆN NGÃ
-            </span>
-          </div>
-        </>
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-9 z-20 pointer-events-none">
+          <span className="bg-black/80 backdrop-blur px-3 py-1 rounded-md text-red-500 font-bold text-xs tracking-wider whitespace-nowrap">
+            PHÁT HIỆN NGÃ
+          </span>
+        </div>
       )}
 
       {/* Live play icon (only when not alert) */}
@@ -1888,37 +1977,6 @@ function CameraFeed({ cam }: { cam: Camera }) {
   );
 }
 
-function SkeletonOverlay() {
-  return (
-    <svg
-      viewBox="0 0 120 60"
-      className="w-32 h-16"
-      stroke={ACCENT}
-      strokeWidth="2"
-      fill="none"
-      strokeLinecap="round"
-    >
-      <circle cx="20" cy="30" r="6" />
-      <line x1="26" y1="30" x2="80" y2="32" />
-      <line x1="40" y1="32" x2="50" y2="20" />
-      <line x1="40" y1="32" x2="48" y2="44" />
-      <line x1="80" y1="32" x2="100" y2="22" />
-      <line x1="80" y1="32" x2="100" y2="44" />
-      {[
-        [26, 30],
-        [40, 32],
-        [60, 32],
-        [80, 32],
-        [100, 22],
-        [100, 44],
-        [50, 20],
-        [48, 44],
-      ].map(([x, y], i) => (
-        <circle key={i} cx={x} cy={y} r="1.5" fill={ACCENT} />
-      ))}
-    </svg>
-  );
-}
 
 /* ============================================================
    PRIVACY CAMERA FEED — Privacy-by-Design Pose Estimation
@@ -1975,119 +2033,7 @@ function AudioSpectrogram({ state }: { state: PcfState }) {
   );
 }
 
-function StandingSkeleton() {
-  return (
-    <svg
-      viewBox="0 0 80 160"
-      className="w-16 h-32"
-      fill="none"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <defs>
-        <filter id="glow-stand">
-          <feGaussianBlur stdDeviation="2.5" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
-      <g filter="url(#glow-stand)" stroke={ACCENT} strokeWidth="2.5">
-        <circle cx="40" cy="18" r="10" />
-        <line x1="40" y1="28" x2="40" y2="40" />
-        <line x1="16" y1="48" x2="64" y2="48" />
-        <line x1="16" y1="48" x2="10" y2="80" />
-        <line x1="10" y1="80" x2="8" y2="100" />
-        <line x1="64" y1="48" x2="70" y2="80" />
-        <line x1="70" y1="80" x2="72" y2="100" />
-        <line x1="40" y1="40" x2="40" y2="95" />
-        <line x1="24" y1="95" x2="56" y2="95" />
-        <line x1="24" y1="95" x2="20" y2="130" />
-        <line x1="20" y1="130" x2="18" y2="155" />
-        <line x1="56" y1="95" x2="60" y2="130" />
-        <line x1="60" y1="130" x2="62" y2="155" />
-        {[
-          [40, 28],
-          [40, 40],
-          [16, 48],
-          [64, 48],
-          [10, 80],
-          [70, 80],
-          [8, 100],
-          [72, 100],
-          [40, 95],
-          [24, 95],
-          [56, 95],
-          [20, 130],
-          [60, 130],
-        ].map(([cx, cy], i) => (
-          <circle key={i} cx={cx} cy={cy} r="2.5" fill={ACCENT} />
-        ))}
-      </g>
-    </svg>
-  );
-}
 
-function FallenSkeleton() {
-  return (
-    <svg
-      viewBox="0 0 200 80"
-      className="w-44 h-20"
-      fill="none"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <defs>
-        <filter id="glow-fall">
-          <feGaussianBlur stdDeviation="3" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
-      <g filter="url(#glow-fall)" stroke="#EF4444" strokeWidth="2.5">
-        <circle cx="18" cy="52" r="10" />
-        <line x1="28" y1="52" x2="110" y2="54" />
-        <line x1="60" y1="54" x2="55" y2="30" />
-        <line x1="60" y1="54" x2="62" y2="72" />
-        <line x1="55" y1="30" x2="48" y2="18" />
-        <line x1="62" y1="72" x2="58" y2="76" />
-        <line x1="110" y1="54" x2="148" y2="40" />
-        <line x1="110" y1="54" x2="142" y2="66" />
-        <line x1="148" y1="40" x2="175" y2="32" />
-        <line x1="142" y1="66" x2="172" y2="70" />
-        {[
-          [28, 52],
-          [60, 54],
-          [80, 53],
-          [110, 54],
-          [148, 40],
-          [142, 66],
-          [55, 30],
-          [62, 72],
-          [175, 32],
-          [172, 70],
-        ].map(([cx, cy], i) => (
-          <circle key={i} cx={cx} cy={cy} r="2.5" fill="#EF4444" />
-        ))}
-      </g>
-      <circle
-        cx="18"
-        cy="52"
-        r="16"
-        stroke="#EF4444"
-        strokeOpacity="0.3"
-        strokeWidth="1.5"
-        fill="none"
-      >
-        <animate attributeName="r" from="14" to="28" dur="1s" repeatCount="indefinite" />
-        <animate attributeName="opacity" from="0.5" to="0" dur="1s" repeatCount="indefinite" />
-      </circle>
-    </svg>
-  );
-}
 
 function PrivacyCameraFeed() {
   const [pcfState, setPcfState] = useState<PcfState>("normal");
@@ -2246,22 +2192,11 @@ function PrivacyCameraFeed() {
               </span>
             </div>
 
-            {/* Pose skeleton */}
+            {/* Pose skeleton — placeholder */}
             <div
               className="absolute inset-0 z-10 flex items-center justify-center"
               style={{ paddingBottom: "48px" }}
             >
-              <div
-                className={`transition-all duration-500 ${transitioning ? "opacity-0 scale-90" : "opacity-100 scale-100"}`}
-              >
-                {isCritical ? (
-                  <FallenSkeleton />
-                ) : (
-                  <div className="animate-pulse">
-                    <StandingSkeleton />
-                  </div>
-                )}
-              </div>
             </div>
 
             {/* Critical flash text */}
@@ -2502,9 +2437,6 @@ function CameraModal({ cam, onClose, onToast }: { cam: Camera; onClose: () => vo
           {/* Fall overlay */}
           {cam.overlay === "fall" && (
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <div className="scale-[1.5]">
-                <SkeletonOverlay />
-              </div>
               <span className="mt-4 text-red-500 font-bold text-xl tracking-widest drop-shadow-[0_0_12px_rgba(239,68,68,0.9)]">
                 PHÁT HIỆN NGÃ
               </span>
@@ -2614,9 +2546,6 @@ function CameraModal({ cam, onClose, onToast }: { cam: Camera; onClose: () => vo
 
         {cam.overlay === "fall" && (
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <div className="scale-[2.2]">
-              <SkeletonOverlay />
-            </div>
             <span className="mt-6 text-red-500 font-bold text-3xl tracking-widest drop-shadow-[0_0_12px_rgba(239,68,68,0.9)]">
               PHÁT HIỆN NGÃ
             </span>
@@ -5123,6 +5052,7 @@ function AmbulanceView() {
   const [lprPlate, setLprPlate] = useState("29A-213.07");
   const [toast, setToast] = useState("");
   const [panelMode, setPanelMode] = useState<"dept" | "vehicle">("dept");
+  const emergencyAudioRef = useRef<HTMLAudioElement | null>(null);
   const [fallAlert, setFallAlert] = useState<{
     room: string;
     imageUrl: string;
@@ -5132,6 +5062,25 @@ function AmbulanceView() {
   const showToast = useCallback((msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(""), 4000);
+  }, []);
+
+  const handleEmergency = useCallback((room: string) => {
+    if (emergencyAudioRef.current) {
+      emergencyAudioRef.current.pause();
+    }
+    const audio = new Audio("/alert.mp3");
+    audio.loop = true;
+    audio.play().catch(() => {});
+    emergencyAudioRef.current = audio;
+    showToast(`🚨 Đã kích hoạt cấp cứu phòng ${room} · Đã gửi thông báo đến kíp trực`);
+  }, [showToast]);
+
+  const dismissAlert = useCallback(() => {
+    if (emergencyAudioRef.current) {
+      emergencyAudioRef.current.pause();
+      emergencyAudioRef.current = null;
+    }
+    setFallAlert(null);
   }, []);
 
   const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
@@ -5416,8 +5365,8 @@ function AmbulanceView() {
               <AlertTriangle className="w-6 h-6 text-red-500 animate-pulse" />
               <h3 className="font-bold text-red-400">PHÁT HIỆN TÉ NGÃ</h3>
             </div>
-            <button onClick={() => setFallAlert(null)} className="text-gray-400 hover:text-white">
-              âœ•
+            <button onClick={dismissAlert} className="text-gray-400 hover:text-white">
+              <X className="w-5 h-5" />
             </button>
           </div>
           <p className="text-sm">
@@ -5431,6 +5380,20 @@ function AmbulanceView() {
               className="w-full rounded border border-red-900 mt-2"
             />
           )}
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={dismissAlert}
+              className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-semibold transition"
+            >
+              Bỏ qua
+            </button>
+            <button
+              onClick={() => handleEmergency(fallAlert.room)}
+              className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-semibold shadow-lg shadow-red-500/20 transition"
+            >
+              Cấp cứu
+            </button>
+          </div>
         </div>
       )}
 
