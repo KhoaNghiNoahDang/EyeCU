@@ -267,7 +267,7 @@ function PatientRounds() {
   // TTS helper
   const speakText = (text: string) => {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+      const apiUrl = import.meta.env.VITE_API_URL || "http://eyecu.onrender.com/api";
       const audio = new Audio(`${apiUrl}/voice/tts?text=${encodeURIComponent(text)}`);
       audio.play().catch(e => console.warn("Audio play blocked", e));
     } catch (e) {
