@@ -485,11 +485,19 @@ export function PatientPortalNew({
     setMessages((prev) => [...prev, { from: "user", text, time: getTimeNow() }]);
     if (!textStr) setChatInput("");
     setBotTyping(true);
+    let cleanScreenContext = screenContext;
+    try {
+      if (screenContext) {
+        const rawStr = JSON.stringify(screenContext);
+        cleanScreenContext = rawStr.replace(/[\{\}\[\]"]/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 1500);
+      }
+    } catch (e) {}
+
     fetchApi("/patient/chat", { 
       method: "POST", 
       body: { 
         message: payloadStr || text,
-        screen_context: screenContext
+        screen_context: cleanScreenContext
       }
     })
     .then((data) => {
