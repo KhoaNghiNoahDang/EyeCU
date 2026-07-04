@@ -4216,7 +4216,9 @@ function AutoEmrPanel({ plate }: { plate: string }) {
 
 /* ---------- HistoryView (Supabase Connected) ---------- */
 function HistoryView() {
+  const isMobile = useIsMobile();
   const [historyRecords, setHistoryRecords] = useState<any[]>([]);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   useEffect(() => {
     supabase
@@ -4254,61 +4256,221 @@ function HistoryView() {
     };
   }, []);
 
+  const sortedRecords = Array.from(
+    new Map(historyRecords.map((item) => [item.plate, item])).values(),
+  ).sort(
+    (a: any, b: any) =>
+      new Date(b.completed_at || 0).getTime() - new Date(a.completed_at || 0).getTime(),
+  );
+
+  const alertColor = (label: string | null) => {
+    if (!label) return "bg-slate-100 text-slate-500 border-slate-200";
+    const l = label.toLowerCase();
+    if (l.includes("đỏ") || l.includes("red") || l.includes("critical"))
+      return "bg-red-50 text-red-600 border-red-200";
+    if (l.includes("vàng") || l.includes("yellow") || l.includes("urgent"))
+      return "bg-amber-50 text-amber-600 border-amber-200";
+    if (l.includes("xanh") || l.includes("green") || l.includes("standby"))
+      return "bg-emerald-50 text-emerald-600 border-emerald-200";
+    return "bg-slate-100 text-slate-500 border-slate-200";
+  };
+
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const formatTime = (iso: string) =>
+    new Date(iso).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+
   return (
-    <div className="flex-1 flex flex-col p-6 max-h-screen overflow-hidden bg-slate-50/50">
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex-1 flex flex-col">
-        <div className="flex flex-wrap justify-between items-center px-4 py-3 border-b border-slate-100 gap-2">
+    <div
+      className={
+        isMobile
+          ? "flex-1 flex flex-col bg-slate-50/50"
+          : "flex-1 flex flex-col p-6 max-h-screen overflow-hidden bg-slate-50/50"
+      }
+    >
+      <div
+        className={
+          isMobile
+            ? "flex-1 flex flex-col overflow-hidden"
+            : "bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex-1 flex flex-col"
+        }
+      >
+        {/* Header */}
+        <div
+          className={
+            isMobile
+              ? "flex items-center justify-between bg-slate-50 px-4 py-3 border-b border-slate-200"
+              : "flex flex-wrap justify-between items-center px-4 py-3 border-b border-slate-100 gap-2"
+          }
+        >
           <div>
             <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4" style={{ color: "#88E8F2" }} />
-              Danh sách Đã hoàn thành
+              Đã hoàn thành
             </h3>
-            <p className="text-[11px] text-slate-500 font-geist">
-              Tổng số {historyRecords.length} ca
+            <p className="text-[11px] text-slate-500">
+              {historyRecords.length} ca
             </p>
           </div>
         </div>
 
-        <div className="overflow-x-auto flex-1 h-0">
-          <table className="w-full text-sm text-left min-w-[1000px]">
-            <thead className="text-[10px] text-slate-500 font-geist uppercase tracking-wider bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
-              <tr>
-                <th className="px-3 py-3 whitespace-nowrap">Ngày tháng</th>
-                <th className="px-3 py-3 whitespace-nowrap">Biển số xe</th>
-                <th className="px-3 py-3 whitespace-nowrap">Tên bệnh nhân</th>
-                <th className="px-3 py-3 whitespace-nowrap">Giới tính</th>
-                <th className="px-3 py-3 whitespace-nowrap">Độ tuổi</th>
-                <th className="px-3 py-3 whitespace-nowrap">Số CCCD</th>
-                <th className="px-3 py-3 whitespace-nowrap">Bệnh nền</th>
-                <th className="px-3 py-3 whitespace-nowrap">Dị ứng thuốc</th>
-                <th className="px-3 py-3 whitespace-nowrap">Nhãn cấp cứu</th>
-                <th className="px-3 py-3 whitespace-nowrap">Kíp CC</th>
-                <th className="px-3 py-3 whitespace-nowrap">Kết thúc lúc</th>
-              </tr>
-            </thead>
-            <tbody>
-              {historyRecords.length === 0 ? (
+        {/* Mobile: List tràn viền */}
+        {isMobile ? (
+          <div className="flex-1 overflow-y-auto bg-white">
+            {sortedRecords.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 mb-3">
+                  <CheckCircle2 className="h-7 w-7 text-slate-300" />
+                </div>
+                <p className="font-semibold text-slate-500 text-[14px]">Chưa có ca nào hoàn thành</p>
+              </div>
+            ) : (
+              sortedRecords.map((rec, idx) => {
+                const key = `${rec.plate}-${idx}`;
+                const expanded = expandedRow === key;
+                return (
+                  <div key={key} className="border-b border-slate-100 last:border-0">
+                    {/* Compact row */}
+                    <button
+                      type="button"
+                      onClick={() => setExpandedRow(expanded ? null : key)}
+                      className="w-full px-4 py-3 text-left flex items-start justify-between gap-3 active:bg-slate-50 transition-colors"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] text-slate-400">
+                          {rec.completed_at ? formatDate(rec.completed_at) : "—"}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="font-mono font-bold text-slate-800 text-[14px]">
+                            {rec.plate}
+                          </span>
+                          <span className="text-[13px] text-slate-600 font-medium truncate">
+                            {rec.patient_name || "—"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 mt-0.5">
+                        {rec.alert_label && (
+                          <span
+                            className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold ${alertColor(rec.alert_label)}`}
+                          >
+                            {rec.alert_label}
+                          </span>
+                        )}
+                        {expanded ? (
+                          <ChevronDown className="h-4 w-4 text-slate-400" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-slate-300" />
+                        )}
+                      </div>
+                    </button>
+
+                    {/* Expanded detail */}
+                    {expanded && (
+                      <div className="px-4 pb-3 pt-1 border-t border-dashed border-slate-200 bg-slate-50/50">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
+                          {rec.gender && (
+                            <div>
+                              <span className="text-slate-400">Giới tính</span>
+                              <p className="font-medium text-slate-700">{rec.gender}</p>
+                            </div>
+                          )}
+                          {rec.age && (
+                            <div>
+                              <span className="text-slate-400">Độ tuổi</span>
+                              <p className="font-medium text-slate-700">{rec.age}</p>
+                            </div>
+                          )}
+                          {rec.cccd && (
+                            <div className="col-span-2">
+                              <span className="text-slate-400">Số CCCD</span>
+                              <p className="font-mono font-medium text-slate-700">{rec.cccd}</p>
+                            </div>
+                          )}
+                          {rec.chronic_conditions && rec.chronic_conditions.length > 0 && (
+                            <div className="col-span-2">
+                              <span className="text-slate-400">Bệnh nền</span>
+                              <div className="flex flex-wrap gap-1 mt-0.5">
+                                {rec.chronic_conditions.map((c: string) => (
+                                  <span
+                                    key={c}
+                                    className="inline-block rounded-full bg-slate-200/70 px-2 py-0.5 text-[10px] font-semibold text-slate-600"
+                                  >
+                                    {c}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {rec.allergies && rec.allergies.length > 0 && (
+                            <div className="col-span-2">
+                              <span className="text-slate-400">Dị ứng thuốc</span>
+                              <div className="flex flex-wrap gap-1 mt-0.5">
+                                {rec.allergies.map((a: string) => (
+                                  <span
+                                    key={a}
+                                    className="inline-block rounded-full bg-red-100/70 px-2 py-0.5 text-[10px] font-semibold text-red-600"
+                                  >
+                                    {a}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {rec.er_team && (
+                            <div>
+                              <span className="text-slate-400">Kíp CC</span>
+                              <p className="font-medium text-slate-700">{rec.er_team}</p>
+                            </div>
+                          )}
+                          {rec.completed_at && (
+                            <div>
+                              <span className="text-slate-400">Kết thúc</span>
+                              <p className="font-medium text-slate-700">{formatTime(rec.completed_at)}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        ) : (
+          /* Desktop: Table 11 cột giữ nguyên */
+          <div className="overflow-x-auto flex-1 h-0">
+            <table className="w-full text-sm text-left min-w-[1000px]">
+              <thead className="text-[10px] text-slate-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                 <tr>
-                  <td colSpan={10} className="px-4 py-8 text-center text-slate-400">
-                    Chưa có ca cấp cứu nào hoàn thành
-                  </td>
+                  <th className="px-3 py-3 whitespace-nowrap">Ngày tháng</th>
+                  <th className="px-3 py-3 whitespace-nowrap">Biển số xe</th>
+                  <th className="px-3 py-3 whitespace-nowrap">Tên bệnh nhân</th>
+                  <th className="px-3 py-3 whitespace-nowrap">Giới tính</th>
+                  <th className="px-3 py-3 whitespace-nowrap">Độ tuổi</th>
+                  <th className="px-3 py-3 whitespace-nowrap">Số CCCD</th>
+                  <th className="px-3 py-3 whitespace-nowrap">Bệnh nền</th>
+                  <th className="px-3 py-3 whitespace-nowrap">Dị ứng thuốc</th>
+                  <th className="px-3 py-3 whitespace-nowrap">Nhãn cấp cứu</th>
+                  <th className="px-3 py-3 whitespace-nowrap">Kíp CC</th>
+                  <th className="px-3 py-3 whitespace-nowrap">Kết thúc lúc</th>
                 </tr>
-              ) : (
-                Array.from(new Map(historyRecords.map((item) => [item.plate, item])).values())
-                  .sort(
-                    (a: any, b: any) =>
-                      new Date(b.completed_at || 0).getTime() -
-                      new Date(a.completed_at || 0).getTime(),
-                  )
-                  .map((rec, idx) => (
+              </thead>
+              <tbody>
+                {sortedRecords.length === 0 ? (
+                  <tr>
+                    <td colSpan={11} className="px-4 py-8 text-center text-slate-400">
+                      Chưa có ca cấp cứu nào hoàn thành
+                    </td>
+                  </tr>
+                ) : (
+                  sortedRecords.map((rec, idx) => (
                     <tr
                       key={`${rec.plate}-${idx}`}
                       className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80 transition-colors"
                     >
                       <td className="px-3 py-3 whitespace-nowrap text-slate-500 text-xs">
-                        {rec.completed_at
-                          ? new Date(rec.completed_at).toLocaleDateString("vi-VN")
-                          : "—"}
+                        {rec.completed_at ? formatDate(rec.completed_at) : "—"}
                       </td>
                       <td className="px-3 py-3">
                         <span className="font-mono font-bold text-slate-600 text-[13px]">
@@ -4363,7 +4525,7 @@ function HistoryView() {
                       </td>
                       <td className="px-3 py-3">
                         {rec.alert_label ? (
-                          <span className="px-2 py-1 rounded-lg text-[11px] font-bold text-slate-500 bg-slate-100 border border-slate-200 whitespace-nowrap">
+                          <span className={`px-2 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap border ${alertColor(rec.alert_label)}`}>
                             {rec.alert_label}
                           </span>
                         ) : (
@@ -4374,14 +4536,15 @@ function HistoryView() {
                         {rec.er_team || "—"}
                       </td>
                       <td className="px-3 py-3 text-slate-500 text-xs">
-                        {rec.completed_at ? new Date(rec.completed_at).toLocaleTimeString() : "—"}
+                        {rec.completed_at ? formatTime(rec.completed_at) : "—"}
                       </td>
                     </tr>
                   ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
