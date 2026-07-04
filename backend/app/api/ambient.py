@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db, engine
 from app.db.models import Incident, SystemLog
 import time
+
 #
 router = APIRouter()
 #A
@@ -54,6 +55,8 @@ class ConnectionManager:
     def __init__(self):
         # Danh sach cac ket noi WebSocket dang mo
         self.active_connections: List[WebSocket] = []
+        # Theo doi room dang duoc edge_ai su dung: { room_id: websocket }
+        self.active_rooms: dict[str, WebSocket] = {}
         self.use_redis = False
 
     async def connect(self, websocket: WebSocket):
@@ -64,6 +67,35 @@ class ConnectionManager:
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
+        # Giai phong room neu disconnect
+        self.free_room(websocket)
+
+    def assign_room(self, websocket: WebSocket, room_id: str) -> str:
+        """Gan room cho edge_ai client. Tra ve room_id da gan."""
+        # Neu client nay da co room thi giai phong cu truoc
+        self.free_room(websocket)
+        self.active_rooms[room_id] = websocket
+        print(f"[Ambient] Room {room_id} assigned. Active rooms: {list(self.active_rooms.keys())}")
+        return room_id
+
+    def free_room(self, websocket: WebSocket):
+        """Giai phong room khi client ngat ket noi."""
+        room_to_remove = None
+        for room_id, ws in self.active_rooms.items():
+            if ws is websocket:
+                room_to_remove = room_id
+                break
+        if room_to_remove:
+            del self.active_rooms[room_to_remove]
+            print(f"[Ambient] Room {room_to_remove} freed. Active rooms: {list(self.active_rooms.keys())}")
+
+    def find_available_room(self, prefix: str = "P.10") -> str | None:
+        """Tim room tiep theo chua duoc gan. prefixVD: 'P.10' -> P.101, P.102, ..."""
+        for i in range(1, 50):
+            candidate = f"{prefix}{i}"
+            if candidate not in self.active_rooms:
+                return candidate
+        return None
 
     async def keep_alive(self, websocket: WebSocket):
         """Ping/Pong moi 20 giay de ngan Render/Nginx cat ket noi idle."""
@@ -101,6 +133,23 @@ async def websocket_ambient_endpoint(websocket: WebSocket):
         while True:
             data = await websocket.receive_json()
 
+            # Dang ky room cho edge_ai
+            if data.get("type") == "REGISTER":
+                prefix = data.get("room_prefix", "P.10")
+                room = ambient_manager.find_available_room(prefix)
+                if room:
+                    ambient_manager.assign_room(websocket, room)
+                    await websocket.send_json({
+                        "type": "ROOM_ASSIGNED",
+                        "room_id": room,
+                    })
+                else:
+                    await websocket.send_json({
+                        "type": "ROOM_ERROR",
+                        "message": f"Khong con room trong voi prefix {prefix}",
+                    })
+                continue
+
             if data.get("type") == "FALL_DETECTED":
                 try:
                     with Session(engine) as session:
@@ -121,6 +170,15 @@ async def websocket_ambient_endpoint(websocket: WebSocket):
     except Exception as e:
         print(f"[Ambient WS] Unexpected error: {e}")
         ambient_manager.disconnect(websocket)
+
+
+@router.get("/active-rooms")
+def get_active_rooms():
+    """Tra ve danh sach room dang duoc edge_ai su dung."""
+    return {
+        "active_rooms": list(ambient_manager.active_rooms.keys()),
+        "count": len(ambient_manager.active_rooms),
+    }
 
 
 async def push_camera_alert(room_code: str, severity: str):

@@ -1,10 +1,11 @@
 import cv2
 import time
 import sys
+import json
 import websocket
 import threading
 import queue
-from config import ROOM_ID, WS_BACKEND_URL, CAMERA_SOURCE, FALL_COOLDOWN_SECONDS
+from config import ROOM_PREFIX, ROOM_ID_FALLBACK, WS_BACKEND_URL, CAMERA_SOURCE, FALL_COOLDOWN_SECONDS
 from modules.vnpt_person_detect import detect_person_bbox
 from modules.pose_extractor import get_landmarks, draw_skeleton
 from modules.feature_extractor import extract_features
@@ -46,14 +47,52 @@ def connect_ws():
             time.sleep(3)
     sys.exit(1)
 
+def register_room(ws: websocket.WebSocket, timeout: float = 5.0) -> str:
+    """Gui REGISTER toi server, doi phan hoi ROOM_ASSIGNED. Tra ve room_id."""
+    # Gui yeu cau dang ky room
+    ws.send(json.dumps({
+        "type": "REGISTER",
+        "room_prefix": ROOM_PREFIX,
+    }))
+    print(f"[INFO] Dang gui yeu cau dang ky room voi prefix '{ROOM_PREFIX}'...")
+
+    # Doi server tra loi trong timeout
+    ws.settimeout(timeout)
+    try:
+        while True:
+            msg = ws.recv()
+            data = json.loads(msg)
+            if data.get("type") == "ROOM_ASSIGNED":
+                room_id = data["room_id"]
+                print(f"[OK] Da nhan duoc room: {room_id}")
+                return room_id
+            if data.get("type") == "ROOM_ERROR":
+                print(f"[WARN] Server tra loi loi: {data.get('message')}")
+                break
+            # Bo qua cac message khong lien quan (ping, broadcast, ...)
+    except websocket.WebSocketTimeoutException:
+        print(f"[WARN] Timeout doi phan hoi dang ky room ({timeout}s)")
+    except Exception as e:
+        print(f"[WARN] Loi khi nhan phan hoi dang ky: {e}")
+    finally:
+        ws.settimeout(60)  # Reset timeout
+
+    # Fallback ve ROOM_ID tu .env
+    print(f"[INFO] Su dung room fallback: {ROOM_ID_FALLBACK}")
+    return ROOM_ID_FALLBACK
+
 def main():
     ws = connect_ws()
+
+    # Dang ky room voi server
+    room_id = register_room(ws)
+
     cam = int(CAMERA_SOURCE) if CAMERA_SOURCE.isdigit() else CAMERA_SOURCE
     cap = cv2.VideoCapture(cam)
     last_alert = 0
     last_stream_time = 0
 
-    print(f"[OK] Camera dang chay. Room: {ROOM_ID}. Nhan Ctrl+C de thoat.")
+    print(f"[OK] Camera dang chay. Room: {room_id}. Nhan Ctrl+C de thoat.")
 
     while True:
         ret, frame = cap.read()
@@ -67,7 +106,7 @@ def main():
             now = time.time()
             if now - last_stream_time >= 0.1:
                 try:
-                    ws_queue.put_nowait((send_camera_stream, (ws, ROOM_ID, frame.copy())))
+                    ws_queue.put_nowait((send_camera_stream, (ws, room_id, frame.copy())))
                     last_stream_time = now
                 except queue.Full:
                     pass
@@ -105,9 +144,9 @@ def main():
         if is_falling:
             now = time.time()
             if now - last_alert >= FALL_COOLDOWN_SECONDS:
-                print(f"[ALERT] TE NGA tai phong {ROOM_ID}!")
+                print(f"[ALERT] TE NGA tai phong {room_id}!")
                 try:
-                    ws_queue.put_nowait((send_fall_alert, (ws, ROOM_ID, display_frame.copy())))
+                    ws_queue.put_nowait((send_fall_alert, (ws, room_id, display_frame.copy())))
                     last_alert = now
                 except queue.Full:
                     pass
@@ -117,7 +156,7 @@ def main():
         if now - last_stream_time >= 0.1: # 10 FPS
             try:
                 # Nhet vao queue. Neu mang cham, queue day -> bo qua frame nay de chong lag
-                ws_queue.put_nowait((send_camera_stream, (ws, ROOM_ID, display_frame.copy())))
+                ws_queue.put_nowait((send_camera_stream, (ws, room_id, display_frame.copy())))
                 last_stream_time = now
             except queue.Full:
                 pass
