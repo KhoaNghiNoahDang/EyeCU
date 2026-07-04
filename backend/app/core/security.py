@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from app.core.config import settings
 from app.db.database import get_db
 from app.db.models import Patient, Staff
-
+#
 # ─────────────────────────────────────────────
 # OAuth2 scheme — FastAPI tự đọc "Bearer <token>" từ Header
 # ─────────────────────────────────────────────
