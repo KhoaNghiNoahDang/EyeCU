@@ -245,6 +245,28 @@ def get_me(
     }
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/change-password")
+def change_password(
+    data: ChangePasswordRequest,
+    current_user: Staff | Patient = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not data.new_password or len(data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Mật khẩu mới phải có ít nhất 6 ký tự")
+
+    if current_user.password_hash and current_user.password_hash != data.current_password:
+        raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không đúng")
+
+    current_user.password_hash = data.new_password
+    db.commit()
+    return {"message": "Đổi mật khẩu thành công"}
+
+
 @router.get("/staff")
 def get_staff(db: Session = Depends(get_db)):
     staff_users = db.query(Staff).all()

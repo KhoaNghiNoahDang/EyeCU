@@ -125,6 +125,10 @@ import {
   XCircle,
   BarChart2,
   RefreshCw,
+  EyeOff,
+  Key,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -246,6 +250,18 @@ function PatientRounds() {
   const [highlightedRoom, setHighlightedRoom] = useState<string | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+
+  // Password change modal
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [pwCurrent, setPwCurrent] = useState("");
+  const [pwNew, setPwNew] = useState("");
+  const [pwConfirm, setPwConfirm] = useState("");
+  const [showOldPw, setShowOldPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwError, setPwError] = useState("");
+  const [pwSuccess, setPwSuccess] = useState(false);
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(
     null,
   );
@@ -427,6 +443,23 @@ function PatientRounds() {
   const confirmLogout = () => {
     logout();
     setLogoutConfirmOpen(false);
+  };
+
+  const handleSubmitPassword = async () => {
+    setPwError("");
+    setPwSuccess(false);
+    setPwLoading(true);
+    try {
+      await fetchApi("/auth/change-password", {
+        method: "POST",
+        body: { current_password: pwCurrent, new_password: pwNew },
+      });
+      setPwSuccess(true);
+    } catch (err: any) {
+      setPwError(err.message || "Đổi mật khẩu thất bại");
+    } finally {
+      setPwLoading(false);
+    }
   };
 
   if (!isAuthenticated || !workMode || !user) {
@@ -732,6 +765,25 @@ function PatientRounds() {
                       <Settings className="h-4 w-4 text-slate-400" />
                       Cài đặt
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProfileMenuOpen(false);
+                        setPwCurrent("");
+                        setPwNew("");
+                        setPwConfirm("");
+                        setPwError("");
+                        setPwSuccess(false);
+                        setShowOldPw(false);
+                        setShowNewPw(false);
+                        setShowConfirmPw(false);
+                        setShowPasswordModal(true);
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      <Key className="h-4 w-4 text-slate-400" />
+                      Đổi mật khẩu
+                    </button>
                     {isInstallEligible && (
                       <button
                         type="button"
@@ -962,6 +1014,27 @@ function PatientRounds() {
         onCancel={() => setLogoutConfirmOpen(false)}
         onConfirm={confirmLogout}
       />
+
+      <PasswordChangeModal
+        open={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        pwCurrent={pwCurrent}
+        setPwCurrent={setPwCurrent}
+        pwNew={pwNew}
+        setPwNew={setPwNew}
+        pwConfirm={pwConfirm}
+        setPwConfirm={setPwConfirm}
+        showOldPw={showOldPw}
+        setShowOldPw={setShowOldPw}
+        showNewPw={showNewPw}
+        setShowNewPw={setShowNewPw}
+        showConfirmPw={showConfirmPw}
+        setShowConfirmPw={setShowConfirmPw}
+        pwLoading={pwLoading}
+        pwError={pwError}
+        pwSuccess={pwSuccess}
+        onSubmit={handleSubmitPassword}
+      />
     </div>
   );
 }
@@ -1007,6 +1080,196 @@ function LogoutConfirmModal({
             Đăng xuất
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function PasswordChangeModal({
+  open,
+  onClose,
+  pwCurrent,
+  setPwCurrent,
+  pwNew,
+  setPwNew,
+  pwConfirm,
+  setPwConfirm,
+  showOldPw,
+  setShowOldPw,
+  showNewPw,
+  setShowNewPw,
+  showConfirmPw,
+  setShowConfirmPw,
+  pwLoading,
+  pwError,
+  pwSuccess,
+  onSubmit,
+}: {
+  open: boolean;
+  onClose: () => void;
+  pwCurrent: string;
+  setPwCurrent: (v: string) => void;
+  pwNew: string;
+  setPwNew: (v: string) => void;
+  pwConfirm: string;
+  setPwConfirm: (v: string) => void;
+  showOldPw: boolean;
+  setShowOldPw: (v: boolean) => void;
+  showNewPw: boolean;
+  setShowNewPw: (v: boolean) => void;
+  showConfirmPw: boolean;
+  setShowConfirmPw: (v: boolean) => void;
+  pwLoading: boolean;
+  pwError: string;
+  pwSuccess: boolean;
+  onSubmit: () => void;
+}) {
+  if (!open) return null;
+
+  const newPwError = pwNew.length > 0 && pwNew.length < 6 ? "Tối thiểu 6 ký tự" : "";
+  const confirmError = pwConfirm.length > 0 && pwConfirm !== pwNew ? "Mật khẩu xác nhận không khớp" : "";
+  const canSubmit = pwCurrent.length > 0 && pwNew.length >= 6 && pwNew === pwConfirm && !pwLoading;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 px-4 backdrop-blur-sm">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pw-title"
+        className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl"
+      >
+        <div className="flex flex-col items-center mb-5">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: "#88E8F220" }}>
+            <Key className="w-6 h-6 text-[#0A9BAD]" />
+          </div>
+          <h3 id="pw-title" className="text-lg font-bold text-slate-900">Đổi mật khẩu</h3>
+        </div>
+
+        {pwSuccess ? (
+          <div className="text-center">
+            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3">
+              <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+            </div>
+            <p className="text-sm text-slate-600 mb-5">Đổi mật khẩu thành công!</p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full rounded-xl py-3 text-sm font-bold text-white transition-colors"
+              style={{ backgroundColor: "#88E8F2", color: "#0d1f2d" }}
+            >
+              Đóng
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Current password */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                Mật khẩu hiện tại
+              </label>
+              <div className="relative">
+                <input
+                  type={showOldPw ? "text" : "password"}
+                  value={pwCurrent}
+                  onChange={(e) => setPwCurrent(e.target.value)}
+                  placeholder="Nhập mật khẩu hiện tại"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 pr-10 text-sm focus:border-[#88E8F2] focus:ring-2 focus:ring-[#88E8F2]/20 outline-none transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowOldPw(!showOldPw)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showOldPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {/* New password */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                Mật khẩu mới
+              </label>
+              <div className="relative">
+                <input
+                  type={showNewPw ? "text" : "password"}
+                  value={pwNew}
+                  onChange={(e) => setPwNew(e.target.value)}
+                  placeholder="Nhập mật khẩu mới"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 pr-10 text-sm focus:border-[#88E8F2] focus:ring-2 focus:ring-[#88E8F2]/20 outline-none transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPw(!showNewPw)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showNewPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {newPwError && <p className="mt-1 text-[11px] font-bold text-red-500">{newPwError}</p>}
+            </div>
+
+            {/* Confirm password */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                Xác nhận mật khẩu mới
+              </label>
+              <div className="relative">
+                <input
+                  type={showConfirmPw ? "text" : "password"}
+                  value={pwConfirm}
+                  onChange={(e) => setPwConfirm(e.target.value)}
+                  placeholder="Nhập lại mật khẩu mới"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 pr-10 text-sm focus:border-[#88E8F2] focus:ring-2 focus:ring-[#88E8F2]/20 outline-none transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPw(!showConfirmPw)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showConfirmPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {confirmError && <p className="mt-1 text-[11px] font-bold text-red-500">{confirmError}</p>}
+            </div>
+
+            {pwError && (
+              <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
+                <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+                <p className="text-xs font-bold text-red-600">{pwError}</p>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={onSubmit}
+              disabled={!canSubmit}
+              className="w-full rounded-xl py-3 text-sm font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+              style={{
+                backgroundColor: canSubmit ? "#88E8F2" : "#e5e7eb",
+                color: canSubmit ? "#0d1f2d" : "#9ca3af",
+                boxShadow: canSubmit ? "0 4px 14px rgba(136,232,242,0.3)" : "none",
+              }}
+            >
+              {pwLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#0d1f2d", borderTopColor: "transparent" }} />
+                  Đang xử lý...
+                </span>
+              ) : (
+                "Đổi mật khẩu"
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full text-center text-sm text-slate-400 hover:text-slate-600 py-1"
+            >
+              Hủy
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -9402,6 +9665,7 @@ function EmsView() {
   const recognitionRef = useRef<any>(null);
 
   const isMobile = useIsMobile();
+  const [mapExpanded, setMapExpanded] = useState(false);
 
   const startRecording = () => {
     try {
@@ -9953,7 +10217,21 @@ function EmsView() {
         <div className="flex-1 overflow-y-auto py-3 space-y-3 pb-24">
           {/* GPS Section (Compact) */}
           <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
-            <div className="rounded-lg" style={{ height: 180 }}>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-[#0A9BAD]" />
+                <span className="text-xs font-bold text-slate-700">Định vị GPS</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMapExpanded(true)}
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 active:scale-95"
+                aria-label="Phóng to bản đồ"
+              >
+                <Maximize2 className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="rounded-lg relative" style={{ height: 180 }}>
               <ClientEmsLeafletMap
                 lat={mapCenterLat}
                 lng={mapCenterLng}
@@ -10509,6 +10787,50 @@ function EmsView() {
                 >
                   BẬT TRUYỀN GPS
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Fullscreen Map Overlay */}
+        {mapExpanded && (
+          <div className="fixed inset-0 z-[9999] bg-white flex flex-col">
+            <div className="flex items-center justify-between px-4 pt-safe pb-2 bg-white border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-[#0A9BAD]" />
+                <span className="text-sm font-bold text-slate-800">Bản đồ định vị</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMapExpanded(false)}
+                className="p-2 rounded-full hover:bg-slate-100 active:scale-95"
+                aria-label="Thu nhỏ bản đồ"
+              >
+                <Minimize2 className="w-5 h-5 text-slate-600" />
+              </button>
+            </div>
+            <div className="flex-1 relative">
+              <ClientEmsLeafletMap
+                lat={mapCenterLat}
+                lng={mapCenterLng}
+                onRouteUpdate={setRouteInfo}
+                hospitalId={isMissionStarted ? hospitalId : undefined}
+                className="h-full !rounded-none !mb-0 !border-0"
+              />
+            </div>
+            <div className="bg-white border-t border-slate-200 px-4 py-3 pb-safe">
+              <div className="flex items-center gap-2 text-[11px]">
+                <span className="flex items-center gap-1 text-orange-500 font-bold">
+                  <Clock className="w-3 h-3" /> {etaMins} phút
+                </span>
+                <span className="text-slate-300">·</span>
+                <span className="flex items-center gap-1 text-slate-600 font-bold">
+                  <MapPin className="w-3 h-3" /> {distanceKm} km
+                </span>
+                <span className="text-slate-300">·</span>
+                <span className="flex items-center gap-1 text-slate-600 font-bold truncate flex-1">
+                  📍 {routeInfo ? routeInfo.destName : destName}
+                </span>
               </div>
             </div>
           </div>
