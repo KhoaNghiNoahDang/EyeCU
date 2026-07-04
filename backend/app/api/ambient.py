@@ -11,7 +11,7 @@ from app.db.models import Incident, SystemLog
 import time
 #
 router = APIRouter()
-
+#A
 
 @router.get("/devices")
 def get_devices(db: Session = Depends(get_db)):
