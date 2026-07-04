@@ -146,6 +146,7 @@ export function PatientPortalNew({
   onRequestLogout: () => void;
 }) {
   const { user } = useAuth();
+  const appContainerRef = useRef<HTMLDivElement>(null);
   const [clinicalBundle, setClinicalBundle] = useState<any>(null);
   const [loadingBundle, setLoadingBundle] = useState(true);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
@@ -531,7 +532,23 @@ export function PatientPortalNew({
     if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
       hasMoved.current = true;
     }
-    setBotPos({ x: e.clientX - dragStart.current.x, y: e.clientY - dragStart.current.y });
+    let newX = e.clientX - dragStart.current.x;
+    let newY = e.clientY - dragStart.current.y;
+
+    // Constrain within screen/container bounds
+    const containerWidth = appContainerRef.current?.clientWidth || window.innerWidth;
+    const containerHeight = appContainerRef.current?.clientHeight || window.innerHeight;
+
+    // Initial position: right: 16px, bottom: 96px (6rem). Size: 64x64.
+    const maxX = 16;
+    const minX = -(containerWidth - 80);
+    const maxY = 96; // 6rem
+    const minY = -(containerHeight - 160); // 6rem + 64px
+
+    newX = Math.max(minX, Math.min(maxX, newX));
+    newY = Math.max(minY, Math.min(maxY, newY));
+
+    setBotPos({ x: newX, y: newY });
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
@@ -2660,7 +2677,7 @@ export function PatientPortalNew({
 
   return (
     <div className="flex h-[100dvh] min-h-0 flex-col bg-white sm:items-center sm:py-4">
-      <div className="relative flex h-full min-h-0 w-full max-w-none flex-col overflow-hidden bg-white sm:h-[min(92dvh,860px)] sm:max-w-[420px] sm:rounded-[2rem] sm:border sm:border-slate-200 sm:shadow-2xl">
+      <div ref={appContainerRef} className="relative flex h-full min-h-0 w-full max-w-none flex-col overflow-hidden bg-white sm:h-[min(92dvh,860px)] sm:max-w-[420px] sm:rounded-[2rem] sm:border sm:border-slate-200 sm:shadow-2xl">
         
         {activeTab === "home" ? (
           currentView === "home" ? (

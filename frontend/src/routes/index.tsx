@@ -456,8 +456,8 @@ function PatientRounds() {
             <div className="flex items-center gap-3 justify-between">
               <div className="flex items-center gap-3 min-w-0 relative">
                 <button
-                  onClick={() => setRoleMenuOpen(!roleMenuOpen)}
-                  className="flex items-center gap-3 active:scale-95 transition-transform text-left"
+                  onClick={() => workMode !== "admin" && setRoleMenuOpen(!roleMenuOpen)}
+                  className={`flex items-center gap-3 transition-transform text-left ${workMode !== "admin" ? "active:scale-95 cursor-pointer" : "cursor-default"}`}
                 >
                   <img
                     src="/logo.png"
