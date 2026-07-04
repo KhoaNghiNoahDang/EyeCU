@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import { useAuth } from "../lib/auth/auth-context";
 import { fetchApi, API_URL } from "../lib/api/client";
-import { User, LogIn, Calendar, FileText, Settings, Heart, Bell, MessageCircle, MapPin, Menu, X, ArrowLeft, ArrowRight, ShieldCheck, ChevronRight, Mic, Send, Phone, ClipboardList, ScanFace, FileSignature, Info, LogOut, Copy, Download, Eye, Map as MapIcon, Trash2, CalendarClock, Lock, Globe, Users, Activity, Search, Stethoscope, Receipt, Home, Star, Camera, ScanLine, Share, PlusSquare, Volume2, VolumeX, Pause, Loader2, Scan, BriefcaseMedical, ChevronDown, CheckCircle2 , Landmark } from "lucide-react";
+import { User, LogIn, Calendar, FileText, Settings, Heart, Bell, MessageCircle, MapPin, Menu, X, ArrowLeft, ArrowRight, ShieldCheck, ChevronRight, Mic, Send, Phone, ClipboardList, ScanFace, FileSignature, Info, LogOut, Copy, Download, Eye, Map as MapIcon, Trash2, CalendarClock, Lock, Globe, Users, Activity, Search, Stethoscope, Receipt, Home, Star, Camera, ScanLine, Share, PlusSquare, Volume2, VolumeX, Pause, Loader2, Scan, BriefcaseMedical, ChevronDown, CheckCircle2 , Landmark, CreditCard, QrCode } from "lucide-react";
 import { getHospitalsByProvince, CENTRAL_HOSPITALS, Hospital } from "../lib/hospitals";
 import { MapErrorBoundary } from "./MapErrorBoundary";
 import { VitalSignsView } from "./health-record/VitalSignsView";
@@ -146,6 +146,7 @@ export function PatientPortalNew({
   onRequestLogout: () => void;
 }) {
   const { user } = useAuth();
+  const appContainerRef = useRef<HTMLDivElement>(null);
   const [clinicalBundle, setClinicalBundle] = useState<any>(null);
   const [loadingBundle, setLoadingBundle] = useState(true);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
@@ -163,6 +164,9 @@ export function PatientPortalNew({
   const [deptSpecialties, setDeptSpecialties] = useState<string[]>([]);
   const [qaTab, setQaTab] = useState<"all" | "mine">("all");
   const [qaSearch, setQaSearch] = useState("");
+  // OCR Extraction
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractedRecordData, setExtractedRecordData] = useState<any>(null);
   
   // Refs and hooks for community Q&A thread at top-level to avoid Hook rules violation
   const threadScrollRef = useRef<HTMLDivElement>(null);
@@ -539,7 +543,23 @@ export function PatientPortalNew({
     if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
       hasMoved.current = true;
     }
-    setBotPos({ x: e.clientX - dragStart.current.x, y: e.clientY - dragStart.current.y });
+    let newX = e.clientX - dragStart.current.x;
+    let newY = e.clientY - dragStart.current.y;
+
+    // Constrain within screen/container bounds
+    const containerWidth = appContainerRef.current?.clientWidth || window.innerWidth;
+    const containerHeight = appContainerRef.current?.clientHeight || window.innerHeight;
+
+    // Initial position: right: 16px, bottom: 96px (6rem). Size: 64x64.
+    const maxX = 16;
+    const minX = -(containerWidth - 80);
+    const maxY = 96; // 6rem
+    const minY = -(containerHeight - 160); // 6rem + 64px
+
+    newX = Math.max(minX, Math.min(maxX, newX));
+    newY = Math.max(minY, Math.min(maxY, newY));
+
+    setBotPos({ x: newX, y: newY });
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
@@ -905,7 +925,38 @@ export function PatientPortalNew({
     }
   };
 
-  // (handleBookingSubmit nằm ở trên, line ~792)
+  const handleExtractData = async () => {
+    setIsExtracting(true);
+    try {
+      // Mock fetching a local PDF and converting to Base64
+      // In a real app, this would be a file input or blob from the DB
+      const res = await fetch("/mau_xet_nghiem_1.pdf");
+      const blob = await res.blob();
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64data = reader.result;
+        if (typeof base64data === "string") {
+          const response = await fetchApi("/patient/extract-medical-record", {
+            method: "POST",
+            body: JSON.stringify({ image_base64: base64data })
+          });
+          if (response && response.status === "success") {
+            setExtractedRecordData(response.data);
+            setExpandedSection("record_summary"); // Auto-expand Kết quả khám to show the extracted data
+          } else {
+             console.error("Extraction failed:", response);
+             alert("Lỗi khi bóc tách dữ liệu: " + (response?.message || "Unknown error"));
+          }
+        }
+        setIsExtracting(false);
+      };
+      reader.readAsDataURL(blob);
+    } catch (e) {
+      console.error(e);
+      setIsExtracting(false);
+      alert("Lỗi khi bóc tách dữ liệu");
+    }
+  };
 
   const handleAskSubmit = async () => {
     if (!askSpecialty) {
@@ -949,17 +1000,19 @@ export function PatientPortalNew({
   };
 
   const handleSendReply = async () => {
-    if (!replyInput.trim() || !selectedQuestion) return;
+    if (!replyInput.trim() || !selectedQuestion || sendingReply) return;
+    const content = replyInput.trim();
+    setReplyInput(""); // Clear immediately to prevent double-submit
     setSendingReply(true);
     try {
       await fetchApi(`/patient/questions/${selectedQuestion.id}/replies`, {
         method: "POST",
-        body: JSON.stringify({ content: replyInput.trim() }),
+        body: JSON.stringify({ content }),
       });
       const data = await fetchApi(`/patient/questions/${selectedQuestion.id}/replies`);
       setThreadReplies(data.replies || []);
-      setReplyInput("");
     } catch (e) {
+      setReplyInput(content); // Restore if error
       alert("Đã có lỗi gửi tin nhắn");
     } finally {
       setSendingReply(false);
@@ -1062,22 +1115,18 @@ export function PatientPortalNew({
   const renderHealthRecord = () => (
     <div className="flex-1 flex flex-col bg-[#88E8F2] overflow-hidden">
       {/* Top App Bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-[#88E8F2] text-[#0d1f2d] pt-safe z-10 shrink-0 shadow-sm">
-        <button onClick={() => setCurrentView("home")} className="p-1 active:scale-95">
+      <div className="flex items-center justify-between px-4 py-3 bg-[#88E8F2] text-[#0d1f2d] pt-safe z-10 shrink-0 shadow-sm relative">
+        <button onClick={() => setCurrentView("home")} className="p-1 active:scale-95 absolute left-3">
           <ArrowLeft className="h-6 w-6" />
         </button>
-        <span className="text-[17px] font-bold flex-1 text-center pr-2">Hồ sơ sức khoẻ</span>
+        <div className="flex-1 text-center font-bold text-[18px]">
+          Hồ sơ sức khoẻ
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide pb-24">
         {/* Profile Card */}
         <div className="bg-white px-4 pt-6 pb-4 shadow-sm relative">
-           <div className="flex flex-col gap-2 justify-center mb-4">
-              <button className="flex justify-center items-center gap-2 rounded-full border border-slate-200 px-4 py-1.5 text-sm font-medium text-[#0d1f2d] shadow-sm active:bg-slate-50 w-full">
-                <span className="text-slate-400">↓</span> Cập nhật kết quả
-              </button>
-            </div>
-           
            <div className="flex items-start gap-3">
              <div className="h-16 w-16 shrink-0 rounded-full border border-slate-100 bg-white p-1 shadow-sm overflow-hidden">
                 <img src={user?.avatar || DEFAULT_AVATAR} alt="EyeCU" className="h-full w-full object-cover rounded-full" />
@@ -1085,47 +1134,36 @@ export function PatientPortalNew({
              <div className="flex-1 min-w-0">
                <h2 className="text-[16px] font-bold text-[#0d1f2d] uppercase mb-1">{user?.name || "Bệnh nhân"}</h2>
                <span className="inline-block rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-600 mb-2">Ngoại trú</span>
-               <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[13px] text-slate-600">
-                 <span>GT, tuổi</span><span className="font-medium text-[#0d1f2d]">{user?.gender || "Nam"}, {getAge(user?.dob)}</span>
-                 <span>Mã NB</span><span className="font-medium text-[#0d1f2d]">NT{user?.id?.substring(0, 8).toUpperCase() || "2606002632"}</span>
-                 <span>Mã HS</span><span className="font-medium text-[#0d1f2d]">TH{user?.id?.substring(24).toUpperCase() || "2606041360"}</span>
+               <div className="flex flex-col gap-1 text-[13px] text-slate-500">
+                  <div className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> {user?.dob || "01/01/1990"}</div>
+                  <div className="flex items-center gap-1.5"><User className="h-3.5 w-3.5" /> {user?.gender || "Nam"}</div>
+                  <div className="flex items-center gap-1.5"><CreditCard className="h-3.5 w-3.5" /> {user?.cccd || "0123456789"}</div>
                </div>
              </div>
-             <div className="shrink-0 rounded-xl bg-white p-1 border border-slate-200 shadow-sm mt-1">
-                {/* Dynamic QR Code */}
-                <div 
-                   className="h-14 w-14 bg-cover" 
-                   style={{ backgroundImage: `url('https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${user?.cccd || "EYECU_RECORD"}')` }}
-                />
-             </div>
+             <button className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100">
+                <QrCode className="h-5 w-5 text-[#0d1f2d]" />
+             </button>
            </div>
         </div>
 
-        {/* Next Appointment Card */}
+        {/* Next Appointment Card (if any) */}
         {(() => {
-          const upcomingFollowUp = followUps.find(f => f.status !== "booked");
+          const upcomingFollowUp = user?.appointments?.find((a: any) => a.is_follow_up && a.status === "scheduled");
           if (!upcomingFollowUp) return null;
           
-          const parts = upcomingFollowUp.date.split("-"); // "YYYY-MM-DD"
-          const day = parts[2] || "00";
-          const monthYear = parts[1] + "/" + parts[0];
+          const dt = new Date(upcomingFollowUp.time);
+          const dateNum = dt.getDate().toString().padStart(2, '0');
+          const monthYear = `Th${dt.getMonth()+1} ${dt.getFullYear()}`;
           return (
-            <div className="mx-4 mt-4 bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-               <div className="flex">
-                 <div className="flex flex-col items-center justify-center border-r border-slate-100 px-4 py-3 min-w-[72px]">
-                    <span className="text-3xl font-bold text-[#0d1f2d] leading-none">{day}</span>
+            <div className="px-4 mt-4">
+               <div className="flex bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
+                 <div className="flex flex-col items-center justify-center bg-blue-50 px-4 py-3 min-w-[70px]">
+                    <span className="text-[22px] font-black text-blue-600 leading-none">{dateNum}</span>
                     <span className="text-[11px] font-medium text-blue-600 mt-1">{monthYear}</span>
                  </div>
                  <div className="flex flex-col justify-center flex-1 px-3 py-2">
                     <p className="text-[13px] font-bold text-red-600 mb-1">[Lịch hẹn tái khám] <span className="text-[#0d1f2d]">{upcomingFollowUp.department}</span></p>
                     <p className="text-[12px] text-slate-600">{upcomingFollowUp.note || "Khám bệnh theo yêu cầu"}</p>
-                 </div>
-                 <div className="flex items-center px-3">
-                    <button 
-                      onClick={() => handleBookFollowUp(upcomingFollowUp.id)}
-                      className="rounded-full bg-[#0d1f2d] px-4 py-2 text-[13px] font-bold text-white shadow-sm active:scale-95">
-                      Đặt khám
-                    </button>
                  </div>
                </div>
             </div>
@@ -1133,9 +1171,9 @@ export function PatientPortalNew({
         })()}
 
         {/* Services List as Accordion */}
-           <div className="bg-slate-50 mt-4 pt-2 flex-1 shadow-[0_-4px_10px_rgba(0,0,0,0.02)] min-h-screen">
+        <div className="bg-slate-50 mt-4 pt-2 flex-1 shadow-[0_-4px_10px_rgba(0,0,0,0.02)] min-h-screen relative">
               {[
-                { id: "file_results", icon: BriefcaseMedical, label: "File Kết Quả", Component: FileResultsView },
+                { id: "file_results", icon: BriefcaseMedical, label: "File Kết Quả", Component: (props: any) => <FileResultsView {...props} onExtract={handleExtractData} isExtracting={isExtracting} /> },
                 { id: "record_summary", icon: Stethoscope, label: "Kết quả khám", Component: RecordSummaryView },
                 { id: "vital_signs", icon: Heart, label: "Sinh hiệu", Component: VitalSignsView },
                 { id: "lab_results", icon: Activity, label: "Kết quả xét nghiệm", Component: LabResultsView },
@@ -1145,6 +1183,8 @@ export function PatientPortalNew({
               ].map((item, i) => {
                  const isExpanded = expandedSection === item.id;
                  const isSpecial = item.id === "file_results";
+                 // Always pass ONLY extractedRecordData to the components (except file_results) so they are completely empty before extraction
+                 const mergedData = isSpecial ? clinicalBundle : (extractedRecordData ? { extractedRecordData } : {});
                  return (
                    <div key={i} className={`border-b border-slate-200/60 last:border-0 ${isSpecial ? "mx-4 mt-2 mb-4 bg-white rounded-xl overflow-hidden shadow-sm border border-slate-200" : "bg-white"}`}>
                      <button 
@@ -1167,7 +1207,7 @@ export function PatientPortalNew({
                      {/* Accordion Content */}
                      {isExpanded && (
                        <div className={`animate-in slide-in-from-top-2 duration-200 ${isSpecial ? "bg-white p-2" : "border-t border-[#88E8F2]/30"}`}>
-                          <item.Component data={clinicalBundle} user={user} onBack={() => setExpandedSection(null)} />
+                          <item.Component data={mergedData} user={user} onBack={() => setExpandedSection(null)} />
                        </div>
                      )}
                    </div>
@@ -1467,21 +1507,22 @@ export function PatientPortalNew({
         {/* Replies */}
         {threadReplies.map((r, idx) => {
           const isDoctor = r.sender_type === "doctor";
+          const isMine = r.sender_id === user?.id;
           return (
-            <div key={r.id || idx} className={`flex gap-2 ${isDoctor ? "justify-start" : "justify-end"}`}>
-              {isDoctor && (
-                <div className="h-8 w-8 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0 mt-1">
-                  <Stethoscope className="h-4 w-4 text-emerald-600" />
+            <div key={r.id || idx} className={`flex gap-2 ${isMine ? "justify-end" : "justify-start"}`}>
+              {!isMine && (
+                <div className={`h-8 w-8 rounded-full border flex items-center justify-center shrink-0 mt-1 ${isDoctor ? "bg-emerald-100 border-emerald-200" : "bg-orange-100 border-orange-200"}`}>
+                  {isDoctor ? <Stethoscope className="h-4 w-4 text-emerald-600" /> : <User className="h-4 w-4 text-orange-600" />}
                 </div>
               )}
-              <div className={`max-w-[78%] ${isDoctor ? "" : "items-end flex flex-col"}`}>
-                <span className={`text-[10px] font-semibold mb-0.5 ${isDoctor ? "text-emerald-700" : "text-[#0d1f2d]"}`}>
-                  {isDoctor ? `BS. ${r.sender_name}` : "Bạn"}
+              <div className={`max-w-[78%] flex flex-col ${isMine ? "items-end" : ""}`}>
+                <span className={`text-[10px] font-bold mb-0.5 ${isMine ? "text-slate-500" : (isDoctor ? "text-emerald-600" : "text-orange-500")}`}>
+                  {isMine ? "Bạn" : (isDoctor ? (r.sender_name.startsWith("BS") ? r.sender_name : `BS. ${r.sender_name}`) : r.sender_name)}
                 </span>
                 <div className={`px-4 py-2.5 rounded-2xl text-[14px] leading-relaxed ${
-                  isDoctor
-                    ? "bg-white text-slate-800 border border-slate-100 shadow-sm rounded-tl-none"
-                    : "bg-[#0d1f2d] text-white rounded-tr-none"
+                  isMine
+                    ? "bg-[#0d1f2d] text-white rounded-tr-none"
+                    : "bg-white text-slate-800 border border-slate-100 shadow-sm rounded-tl-none"
                 }`}>
                   {r.content}
                 </div>
@@ -1489,9 +1530,9 @@ export function PatientPortalNew({
                   {new Date(r.created_at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
                 </span>
               </div>
-              {!isDoctor && (
-                <div className="h-8 w-8 rounded-full bg-[#0d1f2d] flex items-center justify-center shrink-0 mt-1">
-                  <User className="h-4 w-4 text-white" />
+              {isMine && (
+                <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 mt-1 ${isDoctor ? "bg-emerald-100" : "bg-orange-100"}`}>
+                  {isDoctor ? <Stethoscope className="h-4 w-4 text-emerald-600" /> : <User className="h-4 w-4 text-orange-600" />}
                 </div>
               )}
             </div>
@@ -1568,7 +1609,7 @@ export function PatientPortalNew({
 
         {/* Guide Label */}
         <h3 className="mb-4 text-center text-[14px] font-bold text-slate-500 uppercase tracking-wide">
-          {currentTicket ? "Phiếu hướng dẫn khám bệnh" : "HƯỚNG DẪN XEM MÃ HỒ SƠ"}
+          {currentTicket ? "Hướng dẫn tra cứu số khám" : "HƯỚNG DẪN XEM MÃ HỒ SƠ"}
         </h3>
 
         {/* Dummy Guide Ticket (When no ticket is searched) */}
@@ -2209,22 +2250,30 @@ export function PatientPortalNew({
           </div>
         </div>
 
-        <div className="flex-1">
-          <MapErrorBoundary>
-            <Suspense fallback={<div className="flex h-full items-center justify-center text-slate-400">Loading Map...</div>}>
-              <PatientPortalMap onClose={() => setActiveTab("home")} />
-            </Suspense>
-          </MapErrorBoundary>
+        <div className="flex-1 p-4">
+          {signTab === "unsigned" ? (
+             <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+               <div className="h-16 w-16 bg-slate-100 rounded-full flex items-center justify-center mb-3">
+                 <FileSignature className="h-8 w-8 text-slate-400" />
+               </div>
+               <p className="font-bold text-[16px] text-slate-700">Chưa có giấy tờ cần ký</p>
+               <p className="text-[13px] text-slate-500 mt-1 text-center px-4">Tất cả các giấy tờ y tế cần bạn xác nhận điện tử sẽ xuất hiện ở đây.</p>
+             </div>
+          ) : (
+             <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+               <div className="h-16 w-16 bg-slate-100 rounded-full flex items-center justify-center mb-3">
+                 <FileSignature className="h-8 w-8 text-slate-400" />
+               </div>
+               <p className="font-bold text-[16px] text-slate-700">Lịch sử trống</p>
+               <p className="text-[13px] text-slate-500 mt-1">Bạn chưa thực hiện ký số giấy tờ nào.</p>
+             </div>
+          )}
         </div>
         <div className="flex flex-col gap-3 p-4">
           {(() => {
             const list = signTab === "signed" ? consentForms.filter(f => f.is_signed) : consentForms.filter(f => !f.is_signed);
             if (list.length === 0) {
-              return (
-                <div className="flex-1 flex items-center justify-center pt-32">
-                  <p className="text-[14px] italic text-slate-800 font-serif">Không có dữ liệu</p>
-                </div>
-              );
+              return null;
             }
             return list.map(f => (
               <div key={f.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
@@ -2668,7 +2717,7 @@ export function PatientPortalNew({
 
   return (
     <div className="flex h-[100dvh] min-h-0 flex-col bg-white sm:items-center sm:py-4">
-      <div className="relative flex h-full min-h-0 w-full max-w-none flex-col overflow-hidden bg-white sm:h-[min(92dvh,860px)] sm:max-w-[420px] sm:rounded-[2rem] sm:border sm:border-slate-200 sm:shadow-2xl">
+      <div ref={appContainerRef} className="relative flex h-full min-h-0 w-full max-w-none flex-col overflow-hidden bg-white sm:h-[min(92dvh,860px)] sm:max-w-[420px] sm:rounded-[2rem] sm:border sm:border-slate-200 sm:shadow-2xl">
         
         {activeTab === "home" ? (
           currentView === "home" ? (

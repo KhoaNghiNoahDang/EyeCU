@@ -456,8 +456,8 @@ function PatientRounds() {
             <div className="flex items-center gap-3 justify-between">
               <div className="flex items-center gap-3 min-w-0 relative">
                 <button
-                  onClick={() => setRoleMenuOpen(!roleMenuOpen)}
-                  className="flex items-center gap-3 active:scale-95 transition-transform text-left"
+                  onClick={() => workMode !== "admin" && setRoleMenuOpen(!roleMenuOpen)}
+                  className={`flex items-center gap-3 transition-transform text-left ${workMode !== "admin" ? "active:scale-95 cursor-pointer" : "cursor-default"}`}
                 >
                   <img
                     src="/logo.png"
@@ -606,14 +606,6 @@ function PatientRounds() {
               )}
               {!isClinicianMobile && !isMobile && <span className="text-sm font-bold text-slate-900">EyeCU</span>}
             </div>
-            {isClinicianMobile && (
-              <div className="min-w-0 flex-1 md:hidden">
-                <div className="flex items-center gap-1.5">
-                  <p className="truncate text-[15px] font-bold text-slate-900">{meta.title.split("—")[0].trim()}</p>
-                </div>
-                <p className="truncate text-[11px] text-slate-500 mt-0.5">{meta.subtitle}</p>
-              </div>
-            )}
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5">
@@ -6104,9 +6096,9 @@ function RecordsView() {
         setEkycStatus("idle");
         setIdentityError("Sinh trắc học không khớp. Vui lòng thử lại.");
       }
-    } catch (e) {
-      setEkycStatus("success"); // Fallback
-      setTimeout(() => setStep("records"), 1500);
+    } catch (e: any) {
+      setEkycStatus("idle");
+      setIdentityError(e.message || "Lỗi kết nối VNPT eKYC. Không thể xác thực.");
     }
   };
 
@@ -9415,6 +9407,8 @@ function EmsView() {
   const [isRecordingPreAlert, setIsRecordingPreAlert] = useState(false);
   const recognitionRef = useRef<any>(null);
 
+  const isMobile = useIsMobile();
+
   const startRecording = () => {
     try {
       setEkycError("");
@@ -9957,6 +9951,595 @@ function EmsView() {
   const mapCenterLat = gpsState?.lat ?? 21.0011;
   const mapCenterLng = gpsState?.lng ?? 105.8418;
 
+  // ── MOBILE LAYOUT ──
+  if (isMobile) {
+    return (
+      <div className="flex flex-col min-h-[100dvh] bg-slate-50">
+        {/* Mobile Header */}
+        <div className="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 py-3 pt-safe">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-cyan-100 flex items-center justify-center">
+                <Siren className="w-4 h-4 text-cyan-600" />
+              </div>
+              <span className="text-sm font-bold text-slate-900">Cấp cứu Ngoại viện</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button className="p-2 rounded-full hover:bg-slate-100 active:scale-95">
+                <Bell className="w-5 h-5 text-slate-500" />
+              </button>
+              <button className="p-2 rounded-full hover:bg-slate-100 active:scale-95">
+                <User className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 pb-24">
+          {/* GPS Section (Compact) */}
+          <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
+            <div className="rounded-lg overflow-hidden" style={{ height: 140 }}>
+              <ClientEmsLeafletMap
+                lat={mapCenterLat}
+                lng={mapCenterLng}
+                onRouteUpdate={setRouteInfo}
+                hospitalId={isMissionStarted ? hospitalId : undefined}
+              />
+            </div>
+            <div className="flex items-center gap-2 mt-2 text-[11px]">
+              <span className="flex items-center gap-1 text-orange-500 font-bold">
+                <Clock className="w-3 h-3" /> {etaMins} phút
+              </span>
+              <span className="text-slate-300">·</span>
+              <span className="flex items-center gap-1 text-slate-600 font-bold">
+                <MapPin className="w-3 h-3" /> {distanceKm} km
+              </span>
+              <span className="text-slate-300">·</span>
+              <span className="flex items-center gap-1 text-slate-600 font-bold truncate flex-1">
+                📍 {routeInfo ? routeInfo.destName : destName}
+              </span>
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <div className="flex-1 h-1 rounded-full bg-slate-100 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-1000"
+                  style={{
+                    width: `${progress}%`,
+                    background: "linear-gradient(90deg, #F97316 0%, #67e8f9 100%)",
+                  }}
+                />
+              </div>
+              <span className="text-[10px] font-bold text-slate-500">{Math.round(progress)}%</span>
+            </div>
+          </div>
+
+          {/* Action Buttons (Mic + Camera) */}
+          {!scannedPatient && (
+            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+              <div className="grid grid-cols-2 gap-3">
+                {/* Mic / Pre-Alert */}
+                <button
+                  type="button"
+                  onClick={isRecordingPreAlert ? stopRecording : startRecording}
+                  className={`flex flex-col items-center justify-center py-5 rounded-xl border-2 transition-all active:scale-95 ${
+                    isRecordingPreAlert
+                      ? "bg-red-50 border-red-400"
+                      : "bg-red-50/50 border-red-200 hover:bg-red-50"
+                  }`}
+                >
+                  <div
+                    className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${
+                      isRecordingPreAlert ? "bg-red-500 animate-pulse" : "bg-red-100"
+                    }`}
+                  >
+                    <Mic
+                      className={`w-7 h-7 ${isRecordingPreAlert ? "text-white" : "text-red-500"}`}
+                    />
+                  </div>
+                  <span className="mt-2 text-xs font-bold text-slate-700">
+                    {isRecordingPreAlert ? "Đang ghi âm..." : "Ghi âm"}
+                  </span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">Pre-Alert</span>
+                </button>
+
+                {/* Camera / Scan CCCD */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setManualInputMode("cccd");
+                    setCapturedCccdUrl(null);
+                  }}
+                  className={`flex flex-col items-center justify-center py-5 rounded-xl border-2 transition-all active:scale-95 ${
+                    manualInputMode === "cccd"
+                      ? "bg-cyan-50 border-cyan-400"
+                      : "bg-cyan-50/50 border-cyan-200 hover:bg-cyan-50"
+                  }`}
+                >
+                  <div className="w-14 h-14 rounded-full bg-cyan-500 flex items-center justify-center">
+                    <Camera className="w-7 h-7 text-white" />
+                  </div>
+                  <span className="mt-2 text-xs font-bold text-slate-700">Quét CCCD</span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">Nhận diện</span>
+                </button>
+              </div>
+
+              {/* Alternative modes */}
+              <div className="flex justify-center gap-4 mt-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setManualInputMode("unknown");
+                    setCapturedCccdUrl(null);
+                  }}
+                  className={`text-[11px] font-medium transition-colors ${
+                    manualInputMode === "unknown"
+                      ? "text-cyan-600 underline"
+                      : "text-slate-400 hover:text-slate-600"
+                  }`}
+                >
+                  Không rõ danh tính
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setManualInputMode("no_cccd");
+                    setCapturedCccdUrl(null);
+                  }}
+                  className={`text-[11px] font-medium transition-colors ${
+                    manualInputMode === "no_cccd"
+                      ? "text-cyan-600 underline"
+                      : "text-slate-400 hover:text-slate-600"
+                  }`}
+                >
+                  Không có CCCD
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Pre-Alert Text Preview */}
+          {preAlertText && (
+            <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-5 h-5 rounded bg-red-100 flex items-center justify-center">
+                    <Mic className="w-3 h-3 text-red-500" />
+                  </div>
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Pre-Alert
+                  </span>
+                </div>
+                {!alertSent && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleSendAlert("custom");
+                      setAlertSent(true);
+                    }}
+                    className="px-3 py-1 bg-red-500 text-white text-[11px] font-bold rounded-lg active:scale-95"
+                  >
+                    Gửi
+                  </button>
+                )}
+                {alertSent && (
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600">
+                    <CheckCircle2 className="w-3 h-3" /> Đã gửi
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-600 line-clamp-3">{preAlertText}</p>
+            </div>
+          )}
+
+          {/* Camera / CCCD Capture */}
+          {manualInputMode === "cccd" && !scannedPatient && (
+            <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm relative">
+              <CccdCapture
+                side="front"
+                capturedUrl={capturedCccdUrl}
+                onCapture={(url) => {
+                  setCapturedCccdUrl(url);
+                  if (url) processEkycBase64(url);
+                }}
+              />
+              {scanningEkyc && (
+                <div className="absolute inset-0 bg-white/80 flex items-center justify-center backdrop-blur-[2px] z-10 rounded-xl">
+                  <div className="flex flex-col items-center gap-2">
+                    <span className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-cyan-700 font-bold text-xs">Đang xác thực...</p>
+                  </div>
+                </div>
+              )}
+              {ekycError && (
+                <p className="mt-2 text-xs text-red-500 font-bold text-center bg-red-50 p-2 rounded-lg border border-red-100">
+                  {ekycError}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Unknown Patient Form */}
+          {manualInputMode === "unknown" && !scannedPatient && (
+            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm space-y-3">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Nhập thông tin cơ bản
+              </p>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">Giới tính</label>
+                <select
+                  value={manualGender}
+                  onChange={(e) => setManualGender(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm"
+                >
+                  <option value="">Chọn giới tính</option>
+                  <option value="Nam">Nam</option>
+                  <option value="Nữ">Nữ</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">Khoảng tuổi</label>
+                <input
+                  type="text"
+                  value={manualAgeRange}
+                  onChange={(e) => setManualAgeRange(e.target.value)}
+                  placeholder="VD: 20-30, 40-50"
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm"
+                />
+              </div>
+              <button
+                type="button"
+                className="w-full py-3 bg-cyan-500 text-white font-bold text-sm rounded-xl active:scale-[0.98]"
+                onClick={() => {
+                  const fakePatient = {
+                    name: "Không rõ",
+                    gender: manualGender,
+                    age: manualAgeRange,
+                    cccd: null,
+                    chronic_conditions: [],
+                    allergies: [],
+                  };
+                  setScannedPatient({
+                    full_name: "Không rõ danh tính",
+                    gender: manualGender,
+                    dob: null,
+                    cccd_number: null,
+                    chronic_conditions: [],
+                    allergies: [],
+                  });
+                  sendPatientUpdate(fakePatient);
+                }}
+              >
+                Xác nhận
+              </button>
+            </div>
+          )}
+
+          {/* No CCCD Form */}
+          {manualInputMode === "no_cccd" && !scannedPatient && (
+            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm space-y-3">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Nhập thông tin bệnh nhân
+              </p>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">Họ và tên</label>
+                <input
+                  type="text"
+                  value={manualName}
+                  onChange={(e) => setManualName(e.target.value)}
+                  placeholder="Nhập họ và tên"
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Giới tính</label>
+                  <select
+                    value={manualGender}
+                    onChange={(e) => setManualGender(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm"
+                  >
+                    <option value="">Chọn</option>
+                    <option value="Nam">Nam</option>
+                    <option value="Nữ">Nữ</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Khoảng tuổi</label>
+                  <input
+                    type="text"
+                    value={manualAgeRange}
+                    onChange={(e) => setManualAgeRange(e.target.value)}
+                    placeholder="VD: 30-40"
+                    className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                  Liên hệ khẩn cấp
+                </label>
+                <input
+                  type="text"
+                  value={manualEmergencyContact}
+                  onChange={(e) => setManualEmergencyContact(e.target.value)}
+                  placeholder="Tên & SĐT người thân"
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Bệnh nền</label>
+                  <input
+                    type="text"
+                    value={manualChronic}
+                    onChange={(e) => setManualChronic(e.target.value)}
+                    placeholder="VD: Cao huyết áp"
+                    className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    Dị ứng thuốc
+                  </label>
+                  <input
+                    type="text"
+                    value={manualAllergies}
+                    onChange={(e) => setManualAllergies(e.target.value)}
+                    placeholder="VD: Kháng sinh"
+                    className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm"
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                className="w-full py-3 bg-cyan-500 text-white font-bold text-sm rounded-xl active:scale-[0.98]"
+                onClick={() => {
+                  const c_cond = manualChronic.trim()
+                    ? manualChronic.split(",").map((s) => s.trim())
+                    : ["Không"];
+                  const c_allergy = manualAllergies.trim()
+                    ? manualAllergies.split(",").map((s) => s.trim())
+                    : ["Không"];
+                  const e_contact = manualEmergencyContact.trim() || "Không";
+                  const fakePatient = {
+                    name: manualName,
+                    gender: manualGender,
+                    age: manualAgeRange,
+                    cccd: null,
+                    chronic_conditions: c_cond,
+                    allergies: c_allergy,
+                    emergencyContactName: e_contact,
+                  };
+                  setScannedPatient({
+                    full_name: manualName,
+                    gender: manualGender,
+                    dob: null,
+                    cccd_number: null,
+                    chronic_conditions: c_cond,
+                    allergies: c_allergy,
+                    emergencyContactName: e_contact,
+                  });
+                  sendPatientUpdate(fakePatient);
+                }}
+              >
+                Xác nhận
+              </button>
+            </div>
+          )}
+
+          {/* Patient Card (after scan) */}
+          {scannedPatient && (
+            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm animate-fade-in space-y-3">
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-50 border border-emerald-200">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <span className="text-[11px] font-bold text-emerald-700">
+                  Nhận diện thành công
+                </span>
+              </div>
+
+              <div>
+                <p className="text-lg font-black text-slate-900">
+                  {scannedPatient?.full_name || scannedPatient?.name || "N/A"}
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {scannedPatient?.gender || "N/A"} · {scannedPatient?.dob || "N/A"}
+                  {scannedPatient?.blood_type ? ` · ${scannedPatient.blood_type}` : ""}
+                </p>
+              </div>
+
+              {(scannedPatient?.cccd_number || scannedPatient?.cccd) && (
+                <div className="flex items-center gap-2 text-xs text-slate-600">
+                  <CreditCard className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="font-mono font-bold">
+                    {scannedPatient?.cccd_number || scannedPatient?.cccd}
+                  </span>
+                </div>
+              )}
+
+              {scannedPatient?.allergies &&
+                scannedPatient.allergies.length > 0 &&
+                scannedPatient.allergies[0] !== "Không" && (
+                  <div className="p-2.5 rounded-lg bg-red-50 border border-red-100">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+                      <span className="text-[10px] font-bold text-red-500 uppercase tracking-wider">
+                        Dị ứng
+                      </span>
+                    </div>
+                    <p className="text-sm font-bold text-red-700">
+                      {scannedPatient.allergies.join(", ")}
+                    </p>
+                  </div>
+                )}
+
+              {(() => {
+                const chronicConditions =
+                  scannedPatient?.chronic_conditions || scannedPatient?.chronicConditions || [];
+                return chronicConditions.length > 0 && chronicConditions[0] !== "Không" ? (
+                  <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-100">
+                    <span className="text-[10px] font-bold text-amber-500 uppercase tracking-wider">
+                      Bệnh nền
+                    </span>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {chronicConditions.map((c: string) => (
+                        <span
+                          key={c}
+                          className="px-2 py-0.5 rounded-full bg-amber-100 text-[11px] font-bold text-amber-700"
+                        >
+                          {c}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+
+              {(scannedPatient?.emergency_contact?.phone ||
+                scannedPatient?.emergencyContact?.phone) && (
+                <a
+                  href={`tel:${scannedPatient?.emergency_contact?.phone || scannedPatient?.emergencyContact?.phone}`}
+                  className="flex items-center justify-between p-2.5 rounded-lg bg-blue-50 border border-blue-100 active:bg-blue-100"
+                >
+                  <div>
+                    <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">
+                      Liên hệ khẩn cấp
+                    </span>
+                    <p className="text-sm font-bold text-blue-900">
+                      {scannedPatient?.emergency_contact?.name ||
+                        scannedPatient?.emergencyContact?.name ||
+                        "N/A"}
+                    </p>
+                  </div>
+                  <Phone className="w-5 h-5 text-blue-500" />
+                </a>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setScannedPatient(null);
+                  setCapturedCccdUrl(null);
+                  setManualInputMode("cccd");
+                }}
+                className="w-full py-2.5 text-xs font-bold text-slate-500 border border-slate-200 rounded-xl active:scale-[0.98]"
+              >
+                Quét lại / Nhập lại
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Mobile Bottom Action Bar */}
+        <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200 pb-safe">
+          <div className="px-4 py-3">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[11px] font-bold text-slate-400">
+                🚑 {plateConfirmed || localStorage.getItem("ems_plate") || "Chưa có biển số"}
+              </span>
+              {isBroadcasting && (
+                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-[10px] font-bold text-emerald-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  LIVE
+                </span>
+              )}
+              {hospitalAck && (
+                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-[10px] font-bold text-blue-600">
+                  ✓ BV đã nhận
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (!isMissionStarted) {
+                  setShowMissionSetup(true);
+                } else {
+                  toggleGpsBroadcast();
+                }
+              }}
+              className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all active:scale-[0.98] shadow-lg ${
+                !isMissionStarted
+                  ? "bg-slate-800 text-white shadow-slate-800/30"
+                  : isBroadcasting
+                    ? "bg-red-500 text-white shadow-red-500/30"
+                    : "bg-cyan-500 text-white shadow-cyan-500/30"
+              }`}
+            >
+              {!isMissionStarted
+                ? "Bắt đầu nhiệm vụ"
+                : isBroadcasting
+                  ? "DỪNG TRUYỀN GPS"
+                  : "BẬT TRUYỀN GPS"}
+            </button>
+          </div>
+        </div>
+
+        {/* Mission Setup Modal (mobile) */}
+        {showMissionSetup && (
+          <div className="fixed inset-0 z-[9999] bg-slate-900/50 flex items-end sm:items-center justify-center">
+            <div className="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-6 shadow-xl">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-lg font-bold text-slate-900">Xác nhận xe làm nhiệm vụ</h2>
+                <button
+                  type="button"
+                  onClick={() => setShowMissionSetup(false)}
+                  className="p-2 hover:bg-slate-100 rounded-full active:scale-95"
+                >
+                  <X className="w-5 h-5 text-slate-500" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Biển số xe
+                  </label>
+                  <input
+                    type="text"
+                    value={plate}
+                    onChange={(e) => setPlate(e.target.value.toUpperCase())}
+                    placeholder={`VD: ${localStorage.getItem("ems_plate") || "29A-123.45"}`}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 font-mono font-bold uppercase text-base focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Bệnh viện đích
+                  </label>
+                  <select
+                    value={hospitalId}
+                    onChange={(e) => setHospitalId(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 font-semibold text-base focus:ring-2 focus:ring-cyan-500/20 bg-white"
+                  >
+                    {Object.keys(groupedHospitals)
+                      .sort()
+                      .map((prov) => (
+                        <optgroup key={prov} label={prov}>
+                          {groupedHospitals[prov].map((h) => (
+                            <option key={h.id} value={h.id}>
+                              {h.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleStartMission}
+                  disabled={!(plate.trim() || localStorage.getItem("ems_plate"))}
+                  className="w-full mt-2 py-3.5 rounded-xl text-white font-bold text-base bg-cyan-500 hover:bg-cyan-600 disabled:opacity-50 active:scale-[0.98] shadow-lg shadow-cyan-500/30"
+                >
+                  BẬT TRUYỀN GPS
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
       {/* Modal Cài đặt nhiệm vụ */}
@@ -10483,37 +11066,39 @@ function EmsView() {
         )}
       </div>
 
-      {/* Floating GPS Broadcast Button */}
-      <button
-        onClick={() => {
-          if (!isMissionStarted) {
-            setShowMissionSetup(true);
-          } else {
-            toggleGpsBroadcast();
-          }
-        }}
-        className={`fixed bottom-6 right-6 z-50 px-6 py-4 rounded-full text-sm font-black shadow-2xl transition-all flex items-center gap-3 hover:scale-105 active:scale-95 ${
-          !isMissionStarted
-            ? "bg-slate-800 text-white"
+      {/* Floating GPS Broadcast Button (desktop only) */}
+      {!isMobile && (
+        <button
+          onClick={() => {
+            if (!isMissionStarted) {
+              setShowMissionSetup(true);
+            } else {
+              toggleGpsBroadcast();
+            }
+          }}
+          className={`fixed bottom-6 right-6 z-50 px-6 py-4 rounded-full text-sm font-black shadow-2xl transition-all flex items-center gap-3 hover:scale-105 active:scale-95 ${
+            !isMissionStarted
+              ? "bg-slate-800 text-white"
+              : isBroadcasting
+                ? "bg-red-500 text-white animate-pulse"
+                : "bg-cyan-500 text-white"
+          }`}
+          style={{
+            boxShadow: !isMissionStarted
+              ? "0 8px 32px rgba(30, 41, 59, 0.4)"
+              : isBroadcasting
+                ? "0 8px 32px rgba(239, 68, 68, 0.5)"
+                : "0 8px 32px rgba(6, 182, 212, 0.4)",
+          }}
+        >
+          <MapPin className="w-5 h-5" />
+          {!isMissionStarted
+            ? "Xác nhận xe làm nhiệm vụ"
             : isBroadcasting
-              ? "bg-red-500 text-white animate-pulse"
-              : "bg-cyan-500 text-white"
-        }`}
-        style={{
-          boxShadow: !isMissionStarted
-            ? "0 8px 32px rgba(30, 41, 59, 0.4)"
-            : isBroadcasting
-              ? "0 8px 32px rgba(239, 68, 68, 0.5)"
-              : "0 8px 32px rgba(6, 182, 212, 0.4)",
-        }}
-      >
-        <MapPin className="w-5 h-5" />
-        {!isMissionStarted
-          ? "Xác nhận xe làm nhiệm vụ"
-          : isBroadcasting
-            ? "DỪNG TRUYỀN GPS"
-            : "BẬT TRUYỀN GPS"}
-      </button>
+              ? "DỪNG TRUYỀN GPS"
+              : "BẬT TRUYỀN GPS"}
+        </button>
+      )}
 
       {/* ── Modal nhap bien so xe ── */}
     </div>
@@ -10951,9 +11536,9 @@ function AdminStaffsTab() {
         setEkycStatus("error");
         setEkycMessage(res.message || "Xác thực khuôn mặt thất bại.");
       }
-    } catch (e) {
-      setEkycStatus("success");
-      setEkycMessage("Đăng ký thành công (Bypass VNPT)");
+    } catch (e: any) {
+      setEkycStatus("error");
+      setEkycMessage(e.message || "Lỗi kết nối VNPT eKYC");
     }
   };
 

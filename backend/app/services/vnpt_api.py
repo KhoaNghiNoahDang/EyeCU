@@ -79,9 +79,13 @@ class VnptAPIClient:
                     files={"file": (filename, file_bytes, "image/jpeg")},
                     data={"title": filename, "description": "EyeCU upload"},
                 )
+                if resp.status_code != 200:
+                    print(f"VNPT Upload Failed: {resp.status_code} - {resp.text}")
+                    return None
                 data = resp.json()
                 return data.get("object", {}).get("hash")
-        except Exception:
+        except Exception as e:
+            print(f"VNPT Upload Exception: {e}")
             return None
 
     # ── Proxy Service: Lấy CDN URL từ hash ────────────────────────────

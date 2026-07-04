@@ -104,12 +104,6 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
             "sub": "Hồ sơ bệnh án",
             "color": "#16A34A",
         },
-        {
-            "label": "WebAuthn Creds",
-            "value": "0",
-            "sub": "Passkeys đã đăng ký",
-            "color": "#0891B2",
-        },
     ]
 
 from pydantic import BaseModel
