@@ -1892,18 +1892,13 @@ function CameraCard({
         </span>
       </div>
 
-      {/* Fall alert overlay — skeleton centered + badge bottom-center */}
+      {/* Fall alert overlay */}
       {cam.overlay === "fall" && (
-        <>
-          <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-            <SkeletonOverlay />
-          </div>
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-9 z-20 pointer-events-none">
-            <span className="bg-black/80 backdrop-blur px-3 py-1 rounded-md text-red-500 font-bold text-xs tracking-wider whitespace-nowrap">
-              PHÁT HIỆN NGÃ
-            </span>
-          </div>
-        </>
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-9 z-20 pointer-events-none">
+          <span className="bg-black/80 backdrop-blur px-3 py-1 rounded-md text-red-500 font-bold text-xs tracking-wider whitespace-nowrap">
+            PHÁT HIỆN NGÃ
+          </span>
+        </div>
       )}
 
       {/* Live play icon (only when not alert) */}
@@ -1982,37 +1977,6 @@ function CameraFeed({ cam }: { cam: Camera }) {
   );
 }
 
-function SkeletonOverlay() {
-  return (
-    <svg
-      viewBox="0 0 120 60"
-      className="w-32 h-16"
-      stroke={ACCENT}
-      strokeWidth="2"
-      fill="none"
-      strokeLinecap="round"
-    >
-      <circle cx="20" cy="30" r="6" />
-      <line x1="26" y1="30" x2="80" y2="32" />
-      <line x1="40" y1="32" x2="50" y2="20" />
-      <line x1="40" y1="32" x2="48" y2="44" />
-      <line x1="80" y1="32" x2="100" y2="22" />
-      <line x1="80" y1="32" x2="100" y2="44" />
-      {[
-        [26, 30],
-        [40, 32],
-        [60, 32],
-        [80, 32],
-        [100, 22],
-        [100, 44],
-        [50, 20],
-        [48, 44],
-      ].map(([x, y], i) => (
-        <circle key={i} cx={x} cy={y} r="1.5" fill={ACCENT} />
-      ))}
-    </svg>
-  );
-}
 
 /* ============================================================
    PRIVACY CAMERA FEED — Privacy-by-Design Pose Estimation
@@ -2596,9 +2560,6 @@ function CameraModal({ cam, onClose, onToast }: { cam: Camera; onClose: () => vo
           {/* Fall overlay */}
           {cam.overlay === "fall" && (
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <div className="scale-[1.5]">
-                <SkeletonOverlay />
-              </div>
               <span className="mt-4 text-red-500 font-bold text-xl tracking-widest drop-shadow-[0_0_12px_rgba(239,68,68,0.9)]">
                 PHÁT HIỆN NGÃ
               </span>
@@ -2708,9 +2669,6 @@ function CameraModal({ cam, onClose, onToast }: { cam: Camera; onClose: () => vo
 
         {cam.overlay === "fall" && (
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <div className="scale-[2.2]">
-              <SkeletonOverlay />
-            </div>
             <span className="mt-6 text-red-500 font-bold text-3xl tracking-widest drop-shadow-[0_0_12px_rgba(239,68,68,0.9)]">
               PHÁT HIỆN NGÃ
             </span>

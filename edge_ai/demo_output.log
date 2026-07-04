@@ -6369,3 +6369,1239 @@
 [DEMO-P.201] Error: argument of type 'NoneType' is not iterable
 [DEMO-P.201] Standing up
 [DEMO-P.201] Walking again, next fall in 23.9s
+[DEMO-P.205] Fall triggered
+[DEMO-P.205] Ground
+[DEMO-P.205] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.204] Fall triggered
+[DEMO-P.203] Fall triggered
+[DEMO-P.205] Standing up
+[DEMO-P.204] Ground
+[DEMO-P.204] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.205] Walking again, next fall in 27.2s
+[DEMO-P.203] Ground
+[DEMO-P.203] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.202] Fall triggered
+[DEMO-P.204] Standing up
+[DEMO-P.204] Walking again, next fall in 25.5s
+[DEMO-P.203] Standing up
+[DEMO-P.202] Ground
+[DEMO-P.202] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.203] Walking again, next fall in 17.5s
+[DEMO-P.202] Standing up
+[DEMO-P.202] Walking again, next fall in 22.3s
+[DEMO-P.201] Fall triggered
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.201] Ground
+[DEMO-P.201] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.201] Standing up
+[DEMO-P.201] Walking again, next fall in 21.6s
+[DEMO-P.203] Fall triggered
+[DEMO-P.205] Fall triggered
+[DEMO-P.203] Ground
+[DEMO-P.203] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.204] Fall triggered
+[DEMO-P.205] Ground
+[DEMO-P.205] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.203] Standing up
+[DEMO-P.203] Walking again, next fall in 28.8s
+[DEMO-P.202] Fall triggered
+[DEMO-P.204] Ground
+[DEMO-P.204] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.205] Standing up
+[DEMO-P.205] Walking again, next fall in 23.9s
+[DEMO-P.204] Standing up
+[DEMO-P.202] Ground
+[DEMO-P.202] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.204] Walking again, next fall in 15.7s
+[DEMO-P.202] Standing up
+[DEMO-P.202] Walking again, next fall in 23.3s
+[DEMO-P.201] Fall triggered
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.201] Ground
+[DEMO-P.201] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.201] Standing up
+[DEMO-P.201] Walking again, next fall in 15.0s
+[DEMO-P.204] Fall triggered
+[DEMO-P.204] Ground
+[DEMO-P.204] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.205] Fall triggered
+[DEMO-P.203] Fall triggered
+[DEMO-P.204] Standing up
+[DEMO-P.205] Ground
+[DEMO-P.205] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.204] Walking again, next fall in 29.7s
+[DEMO-P.202] Fall triggered
+[DEMO-P.203] Ground
+[DEMO-P.203] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.205] Standing up
+[DEMO-P.201] Fall triggered
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.205] Walking again, next fall in 27.1s
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.203] Standing up
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.202] Ground
+[DEMO-P.202] Error: argument of type 'NoneType' is not iterable
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.203] Walking again, next fall in 22.8s
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.201] Ground
+[DEMO-P.201] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.202] Standing up
+[DEMO-P.202] Walking again, next fall in 29.7s
+[DEMO-P.201] Standing up
+[DEMO-P.201] Walking again, next fall in 25.6s
+[DEMO-P.204] Fall triggered
+[DEMO-P.203] Fall triggered
+[DEMO-P.205] Fall triggered
+[DEMO-P.204] Ground
+[DEMO-P.204] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.203] Ground
+[DEMO-P.203] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.205] Ground
+[DEMO-P.205] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.204] Standing up
+[DEMO-P.203] Standing up
+[DEMO-P.204] Walking again, next fall in 15.4s
+[DEMO-P.201] Fall triggered
+[DEMO] FALL alert sent: P.201
+[DEMO-P.203] Walking again, next fall in 22.0s
+[DEMO] FALL alert sent: P.201
+[DEMO-P.205] Standing up
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.202] Fall triggered
+[DEMO-P.205] Walking again, next fall in 15.9s
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.201] Ground
+[DEMO-P.201] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.202] Ground
+[DEMO-P.202] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.201] Standing up
+[DEMO-P.201] Walking again, next fall in 23.0s
+[DEMO-P.202] Standing up
+[DEMO-P.202] Walking again, next fall in 28.6s
+[DEMO-P.204] Fall triggered
+[DEMO-P.205] Fall triggered
+[DEMO-P.204] Ground
+[DEMO-P.204] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.203] Fall triggered
+[DEMO-P.205] Ground
+[DEMO-P.205] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.204] Standing up
+[DEMO-P.204] Walking again, next fall in 24.4s
+[DEMO-P.205] Standing up
+[DEMO-P.203] Ground
+[DEMO-P.203] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.205] Walking again, next fall in 25.6s
+[DEMO-P.203] Standing up
+[DEMO-P.203] Walking again, next fall in 25.0s
+[DEMO-P.201] Fall triggered
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.201] Ground
+[DEMO-P.201] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.202] Fall triggered
+[DEMO-P.201] Standing up
+[DEMO-P.201] Walking again, next fall in 16.6s
+[DEMO-P.202] Ground
+[DEMO-P.202] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.202] Standing up
+[DEMO-P.204] Fall triggered
+[DEMO-P.202] Walking again, next fall in 21.3s
+[DEMO-P.205] Fall triggered
+[DEMO-P.204] Ground
+[DEMO-P.204] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.203] Fall triggered
+[DEMO-P.204] Standing up
+[DEMO-P.205] Ground
+[DEMO-P.205] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.204] Walking again, next fall in 17.4s
+[DEMO-P.201] Fall triggered
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.205] Standing up
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.203] Ground
+[DEMO-P.203] Error: argument of type 'NoneType' is not iterable
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.205] Walking again, next fall in 18.8s
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.201] Ground
+[DEMO-P.201] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.203] Standing up
+[DEMO-P.203] Walking again, next fall in 20.2s
+[DEMO-P.201] Standing up
+[DEMO-P.201] Walking again, next fall in 21.5s
+[DEMO-P.202] Fall triggered
+[DEMO-P.202] Ground
+[DEMO-P.202] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.204] Fall triggered
+[DEMO-P.202] Standing up
+[DEMO-P.204] Ground
+[DEMO-P.204] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.202] Walking again, next fall in 22.6s
+[DEMO-P.205] Fall triggered
+[DEMO-P.204] Standing up
+[DEMO-P.204] Walking again, next fall in 17.7s
+[DEMO-P.205] Ground
+[DEMO-P.205] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.203] Fall triggered
+[DEMO-P.205] Standing up
+[DEMO-P.201] Fall triggered
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.205] Walking again, next fall in 15.5s
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.203] Ground
+[DEMO-P.203] Error: argument of type 'NoneType' is not iterable
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.203] Standing up
+[DEMO] FALL alert sent: P.201
+[DEMO-P.201] Ground
+[DEMO-P.201] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.203] Walking again, next fall in 16.6s
+[DEMO-P.201] Standing up
+[DEMO-P.201] Walking again, next fall in 29.7s
+[DEMO-P.202] Fall triggered
+[DEMO-P.204] Fall triggered
+[DEMO-P.205] Fall triggered
+[DEMO-P.202] Ground
+[DEMO-P.202] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.204] Ground
+[DEMO-P.204] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.205] Ground
+[DEMO-P.205] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.202] Standing up
+[DEMO-P.204] Standing up
+[DEMO-P.203] Fall triggered
+[DEMO-P.202] Walking again, next fall in 26.6s
+[DEMO-P.204] Walking again, next fall in 26.6s
+[DEMO-P.205] Standing up
+[DEMO-P.205] Walking again, next fall in 29.7s
+[DEMO-P.203] Ground
+[DEMO-P.203] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.203] Standing up
+[DEMO-P.203] Walking again, next fall in 25.2s
+[DEMO-P.201] Fall triggered
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.201] Ground
+[DEMO-P.201] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.201] Standing up
+[DEMO-P.201] Walking again, next fall in 21.5s
+[DEMO-P.202] Fall triggered
+[DEMO-P.204] Fall triggered
+[DEMO-P.202] Ground
+[DEMO-P.202] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.204] Ground
+[DEMO-P.204] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.205] Fall triggered
+[DEMO-P.202] Standing up
+[DEMO-P.204] Standing up
+[DEMO-P.203] Fall triggered
+[DEMO-P.202] Walking again, next fall in 27.7s
+[DEMO-P.204] Walking again, next fall in 18.3s
+[DEMO-P.205] Ground
+[DEMO-P.205] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.203] Ground
+[DEMO-P.203] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.205] Standing up
+[DEMO-P.205] Walking again, next fall in 16.9s
+[DEMO-P.203] Standing up
+[DEMO-P.203] Walking again, next fall in 15.5s
+[DEMO-P.201] Fall triggered
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.201] Ground
+[DEMO-P.201] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.204] Fall triggered
+[DEMO-P.201] Standing up
+[DEMO-P.201] Walking again, next fall in 19.5s
+[DEMO-P.204] Ground
+[DEMO-P.204] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.205] Fall triggered
+[DEMO-P.203] Fall triggered
+[DEMO-P.204] Standing up
+[DEMO-P.205] Ground
+[DEMO-P.205] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.202] Fall triggered
+[DEMO-P.204] Walking again, next fall in 16.1s
+[DEMO-P.203] Ground
+[DEMO-P.203] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.205] Standing up
+[DEMO-P.203] Standing up
+[DEMO-P.202] Ground
+[DEMO-P.202] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.205] Walking again, next fall in 16.0s
+[DEMO-P.203] Walking again, next fall in 23.6s
+[DEMO-P.202] Standing up
+[DEMO-P.202] Walking again, next fall in 26.3s
+[DEMO-P.201] Fall triggered
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.204] Fall triggered
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.201] Ground
+[DEMO-P.201] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.201] Standing up
+[DEMO-P.204] Ground
+[DEMO-P.205] Fall triggered
+[DEMO-P.204] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.201] Walking again, next fall in 29.9s
+[DEMO-P.204] Standing up
+[DEMO-P.205] Ground
+[DEMO-P.205] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.204] Walking again, next fall in 20.5s
+[DEMO-P.205] Standing up
+[DEMO-P.203] Fall triggered
+[DEMO-P.205] Walking again, next fall in 29.2s
+[DEMO-P.203] Ground
+[DEMO-P.203] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.202] Fall triggered
+[DEMO-P.203] Standing up
+[DEMO-P.203] Walking again, next fall in 27.3s
+[DEMO-P.202] Ground
+[DEMO-P.202] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.202] Standing up
+[DEMO-P.202] Walking again, next fall in 18.3s
+[DEMO-P.204] Fall triggered
+[DEMO-P.204] Ground
+[DEMO-P.204] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.201] Fall triggered
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.204] Standing up
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.204] Walking again, next fall in 25.0s
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.201] Ground
+[DEMO-P.201] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.205] Fall triggered
+[DEMO-P.201] Standing up
+[DEMO-P.201] Walking again, next fall in 26.2s
+[DEMO-P.202] Fall triggered
+[DEMO-P.205] Ground
+[DEMO-P.205] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.203] Fall triggered
+[DEMO-P.205] Standing up
+[DEMO-P.202] Ground
+[DEMO-P.202] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.205] Walking again, next fall in 25.7s
+[DEMO-P.203] Ground
+[DEMO-P.203] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.202] Standing up
+[DEMO-P.202] Walking again, next fall in 15.3s
+[DEMO-P.203] Standing up
+[DEMO-P.203] Walking again, next fall in 19.1s
+[DEMO-P.204] Fall triggered
+[DEMO-P.204] Ground
+[DEMO-P.204] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.201] Fall triggered
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.202] Fall triggered
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.204] Standing up
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.204] Walking again, next fall in 17.0s
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.201] Ground
+[DEMO-P.201] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.202] Ground
+[DEMO-P.202] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.203] Fall triggered
+[DEMO-P.205] Fall triggered
+[DEMO-P.201] Standing up
+[DEMO-P.202] Standing up
+[DEMO-P.201] Walking again, next fall in 24.7s
+[DEMO-P.202] Walking again, next fall in 22.7s
+[DEMO-P.203] Ground
+[DEMO-P.203] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.205] Ground
+[DEMO-P.205] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.203] Standing up
+[DEMO-P.205] Standing up
+[DEMO-P.203] Walking again, next fall in 18.5s
+[DEMO-P.205] Walking again, next fall in 24.7s
+[DEMO-P.204] Fall triggered
+[DEMO-P.204] Ground
+[DEMO-P.204] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.204] Standing up
+[DEMO-P.204] Walking again, next fall in 19.2s
+[DEMO-P.202] Fall triggered
+[DEMO-P.201] Fall triggered
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.203] Fall triggered
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.202] Ground
+[DEMO-P.202] Error: argument of type 'NoneType' is not iterable
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.201] Ground
+[DEMO-P.201] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.203] Ground
+[DEMO-P.203] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.202] Standing up
+[DEMO-P.205] Fall triggered
+[DEMO-P.201] Standing up
+[DEMO-P.202] Walking again, next fall in 15.3s
+[DEMO-P.203] Standing up
+[DEMO-P.201] Walking again, next fall in 24.0s
+[DEMO-P.203] Walking again, next fall in 15.1s
+[DEMO-P.205] Ground
+[DEMO-P.205] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.204] Fall triggered
+[DEMO-P.205] Standing up
+[DEMO-P.205] Walking again, next fall in 26.5s
+[DEMO-P.204] Ground
+[DEMO-P.204] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.204] Standing up
+[DEMO-P.202] Fall triggered
+[DEMO-P.204] Walking again, next fall in 27.3s
+[DEMO-P.203] Fall triggered
+[DEMO-P.202] Ground
+[DEMO-P.202] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.203] Ground
+[DEMO-P.203] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.202] Standing up
+[DEMO-P.203] Standing up
+[DEMO-P.201] Fall triggered
+[DEMO-P.202] Walking again, next fall in 28.7s
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.203] Walking again, next fall in 24.8s
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.201] Ground
+[DEMO-P.201] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.201] Standing up
+[DEMO-P.201] Walking again, next fall in 16.6s
+[DEMO-P.205] Fall triggered
+[DEMO-P.205] Ground
+[DEMO-P.205] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.205] Standing up
+[DEMO-P.204] Fall triggered
+[DEMO-P.205] Walking again, next fall in 16.5s
+[WS] Register timeout (5.0s)
+[WS-P.205] Fallback to direct room_id
+[WS] Register timeout (5.0s)
+[WS-P.202] Fallback to direct room_id
+[DEMO-P.204] Ground
+[DEMO-P.204] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.204] Standing up
+[DEMO-P.201] Fall triggered
+[DEMO-P.203] Fall triggered
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.204] Walking again, next fall in 15.6s
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.202] Fall triggered
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO-P.203] Ground
+[DEMO-P.203] Error: argument of type 'NoneType' is not iterable
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO-P.201] Ground
+[DEMO-P.201] Error: argument of type 'NoneType' is not iterable
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO-P.202] Ground
+[DEMO-P.202] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.203] Standing up
+[DEMO-P.201] Standing up
+[DEMO-P.203] Walking again, next fall in 26.1s
+[DEMO-P.201] Walking again, next fall in 24.1s
+[DEMO-P.205] Fall triggered
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO-P.202] Standing up
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO-P.202] Walking again, next fall in 24.3s
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO] FALL alert sent: P.205
+[DEMO-P.205] Ground
+[DEMO-P.205] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.204] Fall triggered
+[DEMO-P.205] Standing up
+[DEMO-P.205] Walking again, next fall in 21.2s
+[DEMO-P.204] Ground
+[DEMO-P.204] Error: argument of type 'NoneType' is not iterable
+[DEMO-P.204] Standing up
+[DEMO-P.204] Walking again, next fall in 24.5s
+[DEMO-P.201] Fall triggered
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.203] Fall triggered
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO-P.202] Fall triggered
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.201
+[DEMO] FALL alert sent: P.202
+[DEMO-P.201] Ground
+[DEMO-P.201] Error: argument of type 'NoneType' is not iterable
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO] FALL alert sent: P.202
+[DEMO-P.203] Ground
