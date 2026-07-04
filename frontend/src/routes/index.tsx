@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback, ComponentType } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth, type WorkMode } from "../lib/auth/auth-context";
 import { useEyeCUSocket } from "../hooks/useEyeCUSocket";
+import { useIsMobile } from "../hooks/use-mobile";
 import { fetchApi } from "../lib/api/client";
 import { DEMO_PATIENT_CLINICAL, formatRecordDate, formatVnd } from "../lib/patient/clinical-data";
 import { lazy, Suspense } from "react";
@@ -14,7 +15,6 @@ const gpsToSvg = (lat: number, lng: number) => {
   // Simple dummy fallback
   return { mapX: 200, mapY: 100 };
 };
-
 
 function ClientAmbulanceMap(props: any) {
   const [MapComp, setMapComp] = useState<ComponentType<any> | null>(null);
@@ -154,7 +154,7 @@ type ViewKey =
   | "doctor_qa";
 
 const navItems: { key: ViewKey; Icon: typeof Eye; label: string }[] = [
-  { key: "ambient", Icon: Eye, label: "Giám sát Không gian" },
+  { key: "ambient", Icon: Eye, label: "Giám sát không gian" },
   { key: "ambulance", Icon: Ambulance, label: "Điều phối Cấp cứu" },
   { key: "history", Icon: HistoryIcon, label: "Lịch sử Cấp cứu" },
   { key: "records", Icon: ScanLine, label: "Hồ sơ Bệnh nhân" },
@@ -195,18 +195,36 @@ const roleConfig: Record<WorkMode, { label: string; views: ViewKey[]; defaultVie
 
 const viewTitles: Record<ViewKey, { title: string; subtitle: string }> = {
   ambient: {
-    title: "Giám sát Không gian — Đa Khoa",
+    title: "Giám sát không gian — Đa Khoa",
     subtitle: "Giám sát AI Nhận thức · Sensor Fusion",
   },
-  history: { title: "Lịch sử Cấp cứu", subtitle: "Theo dõi các ca cấp cứu đã hoàn thành" },
-  ambulance: { title: "Điều phối Cấp cứu", subtitle: "Bản đồ Hà Nội · Pre-admission · Kíp trực" },
+  history: {
+    title: "Lịch sử Cấp cứu",
+    subtitle: "Theo dõi các ca cấp cứu đã hoàn thành",
+  },
+  ambulance: {
+    title: "Điều phối Cấp cứu",
+    subtitle: "Bản đồ Hà Nội · Pre-admission · Kịp thời",
+  },
   records: { title: "Hồ sơ Bệnh nhân", subtitle: "OCR · Xác thực sinh trắc học" },
-  voice: { title: "Bệnh án Giọng nói", subtitle: "SmartVoice · Tự điền EMR" },
-  chatbot: { title: "Trợ lý AI Bệnh nhân", subtitle: "Diễn giải kết quả · Giọng nói" },
-  patient: { title: "Cổng thông tin Bệnh nhân", subtitle: "Mobile Portal · EyeCU" },
-  ems: { title: "Cấp cứu Ngoại viện", subtitle: "Quét BN · Định vị GPS · Liên lạc Kíp trực" },
-  admin_dashboard: { title: "Quản trị Hệ thống", subtitle: "Tổng quan · Nhân sự · Thiết bị · API" },
-  doctor_qa: { title: "Hỏi Đáp Cộng Đồng", subtitle: "Giải đáp thắc mắc bệnh nhân · Chuyên khoa" },
+  voice: { title: "Bệnh án Giọng nói", subtitle: "SmartVoice · Tự động EMR" },
+  chatbot: {
+    title: "Trợ lý AI Bệnh nhân",
+    subtitle: "Diễn giải kết quả · Giọng nói",
+  },
+  patient: { title: "Công thông tin Bệnh nhân", subtitle: "Mobile Portal · EyeCU" },
+  ems: {
+    title: "Cấp cứu Ngoại viện",
+    subtitle: "Quét BN · Định vị GPS · Liên lạc Kịp thời",
+  },
+  admin_dashboard: {
+    title: "Quản trị Hệ thống",
+    subtitle: "Tổng quan · Nhân sự · Thiết bị · API",
+  },
+  doctor_qa: {
+    title: "Hỏi Đáp Cộng Đồng",
+    subtitle: "Giải đáp thực tế bệnh nhân · Chuyên khoa",
+  },
 };
 
 type BeforeInstallPromptEvent = Event & {
@@ -217,6 +235,7 @@ type BeforeInstallPromptEvent = Event & {
 function PatientRounds() {
   const { user, workMode, setWorkMode, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   // We must always call hooks at the top level
   const [activeView, setActiveView] = useState<ViewKey>("ambient");
@@ -241,9 +260,9 @@ function PatientRounds() {
   }
   const [clinicNotifs, setClinicNotifs] = useState<ClinicNotif[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
-  const notifUnread = clinicNotifs.filter(n => !n.read).length;
+  const notifUnread = clinicNotifs.filter((n) => !n.read).length;
 
-  // ── TTS helper ────────────────────────────────────────────────────────
+  // TTS helper
   const speakText = (text: string) => {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
@@ -254,36 +273,44 @@ function PatientRounds() {
     utter.volume = 1.0;
     // Ưu tiên voice tiếng Việt nếu có
     const voices = window.speechSynthesis.getVoices();
-    const viVoice = voices.find(v => v.lang.startsWith("vi")) || voices.find(v => v.lang.startsWith("en"));
+    const viVoice =
+      voices.find((v) => v.lang.startsWith("vi")) || voices.find((v) => v.lang.startsWith("en"));
     if (viVoice) utter.voice = viVoice;
     window.speechSynthesis.speak(utter);
   };
 
-  // ── Lấy danh sách lịch hẹn đã đồng bộ từ CSDL ─────────────────────────
   useEffect(() => {
     if (workMode !== "clinician") return;
-    fetchApi("/patient/doctor-appointments").then(data => {
-      if (data && data.appointments) {
-        const syncedNotifs: ClinicNotif[] = data.appointments.map((d: any) => {
-          const dateStr = d.date ? new Date(d.date + "T00:00:00").toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }) : d.date;
-          return {
-            id: d.id,
-            text: `Lịch khám mới — ${d.department}`,
-            detail: `Bệnh nhân: ${d.patient_name} · Ngày ${dateStr} lúc ${d.time}`,
-            ts: d.date + "T" + d.time,
-            read: true, // Lịch đã có trong CSDL coi như đã đọc
-          };
-        });
-        setClinicNotifs(syncedNotifs);
-      }
-    }).catch(console.error);
+    fetchApi("/patient/doctor-appointments")
+      .then((data) => {
+        if (data && data.appointments) {
+          const syncedNotifs: ClinicNotif[] = data.appointments.map((d: any) => {
+            const dateStr = d.date
+              ? new Date(d.date + "T00:00:00").toLocaleDateString("vi-VN", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })
+              : d.date;
+            return {
+              id: d.id,
+              text: `Lịch khám mới — ${d.department}`,
+              detail: `Bệnh nhân: ${d.patient_name} · Ngày ${dateStr} lúc ${d.time}`,
+              ts: d.date + "T" + d.time,
+              read: true, // Lịch đã có trong CSDL coi như đã đọc
+            };
+          });
+          setClinicNotifs(syncedNotifs);
+        }
+      })
+      .catch(console.error);
   }, [workMode]);
 
-  // ── WebSocket listener cho APPOINTMENT_BOOKED ───────────────────────────
+  // WebSocket listener cho APPOINTMENT_BOOKED
   useEffect(() => {
     if (workMode !== "clinician") return; // Chỉ clinician mới nghe
     const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
-    const WS_BASE = (import.meta.env.VITE_WS_URL ?? `ws://${host}:8000`);
+    const WS_BASE = import.meta.env.VITE_WS_URL ?? `ws://${host}:8000`;
     const wsUrl = WS_BASE + "/api/ambient/ws/live";
     let ws: WebSocket | null = null;
     let pingTimer: ReturnType<typeof setInterval> | null = null;
@@ -304,7 +331,13 @@ function PatientRounds() {
             const d = msg.data;
             // Chỉ hiển thị khi bác sĩ login == bác sĩ được chỉ định
             if (d.doctor_id && user?.id && d.doctor_id !== user.id) return;
-            const dateStr = d.date ? new Date(d.date + "T00:00:00").toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }) : d.date;
+            const dateStr = d.date
+              ? new Date(d.date + "T00:00:00").toLocaleDateString("vi-VN", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })
+              : d.date;
             const notif: ClinicNotif = {
               id: d.appointment_id || Date.now().toString(),
               text: `Lịch khám mới — ${d.department}`,
@@ -312,7 +345,7 @@ function PatientRounds() {
               ts: new Date().toISOString(),
               read: false,
             };
-            setClinicNotifs(prev => [notif, ...prev]);
+            setClinicNotifs((prev) => [notif, ...prev]);
             // Text-to-Speech thông báo
             const speech = `Thông báo lịch khám mới. Bệnh nhân ${d.patient_name} đặt lịch khám ${d.department}, ngày ${dateStr}, lúc ${d.time}. Lý do: ${d.reason || "khám bệnh"}.`;
             // Delay 500ms để browser sẵn sàng
@@ -330,9 +363,12 @@ function PatientRounds() {
       dead = true;
       if (pingTimer) clearInterval(pingTimer);
       if (reconnTimer) clearTimeout(reconnTimer);
-      if (ws) { ws.onclose = null; ws.close(); }
+      if (ws) {
+        ws.onclose = null;
+        ws.close();
+      }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workMode, user?.id]);
 
   // Re-sync activeView if workMode changes
@@ -404,6 +440,7 @@ function PatientRounds() {
   const meta = viewTitles[activeView];
   const visibleNav = navItems.filter((n) => roleConfig[workMode].views.includes(n.key));
   const isPatientRole = workMode === "patient";
+  const isClinicianMobile = workMode === "clinician" && isMobile;
   return (
     <div className="font-hanken text-slate-800 flex min-h-dvh w-full overflow-x-hidden bg-white">
       {/* Side Nav — hidden in patient mobile mode */}
@@ -416,9 +453,12 @@ function PatientRounds() {
           <div className={`mb-4 ${collapsed ? "px-4" : "px-6"}`}>
             <div className="flex items-center gap-3 justify-between">
               <div className="flex items-center gap-3 min-w-0 relative">
-                <button onClick={() => setRoleMenuOpen(!roleMenuOpen)} className="flex items-center gap-3 active:scale-95 transition-transform text-left">
-                  <img 
-                    src="/logo.png" 
+                <button
+                  onClick={() => setRoleMenuOpen(!roleMenuOpen)}
+                  className="flex items-center gap-3 active:scale-95 transition-transform text-left"
+                >
+                  <img
+                    src="/logo.png"
                     alt="EyeCU Logo"
                     className="w-14 h-14 rounded-lg shadow-sm object-contain flex-shrink-0"
                   />
@@ -435,21 +475,32 @@ function PatientRounds() {
                 </button>
                 {roleMenuOpen && (
                   <div className="absolute top-16 left-0 w-64 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-2">
-                    <p className="px-4 py-2 text-[12px] font-bold text-slate-400 uppercase tracking-wider">Đổi không gian làm việc</p>
+                    <p className="px-4 py-2 text-[12px] font-bold text-slate-400 uppercase tracking-wider">
+                      Đổi không gian làm việc
+                    </p>
                     <button
-                      onClick={() => { setWorkMode("ops"); setRoleMenuOpen(false); }}
+                      onClick={() => {
+                        setWorkMode("ops");
+                        setRoleMenuOpen(false);
+                      }}
                       className="w-full text-left px-4 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-[#0A9BAD]"
                     >
                       Trực Cấp cứu
                     </button>
                     <button
-                      onClick={() => { setWorkMode("clinician"); setRoleMenuOpen(false); }}
+                      onClick={() => {
+                        setWorkMode("clinician");
+                        setRoleMenuOpen(false);
+                      }}
                       className="w-full text-left px-4 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-[#0A9BAD]"
                     >
                       Khám Lâm sàng
                     </button>
                     <button
-                      onClick={() => { setWorkMode("ems"); setRoleMenuOpen(false); }}
+                      onClick={() => {
+                        setWorkMode("ems");
+                        setRoleMenuOpen(false);
+                      }}
                       className="w-full text-left px-4 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-[#0A9BAD]"
                     >
                       Cấp cứu Ngoại viện
@@ -528,18 +579,28 @@ function PatientRounds() {
       >
         {/* Top Nav — staff / clinician */}
         <header
-          className={`${isPatientRole ? "hidden" : "flex"} sticky top-0 z-30 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 pt-safe pb-2 md:px-6 md:py-2.5 md:pt-0`}
+          className={`${isPatientRole ? "hidden" : "flex"} sticky top-0 z-30 items-center justify-between gap-2 border-b border-slate-200/80 bg-white/95 backdrop-blur-xl px-3 pt-safe pb-2 md:px-6 md:py-2.5 md:pt-0`}
         >
-          <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <div className="flex shrink-0 items-center gap-2 md:hidden">
-              <img 
-                src="/logo.png" 
+              <img
+                src="/logo.png"
                 alt="EyeCU Logo"
-                className="h-8 w-8 rounded-lg shadow-sm object-contain"
+                className="h-9 w-9 rounded-xl shadow-sm object-contain ring-2 ring-[#88E8F2]/30"
               />
-              <span className="text-sm font-bold text-slate-900">EyeCU</span>
+              {!isClinicianMobile && <span className="text-sm font-bold text-slate-900">EyeCU</span>}
             </div>
-
+            {isClinicianMobile && (
+              <div className="min-w-0 flex-1 md:hidden">
+                <div className="flex items-center gap-1.5">
+                  <p className="truncate text-[15px] font-bold text-slate-900">{meta.title.split("—")[0].trim()}</p>
+                  <span className="inline-flex items-center rounded-full bg-[#88E8F2]/20 px-2 py-0.5 text-[9px] font-bold text-[#0A9BAD]">
+                    {roleConfig[workMode].label}
+                  </span>
+                </div>
+                <p className="truncate text-[11px] text-slate-500 mt-0.5">{meta.subtitle}</p>
+              </div>
+            )}
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5">
@@ -549,7 +610,7 @@ function PatientRounds() {
             <button
               type="button"
               onClick={() => {
-                setNotifOpen(o => !o);
+                setNotifOpen((o) => !o);
                 setProfileMenuOpen(false);
               }}
               className="relative rounded-full p-1.5 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-800"
@@ -565,19 +626,27 @@ function PatientRounds() {
 
             {/* Notification Dropdown */}
             {notifOpen && (
-              <div className="absolute right-12 top-[calc(100%+0.5rem)] z-50 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl" style={{maxHeight: '420px'}}>
+              <div
+                className="absolute right-12 top-[calc(100%+0.5rem)] z-50 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+                style={{ maxHeight: "420px" }}
+              >
                 <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-                  <p className="font-semibold text-slate-800 text-[14px]">Thông báo lịch khám</p>
+                  <p className="font-semibold text-slate-800 text-[14px]">
+                    Thông báo lịch khám
+                  </p>
                   {clinicNotifs.length > 0 && (
                     <button
-                      onClick={() => { setClinicNotifs([]); setNotifOpen(false); }}
+                      onClick={() => {
+                        setClinicNotifs([]);
+                        setNotifOpen(false);
+                      }}
                       className="text-[11px] text-slate-400 hover:text-red-500"
                     >
                       Xóa tất cả
                     </button>
                   )}
                 </div>
-                <div className="overflow-y-auto" style={{maxHeight: '340px'}}>
+                <div className="overflow-y-auto" style={{ maxHeight: "340px" }}>
                   {clinicNotifs.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-10 text-slate-400">
                       <Bell className="h-8 w-8 mb-2 opacity-20" />
@@ -587,7 +656,11 @@ function PatientRounds() {
                     clinicNotifs.map((n) => (
                       <button
                         key={n.id}
-                        onClick={() => setClinicNotifs(prev => prev.map(x => x.id === n.id ? {...x, read: true} : x))}
+                        onClick={() =>
+                          setClinicNotifs((prev) =>
+                            prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)),
+                          )
+                        }
                         className={`w-full text-left flex gap-3 px-4 py-3 border-b border-slate-50 hover:bg-slate-50 transition-colors ${
                           n.read ? "" : "bg-blue-50/50"
                         }`}
@@ -596,11 +669,22 @@ function PatientRounds() {
                           <Bell className="h-4 w-4 text-cyan-600" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-semibold text-slate-800 leading-snug">{n.text}</p>
-                          <p className="text-[12px] text-slate-500 mt-0.5 leading-snug">{n.detail}</p>
-                          <p className="text-[10px] text-slate-400 mt-1">{new Date(n.ts).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</p>
+                          <p className="text-[13px] font-semibold text-slate-800 leading-snug">
+                            {n.text}
+                          </p>
+                          <p className="text-[12px] text-slate-500 mt-0.5 leading-snug">
+                            {n.detail}
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            {new Date(n.ts).toLocaleTimeString("vi-VN", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
                         </div>
-                        {!n.read && <span className="mt-1.5 h-2 w-2 rounded-full bg-blue-500 shrink-0" />}
+                        {!n.read && (
+                          <span className="mt-1.5 h-2 w-2 rounded-full bg-blue-500 shrink-0" />
+                        )}
                       </button>
                     ))
                   )}
@@ -679,7 +763,7 @@ function PatientRounds() {
           </div>
         </header>
 
-        {!isPatientRole && (
+        {!isPatientRole && !isClinicianMobile && (
           <div className="sticky top-[calc(4rem+env(safe-area-inset-top))] z-20 border-b border-slate-200 bg-white px-3 py-2 md:top-16 md:hidden">
             <div className="scrollbar-hide flex gap-2 overflow-x-auto">
               {visibleNav.map(({ Icon, label, key }) => {
@@ -709,15 +793,21 @@ function PatientRounds() {
           className={
             isPatientRole
               ? "flex-1 min-h-0 overflow-y-auto bg-slate-50 p-0"
-              : "flex-1 overflow-y-auto scrollbar-hide p-4 md:p-6 bg-white"
+              : isClinicianMobile
+                ? "flex-1 overflow-y-auto scrollbar-hide bg-slate-50 p-3 pb-28"
+                : "flex-1 overflow-y-auto scrollbar-hide p-4 md:p-6 bg-white"
           }
         >
           <div
             className={
-              isPatientRole ? "min-h-full max-w-none mx-0 space-y-0" : "max-w-7xl mx-auto space-y-4"
+              isPatientRole
+                ? "min-h-full max-w-none mx-0 space-y-0"
+                : isClinicianMobile
+                  ? "mx-auto w-full max-w-3xl space-y-3"
+                  : "max-w-7xl mx-auto space-y-4"
             }
           >
-            {!isPatientRole && (
+            {!isPatientRole && !isClinicianMobile && (
               <div className="mb-4">
                 <h2 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl md:font-light">
                   {meta.title}
@@ -756,6 +846,50 @@ function PatientRounds() {
         </div>
       </main>
 
+      {/* Clinician mobile bottom navigation */}
+      {isClinicianMobile && (
+        <nav
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/95 pb-safe pt-1.5 backdrop-blur-xl md:hidden"
+          aria-label="Điều hướng bác sĩ"
+        >
+          <div className="mx-auto flex max-w-lg px-2">
+            {visibleNav.map(({ Icon, label, key }) => {
+              const active = activeView === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setActiveView(key)}
+                  className={`group flex flex-1 flex-col items-center gap-1 px-2 py-1.5 transition-all duration-200 ${
+                    active ? "text-[#0A9BAD]" : "text-slate-400 active:text-slate-600"
+                  }`}
+                >
+                  <span
+                    className={`relative flex h-11 w-11 items-center justify-center rounded-2xl transition-all duration-200 ${
+                      active
+                        ? "bg-gradient-to-br from-[#88E8F2] to-[#0A9BAD] text-white shadow-lg shadow-[#0A9BAD]/25 scale-105"
+                        : "bg-slate-100 group-active:bg-slate-200"
+                    }`}
+                  >
+                    <Icon className={`h-5 w-5 ${active ? "text-white" : ""}`} />
+                    {active && (
+                      <span className="absolute -top-1 left-1/2 h-1 w-4 -translate-x-1/2 rounded-full bg-[#0A9BAD]" />
+                    )}
+                  </span>
+                  <span
+                    className={`text-[10px] font-semibold leading-tight ${
+                      active ? "text-[#0A9BAD]" : "text-slate-400"
+                    }`}
+                  >
+                    {key === "voice" ? "Bệnh án" : key === "doctor_qa" ? "Hỏi đáp" : label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      )}
+
       <LogoutConfirmModal
         open={logoutConfirmOpen}
         onCancel={() => setLogoutConfirmOpen(false)}
@@ -787,7 +921,8 @@ function LogoutConfirmModal({
           Bạn có muốn đăng xuất không?
         </h3>
         <p className="mt-1.5 text-sm text-slate-500">
-          Phiên làm việc trên thiết bị này sẽ kết thúc. Bạn cần đăng nhập lại để tiếp tục.
+          Phiên làm việc trên thiết bị này sẽ kết thúc. Bạn cần đăng nhập
+          lại để tiếp tục.
         </p>
         <div className="mt-5 flex gap-2">
           <button
@@ -848,8 +983,21 @@ const ALL_CAMERAS: Camera[] = [
   { room: "LN02", zone: "C", status: "stable", label: "Phòng bệnh", dept: "thorax" },
   // Chấn thương
   { room: "CT01", zone: "D", status: "stable", label: "Phòng bó bột", dept: "ortho" },
-  { room: "CT02", zone: "D", status: "alert", overlay: "fall", label: "Phòng bệnh", dept: "ortho" },
-  { room: "CT03", zone: "D", status: "stable", label: "Phòng vật lý trị liệu", dept: "ortho" },
+  {
+    room: "CT02",
+    zone: "D",
+    status: "alert",
+    overlay: "fall",
+    label: "Phòng bệnh",
+    dept: "ortho",
+  },
+  {
+    room: "CT03",
+    zone: "D",
+    status: "stable",
+    label: "Phòng vật lý trị liệu",
+    dept: "ortho",
+  },
   // Ngoại tổng hợp
   { room: "NG01", zone: "D", status: "stable", label: "Phòng phẫu thuật", dept: "surgery" },
   { room: "NG02", zone: "D", status: "stable", label: "Phòng bệnh", dept: "surgery" },
@@ -923,7 +1071,11 @@ function AmbientView({
   const [fullscreen, setFullscreen] = useState<Camera | null>(null);
 
   const [cameras, setCameras] = useState<Camera[]>([]);
-  const [fallAlert, setFallAlert] = useState<{room: string; imageUrl: string; time: string} | null>(null);
+  const [fallAlert, setFallAlert] = useState<{
+    room: string;
+    imageUrl: string;
+    time: string;
+  } | null>(null);
 
   const WS_URL = "wss://eyecu.onrender.com/api/ambient/ws/live";
 
@@ -932,7 +1084,7 @@ function AmbientView({
       window.dispatchEvent(
         new CustomEvent("camera-stream", {
           detail: { room: msg.room_id, image: msg.image_base64 },
-        })
+        }),
       );
     }
     if (msg.type === "FALL_DETECTED") {
@@ -959,9 +1111,12 @@ function AmbientView({
           label: d.name,
           dept: "internal", // Mock dept for demo based on device
         }));
-        
+
         // Trộn data từ DB với ALL_CAMERAS để demo đẹp mắt và đảm bảo Phòng 101 có mặt
-        const combined = [...mapped, ...ALL_CAMERAS.filter(c => !mapped.find(m => m.room === c.room))];
+        const combined = [
+          ...mapped,
+          ...ALL_CAMERAS.filter((c) => !mapped.find((m) => m.room === c.room)),
+        ];
         setCameras(combined as Camera[]);
       })
       .catch(() => setCameras(ALL_CAMERAS));
@@ -997,7 +1152,8 @@ function AmbientView({
               Camera AI Giám sát — {currentTab?.name}
             </h3>
             <p className="text-[13px] text-slate-500 font-geist mt-0.5">
-              {deptCameras.length} camera · Phân tích hành vi · Phát hiện ngã · Nhận dạng âm thanh
+              {deptCameras.length} camera · Phân tích hành vi · Phát hiện ngã · Nhận
+              dạng âm thanh
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -1169,7 +1325,8 @@ function AmbientView({
             </button>
           </div>
           <p className="text-sm font-medium text-slate-300">
-            Phát hiện bệnh nhân ngã tại <span className="font-bold text-red-300">{fallAlert.room}</span> lúc {fallAlert.time}
+            Phát hiện bệnh nhân ngã tại{" "}
+            <span className="font-bold text-red-300">{fallAlert.room}</span> lúc {fallAlert.time}
           </p>
           {fallAlert.imageUrl && (
             <div className="relative rounded-lg overflow-hidden border-2 border-red-900/50">
@@ -1587,7 +1744,8 @@ function PrivacyCameraFeed() {
             Privacy-by-Design · Pose Estimation AI
           </h3>
           <p className="text-[13px] text-slate-500 font-geist mt-0.5">
-            Không hiển thị hình ảnh thật · Skeleton Overlay + Audio Spectrogram · Sensor Fusion
+            Không hiển thị hình ảnh thật · Skeleton Overlay + Audio Spectrogram · Sensor
+            Fusion
           </p>
         </div>
         <span
@@ -1597,7 +1755,7 @@ function PrivacyCameraFeed() {
             color: isCritical ? "#DC2626" : "#16A34A",
           }}
         >
-          {isCritical ? " FUSION ALERT" : "✓ Privacy Shield"}
+          {isCritical ? " FUSION ALERT" : "âœ“ Privacy Shield"}
         </span>
       </div>
 
@@ -1848,14 +2006,16 @@ function PrivacyCameraFeed() {
                 {isCritical ? (
                   <>
                     <div className="flex gap-2 text-red-600">
-                      <span className="text-slate-400">14:32:07</span> Phát hiện ngã · Phòng 103
+                      <span className="text-slate-400">14:32:07</span> Phát hiện ngã · Phòng
+                      103
                     </div>
                     <div className="flex gap-2 text-red-500">
-                      <span className="text-slate-400">14:32:07</span> Âm thanh bất thường · Va đập
-                      91dB
+                      <span className="text-slate-400">14:32:07</span> Âm thanh bất thường ·
+                      Va đập 91dB
                     </div>
                     <div className="flex gap-2 text-red-500">
-                      <span className="text-slate-400">14:32:08</span> Cảnh báo hợp nhất → Kíp trực
+                      <span className="text-slate-400">14:32:08</span> Cảnh báo hợp nhất →
+                      Kíp trực
                     </div>
                     <div className="flex gap-2 text-amber-600">
                       <span className="text-slate-400">14:32:08</span> Đã điều xe cấp cứu
@@ -1864,14 +2024,16 @@ function PrivacyCameraFeed() {
                 ) : (
                   <>
                     <div className="flex gap-2 text-emerald-600">
-                      <span className="text-slate-400">{timestamp}</span> Tư thế bình thường · Dáng
-                      đi ổn định
+                      <span className="text-slate-400">{timestamp}</span> Tư thế bình thường
+                      · Dáng đi ổn định
                     </div>
                     <div className="flex gap-2 text-slate-400">
-                      <span className="text-slate-400">14:31:55</span> Âm thanh · Môi trường 32dB
+                      <span className="text-slate-400">14:31:55</span> Âm thanh · Môi trường
+                      32dB
                     </div>
                     <div className="flex gap-2 text-slate-400">
-                      <span className="text-slate-400">14:31:40</span> Toàn bộ hệ thống bình thường
+                      <span className="text-slate-400">14:31:40</span> Toàn bộ hệ thống bình
+                      thường
                     </div>
                   </>
                 )}
@@ -1917,7 +2079,7 @@ function CameraModal({ cam, onClose }: { cam: Camera; onClose: () => void }) {
             className="backdrop-blur-md bg-black/50 text-white w-9 h-9 rounded-full flex items-center justify-center hover:bg-black/70"
             aria-label="Đóng"
           >
-            ✕
+            âœ•
           </button>
         </div>
 
@@ -1930,7 +2092,8 @@ function CameraModal({ cam, onClose }: { cam: Camera; onClose: () => void }) {
               PHÁT HIỆN NGÃ
             </span>
             <span className="mt-2 text-white/80 text-sm font-geist">
-              Hệ thống AI phát hiện dáng người nằm sàn · Đã thông báo điều dưỡng trực
+              Hệ thống AI phát hiện dáng người nằm sàn · Đã thông báo điều
+              dưỡng trực
             </span>
           </div>
         )}
@@ -2690,7 +2853,9 @@ function LprScanner({
       setCameraActive(true);
     } catch (err: any) {
       if (err.name === "NotAllowedError") {
-        setCameraError("Trình duyệt chưa cấp quyền camera. Vui lòng cho phép trong cài đặt.");
+        setCameraError(
+          "Trình duyệt chưa cấp quyền camera. Vui lòng cho phép trong cài đặt.",
+        );
       } else if (err.name === "NotFoundError") {
         setCameraError("Không tìm thấy camera. Hãy kiểm tra thiết bị.");
       } else {
@@ -2736,38 +2901,49 @@ function LprScanner({
     setPreviewDataUrl(dataUrl);
 
     // Chuyển thành Blob để gửi multipart
-    canvas.toBlob(async (blob) => {
-      if (!blob) return;
-      setScanning(true);
-      setScanCount((c) => c + 1);
-      try {
-        const formData = new FormData();
-        formData.append("image", blob, "lpr_capture.jpg");
-        if (hospitalId) formData.append("hospital_id", hospitalId);
-        formData.append("camera_id", "cam_mobile_gate");
+    canvas.toBlob(
+      async (blob) => {
+        if (!blob) return;
+        setScanning(true);
+        setScanCount((c) => c + 1);
+        try {
+          const formData = new FormData();
+          formData.append("image", blob, "lpr_capture.jpg");
+          if (hospitalId) formData.append("hospital_id", hospitalId);
+          formData.append("camera_id", "cam_mobile_gate");
 
-        const data: LprScanResult = await fetchApi("/ambulance/lpr/camera", {
-          method: "POST",
-          body: formData,
-        });
-        setLastResult(data);
+          const data: LprScanResult = await fetchApi("/ambulance/lpr/camera", {
+            method: "POST",
+            body: formData,
+          });
+          setLastResult(data);
 
-        if (data.open_gate) {
-          setGateOpenAlert(true);
-          setAutoScan(false); // Dừng quét khi đã mở
-          if (scanIntervalRef.current) {
-            clearInterval(scanIntervalRef.current);
-            scanIntervalRef.current = null;
+          if (data.open_gate) {
+            setGateOpenAlert(true);
+            setAutoScan(false); // Dừng quét khi đã mở
+            if (scanIntervalRef.current) {
+              clearInterval(scanIntervalRef.current);
+              scanIntervalRef.current = null;
+            }
+            // Âm thanh thông báo
+            try {
+              new Audio("/alert.mp3").play().catch(() => {});
+            } catch (_) {}
           }
-          // Âm thanh thông báo
-          try { new Audio("/alert.mp3").play().catch(() => {}); } catch (_) {}
+        } catch (err: any) {
+          setLastResult({
+            matched: false,
+            plate: null,
+            open_gate: false,
+            error: err?.message || "Lỗi kết nối backend.",
+          });
+        } finally {
+          setScanning(false);
         }
-      } catch (err: any) {
-        setLastResult({ matched: false, plate: null, open_gate: false, error: err?.message || "Lỗi kết nối backend." });
-      } finally {
-        setScanning(false);
-      }
-    }, "image/jpeg", 0.85);
+      },
+      "image/jpeg",
+      0.85,
+    );
   };
 
   // ── Bật/tắt chế độ tự động quét mỗi 3 giây ────────────────────────
@@ -2808,10 +2984,17 @@ function LprScanner({
       setLastResult(data);
       if (data.open_gate) {
         setGateOpenAlert(true);
-        try { new Audio("/alert.mp3").play().catch(() => {}); } catch (_) {}
+        try {
+          new Audio("/alert.mp3").play().catch(() => {});
+        } catch (_) {}
       }
     } catch (err: any) {
-      setLastResult({ matched: false, plate: null, open_gate: false, error: err?.message || "Lỗi kết nối backend." });
+      setLastResult({
+        matched: false,
+        plate: null,
+        open_gate: false,
+        error: err?.message || "Lỗi kết nối backend.",
+      });
     } finally {
       setScanning(false);
       e.target.value = "";
@@ -2842,10 +3025,17 @@ function LprScanner({
       setLastResult(data);
       if (data.open_gate) {
         setGateOpenAlert(true);
-        try { new Audio("/alert.mp3").play().catch(() => {}); } catch (_) {}
+        try {
+          new Audio("/alert.mp3").play().catch(() => {});
+        } catch (_) {}
       }
     } catch (err: any) {
-      setLastResult({ matched: false, plate: null, open_gate: false, error: err?.message || "Lỗi kết nối backend." });
+      setLastResult({
+        matched: false,
+        plate: null,
+        open_gate: false,
+        error: err?.message || "Lỗi kết nối backend.",
+      });
     } finally {
       setScanning(false);
     }
@@ -2874,7 +3064,10 @@ function LprScanner({
       </h4>
 
       {/* ── Khu vực Camera / Video ── */}
-      <div className="relative rounded-lg overflow-hidden bg-slate-900" style={{ aspectRatio: "16/9" }}>
+      <div
+        className="relative rounded-lg overflow-hidden bg-slate-900"
+        style={{ aspectRatio: "16/9" }}
+      >
         {/* Canvas ẩn để chụp frame */}
         <canvas ref={canvasRef} className="hidden" />
 
@@ -2891,7 +3084,11 @@ function LprScanner({
         {!cameraActive && (
           <div className="w-full h-full flex flex-col items-center justify-center gap-2">
             {previewDataUrl ? (
-              <img src={previewDataUrl} alt="LPR preview" className="absolute inset-0 w-full h-full object-cover opacity-70" />
+              <img
+                src={previewDataUrl}
+                alt="LPR preview"
+                className="absolute inset-0 w-full h-full object-cover opacity-70"
+              />
             ) : (
               <>
                 <Camera className="w-10 h-10 text-slate-500" />
@@ -2937,7 +3134,9 @@ function LprScanner({
 
         {/* Badge Live / Số lần quét */}
         <div className="absolute top-1.5 left-1.5 z-30 flex items-center gap-1 bg-black/60 rounded px-1.5 py-0.5">
-          <span className={`w-1.5 h-1.5 rounded-full ${autoScan ? "bg-red-500 animate-pulse" : "bg-slate-500"}`} />
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${autoScan ? "bg-red-500 animate-pulse" : "bg-slate-500"}`}
+          />
           <span className="text-[8px] font-mono text-white">
             {autoScan ? "AUTO SCAN" : cameraActive ? "CAMERA ON" : "CAMERA OFF"}
           </span>
@@ -2969,7 +3168,9 @@ function LprScanner({
             <div className="flex-1">
               <p className="font-black text-red-800 text-sm">🚨 PHÁT HIỆN XE CẤP CỨU</p>
               <p className="text-xs text-red-600 font-mono font-bold">{lastResult?.plate}</p>
-              <p className="text-[10px] text-red-500">Xe khớp danh sách cấp cứu — Đang mở barrier</p>
+              <p className="text-[10px] text-red-500">
+                Xe khớp danh sách cấp cứu — Đang mở barrier
+              </p>
             </div>
           </div>
           {/* Bước 2: Xác nhận mở barrier */}
@@ -2980,7 +3181,8 @@ function LprScanner({
             <div className="flex-1">
               <p className="font-black text-green-800 text-sm">✅ MỞ BARRIER!</p>
               <p className="text-xs text-green-700">
-                Xe <span className="font-mono font-bold">{lastResult?.plate}</span> — Nhiệm vụ xác nhận ✓
+                Xe <span className="font-mono font-bold">{lastResult?.plate}</span> — Nhiệm vụ
+                xác nhận ✓
               </p>
             </div>
             <button
@@ -3127,7 +3329,9 @@ function LprScanner({
         </div>
         <div className="flex flex-wrap gap-1.5 pb-1">
           {activeMissions.length === 0 && (
-            <span className="text-[10px] text-slate-400 italic">Chưa có xe cấp cứu trong hàng đợi</span>
+            <span className="text-[10px] text-slate-400 italic">
+              Chưa có xe cấp cứu trong hàng đợi
+            </span>
           )}
           {activeMissions.map((m) => (
             <div
@@ -3290,7 +3494,7 @@ function AmbulanceMap({
           stroke="#EF4444"
           strokeWidth="4.5"
           strokeLinecap="round"
-          opacity={rOpacity(ambulances[0] ?? AMBULANCES_INIT[0])}
+          opacity={rOpacity(ambulances[0] ? AMBULANCES_INIT[0])}
         />
         <path
           d="M 420 160 L 462 160 L 462 130"
@@ -3299,7 +3503,7 @@ function AmbulanceMap({
           strokeWidth="1.5"
           strokeDasharray="5 5"
           strokeLinecap="round"
-          opacity={rOpacity(ambulances[0] ?? AMBULANCES_INIT[0]) * 0.7}
+          opacity={rOpacity(ambulances[0] ? AMBULANCES_INIT[0]) * 0.7}
         />
         <path
           d="M 70 375 L 70 258 L 186 258 L 186 178 L 372 178 L 462 178 L 462 130"
@@ -3307,7 +3511,7 @@ function AmbulanceMap({
           stroke="#F59E0B"
           strokeWidth="4"
           strokeLinecap="round"
-          opacity={rOpacity(ambulances[1] ?? AMBULANCES_INIT[1])}
+          opacity={rOpacity(ambulances[1] ? AMBULANCES_INIT[1])}
         />
         <path
           d="M 70 375 L 70 258 L 186 258 L 186 178 L 372 178 L 462 178 L 462 130"
@@ -3316,7 +3520,7 @@ function AmbulanceMap({
           strokeWidth="1.2"
           strokeDasharray="6 5"
           strokeLinecap="round"
-          opacity={rOpacity(ambulances[1] ?? AMBULANCES_INIT[1]) * 0.6}
+          opacity={rOpacity(ambulances[1] ? AMBULANCES_INIT[1]) * 0.6}
         />
         <path
           d="M 282 250 L 282 178 L 372 178"
@@ -3325,7 +3529,7 @@ function AmbulanceMap({
           strokeWidth="3"
           strokeDasharray="7 5"
           strokeLinecap="round"
-          opacity={rOpacity(ambulances[2] ?? AMBULANCES_INIT[2]) * 0.7}
+          opacity={rOpacity(ambulances[2] ? AMBULANCES_INIT[2]) * 0.7}
         />
         <g transform="translate(462,112)">
           <rect
@@ -3694,7 +3898,7 @@ function VehiclePanel({ amb, onClose }: { amb: AmbulanceUnit; onClose: () => voi
           onClick={onClose}
           className="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 text-xs"
         >
-          ✕
+          âœ•
         </button>
       </div>
       {amb.patient !== "—" && (
@@ -3776,7 +3980,9 @@ function AutoEmrPanel({ plate }: { plate: string }) {
           <circle cx="18.5" cy="19.5" r="1.5" />
           <path d="M8 11v4M6 13h4" />
         </svg>
-        <p className="text-[10px] text-center">Xe {plate} — Chờ điều phối, chưa có hồ sơ</p>
+        <p className="text-[10px] text-center">
+          Xe {plate} — Chờ điều phối, chưa có hồ sơ
+        </p>
       </div>
     );
   }
@@ -3831,7 +4037,7 @@ function AutoEmrPanel({ plate }: { plate: string }) {
                     color: done ? "#fff" : "#0F172A",
                   }}
                 >
-                  {done ? "✓" : idx + 1}
+                  {done ? "âœ“" : idx + 1}
                 </div>
                 {idx < steps.length - 1 && (
                   <div
@@ -3868,7 +4074,9 @@ function AutoEmrPanel({ plate }: { plate: string }) {
         <div className="border-t border-slate-200 pt-2.5 space-y-1.5 animate-fade-in">
           <RecordRow
             label="Bệnh nhân"
-            value={isCritical ? "Nguyễn Văn A (Nam, 62 tuổi)" : "Trần Thị B (Nữ, 45 tuổi)"}
+            value={
+              isCritical ? "Nguyễn Văn A (Nam, 62 tuổi)" : "Trần Thị B (Nữ, 45 tuổi)"
+            }
             sub={`CCCD: ${cccdFull}`}
           />
           <div
@@ -3887,13 +4095,17 @@ function AutoEmrPanel({ plate }: { plate: string }) {
               {isCritical ? "CẤP CỨU ĐỎ" : "CẤP CỨU VÀNG"}
             </p>
             <p className="text-[11px] text-slate-700">
-              {isCritical ? "Đột quỵ nhồi máu não — giờ thứ 2" : "Gãy xương đùi trái · TNGT"}
+              {isCritical
+                ? "Đột quỵ nhồi máu não — giờ thứ 2"
+                : "Gãy xương đùi trái · TNGT"}
             </p>
           </div>
           <RecordRow
             label="Tiền sử bệnh lý nền"
             value={
-              isCritical ? "Tăng huyết áp độ 2, Đái tháo đường Type 2" : "Không có tiền sử đặc biệt"
+              isCritical
+                ? "Tăng huyết áp độ 2, Đái tháo đường Type 2"
+                : "Không có tiền sử đặc biệt"
             }
           />
 
@@ -3928,32 +4140,32 @@ function HistoryView() {
 
   useEffect(() => {
     supabase
-      .from('dispatch_records')
-      .select('*')
-      .eq('status', 'completed')
-      .order('completed_at', { ascending: false })
+      .from("dispatch_records")
+      .select("*")
+      .eq("status", "completed")
+      .order("completed_at", { ascending: false })
       .then(({ data }) => {
         if (data) setHistoryRecords(data);
       });
 
     const sub = supabase
-      .channel('history_channel')
+      .channel("history_channel")
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'dispatch_records', filter: 'status=eq.completed' },
+        "postgres_changes",
+        { event: "*", schema: "public", table: "dispatch_records", filter: "status=eq.completed" },
         (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setHistoryRecords(prev => [payload.new, ...prev]);
-          } else if (payload.eventType === 'UPDATE') {
-            setHistoryRecords(prev => {
-              const idx = prev.findIndex(r => r.plate === payload.new.plate);
+          if (payload.eventType === "INSERT") {
+            setHistoryRecords((prev) => [payload.new, ...prev]);
+          } else if (payload.eventType === "UPDATE") {
+            setHistoryRecords((prev) => {
+              const idx = prev.findIndex((r) => r.plate === payload.new.plate);
               if (idx === -1) return [payload.new, ...prev];
               const copy = [...prev];
               copy[idx] = payload.new;
               return copy;
             });
           }
-        }
+        },
       )
       .subscribe();
 
@@ -3964,13 +4176,11 @@ function HistoryView() {
 
   return (
     <div className="flex-1 flex flex-col p-6 max-h-screen overflow-hidden bg-slate-50/50">
-      
-      
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex-1 flex flex-col">
         <div className="flex flex-wrap justify-between items-center px-4 py-3 border-b border-slate-100 gap-2">
           <div>
             <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4" style={{ color: '#88E8F2' }} />
+              <CheckCircle2 className="w-4 h-4" style={{ color: "#88E8F2" }} />
               Danh sách Đã hoàn thành
             </h3>
             <p className="text-[11px] text-slate-500 font-geist">
@@ -3998,44 +4208,97 @@ function HistoryView() {
             </thead>
             <tbody>
               {historyRecords.length === 0 ? (
-                <tr><td colSpan={10} className="px-4 py-8 text-center text-slate-400">Chưa có ca cấp cứu nào hoàn thành</td></tr>
-              ) : Array.from(new Map(historyRecords.map(item => [item.plate, item])).values())
-                  .sort((a: any, b: any) => new Date(b.completed_at || 0).getTime() - new Date(a.completed_at || 0).getTime())
-                  .map((rec, idx) => (
-                <tr key={`${rec.plate}-${idx}`} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80 transition-colors">
-                  <td className="px-3 py-3 whitespace-nowrap text-slate-500 text-xs">{rec.completed_at ? new Date(rec.completed_at).toLocaleDateString("vi-VN") : "—"}</td>
-                  <td className="px-3 py-3"><span className="font-mono font-bold text-slate-600 text-[13px]">{rec.plate}</span></td>
-                  <td className="px-3 py-3"><span className="font-semibold text-slate-600">{rec.patient_name || "—"}</span></td>
-                  <td className="px-3 py-3"><span className="text-slate-600">{rec.gender || "—"}</span></td>
-                  <td className="px-3 py-3"><span className="text-slate-600">{rec.age || "—"}</span></td>
-                  <td className="px-3 py-3 font-mono text-[12px] text-slate-500">{rec.cccd || "—"}</td>
-                  <td className="px-3 py-3 max-w-[150px]">
-                    {rec.chronic_conditions && rec.chronic_conditions.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {rec.chronic_conditions.map((c: string) => (
-                          <span key={c} className="px-1.5 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">{c}</span>
-                        ))}
-                      </div>
-                    ) : <span className="text-slate-400 text-xs">Không có</span>}
+                <tr>
+                  <td colSpan={10} className="px-4 py-8 text-center text-slate-400">
+                    Chưa có ca cấp cứu nào hoàn thành
                   </td>
-                  <td className="px-3 py-3 max-w-[160px]">
-                    {rec.allergies && rec.allergies.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {rec.allergies.map((a: string) => (
-                          <span key={a} className="px-1.5 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">{a}</span>
-                        ))}
-                      </div>
-                    ) : <span className="text-slate-400 text-xs">Không có</span>}
-                  </td>
-                  <td className="px-3 py-3">
-                    {rec.alert_label ? (
-                      <span className="px-2 py-1 rounded-lg text-[11px] font-bold text-slate-500 bg-slate-100 border border-slate-200 whitespace-nowrap">{rec.alert_label}</span>
-                    ) : <span className="text-slate-400 text-xs">Chưa có</span>}
-                  </td>
-                  <td className="px-3 py-3 text-slate-500 text-xs font-semibold">{rec.er_team || "—"}</td>
-                  <td className="px-3 py-3 text-slate-500 text-xs">{rec.completed_at ? new Date(rec.completed_at).toLocaleTimeString() : "—"}</td>
                 </tr>
-              ))}
+              ) : (
+                Array.from(new Map(historyRecords.map((item) => [item.plate, item])).values())
+                  .sort(
+                    (a: any, b: any) =>
+                      new Date(b.completed_at || 0).getTime() -
+                      new Date(a.completed_at || 0).getTime(),
+                  )
+                  .map((rec, idx) => (
+                    <tr
+                      key={`${rec.plate}-${idx}`}
+                      className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80 transition-colors"
+                    >
+                      <td className="px-3 py-3 whitespace-nowrap text-slate-500 text-xs">
+                        {rec.completed_at
+                          ? new Date(rec.completed_at).toLocaleDateString("vi-VN")
+                          : "—"}
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className="font-mono font-bold text-slate-600 text-[13px]">
+                          {rec.plate}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className="font-semibold text-slate-600">
+                          {rec.patient_name || "—"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className="text-slate-600">{rec.gender || "—"}</span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className="text-slate-600">{rec.age || "—"}</span>
+                      </td>
+                      <td className="px-3 py-3 font-mono text-[12px] text-slate-500">
+                        {rec.cccd || "—"}
+                      </td>
+                      <td className="px-3 py-3 max-w-[150px]">
+                        {rec.chronic_conditions && rec.chronic_conditions.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {rec.chronic_conditions.map((c: string) => (
+                              <span
+                                key={c}
+                                className="px-1.5 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-500"
+                              >
+                                {c}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 text-xs">Không có</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 max-w-[160px]">
+                        {rec.allergies && rec.allergies.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {rec.allergies.map((a: string) => (
+                              <span
+                                key={a}
+                                className="px-1.5 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-500"
+                              >
+                                {a}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 text-xs">Không có</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3">
+                        {rec.alert_label ? (
+                          <span className="px-2 py-1 rounded-lg text-[11px] font-bold text-slate-500 bg-slate-100 border border-slate-200 whitespace-nowrap">
+                            {rec.alert_label}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-xs">Chưa có</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 text-slate-500 text-xs font-semibold">
+                        {rec.er_team || "—"}
+                      </td>
+                      <td className="px-3 py-3 text-slate-500 text-xs">
+                        {rec.completed_at ? new Date(rec.completed_at).toLocaleTimeString() : "—"}
+                      </td>
+                    </tr>
+                  ))
+              )}
             </tbody>
           </table>
         </div>
@@ -4047,7 +4310,6 @@ function HistoryView() {
 /* ---------- Main AmbulanceView ---------- */
 
 type MapFilter = "all" | "critical" | "urgent" | "standby";
-
 
 // Dispatch Record — realtime from EMS WebSocket
 interface DispatchRecord {
@@ -4085,11 +4347,11 @@ function AmbulanceView() {
 
   useEffect(() => {
     const fetchDispatch = () => {
-      fetchApi('/ems/dispatch_records?status=active')
+      fetchApi("/ems/dispatch_records?status=active")
         .then((data) => {
           if (Array.isArray(data)) {
             const r: Record<string, any> = {};
-            data.forEach(d => {
+            data.forEach((d) => {
               r[d.plate] = {
                 plate: d.plate,
                 eta: d.eta,
@@ -4105,7 +4367,7 @@ function AmbulanceView() {
                 bhxhCode: d.bhxh_code,
                 emergencyContactName: d.emergency_contact_name,
                 emergencyContactPhone: d.emergency_contact_phone,
-                preAlertText: d.pre_alert_text
+                preAlertText: d.pre_alert_text,
               };
             });
             setDispatchRecords(r);
@@ -4118,7 +4380,7 @@ function AmbulanceView() {
     const interval = setInterval(fetchDispatch, 3000);
     return () => clearInterval(interval);
   }, []);
-  
+
   useEffect(() => {
     fetchApi("/ambulance")
       .then((data: any[]) => {
@@ -4146,7 +4408,11 @@ function AmbulanceView() {
   const [lprPlate, setLprPlate] = useState("29A-213.07");
   const [toast, setToast] = useState("");
   const [panelMode, setPanelMode] = useState<"dept" | "vehicle">("dept");
-  const [fallAlert, setFallAlert] = useState<{ room: string; imageUrl: string; time: string } | null>(null);
+  const [fallAlert, setFallAlert] = useState<{
+    room: string;
+    imageUrl: string;
+    time: string;
+  } | null>(null);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -4154,53 +4420,66 @@ function AmbulanceView() {
   }, []);
 
   const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
-  const WS_URL = (import.meta.env.VITE_WS_URL ?? `ws://${host}:8000`) + "/api/ambient/ws/live";
+  const WS_URL = (import.meta.env.VITE_WS_URL ? `ws://${host}:8000`) + "/api/ambient/ws/live";
 
   const handleSocketMessage = useCallback(
-    (msg: { type: string; data?: Record<string, unknown>; room_id?: string; blurred_image_base64?: string }) => {
+    (msg: {
+      type: string;
+      data?: Record<string, unknown>;
+      room_id?: string;
+      blurred_image_base64?: string;
+    }) => {
       // ── GPS_START: xe mới đăng ký nhiệm vụ ──────────────────────────
       if (msg.type === "GPS_START" && msg.data) {
-        const { plate, eta_seconds, lat, lng } = msg.data as { plate: string, eta_seconds?: number, lat?: number, lng?: number };
+        const { plate, eta_seconds, lat, lng } = msg.data as {
+          plate: string;
+          eta_seconds?: number;
+          lat?: number;
+          lng?: number;
+        };
         const d = msg.data as any;
         if (plate) {
-          supabase.from('dispatch_records').upsert({
-            plate,
-            eta: typeof eta_seconds === 'number' ? eta_seconds : null,
-            status: 'active',
-            lat: lat ?? null,
-            lng: lng ?? null,
-            added_at: Date.now(),
-            pre_alert_text: d.pre_alert_text ?? null,
-            patient_name: d.name ?? null,
-            gender: d.gender ?? null,
-            age: d.age ?? null,
-            cccd: d.cccd ?? null,
-            bhxh_code: d.bhxh_code ?? null,
-            emergency_contact_name: d.emergency_contact_name ?? null,
-            emergency_contact_phone: d.emergency_contact_phone ?? null,
-            chronic_conditions: d.chronic_conditions ?? [],
-            allergies: d.allergies ?? []
-          }).then();
+          supabase
+            .from("dispatch_records")
+            .upsert({
+              plate,
+              eta: typeof eta_seconds === "number" ? eta_seconds : null,
+              status: "active",
+              lat: lat ? null,
+              lng: lng ? null,
+              added_at: Date.now(),
+              pre_alert_text: d.pre_alert_text ? null,
+              patient_name: d.name ? null,
+              gender: d.gender ? null,
+              age: d.age ? null,
+              cccd: d.cccd ? null,
+              bhxh_code: d.bhxh_code ? null,
+              emergency_contact_name: d.emergency_contact_name ? null,
+              emergency_contact_phone: d.emergency_contact_phone ? null,
+              chronic_conditions: d.chronic_conditions ? [],
+              allergies: d.allergies ? [],
+            })
+            .then();
 
-          setDispatchRecords(prev => ({
+          setDispatchRecords((prev) => ({
             ...prev,
             [plate]: {
               ...(prev[plate] || {}),
               plate,
-              eta: typeof eta_seconds === 'number' ? eta_seconds : null,
-              status: 'active',
+              eta: typeof eta_seconds === "number" ? eta_seconds : null,
+              status: "active",
               addedAt: Date.now(),
-              patient_name: d.name ?? null,
-              gender: d.gender ?? null,
-              age: d.age ?? null,
-              cccd: d.cccd ?? null,
-              bhxhCode: d.bhxh_code ?? null,
-              emergencyContactName: d.emergency_contact_name ?? null,
-              emergencyContactPhone: d.emergency_contact_phone ?? null,
-              chronic_conditions: d.chronic_conditions ?? [],
-              allergies: d.allergies ?? [],
-              preAlertText: d.pre_alert_text ?? null
-            }
+              patient_name: d.name ? null,
+              gender: d.gender ? null,
+              age: d.age ? null,
+              cccd: d.cccd ? null,
+              bhxhCode: d.bhxh_code ? null,
+              emergencyContactName: d.emergency_contact_name ? null,
+              emergencyContactPhone: d.emergency_contact_phone ? null,
+              chronic_conditions: d.chronic_conditions ? [],
+              allergies: d.allergies ? [],
+              preAlertText: d.pre_alert_text ? null,
+            },
           }));
 
           // Cũng cập nhật ambulances map nếu xe chưa có
@@ -4219,8 +4498,8 @@ function AmbulanceView() {
                 mapX: 0,
                 mapY: 0,
                 departmentId: "er",
-                lat: lat ?? undefined,
-                lng: lng ?? undefined,
+                lat: lat ? undefined,
+                lng: lng ? undefined,
               },
             ];
           });
@@ -4228,33 +4507,51 @@ function AmbulanceView() {
       }
       // ── GPS_UPDATE: cập nhật vị trí + ETA ───────────────────────────
       if (msg.type === "GPS_UPDATE" && msg.data) {
-        const { ambulance_id, lat, lng, plate: msgPlate, eta_seconds } = msg.data as {
-          ambulance_id: string; lat: number; lng: number; plate?: string; eta_seconds?: number;
+        const {
+          ambulance_id,
+          lat,
+          lng,
+          plate: msgPlate,
+          eta_seconds,
+        } = msg.data as {
+          ambulance_id: string;
+          lat: number;
+          lng: number;
+          plate?: string;
+          eta_seconds?: number;
         };
         setAmbulances((prev) =>
           prev.map((a) => {
-            if (a.id === ambulance_id || (ambulance_id === "current" && a.id === "xe1") || (msgPlate && a.plate === msgPlate)) {
-              return { ...a, lat, lng, etaSeconds: eta_seconds ?? a.etaSeconds };
+            if (
+              a.id === ambulance_id ||
+              (ambulance_id === "current" && a.id === "xe1") ||
+              (msgPlate && a.plate === msgPlate)
+            ) {
+              return { ...a, lat, lng, etaSeconds: eta_seconds ? a.etaSeconds };
             }
             return a;
           }),
         );
         // Cập nhật ETA trong dispatchRecords
         if (msgPlate) {
-          supabase.from('dispatch_records').update({
-            lat,
-            lng,
-            eta: eta_seconds ?? null
-          }).eq('plate', msgPlate).then();
+          supabase
+            .from("dispatch_records")
+            .update({
+              lat,
+              lng,
+              eta: eta_seconds ? null,
+            })
+            .eq("plate", msgPlate)
+            .then();
 
-          setDispatchRecords(prev => {
+          setDispatchRecords((prev) => {
             if (!prev[msgPlate]) return prev;
             return {
               ...prev,
               [msgPlate]: {
                 ...prev[msgPlate],
-                eta: eta_seconds ?? prev[msgPlate].eta
-              }
+                eta: eta_seconds ? prev[msgPlate].eta,
+              },
             };
           });
         }
@@ -4262,9 +4559,17 @@ function AmbulanceView() {
       // ── PATIENT_UPDATE: bệnh nhân được gắn kèm xe ───────────────────
       if (msg.type === "PATIENT_UPDATE" && msg.data) {
         const d = msg.data as {
-          plate: string; name?: string; gender?: string; age?: string; cccd?: string;
-          chronic_conditions?: string[]; allergies?: string[]; alert_label?: string;
-          bhxh_code?: string; emergency_contact_name?: string; emergency_contact_phone?: string;
+          plate: string;
+          name?: string;
+          gender?: string;
+          age?: string;
+          cccd?: string;
+          chronic_conditions?: string[];
+          allergies?: string[];
+          alert_label?: string;
+          bhxh_code?: string;
+          emergency_contact_name?: string;
+          emergency_contact_phone?: string;
           pre_alert_text?: string;
         };
         if (d.plate) {
@@ -4273,19 +4578,22 @@ function AmbulanceView() {
           if (d.gender !== undefined) updateData.gender = d.gender;
           if (d.age !== undefined) updateData.age = d.age;
           if (d.cccd !== undefined) updateData.cccd = d.cccd;
-          if (d.chronic_conditions !== undefined) updateData.chronic_conditions = d.chronic_conditions;
+          if (d.chronic_conditions !== undefined)
+            updateData.chronic_conditions = d.chronic_conditions;
           if (d.allergies !== undefined) updateData.allergies = d.allergies;
           if (d.alert_label !== undefined) updateData.alert_label = d.alert_label;
           if (d.bhxh_code !== undefined) updateData.bhxh_code = d.bhxh_code;
-          if (d.emergency_contact_name !== undefined) updateData.emergency_contact_name = d.emergency_contact_name;
-          if (d.emergency_contact_phone !== undefined) updateData.emergency_contact_phone = d.emergency_contact_phone;
+          if (d.emergency_contact_name !== undefined)
+            updateData.emergency_contact_name = d.emergency_contact_name;
+          if (d.emergency_contact_phone !== undefined)
+            updateData.emergency_contact_phone = d.emergency_contact_phone;
           if (d.pre_alert_text !== undefined) updateData.pre_alert_text = d.pre_alert_text;
 
           if (Object.keys(updateData).length > 0) {
-            supabase.from('dispatch_records').update(updateData).eq('plate', d.plate).then();
+            supabase.from("dispatch_records").update(updateData).eq("plate", d.plate).then();
           }
 
-          setDispatchRecords(prev => {
+          setDispatchRecords((prev) => {
             if (!prev[d.plate]) return prev;
             return {
               ...prev,
@@ -4296,12 +4604,22 @@ function AmbulanceView() {
                 age: d.age !== undefined ? d.age : prev[d.plate].age,
                 cccd: d.cccd !== undefined ? d.cccd : prev[d.plate].cccd,
                 bhxhCode: d.bhxh_code !== undefined ? d.bhxh_code : prev[d.plate].bhxhCode,
-                emergencyContactName: d.emergency_contact_name !== undefined ? d.emergency_contact_name : prev[d.plate].emergencyContactName,
-                emergencyContactPhone: d.emergency_contact_phone !== undefined ? d.emergency_contact_phone : prev[d.plate].emergencyContactPhone,
-                chronic_conditions: d.chronic_conditions !== undefined ? d.chronic_conditions : prev[d.plate].chronic_conditions,
+                emergencyContactName:
+                  d.emergency_contact_name !== undefined
+                    ? d.emergency_contact_name
+                    : prev[d.plate].emergencyContactName,
+                emergencyContactPhone:
+                  d.emergency_contact_phone !== undefined
+                    ? d.emergency_contact_phone
+                    : prev[d.plate].emergencyContactPhone,
+                chronic_conditions:
+                  d.chronic_conditions !== undefined
+                    ? d.chronic_conditions
+                    : prev[d.plate].chronic_conditions,
                 allergies: d.allergies !== undefined ? d.allergies : prev[d.plate].allergies,
-                preAlertText: d.pre_alert_text !== undefined ? d.pre_alert_text : prev[d.plate].preAlertText
-              }
+                preAlertText:
+                  d.pre_alert_text !== undefined ? d.pre_alert_text : prev[d.plate].preAlertText,
+              },
             };
           });
         }
@@ -4311,16 +4629,30 @@ function AmbulanceView() {
         const { plate } = msg.data as { plate: string };
         setLprPlate(plate);
         showToast(`Xe ${plate} đã đến cổng - Barrier tự động mở`);
-        supabase.from('dispatch_records').update({
-          eta: -1
-        }).eq('plate', plate).then();
+        supabase
+          .from("dispatch_records")
+          .update({
+            eta: -1,
+          })
+          .eq("plate", plate)
+          .then();
       }
       if (msg.type === "CAMERA_STREAM") {
-        window.dispatchEvent(new CustomEvent("camera-stream", { detail: { room: msg.room_id, image: (msg as any).image_base64 } }));
+        window.dispatchEvent(
+          new CustomEvent("camera-stream", {
+            detail: { room: msg.room_id, image: (msg as any).image_base64 },
+          }),
+        );
       }
       if (msg.type === "FALL_DETECTED") {
-        setFallAlert({ room: msg.room_id || "Unknown", imageUrl: msg.blurred_image_base64 || "", time: new Date().toLocaleTimeString() });
-        try { new Audio("/alert.mp3").play().catch(() => {}); } catch (e) {}
+        setFallAlert({
+          room: msg.room_id || "Unknown",
+          imageUrl: msg.blurred_image_base64 || "",
+          time: new Date().toLocaleTimeString(),
+        });
+        try {
+          new Audio("/alert.mp3").play().catch(() => {});
+        } catch (e) {}
       }
     },
     [showToast],
@@ -4335,10 +4667,11 @@ function AmbulanceView() {
     setLprPlate(found.plate);
     setPanelMode("vehicle");
   };
-  const handleNotify = () => showToast("✓ Đã gửi OTT cho kíp trực · Phản hồi trong 30s");
+  const handleNotify = () =>
+    showToast("✓ Đã gửi OTT cho kíp trực · Phản hồi trong 30s");
 
   const visibleAmbs = filter === "all" ? ambulances : ambulances.filter((a) => a.status === filter);
-  const selectedAmb = ambulances.find((a) => a.id === selectedId) ?? null;
+  const selectedAmb = ambulances.find((a) => a.id === selectedId) ? null;
 
   // Danh sách hồ sơ dispatch — sắp xếp theo thời gian đến mới nhất
   const dispatchList = Object.values(dispatchRecords).sort((a, b) => b.addedAt - a.addedAt);
@@ -4347,7 +4680,7 @@ function AmbulanceView() {
     dispatchList.forEach((rec) => {
       if (rec.preAlertText && rec.preAlertText !== lastSpokenRef.current[rec.plate]) {
         lastSpokenRef.current[rec.plate] = rec.preAlertText;
-        const plateSpelled = rec.plate.split('').join(' ');
+        const plateSpelled = rec.plate.split("").join(" ");
         playTts(`Cảnh báo từ xe ${plateSpelled}: ${rec.preAlertText}`);
       }
     });
@@ -4368,10 +4701,21 @@ function AmbulanceView() {
               <AlertTriangle className="w-6 h-6 text-red-500 animate-pulse" />
               <h3 className="font-bold text-red-400">PHÁT HIỆN TÉ NGÃ</h3>
             </div>
-            <button onClick={() => setFallAlert(null)} className="text-gray-400 hover:text-white">✕</button>
+            <button onClick={() => setFallAlert(null)} className="text-gray-400 hover:text-white">
+              âœ•
+            </button>
           </div>
-          <p className="text-sm">Camera AI phát hiện sự cố ngã tại phòng <span className="font-bold text-red-300">{fallAlert.room}</span> lúc {fallAlert.time}</p>
-          {fallAlert.imageUrl && <img src={fallAlert.imageUrl} alt="Blurred Body" className="w-full rounded border border-red-900 mt-2" />}
+          <p className="text-sm">
+            Camera AI phát hiện sự cố ngã tại phòng{" "}
+            <span className="font-bold text-red-300">{fallAlert.room}</span> lúc {fallAlert.time}
+          </p>
+          {fallAlert.imageUrl && (
+            <img
+              src={fallAlert.imageUrl}
+              alt="Blurred Body"
+              className="w-full rounded border border-red-900 mt-2"
+            />
+          )}
         </div>
       )}
 
@@ -4399,10 +4743,19 @@ function AmbulanceView() {
                   className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition ${filter === f ? "text-slate-900" : "bg-white border border-slate-200 text-slate-500 hover:border-slate-400"}`}
                   style={filter === f ? { backgroundColor: ACCENT } : undefined}
                 >
-                  {f === "all" ? "Tất cả" : f === "critical" ? "Critical" : f === "urgent" ? "Urgent" : "Standby"}
+                  {f === "all"
+                    ? "Tất cả"
+                    : f === "critical"
+                      ? "Critical"
+                      : f === "urgent"
+                        ? "Urgent"
+                        : "Standby"}
                 </button>
               ))}
-              <span className="px-2 py-1 rounded text-[10px] font-geist uppercase tracking-wider text-slate-900 flex items-center gap-1" style={{ backgroundColor: ACCENT }}>
+              <span
+                className="px-2 py-1 rounded text-[10px] font-geist uppercase tracking-wider text-slate-900 flex items-center gap-1"
+                style={{ backgroundColor: ACCENT }}
+              >
                 <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
                 Live
               </span>
@@ -4413,7 +4766,11 @@ function AmbulanceView() {
           <div className="grid grid-cols-1 lg:grid-cols-2 lg:h-[400px]">
             {/* COL LEFT: Bản đồ xe cấp cứu */}
             <div className="relative border-r border-slate-100 overflow-hidden bg-slate-100 h-[300px] lg:h-auto min-h-[300px]">
-              <ClientAmbulanceMap ambulances={visibleAmbs} selectedId={selectedId} onSelect={handleSelectMap} />
+              <ClientAmbulanceMap
+                ambulances={visibleAmbs}
+                selectedId={selectedId}
+                onSelect={handleSelectMap}
+              />
               <div className="absolute bottom-2 left-2 z-[400] bg-white/90 text-[9px] text-slate-500 px-2 py-0.5 rounded shadow">
                 OpenStreetMap · BV Bạch Mai, Hà Nội
               </div>
@@ -4432,7 +4789,9 @@ function AmbulanceView() {
                   queue={ambulances}
                   activeId={selectedId}
                   onSelectQueue={handleSelectMap}
-                  onScanComplete={(plate) => handleSocketMessage({ type: 'GATE_OPEN', data: { plate } })}
+                  onScanComplete={(plate) =>
+                    handleSocketMessage({ type: "GATE_OPEN", data: { plate } })
+                  }
                 />
               </div>
             </div>
@@ -4451,11 +4810,16 @@ function AmbulanceView() {
                 Xử lý Hồ sơ Cấp cứu
               </h3>
               <p className="text-[11px] text-slate-500 font-geist">
-                {dispatchList.length > 0 ? `${dispatchList.length} xe đang trên đường` : "Chưa có xe nào đang trên đường"}
+                {dispatchList.length > 0
+                  ? `${dispatchList.length} xe đang trên đường`
+                  : "Chưa có xe nào đang trên đường"}
                 {" · "}Cập nhật tự động từ xe EMS
               </p>
             </div>
-            <span className="px-2 py-1 rounded text-[10px] font-geist uppercase tracking-wider text-slate-900 flex items-center gap-1" style={{ backgroundColor: ACCENT }}>
+            <span
+              className="px-2 py-1 rounded text-[10px] font-geist uppercase tracking-wider text-slate-900 flex items-center gap-1"
+              style={{ backgroundColor: ACCENT }}
+            >
               <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
               Realtime
             </span>
@@ -4465,8 +4829,12 @@ function AmbulanceView() {
           {dispatchList.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-slate-400">
               <Ambulance className="w-12 h-12 mb-3 opacity-30" />
-              <p className="text-sm font-medium">Chưa có xe cấp cứu nào đang trên đường</p>
-              <p className="text-xs mt-1">Khi đội EMS bật GPS từ xe, thông tin sẽ hiển thị tại đây</p>
+              <p className="text-sm font-medium">
+                Chưa có xe cấp cứu nào đang trên đường
+              </p>
+              <p className="text-xs mt-1">
+                Khi đội EMS bật GPS từ xe, thông tin sẽ hiển thị tại đây
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -4483,7 +4851,7 @@ function AmbulanceView() {
                     <th className="px-3 py-3 whitespace-nowrap">Liên hệ khẩn cấp</th>
                     <th className="px-3 py-3 whitespace-nowrap">Bệnh nền</th>
                     <th className="px-3 py-3 whitespace-nowrap">Dị ứng thuốc</th>
-                     <th className="px-3 py-3 whitespace-nowrap">Nhãn cấp cứu</th>
+                    <th className="px-3 py-3 whitespace-nowrap">Nhãn cấp cứu</th>
                     <th className="px-3 py-3 whitespace-nowrap">Cảnh báo trước (EMS)</th>
                     <th className="px-3 py-3 whitespace-nowrap">Chỉ định kíp CC</th>
                     <th className="px-3 py-3 whitespace-nowrap text-right">Thao tác</th>
@@ -4493,9 +4861,15 @@ function AmbulanceView() {
                   {dispatchList.map((rec) => {
                     const hasPatient = rec.patient_name !== null;
                     const isArrived = rec.eta === -1;
-                    const etaText = rec.eta !== null && rec.eta !== -1 ? `${Math.max(0, Math.round(rec.eta / 60))} phút` : null;
+                    const etaText =
+                      rec.eta !== null && rec.eta !== -1
+                        ? `${Math.max(0, Math.round(rec.eta / 60))} phút`
+                        : null;
                     return (
-                      <tr key={rec.plate} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80 transition-colors">
+                      <tr
+                        key={rec.plate}
+                        className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80 transition-colors"
+                      >
                         {/* Biển số */}
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-2">
@@ -4503,13 +4877,17 @@ function AmbulanceView() {
                               <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
                               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                             </span>
-                            <span className="font-mono font-bold text-slate-900 text-[13px]">{rec.plate}</span>
+                            <span className="font-mono font-bold text-slate-900 text-[13px]">
+                              {rec.plate}
+                            </span>
                           </div>
                         </td>
                         {/* ETA */}
                         <td className="px-3 py-3">
                           {isArrived ? (
-                            <span className="font-bold text-emerald-600 text-[13px] bg-emerald-100 px-2 py-1 rounded-md">Đã đến</span>
+                            <span className="font-bold text-emerald-600 text-[13px] bg-emerald-100 px-2 py-1 rounded-md">
+                              Đã đến
+                            </span>
                           ) : etaText ? (
                             <span className="font-bold text-orange-600 text-[13px]">{etaText}</span>
                           ) : (
@@ -4519,41 +4897,63 @@ function AmbulanceView() {
                         {/* Tên */}
                         <td className="px-3 py-3">
                           {hasPatient ? (
-                            <span className="font-semibold text-slate-900">{rec.patient_name || "—"}</span>
-                          ) : <LoadingCell />}
+                            <span className="font-semibold text-slate-900">
+                              {rec.patient_name || "—"}
+                            </span>
+                          ) : (
+                            <LoadingCell />
+                          )}
                         </td>
                         {/* Giới tính */}
                         <td className="px-3 py-3">
                           {hasPatient ? (
                             <span className="text-slate-700">{rec.gender || "—"}</span>
-                          ) : <LoadingCell />}
+                          ) : (
+                            <LoadingCell />
+                          )}
                         </td>
                         {/* Độ tuổi */}
                         <td className="px-3 py-3">
                           {hasPatient ? (
                             <span className="text-slate-700">{rec.age || "—"}</span>
-                          ) : <LoadingCell />}
+                          ) : (
+                            <LoadingCell />
+                          )}
                         </td>
                         {/* CCCD */}
                         <td className="px-3 py-3">
                           {hasPatient ? (
-                            <span className="font-mono text-[12px] text-slate-700">{rec.cccd || "—"}</span>
-                          ) : <LoadingCell />}
+                            <span className="font-mono text-[12px] text-slate-700">
+                              {rec.cccd || "—"}
+                            </span>
+                          ) : (
+                            <LoadingCell />
+                          )}
                         </td>
                         {/* Bảo hiểm Y Tế */}
                         <td className="px-3 py-3">
                           {hasPatient ? (
-                            <span className="font-mono text-[12px] text-slate-700">{rec.bhxhCode || "—"}</span>
-                          ) : <LoadingCell />}
+                            <span className="font-mono text-[12px] text-slate-700">
+                              {rec.bhxhCode || "—"}
+                            </span>
+                          ) : (
+                            <LoadingCell />
+                          )}
                         </td>
                         {/* Liên hệ khẩn cấp */}
                         <td className="px-3 py-3">
                           {hasPatient ? (
                             <div className="flex flex-col">
-                              <span className="text-[13px] font-semibold text-slate-900">{rec.emergencyContactName || "—"}</span>
-                              <span className="text-[11px] text-slate-500">{rec.emergencyContactPhone || ""}</span>
+                              <span className="text-[13px] font-semibold text-slate-900">
+                                {rec.emergencyContactName || "—"}
+                              </span>
+                              <span className="text-[11px] text-slate-500">
+                                {rec.emergencyContactPhone || ""}
+                              </span>
                             </div>
-                          ) : <LoadingCell />}
+                          ) : (
+                            <LoadingCell />
+                          )}
                         </td>
                         {/* Bệnh nền */}
                         <td className="px-3 py-3 max-w-[180px]">
@@ -4561,11 +4961,20 @@ function AmbulanceView() {
                             rec.chronic_conditions && rec.chronic_conditions.length > 0 ? (
                               <div className="flex flex-wrap gap-1">
                                 {rec.chronic_conditions.map((c: string) => (
-                                  <span key={c} className="px-1.5 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-700">{c}</span>
+                                  <span
+                                    key={c}
+                                    className="px-1.5 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-700"
+                                  >
+                                    {c}
+                                  </span>
                                 ))}
                               </div>
-                            ) : <span className="text-slate-400 text-xs">Không có</span>
-                          ) : <LoadingCell />}
+                            ) : (
+                              <span className="text-slate-400 text-xs">Không có</span>
+                            )
+                          ) : (
+                            <LoadingCell />
+                          )}
                         </td>
                         {/* Dị ứng */}
                         <td className="px-3 py-3 max-w-[160px]">
@@ -4573,28 +4982,46 @@ function AmbulanceView() {
                             rec.allergies && rec.allergies.length > 0 ? (
                               <div className="flex flex-wrap gap-1">
                                 {rec.allergies.map((a: string) => (
-                                  <span key={a} className="px-1.5 py-0.5 rounded-full bg-red-100 text-[10px] font-bold text-red-700 border border-red-200">{a}</span>
+                                  <span
+                                    key={a}
+                                    className="px-1.5 py-0.5 rounded-full bg-red-100 text-[10px] font-bold text-red-700 border border-red-200"
+                                  >
+                                    {a}
+                                  </span>
                                 ))}
                               </div>
-                            ) : <span className="text-slate-400 text-xs">Không có</span>
-                          ) : <LoadingCell />}
+                            ) : (
+                              <span className="text-slate-400 text-xs">Không có</span>
+                            )
+                          ) : (
+                            <LoadingCell />
+                          )}
                         </td>
                         {/* Nhãn cấp cứu */}
                         <td className="px-3 py-3">
                           {hasPatient ? (
                             rec.alert_label ? (
-                              <span className="px-2 py-1 rounded-lg text-[11px] font-bold text-red-700 bg-red-100 border border-red-200 whitespace-nowrap">{rec.alert_label}</span>
-                            ) : <span className="text-slate-400 text-xs">Chưa có</span>
-                          ) : <LoadingCell />}
+                              <span className="px-2 py-1 rounded-lg text-[11px] font-bold text-red-700 bg-red-100 border border-red-200 whitespace-nowrap">
+                                {rec.alert_label}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 text-xs">Chưa có</span>
+                            )
+                          ) : (
+                            <LoadingCell />
+                          )}
                         </td>
                         {/* Cảnh báo trước (EMS) */}
                         <td className="px-3 py-3 max-w-[200px]">
                           {rec.preAlertText ? (
                             <div className="flex flex-col gap-1">
-                              <span className="text-xs text-slate-800 font-semibold line-clamp-2" title={rec.preAlertText}>
+                              <span
+                                className="text-xs text-slate-800 font-semibold line-clamp-2"
+                                title={rec.preAlertText}
+                              >
                                 {rec.preAlertText}
                               </span>
-                              <button 
+                              <button
                                 type="button"
                                 onClick={() => playTts(rec.preAlertText)}
                                 className="inline-flex items-center gap-1 text-[10px] text-cyan-600 hover:text-cyan-700 font-bold bg-cyan-50 px-1.5 py-0.5 rounded border border-cyan-100 w-fit active:scale-95 transition-transform"
@@ -4613,7 +5040,11 @@ function AmbulanceView() {
                             plate={rec.plate}
                             currentTeam={rec.er_team || rec.erTeam}
                             onUpdate={(val) => {
-                              supabase.from('dispatch_records').update({ er_team: val }).eq('plate', rec.plate).then();
+                              supabase
+                                .from("dispatch_records")
+                                .update({ er_team: val })
+                                .eq("plate", rec.plate)
+                                .then();
                               setDispatchRecords((prev) => ({
                                 ...prev,
                                 [rec.plate]: { ...prev[rec.plate], er_team: val, erTeam: val },
@@ -4624,9 +5055,13 @@ function AmbulanceView() {
                         <td className="px-3 py-3 text-right">
                           <button
                             onClick={() => {
-                              supabase.from('dispatch_records').update({ status: 'completed', completed_at: Date.now() }).eq('plate', rec.plate).then(() => {
-                                showToast(`Đã hoàn thành hồ sơ xe ${rec.plate}`);
-                              });
+                              supabase
+                                .from("dispatch_records")
+                                .update({ status: "completed", completed_at: Date.now() })
+                                .eq("plate", rec.plate)
+                                .then(() => {
+                                  showToast(`Đã hoàn thành hồ sơ xe ${rec.plate}`);
+                                });
                             }}
                             className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition-colors"
                           >
@@ -4641,8 +5076,6 @@ function AmbulanceView() {
             </div>
           )}
         </div>
-        
-
       </div>
     </>
   );
@@ -4661,7 +5094,7 @@ function LoadingCell() {
 function AssignDepartmentCell({
   plate,
   currentTeam,
-  onUpdate
+  onUpdate,
 }: {
   plate: string;
   currentTeam?: string;
@@ -4669,36 +5102,36 @@ function AssignDepartmentCell({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedDept, setSelectedDept] = useState(currentTeam || "");
-  const [departments, setDepartments] = useState<{id: string, name: string, color: string}[]>([]);
+  const [departments, setDepartments] = useState<{ id: string; name: string; color: string }[]>([]);
 
   useEffect(() => {
-    fetchApi('/admin/departments')
+    fetchApi("/admin/departments")
       .then((data: any[]) => {
         const colors = [
-          'text-red-700 bg-red-100 border-red-200',
-          'text-orange-700 bg-orange-100 border-orange-200',
-          'text-blue-700 bg-blue-100 border-blue-200',
-          'text-purple-700 bg-purple-100 border-purple-200',
-          'text-green-700 bg-green-100 border-green-200',
-          'text-teal-700 bg-teal-100 border-teal-200'
+          "text-red-700 bg-red-100 border-red-200",
+          "text-orange-700 bg-orange-100 border-orange-200",
+          "text-blue-700 bg-blue-100 border-blue-200",
+          "text-purple-700 bg-purple-100 border-purple-200",
+          "text-green-700 bg-green-100 border-green-200",
+          "text-teal-700 bg-teal-100 border-teal-200",
         ];
         const mapped = data.map((d, i) => ({
           id: d.id,
           name: d.name,
-          color: colors[i % colors.length]
+          color: colors[i % colors.length],
         }));
         setDepartments(mapped);
       })
       .catch(console.error);
   }, []);
 
-  const matchedDept = departments.find(d => d.name === currentTeam);
+  const matchedDept = departments.find((d) => d.name === currentTeam);
 
   if (!isOpen && currentTeam) {
     return (
-      <button 
+      <button
         onClick={() => setIsOpen(true)}
-        className={`px-2 py-1 rounded-lg text-[11px] font-bold border whitespace-nowrap transition-colors hover:opacity-80 ${matchedDept ? matchedDept.color : 'text-slate-700 bg-slate-100 border-slate-200'}`}
+        className={`px-2 py-1 rounded-lg text-[11px] font-bold border whitespace-nowrap transition-colors hover:opacity-80 ${matchedDept ? matchedDept.color : "text-slate-700 bg-slate-100 border-slate-200"}`}
       >
         {currentTeam}
       </button>
@@ -4707,7 +5140,7 @@ function AssignDepartmentCell({
 
   if (!isOpen) {
     return (
-      <button 
+      <button
         onClick={() => setIsOpen(true)}
         className="px-3 py-1.5 bg-cyan-50 text-cyan-600 hover:bg-cyan-100 hover:text-cyan-700 border border-cyan-200 text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
       >
@@ -4718,19 +5151,23 @@ function AssignDepartmentCell({
 
   return (
     <div className="relative flex flex-col gap-1 z-10">
-      <select 
-        value={selectedDept} 
-        onChange={e => setSelectedDept(e.target.value)}
+      <select
+        value={selectedDept}
+        onChange={(e) => setSelectedDept(e.target.value)}
         className="w-36 px-2 py-1 text-xs border border-slate-200 rounded-lg outline-none bg-white focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400"
         autoFocus
       >
-        <option value="" disabled>Chọn khoa...</option>
-        {departments.map(d => (
-          <option key={d.id} value={d.name}>{d.name}</option>
+        <option value="" disabled>
+          Chọn khoa...
+        </option>
+        {departments.map((d) => (
+          <option key={d.id} value={d.name}>
+            {d.name}
+          </option>
         ))}
       </select>
       <div className="flex gap-1">
-        <button 
+        <button
           onClick={() => {
             if (selectedDept) {
               onUpdate(selectedDept);
@@ -4741,7 +5178,7 @@ function AssignDepartmentCell({
         >
           Xác nhận
         </button>
-        <button 
+        <button
           onClick={() => {
             setIsOpen(false);
             setSelectedDept(currentTeam || "");
@@ -4828,9 +5265,21 @@ function ErStaffCard({ onCall }: { onCall: (name: string) => void }) {
 function ErRoomReadinessCard() {
   const rows = [
     { icon: "green", label: "Hệ thống làm mát", value: "22°C · Đang bật tự động" },
-    { icon: "check", label: "Máy thở chuyên dụng (Ventilator)", value: "Sẵn sàng kết nối" },
-    { icon: "amber", label: "Máy sốc tim (Defibrillator)", value: "Đang sạc nguồn khẩn cấp" },
-    { icon: "led", label: "Đèn hành lang dẫn đường", value: "Đã kích hoạt dải LED hướng dẫn" },
+    {
+      icon: "check",
+      label: "Máy thở chuyên dụng (Ventilator)",
+      value: "Sẵn sàng kết nối",
+    },
+    {
+      icon: "amber",
+      label: "Máy sốc tim (Defibrillator)",
+      value: "Đang sạc nguồn khẩn cấp",
+    },
+    {
+      icon: "led",
+      label: "Đèn hành lang dẫn đường",
+      value: "Đã kích hoạt dải LED hướng dẫn",
+    },
   ];
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-3">
@@ -4921,7 +5370,7 @@ function RealAmbulanceMap({
       </div>
       {/* Ambulance markers overlay */}
       {ambulances.map((amb) => {
-        const pos = positions[amb.id] ?? { top: "50%", left: "50%" };
+        const pos = positions[amb.id] ? { top: "50%", left: "50%" };
         const color =
           amb.status === "critical" ? "#EF4444" : amb.status === "urgent" ? "#F59E0B" : "#10B981";
         const isSel = selectedId === amb.id;
@@ -5102,8 +5551,8 @@ function RecordsView() {
         method: "POST",
         body: JSON.stringify({
           name: nameInput,
-          cccd: cccdInput
-        })
+          cccd: cccdInput,
+        }),
       });
       if (res.status === "success" || res.ticket_id) {
         // Now lookup patient info again
@@ -5142,7 +5591,7 @@ function RecordsView() {
         // eKYC OCR via Backend
         const ocrRes = await fetchApi("/patient/ekyc/cccd", {
           method: "POST",
-          body: JSON.stringify({ image_base64: base64 })
+          body: JSON.stringify({ image_base64: base64 }),
         });
         if (ocrRes.status === "success" && ocrRes.data) {
           const ocrCccd = ocrRes.data.cccd;
@@ -5164,7 +5613,9 @@ function RecordsView() {
             }
           } else {
             setScanning(false);
-            setIdentityError("Không nhận dạng được thông tin trên thẻ CCCD. Vui lòng chụp rõ hơn hoặc tự nhập.");
+            setIdentityError(
+              "Không nhận dạng được thông tin trên thẻ CCCD. Vui lòng chụp rõ hơn hoặc tự nhập.",
+            );
           }
         } else {
           setScanning(false);
@@ -5190,8 +5641,8 @@ function RecordsView() {
         method: "POST",
         body: JSON.stringify({
           far_image_base64: cccdImage || "data:image/jpeg;base64,...",
-          near_image_base64: "data:image/jpeg;base64,..."
-        })
+          near_image_base64: "data:image/jpeg;base64,...",
+        }),
       });
       if (res.status === "success") {
         setEkycStatus("success");
@@ -5238,9 +5689,12 @@ function RecordsView() {
           <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-3">
             <CircleAlert className="w-6 h-6 text-red-600" />
           </div>
-          <h3 className="text-lg font-bold text-slate-900 mb-2">Không tải được hồ sơ bệnh nhân</h3>
+          <h3 className="text-lg font-bold text-slate-900 mb-2">
+            Không tải được hồ sơ bệnh nhân
+          </h3>
           <p className="text-sm text-slate-500 mb-5">
-            Phiên định danh không có bệnh nhân hợp lệ. Vui lòng quay lại và quét lại CCCD.
+            Phiên định danh không có bệnh nhân hợp lệ. Vui lòng quay lại và quét
+            lại CCCD.
           </p>
           <button
             onClick={handleBack}
@@ -5261,7 +5715,9 @@ function RecordsView() {
         <div className="animate-in fade-in zoom-in-95 flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm duration-300 sm:p-6">
           <div className="mb-5 text-center sm:mb-6">
             <h3 className="text-xl font-bold text-slate-900 mb-2">Định danh Bệnh nhân</h3>
-            <p className="text-slate-500 text-sm">Vui lòng chọn phương thức cung cấp thông tin</p>
+            <p className="text-slate-500 text-sm">
+              Vui lòng chọn phương thức cung cấp thông tin
+            </p>
           </div>
 
           {/* Tabs for choosing method */}
@@ -5286,10 +5742,16 @@ function RecordsView() {
                 <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-3">
                   <User className="w-6 h-6 text-amber-700" />
                 </div>
-                <h4 className="text-base font-bold text-slate-900 mb-1">Chưa có hồ sơ bệnh nhân</h4>
+                <h4 className="text-base font-bold text-slate-900 mb-1">
+                  Chưa có hồ sơ bệnh nhân
+                </h4>
                 <p className="text-sm text-slate-600 mb-4">
-                  Không tìm thấy hồ sơ cho CCCD số <span className="font-mono font-bold text-slate-800">{cccdInput}</span> ({nameInput || "Chưa rõ tên"}).
-                  <br />Bạn có muốn tạo hồ sơ nhập viện nhanh (Walk-in) vào Supabase không?
+                  Không tìm thấy hồ sơ cho CCCD số{" "}
+                  <span className="font-mono font-bold text-slate-800">{cccdInput}</span> (
+                  {nameInput || "Chưa rõ tên"}).
+                  <br />
+                  Bạn có muốn tạo hồ sơ nhập viện nhanh (Walk-in) vào Supabase
+                  không?
                 </p>
                 <div className="flex gap-3 justify-center">
                   <button
@@ -5316,7 +5778,9 @@ function RecordsView() {
                     <label
                       htmlFor="cccd-file"
                       className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed transition-all cursor-pointer overflow-hidden ${
-                        cccdImage ? "border-slate-300" : "border-slate-300 hover:border-cyan-400 bg-slate-50/50"
+                        cccdImage
+                          ? "border-slate-300"
+                          : "border-slate-300 hover:border-cyan-400 bg-slate-50/50"
                       }`}
                       style={{ aspectRatio: "86/54" }}
                     >
@@ -5332,14 +5796,12 @@ function RecordsView() {
 
                       {cccdImage ? (
                         <>
-                          <img
-                            src={cccdImage}
-                            alt="CCCD"
-                            className="w-full h-full object-cover"
-                          />
+                          <img src={cccdImage} alt="CCCD" className="w-full h-full object-cover" />
                           <div className="absolute inset-0 bg-black/45 flex flex-col justify-end p-4">
                             <p className="text-white text-xs font-semibold">Ảnh đã chọn</p>
-                            <p className="text-[10px] text-white/70">Click để chọn ảnh khác</p>
+                            <p className="text-[10px] text-white/70">
+                              Click để chọn ảnh khác
+                            </p>
                           </div>
                         </>
                       ) : (
@@ -5347,8 +5809,12 @@ function RecordsView() {
                           <div className="w-12 h-12 rounded-full bg-cyan-50 flex items-center justify-center mb-3 text-cyan-500">
                             <Upload className="w-5 h-5" />
                           </div>
-                          <p className="text-sm font-bold text-slate-800">Chụp hoặc Tải lên mặt trước CCCD</p>
-                          <p className="text-[11px] text-slate-400 mt-1">Hỗ trợ eKYC tự động trích xuất thông tin</p>
+                          <p className="text-sm font-bold text-slate-800">
+                            Chụp hoặc Tải lên mặt trước CCCD
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-1">
+                            Hỗ trợ eKYC tự động trích xuất thông tin
+                          </p>
                         </div>
                       )}
 
@@ -5373,7 +5839,11 @@ function RecordsView() {
                         <div className="flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
                           <span className="text-xs font-mono font-bold text-slate-700">
-                            {scanning ? "Đang gọi eKYC..." : cccdInput ? `CCCD: ${cccdInput}` : "Đã tải lên"}
+                            {scanning
+                              ? "Đang gọi eKYC..."
+                              : cccdInput
+                                ? `CCCD: ${cccdInput}`
+                                : "Đã tải lên"}
                           </span>
                         </div>
                         <button
@@ -5393,7 +5863,9 @@ function RecordsView() {
                 ) : (
                   <div className="flex flex-col gap-4 max-w-md mx-auto w-full">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Số CCCD</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Số CCCD
+                      </label>
                       <div className="relative">
                         <ScanLine className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input
@@ -5409,7 +5881,9 @@ function RecordsView() {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Họ và Tên</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Họ và Tên
+                      </label>
                       <div className="relative">
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input
@@ -5458,7 +5932,7 @@ function RecordsView() {
                   <div
                     className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${scanStep > idx ? "bg-emerald-500 text-white" : scanStep === idx ? "bg-slate-200 text-slate-800" : "bg-slate-100 text-slate-400"}`}
                   >
-                    {scanStep > idx ? "✓" : idx + 1}
+                    {scanStep > idx ? "âœ“" : idx + 1}
                   </div>
                   <span
                     className={`text-xs ${scanStep >= idx ? "text-slate-800" : "text-slate-400"}`}
@@ -6143,7 +6617,8 @@ function EkycPanel() {
 
         {status === "success" && (
           <div className="mt-3 pt-3 border-t border-slate-100 text-center text-[11px] font-geist text-slate-700 animate-in fade-in duration-300">
-            Trạng thái: <span className="font-bold text-emerald-600">Thực thể sống (Live)</span>
+            Trạng thái:{" "}
+            <span className="font-bold text-emerald-600">Thực thể sống (Live)</span>
             <span className="text-slate-400 mx-2">|</span>
             Độ lệch: <span className="font-bold text-slate-900">0.02%</span>
           </div>
@@ -6350,6 +6825,8 @@ const TRANSCRIPT_FULL =
   "Bệnh nhân nam sáu mươi hai tuổi, vào viện vì đau ngực và khó thở. Khám lâm sàng huyết áp một trăm bốn mươi trên chín mươi, mạch chín mươi lăm. Chẩn đoán theo dõi tăng huyết áp độ hai kèm đau thắt ngực. Y lệnh Amlodipin năm miligam uống một viên mỗi sáng, theo dõi nhịp tim trong bốn mươi tám giờ.";
 
 function VoiceView() {
+  const isMobile = useIsMobile();
+  const [mobilePanel, setMobilePanel] = useState<"record" | "soap">("record");
   const [recording, setRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -6373,7 +6850,9 @@ function VoiceView() {
         (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
       if (!SpeechRecognition) {
-        setErrorMsg("Trình duyệt không hỗ trợ nhận dạng giọng nói. Vui lòng dùng Google Chrome.");
+        setErrorMsg(
+          "Trình duyệt không hỗ trợ nhận dạng giọng nói. Vui lòng dùng Google Chrome.",
+        );
         return;
       }
 
@@ -6453,16 +6932,47 @@ function VoiceView() {
       {showSignedEMR ? (
         <SignedEMRView soapeData={soapeData} onClose={() => setShowSignedEMR(false)} />
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
+        <div className="space-y-3">
+          {isMobile && (
+            <div className="flex gap-1 rounded-xl bg-slate-100 p-1 md:hidden">
+              {(
+                [
+                  { id: "record" as const, label: "Ghi âm" },
+                  { id: "soap" as const, label: "Mẫu SOAPE" },
+                ] as const
+              ).map(({ id, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setMobilePanel(id)}
+                  className={`flex-1 rounded-lg py-2.5 text-[13px] font-semibold transition-all ${
+                    mobilePanel === id
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-500 active:text-slate-700"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
           {/* LEFT: Recording + transcript */}
-          <div className="flex min-h-[520px] flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6 lg:h-[620px]">
+          <div
+            className={`flex flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6 lg:h-[620px] ${
+              isMobile ? (mobilePanel === "record" ? "min-h-0" : "hidden") : "min-h-[520px]"
+            }`}
+          >
             <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <h3 className="text-lg font-medium text-slate-900">Ghi âm Lâm sàng</h3>
               <span
                 className="flex w-fit items-center gap-1 rounded px-2 py-1 text-[10px] uppercase tracking-wider text-slate-900 font-geist transition-colors duration-300"
                 style={{ backgroundColor: recording ? ACCENT : "#F1F5F9" }}
               >
-                {recording && <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />}
+                {recording && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
+                )}
                 {recording ? "Đang ghi" : "Sẵn sàng"}
               </span>
             </div>
@@ -6481,27 +6991,27 @@ function VoiceView() {
               <p className="mt-2 text-[13px] font-geist uppercase tracking-wider text-slate-500">
                 BS. Văn Ngữ · Phòng 103
               </p>
-              
+
               {!recording ? (
-                 <button
+                <button
                   onClick={startRecording}
                   disabled={isProcessing}
-                  className="mt-3 flex items-center gap-2 rounded-full px-5 py-2.5 text-base font-medium text-slate-900 transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed sm:px-6"
+                  className="mt-3 flex min-h-[48px] items-center gap-2 rounded-full px-6 py-3 text-base font-semibold text-slate-900 transition hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:px-6 sm:py-2.5 sm:font-medium"
                   style={{ backgroundColor: ACCENT }}
                 >
-                  <Play className="w-4 h-4" /> Bắt đầu thu
+                  <Play className="w-5 h-5" /> Bắt đầu thu
                 </button>
               ) : (
                 <button
                   onClick={stopRecording}
-                  className="mt-3 flex items-center gap-2 rounded-full px-5 py-2.5 text-base font-medium text-white transition hover:opacity-90 animate-pulse sm:px-6"
+                  className="mt-3 flex min-h-[48px] items-center gap-2 rounded-full px-6 py-3 text-base font-semibold text-white transition hover:opacity-90 active:scale-[0.98] animate-pulse sm:px-6 sm:py-2.5 sm:font-medium"
                   style={{ backgroundColor: "#ef4444" }}
                 >
-                  <StopCircle className="w-4 h-4" /> Dừng & Xử lý
+                  <StopCircle className="w-5 h-5" /> Dừng & Xử lý
                 </button>
               )}
             </div>
-            
+
             {errorMsg && (
               <div className="mt-2 bg-red-50 text-red-600 p-2 rounded-md text-sm font-medium text-center">
                 {errorMsg}
@@ -6513,20 +7023,26 @@ function VoiceView() {
                 Phiên âm thô (raw speech)
               </p>
               {isProcessing ? (
-                 <div className="flex items-center text-slate-400 space-x-2 mt-4">
-                   <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" />
-                   <span className="text-base">Đang phân tích SOAPE qua AI...</span>
-                 </div>
+                <div className="flex items-center text-slate-400 space-x-2 mt-4">
+                  <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" />
+                  <span className="text-base">Đang phân tích SOAPE qua AI...</span>
+                </div>
               ) : (
-                 <p className="text-base text-slate-800 italic leading-relaxed whitespace-pre-wrap">
-                   {recording ? (liveTranscript || "Đang lắng nghe...") : (transcript || "Chưa có dữ liệu...")}
-                 </p>
+                <p className="text-base text-slate-800 italic leading-relaxed whitespace-pre-wrap">
+                  {recording
+                    ? liveTranscript || "Đang lắng nghe..."
+                    : transcript || "Chưa có dữ liệu..."}
+                </p>
               )}
             </div>
           </div>
 
           {/* RIGHT: SOAPE Form */}
-          <div className="flex min-h-[520px] flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6 lg:h-[620px]">
+          <div
+            className={`flex flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6 lg:h-[620px] ${
+              isMobile ? (mobilePanel === "soap" ? "min-h-0" : "hidden") : "min-h-[520px]"
+            }`}
+          >
             <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <h3 className="text-xl font-medium text-slate-900">EMR · Mẫu SOAPE</h3>
               <span className="flex items-center gap-1 text-[12px] uppercase tracking-wider text-slate-500 font-geist">
@@ -6566,17 +7082,23 @@ function VoiceView() {
               />
             </div>
             <button
-              className="mt-4 rounded-lg py-3 text-base font-bold text-slate-900 transition hover:opacity-90 disabled:opacity-50 flex items-center justify-center space-x-2"
+              className="mt-4 flex min-h-[48px] items-center justify-center space-x-2 rounded-lg py-3 text-base font-bold text-slate-900 transition hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
               style={{ backgroundColor: ACCENT }}
               disabled={!soapeData || isProcessing}
               onClick={() => setShowSignedEMR(true)}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                />
               </svg>
               <span>Xác nhận và Ký số</span>
             </button>
           </div>
+        </div>
         </div>
       )}
     </>
@@ -6599,26 +7121,27 @@ function SignedEMRView({ soapeData, onClose }: { soapeData: any; onClose: () => 
       try {
         const element = document.getElementById("emr-document");
         if (!element) return;
-        
+
         // Hide actions temporarily
         const actions = element.querySelector(".print\\:hidden") as HTMLElement;
         if (actions) actions.style.display = "none";
 
         // Use html-to-image which supports modern CSS via foreignObject
-        (window as any).htmlToImage.toPng(element, { quality: 0.95, pixelRatio: 2, backgroundColor: '#ffffff' })
+        (window as any).htmlToImage
+          .toPng(element, { quality: 0.95, pixelRatio: 2, backgroundColor: "#ffffff" })
           .then((dataUrl: string) => {
             if (actions) actions.style.display = ""; // restore
-            
+
             const { jsPDF } = (window as any).jspdf;
             const pdf = new jsPDF({
               orientation: "portrait",
               unit: "mm",
-              format: "a4"
+              format: "a4",
             });
-            
+
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pdfHeight = (element.clientHeight * pdfWidth) / element.clientWidth;
-            
+
             pdf.addImage(dataUrl, "PNG", 0, 0, pdfWidth, pdfHeight);
             pdf.save("Benh_An_Dien_Tu.pdf");
           })
@@ -6644,13 +7167,17 @@ function SignedEMRView({ soapeData, onClose }: { soapeData: any; onClose: () => 
 
     if (!(window as any).htmlToImage || !(window as any).jspdf) {
       Promise.all([
-        loadScript("https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"),
-        loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js")
-      ]).then(() => {
-        executeSave();
-      }).catch(() => {
-        alert("Không thể tải thư viện tạo PDF. Vui lòng kiểm tra mạng.");
-      });
+        loadScript(
+          "https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js",
+        ),
+        loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"),
+      ])
+        .then(() => {
+          executeSave();
+        })
+        .catch(() => {
+          alert("Không thể tải thư viện tạo PDF. Vui lòng kiểm tra mạng.");
+        });
     } else {
       executeSave();
     }
@@ -6658,105 +7185,229 @@ function SignedEMRView({ soapeData, onClose }: { soapeData: any; onClose: () => 
 
   return (
     <div className="mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto w-full pb-20">
-      <div id="emr-document" className="rounded-2xl shadow-xl border overflow-hidden print:shadow-none print:border-none" style={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0" }}>
+      <div
+        id="emr-document"
+        className="rounded-2xl shadow-xl border overflow-hidden print:shadow-none print:border-none"
+        style={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0" }}
+      >
         {/* Hospital Header */}
-        <div className="border-b p-8 flex justify-between items-start" style={{ backgroundColor: "#f8fafc", borderColor: "#e2e8f0" }}>
+        <div
+          className="border-b p-8 flex justify-between items-start"
+          style={{ backgroundColor: "#f8fafc", borderColor: "#e2e8f0" }}
+        >
           <div className="flex items-center space-x-4">
-            <div className="w-16 h-16 rounded-xl flex items-center justify-center shadow-inner" style={{ backgroundColor: "#2563eb" }}>
-              <span className="font-bold text-2xl tracking-tighter" style={{ color: "#ffffff" }}>EyeCU</span>
+            <div
+              className="w-16 h-16 rounded-xl flex items-center justify-center shadow-inner"
+              style={{ backgroundColor: "#2563eb" }}
+            >
+              <span className="font-bold text-2xl tracking-tighter" style={{ color: "#ffffff" }}>
+                EyeCU
+              </span>
             </div>
             <div>
-              <h1 className="text-2xl font-black tracking-tight uppercase" style={{ color: "#0f172a" }}>Bệnh viện Đa Khoa EyeCU</h1>
-              <p className="text-sm mt-1" style={{ color: "#64748b" }}>123 Đường Y Tế, Phường Sức Khoẻ, TP.Hồ Chí Minh</p>
-              <p className="text-sm" style={{ color: "#64748b" }}>Điện thoại: 1900 1234 — Website: eyecu.vn</p>
+              <h1
+                className="text-2xl font-black tracking-tight uppercase"
+                style={{ color: "#0f172a" }}
+              >
+                Bệnh viện Đa Khoa EyeCU
+              </h1>
+              <p className="text-sm mt-1" style={{ color: "#64748b" }}>
+                123 Đường Y Tế, Phường Sức Khoẻ, TP.Hồ Chí Minh
+              </p>
+              <p className="text-sm" style={{ color: "#64748b" }}>
+                Điện thoại: 1900 1234 — Website: eyecu.vn
+              </p>
             </div>
           </div>
           <div className="text-right">
-            <h2 className="text-xl font-bold uppercase tracking-widest" style={{ color: "#1e293b" }}>Bệnh án điện tử</h2>
-            <p className="font-mono text-sm mt-1" style={{ color: "#64748b" }}>Mã BA: EMR-{Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}</p>
-            <p className="text-sm" style={{ color: "#64748b" }}>Ngày: {dateStr.split(' ')[1]}</p>
+            <h2
+              className="text-xl font-bold uppercase tracking-widest"
+              style={{ color: "#1e293b" }}
+            >
+              Bệnh án điện tử
+            </h2>
+            <p className="font-mono text-sm mt-1" style={{ color: "#64748b" }}>
+              Mã BA: EMR-
+              {Math.floor(Math.random() * 1000000)
+                .toString()
+                .padStart(6, "0")}
+            </p>
+            <p className="text-sm" style={{ color: "#64748b" }}>
+              Ngày: {dateStr.split(" ")[1]}
+            </p>
           </div>
         </div>
 
         {/* Patient Info */}
-        <div className="p-8 border-b" style={{ backgroundColor: "#ffffff", borderColor: "#f1f5f9" }}>
+        <div
+          className="p-8 border-b"
+          style={{ backgroundColor: "#ffffff", borderColor: "#f1f5f9" }}
+        >
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div>
-              <p className="text-xs uppercase tracking-widest font-bold mb-1" style={{ color: "#94a3b8" }}>Họ tên người bệnh</p>
-              <p className="text-lg font-bold uppercase" style={{ color: "#1e293b" }}>Nguyễn Văn A</p>
+              <p
+                className="text-xs uppercase tracking-widest font-bold mb-1"
+                style={{ color: "#94a3b8" }}
+              >
+                Họ tên người bệnh
+              </p>
+              <p className="text-lg font-bold uppercase" style={{ color: "#1e293b" }}>
+                Nguyễn Văn A
+              </p>
             </div>
             <div>
-              <p className="text-xs uppercase tracking-widest font-bold mb-1" style={{ color: "#94a3b8" }}>Tuổi</p>
-              <p className="text-lg font-bold" style={{ color: "#1e293b" }}>45</p>
+              <p
+                className="text-xs uppercase tracking-widest font-bold mb-1"
+                style={{ color: "#94a3b8" }}
+              >
+                Tuổi
+              </p>
+              <p className="text-lg font-bold" style={{ color: "#1e293b" }}>
+                45
+              </p>
             </div>
             <div>
-              <p className="text-xs uppercase tracking-widest font-bold mb-1" style={{ color: "#94a3b8" }}>Giới tính</p>
-              <p className="text-lg font-bold" style={{ color: "#1e293b" }}>Nam</p>
+              <p
+                className="text-xs uppercase tracking-widest font-bold mb-1"
+                style={{ color: "#94a3b8" }}
+              >
+                Giới tính
+              </p>
+              <p className="text-lg font-bold" style={{ color: "#1e293b" }}>
+                Nam
+              </p>
             </div>
             <div>
-              <p className="text-xs uppercase tracking-widest font-bold mb-1" style={{ color: "#94a3b8" }}>Mã BN</p>
-              <p className="text-lg font-mono font-bold" style={{ color: "#1e293b" }}>P-12345</p>
+              <p
+                className="text-xs uppercase tracking-widest font-bold mb-1"
+                style={{ color: "#94a3b8" }}
+              >
+                Mã BN
+              </p>
+              <p className="text-lg font-mono font-bold" style={{ color: "#1e293b" }}>
+                P-12345
+              </p>
             </div>
           </div>
         </div>
 
         {/* Clinical Notes (SOAPE) */}
         <div className="p-8 space-y-8" style={{ backgroundColor: "#ffffff" }}>
-          <Section icon="S" title="Lý do vào viện (Subjective)" content={soapeData?.subjective} />
+          <Section
+            icon="S"
+            title="Lý do vào viện (Subjective)"
+            content={soapeData?.subjective}
+          />
           <Section icon="O" title="Khám lâm sàng (Objective)" content={soapeData?.objective} />
-          <Section icon="A" title="Chẩn đoán (Assessment)" content={soapeData?.assessment} highlight />
+          <Section
+            icon="A"
+            title="Chẩn đoán (Assessment)"
+            content={soapeData?.assessment}
+            highlight
+          />
           <Section icon="P" title="Y lệnh & Xử trí (Plan)" content={soapeData?.plan} />
           <Section icon="E" title="Đánh giá lại (Evaluation)" content={soapeData?.evaluation} />
         </div>
 
         {/* Footer & Signature */}
-        <div className="p-8 flex justify-between items-end border-t" style={{ backgroundColor: "#f8fafc", borderColor: "#e2e8f0" }}>
+        <div
+          className="p-8 flex justify-between items-end border-t"
+          style={{ backgroundColor: "#f8fafc", borderColor: "#e2e8f0" }}
+        >
           <div className="text-xs max-w-xs" style={{ color: "#94a3b8" }}>
-            Bệnh án điện tử được ký số và lưu trữ theo chuẩn HL7 FHIR. Bản in chỉ có giá trị tham khảo.
+            Bệnh án điện tử được ký số và lưu trữ theo chuẩn HL7 FHIR. Bản in
+            chỉ có giá trị tham khảo.
           </div>
           <div className="text-center relative">
             {/* Digital Signature Badge */}
             <div className="absolute -top-12 -left-12 rotate-[-15deg] opacity-80 print:opacity-100">
-              <div className="border-4 rounded-full w-28 h-28 flex items-center justify-center p-1 relative shadow-sm backdrop-blur-sm" style={{ borderColor: "#ef4444", backgroundColor: "rgba(255,255,255,0.5)" }}>
-                <div className="border rounded-full w-full h-full flex flex-col items-center justify-center font-bold tracking-tighter" style={{ borderColor: "#ef4444", color: "#dc2626" }}>
+              <div
+                className="border-4 rounded-full w-28 h-28 flex items-center justify-center p-1 relative shadow-sm backdrop-blur-sm"
+                style={{ borderColor: "#ef4444", backgroundColor: "rgba(255,255,255,0.5)" }}
+              >
+                <div
+                  className="border rounded-full w-full h-full flex flex-col items-center justify-center font-bold tracking-tighter"
+                  style={{ borderColor: "#ef4444", color: "#dc2626" }}
+                >
                   <span className="text-[10px] uppercase">Ký số hợp lệ</span>
-                  <svg className="w-5 h-5 my-0.5" style={{ color: "#dc2626" }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
-                  <span className="text-[8px] font-mono">{dateStr.split(' ')[0]}</span>
+                  <svg
+                    className="w-5 h-5 my-0.5"
+                    style={{ color: "#dc2626" }}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="3"
+                      d="M5 13l4 4L19 7"
+                    ></path>
+                  </svg>
+                  <span className="text-[8px] font-mono">{dateStr.split(" ")[0]}</span>
                 </div>
               </div>
             </div>
-            
-            <p className="font-bold mb-6 relative z-10" style={{ color: "#1e293b" }}>BÁC SĨ ĐIỀU TRỊ</p>
-            <div className="font-[cursive] text-4xl mb-4 opacity-90 relative z-10 select-none" style={{ color: "#1e40af" }}>Văn Ngữ</div>
-            <p className="font-bold uppercase tracking-widest relative z-10" style={{ color: "#0f172a" }}>BS. VĂN NGỮ</p>
-            <p className="text-sm mt-1 relative z-10" style={{ color: "#64748b" }}>Chứng chỉ: CCHN-12345/BYT</p>
+
+            <p className="font-bold mb-6 relative z-10" style={{ color: "#1e293b" }}>
+              BÁC SĨ ĐIỀU TRỊ
+            </p>
+            <div
+              className="font-[cursive] text-4xl mb-4 opacity-90 relative z-10 select-none"
+              style={{ color: "#1e40af" }}
+            >
+              Văn Ngữ
+            </div>
+            <p
+              className="font-bold uppercase tracking-widest relative z-10"
+              style={{ color: "#0f172a" }}
+            >
+              BS. VĂN NGỮ
+            </p>
+            <p className="text-sm mt-1 relative z-10" style={{ color: "#64748b" }}>
+              Chứng chỉ: CCHN-12345/BYT
+            </p>
           </div>
         </div>
       </div>
 
       {/* Actions */}
       <div className="mt-8 flex justify-center space-x-4 print:hidden">
-        <button 
+        <button
           onClick={onClose}
           className="px-6 py-2.5 rounded-full border-2 font-bold transition-all active:scale-95"
           style={{ borderColor: "#e2e8f0", color: "#475569", backgroundColor: "transparent" }}
         >
           Quay lại
         </button>
-        <button 
+        <button
           onClick={handleSavePDF}
           className="px-6 py-2.5 rounded-full font-bold transition-all active:scale-95 shadow-md hover:shadow-lg flex items-center space-x-2"
           style={{ backgroundColor: "#1e293b", color: "#ffffff" }}
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+            ></path>
+          </svg>
           <span>Lưu PDF</span>
         </button>
-        <button 
+        <button
           onClick={() => window.print()}
           className="px-6 py-2.5 rounded-full font-bold transition-all active:scale-95 shadow-md hover:shadow-lg flex items-center space-x-2"
           style={{ backgroundColor: ACCENT, color: "#0f172a" }}
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+            ></path>
+          </svg>
           <span>In bệnh án</span>
         </button>
       </div>
@@ -6764,19 +7415,39 @@ function SignedEMRView({ soapeData, onClose }: { soapeData: any; onClose: () => 
   );
 }
 
-function Section({ icon, title, content, highlight = false }: { icon: string; title: string; content?: string; highlight?: boolean }) {
+function Section({
+  icon,
+  title,
+  content,
+  highlight = false,
+}: {
+  icon: string;
+  title: string;
+  content?: string;
+  highlight?: boolean;
+}) {
   if (!content || content === "Chưa có thông tin") return null;
   return (
     <div className="flex items-start space-x-4">
-      <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0" 
-           style={{ backgroundColor: highlight ? "#fee2e2" : "#f1f5f9", color: highlight ? "#b91c1c" : "#475569" }}>
+      <div
+        className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0"
+        style={{
+          backgroundColor: highlight ? "#fee2e2" : "#f1f5f9",
+          color: highlight ? "#b91c1c" : "#475569",
+        }}
+      >
         {icon}
       </div>
       <div>
-        <h3 className="font-bold text-sm uppercase tracking-wider mb-1" style={{ color: highlight ? "#b91c1c" : "#94a3b8" }}>
+        <h3
+          className="font-bold text-sm uppercase tracking-wider mb-1"
+          style={{ color: highlight ? "#b91c1c" : "#94a3b8" }}
+        >
           {title}
         </h3>
-        <p className="leading-relaxed text-lg" style={{ color: "#1e293b" }}>{content}</p>
+        <p className="leading-relaxed text-lg" style={{ color: "#1e293b" }}>
+          {content}
+        </p>
       </div>
     </div>
   );
@@ -6817,7 +7488,17 @@ function Waveform({ active }: { active: boolean }) {
   );
 }
 
-function EMRField({ label, value, filled, isProcessing }: { label: string; value?: string; filled: boolean; isProcessing?: boolean }) {
+function EMRField({
+  label,
+  value,
+  filled,
+  isProcessing,
+}: {
+  label: string;
+  value?: string;
+  filled: boolean;
+  isProcessing?: boolean;
+}) {
   return (
     <div
       className="border border-slate-200 rounded-lg p-3 transition-colors"
@@ -6829,7 +7510,9 @@ function EMRField({ label, value, filled, isProcessing }: { label: string; value
           <div className="h-4 w-3/4 bg-slate-200 rounded"></div>
         </div>
       ) : (
-        <p className={`text-[15px] mt-1 ${filled ? "text-slate-900 font-medium whitespace-pre-wrap" : "text-slate-300"}`}>
+        <p
+          className={`text-[15px] mt-1 ${filled ? "text-slate-900 font-medium whitespace-pre-wrap" : "text-slate-300"}`}
+        >
           {filled ? value : "— đang chờ —"}
         </p>
       )}
@@ -6880,7 +7563,11 @@ function ChatbotView() {
 
   return (
     <div className="flex justify-center">
-      <div className="w-full max-w-sm bg-white border border-slate-200 rounded-3xl shadow-sm flex flex-col h-[640px] overflow-hidden">
+      <div
+        className={`w-full bg-white border border-slate-200 rounded-3xl shadow-sm flex flex-col overflow-hidden ${
+          isMobile ? "min-h-[calc(100dvh-14rem)] max-w-none" : "h-[640px] max-w-sm"
+        }`}
+      >
         <div className="px-4 py-3 border-b border-slate-200 flex items-center gap-3">
           <div
             className="w-9 h-9 rounded-full flex items-center justify-center"
@@ -6891,8 +7578,8 @@ function ChatbotView() {
           <div className="flex-1">
             <p className="text-sm font-bold text-slate-900">Trợ lý EyeCU</p>
             <p className="text-[10px] font-geist uppercase tracking-wider text-slate-500 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ACCENT }} /> Trực
-              tuyến
+              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ACCENT }} />{" "}
+              Trực tuyến
             </p>
           </div>
         </div>
@@ -7140,7 +7827,9 @@ function PatientClinicalSheet({
                     <Receipt className="h-7 w-7 text-blue-300" />
                   </div>
                   <p className="text-sm font-semibold text-slate-700">Chưa có phiếu khám</p>
-                  <p className="mt-1 text-xs text-slate-400">Bạn chưa có lần khám nào được ghi nhận trong hệ thống.</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Bạn chưa có lần khám nào được ghi nhận trong hệ thống.
+                  </p>
                 </div>
               ) : (
                 <>
@@ -7148,9 +7837,11 @@ function PatientClinicalSheet({
                     <div className="mb-3 flex items-start justify-between gap-2">
                       <div>
                         <p className="text-[10px] font-geist uppercase tracking-wider text-blue-600">
-                          EMR #{record.id?.slice(-8).toUpperCase() ?? "—"}
+                          EMR #{record.id?.slice(-8).toUpperCase() ? "—"}
                         </p>
-                        <p className="text-sm font-bold text-slate-900">{record.department ?? "—"}</p>
+                        <p className="text-sm font-bold text-slate-900">
+                          {record.department ? "—"}
+                        </p>
                       </div>
                       {record.is_signed && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">
@@ -7168,7 +7859,9 @@ function PatientClinicalSheet({
                       </div>
                       <div className="rounded-xl bg-white/80 p-2.5">
                         <p className="text-slate-400">Bác sĩ</p>
-                        <p className="font-semibold text-slate-900">{record.doctor_name ?? "—"}</p>
+                        <p className="font-semibold text-slate-900">
+                          {record.doctor_name ? "—"}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -7177,13 +7870,17 @@ function PatientClinicalSheet({
                       <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                         Triệu chứng
                       </p>
-                      <p className="text-sm leading-relaxed text-slate-700">{record.symptoms ?? "—"}</p>
+                      <p className="text-sm leading-relaxed text-slate-700">
+                        {record.symptoms ? "—"}
+                      </p>
                     </div>
                     <div className="rounded-xl border border-slate-100 p-3">
                       <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                         Chẩn đoán
                       </p>
-                      <p className="text-sm font-semibold text-slate-900">{record.diagnosis ?? "—"}</p>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {record.diagnosis ? "—"}
+                      </p>
                     </div>
                     {record.notes && (
                       <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3">
@@ -7207,16 +7904,19 @@ function PatientClinicalSheet({
                     <Pill className="h-7 w-7 text-violet-300" />
                   </div>
                   <p className="text-sm font-semibold text-slate-700">Chưa có đơn thuốc</p>
-                  <p className="mt-1 text-xs text-slate-400">Bác sĩ chưa kê đơn thuốc nào cho bạn.</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Bác sĩ chưa kê đơn thuốc nào cho bạn.
+                  </p>
                 </div>
               ) : (
                 <>
                   <div className="rounded-xl border border-violet-100 bg-violet-50/60 p-3">
                     <p className="text-[10px] font-geist uppercase tracking-wider text-violet-600">
-                      record_id · {record?.id ?? "—"}
+                      record_id · {record?.id ? "—"}
                     </p>
                     <p className="mt-1 text-sm text-slate-600">
-                      {data.medications.length} loại thuốc{record ? ` · Kê ngày ${formatRecordDate(record.created_at)}` : ""}
+                      {data.medications.length} loại thuốc
+                      {record ? ` · Kê ngày ${formatRecordDate(record.created_at)}` : ""}
                     </p>
                   </div>
                   {data.medications.map((med: any) => (
@@ -7253,8 +7953,12 @@ function PatientClinicalSheet({
                   <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-amber-50">
                     <Calendar className="h-7 w-7 text-amber-300" />
                   </div>
-                  <p className="text-sm font-semibold text-slate-700">Chưa có lịch tái khám</p>
-                  <p className="mt-1 text-xs text-slate-400">Bác sĩ chưa đặt lịch hẹn tái khám cho bạn.</p>
+                  <p className="text-sm font-semibold text-slate-700">
+                    Chưa có lịch tái khám
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Bác sĩ chưa đặt lịch hẹn tái khám cho bạn.
+                  </p>
                 </div>
               ) : (
                 <>
@@ -7281,7 +7985,7 @@ function PatientClinicalSheet({
                   )}
                   <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
                     <Clock className="h-4 w-4 shrink-0 text-slate-400" />
-                    BHYT: {data.bhxh_code ?? "—"} · Bệnh nhân: {data.patientName}
+                    BHYT: {data.bhxh_code ? "—"} · Bệnh nhân: {data.patientName}
                   </div>
                 </>
               )}
@@ -7295,8 +7999,12 @@ function PatientClinicalSheet({
                   <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-green-50">
                     <FileText className="h-7 w-7 text-green-300" />
                   </div>
-                  <p className="text-sm font-semibold text-slate-700">Chưa có thông tin viện phí</p>
-                  <p className="mt-1 text-xs text-slate-400">Chưa có hóa đơn viện phí nào trong hệ thống.</p>
+                  <p className="text-sm font-semibold text-slate-700">
+                    Chưa có thông tin viện phí
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Chưa có hóa đơn viện phí nào trong hệ thống.
+                  </p>
                 </div>
               ) : (
                 <>
@@ -7308,7 +8016,9 @@ function PatientClinicalSheet({
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-bold text-slate-900">Tổng viện phí lượt khám</p>
+                      <p className="text-sm font-bold text-slate-900">
+                        Tổng viện phí lượt khám
+                      </p>
                       <span
                         className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${
                           data.fees.status === "paid"
@@ -7350,7 +8060,7 @@ function PatientClinicalSheet({
                     </div>
                   )}
                   <p className="text-[10px] text-slate-400">
-                    Liên kết record_id: {data.fees.record_id ?? "—"}
+                    Liên kết record_id: {data.fees.record_id ? "—"}
                   </p>
                 </>
               )}
@@ -7558,7 +8268,9 @@ function PatientPortalView({
   const startCamera = async () => {
     setCameraError(null);
     if (!navigator.mediaDevices?.getUserMedia) {
-      setCameraError("Thiết bị không hỗ trợ camera trực tiếp. Vui lòng chọn ảnh từ thư viện.");
+      setCameraError(
+        "Thiết bị không hỗ trợ camera trực tiếp. Vui lòng chọn ảnh từ thư viện.",
+      );
       return;
     }
     try {
@@ -7567,7 +8279,7 @@ function PatientPortalView({
           facingMode: { ideal: "environment" },
           width: { ideal: 1920, max: 3840 },
           height: { ideal: 1080, max: 2160 },
-          advanced: [{ focusMode: "continuous" }]
+          advanced: [{ focusMode: "continuous" }],
         } as any,
         audio: false,
       });
@@ -7577,7 +8289,9 @@ function PatientPortalView({
         await videoRef.current.play();
       }
     } catch {
-      setCameraError("Không mở được camera. Hãy cấp quyền hoặc chọn ảnh từ thư viện.");
+      setCameraError(
+        "Không mở được camera. Hãy cấp quyền hoặc chọn ảnh từ thư viện.",
+      );
     }
   };
 
@@ -7599,11 +8313,11 @@ function PatientPortalView({
         method: "POST",
         body: { image_base64: imageDataUrl },
       });
-      
+
       setIsAnalyzing(false);
       setIsScanning(false);
       stopCamera();
-      
+
       if (res.status === "success") {
         setMessages((prev) => [
           ...prev,
@@ -7671,8 +8385,8 @@ function PatientPortalView({
         <div className="sticky top-0 z-30 shrink-0 border-b border-slate-100 bg-white pt-safe px-safe pb-2">
           <div className="relative flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <img 
-                src="/logo.png" 
+              <img
+                src="/logo.png"
                 alt="EyeCU Logo"
                 className="h-8 w-8 rounded-full shadow-sm object-contain"
               />
@@ -7698,9 +8412,11 @@ function PatientPortalView({
                 <div className="absolute right-0 top-[calc(100%+0.5rem)] z-40 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
                   <div className="border-b border-slate-100 px-3 py-2.5">
                     <p className="truncate text-sm font-semibold text-slate-900">
-                      {user?.name ?? "Bệnh nhân"}
+                      {user?.name ? "Bệnh nhân"}
                     </p>
-                    <p className="truncate text-[11px] text-slate-500">Cổng thông tin bệnh nhân</p>
+                    <p className="truncate text-[11px] text-slate-500">
+                      Cổng thông tin bệnh nhân
+                    </p>
                   </div>
                   <div className="p-1">
                     {isInstallEligible && (
@@ -7759,7 +8475,9 @@ function PatientPortalView({
                 <h2 className="text-lg font-bold text-slate-900 leading-tight break-words">
                   Xin chào bạn {user?.name || "Bệnh nhân"}
                 </h2>
-                <p className="text-[11px] text-slate-500">Hôm nay bạn cảm thấy thế nào ạ?</p>
+                <p className="text-[11px] text-slate-500">
+                  Hôm nay bạn cảm thấy thế nào ạ?
+                </p>
               </div>
             </div>
           </div>
@@ -7809,7 +8527,9 @@ function PatientPortalView({
               </div>
               <div className="min-w-0 text-left [&_p]:break-words [&_p]:leading-snug">
                 <p className="text-sm font-bold text-slate-900">Quét phiếu xét nghiệm</p>
-                <p className="text-[10px] text-slate-500">AI tự động bóc tách và phân tích</p>
+                <p className="text-[10px] text-slate-500">
+                  AI tự động bóc tách và phân tích
+                </p>
               </div>
               <ChevronRight className="w-5 h-5 text-slate-400 ml-auto" />
             </button>
@@ -7904,7 +8624,9 @@ function PatientPortalView({
                   const SpeechRecognitionAPI =
                     window.SpeechRecognition || window.webkitSpeechRecognition;
                   if (!SpeechRecognitionAPI) {
-                    sendMessage("Trình duyệt không hỗ trợ nhận diện giọng nói. Hãy nhập tay.");
+                    sendMessage(
+                      "Trình duyệt không hỗ trợ nhận diện giọng nói. Hãy nhập tay.",
+                    );
                     return;
                   }
                   const recognition = new SpeechRecognitionAPI();
@@ -7912,7 +8634,7 @@ function PatientPortalView({
                   recognition.continuous = false;
                   recognition.interimResults = false;
                   recognition.onresult = (event: SpeechRecognitionEvent) => {
-                    const transcript = event.results[0]?.[0]?.transcript?.trim() ?? "";
+                    const transcript = event.results[0]?.[0]?.transcript?.trim() ? "";
                     if (transcript) sendMessage(transcript);
                     setListening(false);
                   };
@@ -8079,7 +8801,6 @@ function PatientPortalView({
 
 /* ============== VIEW: EMS — CẤP CỨU NGOẠI VIỆN ============== */
 
-
 function EmsView() {
   const [scannedPatient, setScannedPatient] = useState<any>(null);
   const [scanningEkyc, setScanningEkyc] = useState(false);
@@ -8098,18 +8819,21 @@ function EmsView() {
   const [manualChronic, setManualChronic] = useState("");
   const [manualAllergies, setManualAllergies] = useState("");
 
-
   const alertTypes = ["Nhoi mau co tim", "Dot quy", "Chan thuong nang", "Ngo doc"];
 
-  const WS_URL = (import.meta.env.VITE_WS_URL ?? "ws://localhost:8000") + "/api/ambient/ws/live";
+  const WS_URL = (import.meta.env.VITE_WS_URL ? "ws://localhost:8000") + "/api/ambient/ws/live";
   const [gpsState, setGpsState] = useState<{ lat: number; lng: number } | null>(null);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const watchIdRef = useRef<number | null>(null);
   const realStartRef = useRef<{ lat: number; lng: number } | null>(null);
 
-  const [routeInfo, setRouteInfo] = useState<{km: string, mins: number, destName: string} | null>(null);
+  const [routeInfo, setRouteInfo] = useState<{ km: string; mins: number; destName: string } | null>(
+    null,
+  );
   const routeInfoRef = useRef(routeInfo);
-  useEffect(() => { routeInfoRef.current = routeInfo; }, [routeInfo]);
+  useEffect(() => {
+    routeInfoRef.current = routeInfo;
+  }, [routeInfo]);
   const [isMissionStarted, setIsMissionStarted] = useState(false);
   const [showMissionSetup, setShowMissionSetup] = useState(false);
   const [plate, setPlate] = useState("");
@@ -8131,7 +8855,9 @@ function EmsView() {
         (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
       if (!SpeechRecognition) {
-        alert("Trình duyệt không hỗ trợ nhận dạng giọng nói. Vui lòng dùng Google Chrome.");
+        alert(
+          "Trình duyệt không hỗ trợ nhận dạng giọng nói. Vui lòng dùng Google Chrome.",
+        );
         return;
       }
 
@@ -8180,10 +8906,6 @@ function EmsView() {
     setIsRecordingPreAlert(false);
   };
 
-  
-
-
-
   const handleStartMission = async () => {
     const finalPlate = plate.trim() || localStorage.getItem("ems_plate") || "";
     if (!finalPlate) return;
@@ -8209,14 +8931,13 @@ function EmsView() {
     }
   };
 
-
   const processEkycBase64 = async (base64: string) => {
     setScanningEkyc(true);
     setEkycError("");
     try {
       const ocrRes = await fetchApi("/patient/ekyc/cccd", {
         method: "POST",
-        body: JSON.stringify({ image_base64: base64 })
+        body: JSON.stringify({ image_base64: base64 }),
       });
       if (ocrRes.status === "success" && ocrRes.data) {
         if (ocrRes.liveness_warning) {
@@ -8303,52 +9024,59 @@ function EmsView() {
   const { send } = useEyeCUSocket({ url: WS_URL, onMessage: handleSocketMessage });
 
   // Khi scannedPatient được cập nhật và xe đã có biển số → gửi PATIENT_UPDATE lên dispatch
-  const sendPatientUpdate = useCallback((patient: any, alertLabel?: string) => {
-    const activePlate = plate.trim() || localStorage.getItem("ems_plate") || "";
-    if (!activePlate || !patient) return;
-    
-    let age = patient.age ?? null;
-    if (patient.dob) {
-      const parts = patient.dob.split(/[\/\-]/);
-      if (parts.length === 3) {
-        const birthYear = parts[2].length === 4 ? parseInt(parts[2]) : parseInt(parts[0]);
-        if (!isNaN(birthYear)) {
-          age = String(new Date().getFullYear() - birthYear);
+  const sendPatientUpdate = useCallback(
+    (patient: any, alertLabel?: string) => {
+      const activePlate = plate.trim() || localStorage.getItem("ems_plate") || "";
+      if (!activePlate || !patient) return;
+
+      let age = patient.age ? null;
+      if (patient.dob) {
+        const parts = patient.dob.split(/[/-]/);
+        if (parts.length === 3) {
+          const birthYear = parts[2].length === 4 ? parseInt(parts[2]) : parseInt(parts[0]);
+          if (!isNaN(birthYear)) {
+            age = String(new Date().getFullYear() - birthYear);
+          }
         }
       }
-    }
-
-    send({
-      type: "PATIENT_UPDATE",
-      data: {
-        plate: activePlate,
-        name: patient.full_name || patient.name || null,
-        gender: patient.gender || null,
-        age,
-        cccd: patient.cccd_number || patient.cccd || null,
-        chronic_conditions: patient.chronic_conditions || patient.chronicConditions || [],
-        allergies: patient.allergies || [],
-        alert_label: alertLabel || selectedAlert || null,
-        bhxh_code: patient.insurance || null,
-        emergency_contact_name: patient.emergencyContactName || null,
-        emergency_contact_phone: patient.emergencyContactPhone || null,
-      },
-    });
-  }, [plate, send, selectedAlert]);
-
-  useEffect(() => {
-    if (isBroadcasting && plateConfirmed) {
-      const activePlate = plateConfirmed;
-      supabase.from('dispatch_records').update({
-        pre_alert_text: preAlertText
-      }).eq('plate', activePlate).then();
 
       send({
         type: "PATIENT_UPDATE",
         data: {
           plate: activePlate,
-          pre_alert_text: preAlertText
-        }
+          name: patient.full_name || patient.name || null,
+          gender: patient.gender || null,
+          age,
+          cccd: patient.cccd_number || patient.cccd || null,
+          chronic_conditions: patient.chronic_conditions || patient.chronicConditions || [],
+          allergies: patient.allergies || [],
+          alert_label: alertLabel || selectedAlert || null,
+          bhxh_code: patient.insurance || null,
+          emergency_contact_name: patient.emergencyContactName || null,
+          emergency_contact_phone: patient.emergencyContactPhone || null,
+        },
+      });
+    },
+    [plate, send, selectedAlert],
+  );
+
+  useEffect(() => {
+    if (isBroadcasting && plateConfirmed) {
+      const activePlate = plateConfirmed;
+      supabase
+        .from("dispatch_records")
+        .update({
+          pre_alert_text: preAlertText,
+        })
+        .eq("plate", activePlate)
+        .then();
+
+      send({
+        type: "PATIENT_UPDATE",
+        data: {
+          plate: activePlate,
+          pre_alert_text: preAlertText,
+        },
       });
     }
   }, [preAlertText, isBroadcasting, plateConfirmed, send]);
@@ -8397,16 +9125,25 @@ function EmsView() {
         alert("Vui lòng thiết lập nhiệm vụ trước khi truyền GPS.");
         return;
       }
-      
+
       setPlateConfirmed(savedPlate);
       setIsBroadcasting(true);
 
-      const patientName = scannedPatient?.name || scannedPatient?.full_name || (manualInputMode === "cccd" && manualName ? manualName : (manualInputMode === "unknown" ? "Chưa rõ danh tính" : "Bệnh nhân không CCCD"));
-      const patientGender = scannedPatient?.gender || (manualInputMode === "cccd" && manualGender ? manualGender : null);
-      
+      const patientName =
+        scannedPatient?.name ||
+        scannedPatient?.full_name ||
+        (manualInputMode === "cccd" && manualName
+          ? manualName
+          : manualInputMode === "unknown"
+            ? "Chưa rõ danh tính"
+            : "Bệnh nhân không CCCD");
+      const patientGender =
+        scannedPatient?.gender ||
+        (manualInputMode === "cccd" && manualGender ? manualGender : null);
+
       let patientAge = scannedPatient?.age || null;
       if (scannedPatient?.dob) {
-        const parts = scannedPatient.dob.split(/[\/\-]/);
+        const parts = scannedPatient.dob.split(/[/-]/);
         if (parts.length === 3) {
           const birthYear = parts[2].length === 4 ? parseInt(parts[2]) : parseInt(parts[0]);
           if (!isNaN(birthYear)) {
@@ -8418,35 +9155,42 @@ function EmsView() {
       }
 
       // GỬI NGAY LẬP TỨC để bảng nhận được thông tin mà không cần chờ thiết bị định vị
-      const initLat = gpsState?.lat ?? 21.0011;
-      const initLng = gpsState?.lng ?? 105.8418;
-      const initDistKm = Math.sqrt(Math.pow(initLat - 21.0011, 2) + Math.pow(initLng - 105.8418, 2)) * 111;
-      const initEta = routeInfoRef.current ? routeInfoRef.current.mins * 60 : Math.max(60, Math.round((initDistKm / 40) * 3600));
-      supabase.from('dispatch_records').upsert({
-        plate: savedPlate,
-        lat: initLat,
-        lng: initLng,
-        eta: initEta,
-        status: 'active',
-        added_at: Date.now(),
-        patient_name: patientName,
-        gender: patientGender,
-        age: patientAge,
-        cccd: scannedPatient?.cccd || scannedPatient?.cccd_number || null,
-        bhxh_code: scannedPatient?.insurance || null,
-        emergency_contact_name: scannedPatient?.emergencyContactName || null,
-        emergency_contact_phone: scannedPatient?.emergencyContactPhone || null,
-        chronic_conditions: scannedPatient?.chronicConditions || scannedPatient?.chronic_conditions || [],
-        allergies: scannedPatient?.allergies || [],
-        pre_alert_text: preAlertText || ""
-      }).then();
+      const initLat = gpsState?.lat ? 21.0011;
+      const initLng = gpsState?.lng ? 105.8418;
+      const initDistKm =
+        Math.sqrt(Math.pow(initLat - 21.0011, 2) + Math.pow(initLng - 105.8418, 2)) * 111;
+      const initEta = routeInfoRef.current
+        ? routeInfoRef.current.mins * 60
+        : Math.max(60, Math.round((initDistKm / 40) * 3600));
+      supabase
+        .from("dispatch_records")
+        .upsert({
+          plate: savedPlate,
+          lat: initLat,
+          lng: initLng,
+          eta: initEta,
+          status: "active",
+          added_at: Date.now(),
+          patient_name: patientName,
+          gender: patientGender,
+          age: patientAge,
+          cccd: scannedPatient?.cccd || scannedPatient?.cccd_number || null,
+          bhxh_code: scannedPatient?.insurance || null,
+          emergency_contact_name: scannedPatient?.emergencyContactName || null,
+          emergency_contact_phone: scannedPatient?.emergencyContactPhone || null,
+          chronic_conditions:
+            scannedPatient?.chronicConditions || scannedPatient?.chronic_conditions || [],
+          allergies: scannedPatient?.allergies || [],
+          pre_alert_text: preAlertText || "",
+        })
+        .then();
 
       send({
         type: "GPS_START",
-        data: { 
-          plate: savedPlate, 
-          lat: initLat, 
-          lng: initLng, 
+        data: {
+          plate: savedPlate,
+          lat: initLat,
+          lng: initLng,
           eta_seconds: initEta,
           name: patientName,
           gender: patientGender,
@@ -8455,9 +9199,10 @@ function EmsView() {
           bhxh_code: scannedPatient?.insurance || null,
           emergency_contact_name: scannedPatient?.emergencyContactName || null,
           emergency_contact_phone: scannedPatient?.emergencyContactPhone || null,
-          chronic_conditions: scannedPatient?.chronicConditions || scannedPatient?.chronic_conditions || [],
+          chronic_conditions:
+            scannedPatient?.chronicConditions || scannedPatient?.chronic_conditions || [],
           allergies: scannedPatient?.allergies || [],
-          pre_alert_text: preAlertText || ""
+          pre_alert_text: preAlertText || "",
         },
       });
 
@@ -8466,33 +9211,40 @@ function EmsView() {
         (pos) => {
           const { latitude, longitude } = pos.coords;
           setGpsState({ lat: latitude, lng: longitude });
-          const distKm = Math.sqrt(Math.pow(latitude - 21.0011, 2) + Math.pow(longitude - 105.8418, 2)) * 111;
-          const etaSeconds = routeInfoRef.current ? routeInfoRef.current.mins * 60 : Math.max(60, Math.round((distKm / 40) * 3600));
+          const distKm =
+            Math.sqrt(Math.pow(latitude - 21.0011, 2) + Math.pow(longitude - 105.8418, 2)) * 111;
+          const etaSeconds = routeInfoRef.current
+            ? routeInfoRef.current.mins * 60
+            : Math.max(60, Math.round((distKm / 40) * 3600));
           // GPS_START: dang ky bien so + toa do dau tien voi backend
-          supabase.from('dispatch_records').upsert({
-            plate: savedPlate,
-            lat: latitude,
-            lng: longitude,
-            eta: etaSeconds,
-            status: 'active',
-            added_at: Date.now(),
-            patient_name: patientName,
-            gender: patientGender,
-            age: patientAge,
-            cccd: scannedPatient?.cccd || scannedPatient?.cccd_number || null,
-            bhxh_code: scannedPatient?.insurance || null,
-            emergency_contact_name: scannedPatient?.emergencyContactName || null,
-            emergency_contact_phone: scannedPatient?.emergencyContactPhone || null,
-            chronic_conditions: scannedPatient?.chronicConditions || scannedPatient?.chronic_conditions || [],
-            allergies: scannedPatient?.allergies || [],
-            pre_alert_text: preAlertText || ""
-          }).then();
+          supabase
+            .from("dispatch_records")
+            .upsert({
+              plate: savedPlate,
+              lat: latitude,
+              lng: longitude,
+              eta: etaSeconds,
+              status: "active",
+              added_at: Date.now(),
+              patient_name: patientName,
+              gender: patientGender,
+              age: patientAge,
+              cccd: scannedPatient?.cccd || scannedPatient?.cccd_number || null,
+              bhxh_code: scannedPatient?.insurance || null,
+              emergency_contact_name: scannedPatient?.emergencyContactName || null,
+              emergency_contact_phone: scannedPatient?.emergencyContactPhone || null,
+              chronic_conditions:
+                scannedPatient?.chronicConditions || scannedPatient?.chronic_conditions || [],
+              allergies: scannedPatient?.allergies || [],
+              pre_alert_text: preAlertText || "",
+            })
+            .then();
           send({
             type: "GPS_START",
-            data: { 
-              plate: savedPlate, 
-              lat: latitude, 
-              lng: longitude, 
+            data: {
+              plate: savedPlate,
+              lat: latitude,
+              lng: longitude,
               eta_seconds: etaSeconds,
               name: patientName,
               gender: patientGender,
@@ -8501,9 +9253,10 @@ function EmsView() {
               bhxh_code: scannedPatient?.insurance || null,
               emergency_contact_name: scannedPatient?.emergencyContactName || null,
               emergency_contact_phone: scannedPatient?.emergencyContactPhone || null,
-              chronic_conditions: scannedPatient?.chronicConditions || scannedPatient?.chronic_conditions || [],
+              chronic_conditions:
+                scannedPatient?.chronicConditions || scannedPatient?.chronic_conditions || [],
               allergies: scannedPatient?.allergies || [],
-              pre_alert_text: preAlertText || ""
+              pre_alert_text: preAlertText || "",
             },
           });
         },
@@ -8516,22 +9269,37 @@ function EmsView() {
         (pos) => {
           const { latitude, longitude } = pos.coords;
           setGpsState({ lat: latitude, lng: longitude });
-          const distKm = Math.sqrt(Math.pow(latitude - 21.0011, 2) + Math.pow(longitude - 105.8418, 2)) * 111;
-          const etaSeconds = routeInfoRef.current ? routeInfoRef.current.mins * 60 : Math.max(60, Math.round((distKm / 40) * 3600));
-          supabase.from('dispatch_records').update({
-            lat: latitude,
-            lng: longitude,
-            eta: etaSeconds
-          }).eq('plate', savedPlate).then();
+          const distKm =
+            Math.sqrt(Math.pow(latitude - 21.0011, 2) + Math.pow(longitude - 105.8418, 2)) * 111;
+          const etaSeconds = routeInfoRef.current
+            ? routeInfoRef.current.mins * 60
+            : Math.max(60, Math.round((distKm / 40) * 3600));
+          supabase
+            .from("dispatch_records")
+            .update({
+              lat: latitude,
+              lng: longitude,
+              eta: etaSeconds,
+            })
+            .eq("plate", savedPlate)
+            .then();
           send({
             type: "GPS_UPDATE",
-            data: { plate: savedPlate, ambulance_id: "current", lat: latitude, lng: longitude, eta_seconds: etaSeconds },
+            data: {
+              plate: savedPlate,
+              ambulance_id: "current",
+              lat: latitude,
+              lng: longitude,
+              eta_seconds: etaSeconds,
+            },
           });
         },
         (err) => {
           console.error("Lỗi GPS:", err);
           if (err.code === 1) {
-            alert("Lỗi GPS: Bạn đã từ chối hoặc trình duyệt không có quyền truy cập vị trí.");
+            alert(
+              "Lỗi GPS: Bạn đã từ chối hoặc trình duyệt không có quyền truy cập vị trí.",
+            );
             setIsBroadcasting(false);
             setPlateConfirmed(null);
           } else if (err.code === 2) {
@@ -8616,11 +9384,11 @@ function EmsView() {
     etaMins = routeInfo.mins;
     destName = routeInfo.destName;
   }
-  
+
   progress = Math.min(100, Math.max(0, 100 - (distanceKm / 10) * 100)); // giả định quãng đường tối đa là 10km
 
-  const mapCenterLat = gpsState?.lat ?? 21.0011;
-  const mapCenterLng = gpsState?.lng ?? 105.8418;
+  const mapCenterLat = gpsState?.lat ? 21.0011;
+  const mapCenterLng = gpsState?.lng ? 105.8418;
 
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
@@ -8630,14 +9398,19 @@ function EmsView() {
           <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-xl animate-zoom-in">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-slate-900">Xác nhận xe làm nhiệm vụ</h2>
-              <button onClick={() => setShowMissionSetup(false)} className="p-2 hover:bg-slate-100 rounded-full">
+              <button
+                onClick={() => setShowMissionSetup(false)}
+                className="p-2 hover:bg-slate-100 rounded-full"
+              >
                 <X className="w-5 h-5 text-slate-500" />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Biển số xe</label>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Biển số xe
+                </label>
                 <input
                   type="text"
                   value={plate}
@@ -8647,19 +9420,25 @@ function EmsView() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Bệnh viện đích</label>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Bệnh viện đích
+                </label>
                 <select
                   value={hospitalId}
                   onChange={(e) => setHospitalId(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-slate-300 font-semibold focus:ring-2 focus:ring-cyan-500/20 bg-white"
                 >
-                  {Object.keys(groupedHospitals).sort().map((prov) => (
-                    <optgroup key={prov} label={prov}>
-                      {groupedHospitals[prov].map((h) => (
-                        <option key={h.id} value={h.id}>{h.name}</option>
-                      ))}
-                    </optgroup>
-                  ))}
+                  {Object.keys(groupedHospitals)
+                    .sort()
+                    .map((prov) => (
+                      <optgroup key={prov} label={prov}>
+                        {groupedHospitals[prov].map((h) => (
+                          <option key={h.id} value={h.id}>
+                            {h.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
                 </select>
               </div>
               <button
@@ -8675,51 +9454,54 @@ function EmsView() {
       )}
 
       {/* ── 4. Pre-Alert Panel ── */}
-    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm mb-4">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
-          <Mic className="w-4 h-4 text-red-600" />
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm mb-4">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
+            <Mic className="w-4 h-4 text-red-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Cảnh báo Trước (Pre-Alert)</h3>
+            <p className="text-[13px] text-slate-500 font-geist">
+              Gửi cảnh báo đến phòng cấp cứu bệnh viện
+            </p>
+          </div>
         </div>
-        <div>
-          <h3 className="text-lg font-bold text-slate-900">Cảnh báo Trước (Pre-Alert)</h3>
-          <p className="text-[13px] text-slate-500 font-geist">
-            Gửi cảnh báo đến phòng cấp cứu bệnh viện
+
+        <div className="flex flex-col items-center py-6 bg-slate-50 rounded-xl border border-slate-100">
+          <button
+            type="button"
+            onClick={isRecordingPreAlert ? stopRecording : startRecording}
+            className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-sm border ${
+              isRecordingPreAlert
+                ? "bg-red-500 border-red-600 hover:bg-red-600 animate-pulse scale-105"
+                : "bg-red-100 border-red-200 hover:bg-red-200 hover:scale-105"
+            }`}
+          >
+            <Mic className={`w-8 h-8 ${isRecordingPreAlert ? "text-white" : "text-red-600"}`} />
+          </button>
+          <p className="mt-4 text-base font-bold text-slate-700">
+            {isRecordingPreAlert ? "Đang ghi âm... Chạm để dừng" : "Chạm để ghi âm"}
+          </p>
+          <p className="mt-1 text-[13px] text-slate-500 text-center px-4 max-w-xs">
+            Ghi âm tình trạng bệnh nhân, chỉ số sinh tồn và gửi trực tiếp về
+            kíp trực cấp cứu.
           </p>
         </div>
+
+        <div className="mt-4">
+          <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+            Nội dung cảnh báo
+          </label>
+          <textarea
+            value={preAlertText}
+            onChange={(e) => setPreAlertText(e.target.value)}
+            placeholder="Ví dụ: Bệnh nhân nam 30 tuổi, bị chấn thương sọ não, đang sơ cứu tạm thời, đề nghị chuẩn bị thêm thuốc cầm máu."
+            className="w-full h-24 p-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-cyan-500/20 outline-none resize-none bg-white"
+          />
+        </div>
       </div>
 
-      <div className="flex flex-col items-center py-6 bg-slate-50 rounded-xl border border-slate-100">
-        <button 
-          type="button"
-          onClick={isRecordingPreAlert ? stopRecording : startRecording}
-          className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-sm border ${
-            isRecordingPreAlert 
-              ? "bg-red-500 border-red-600 hover:bg-red-600 animate-pulse scale-105" 
-              : "bg-red-100 border-red-200 hover:bg-red-200 hover:scale-105"
-          }`}
-        >
-          <Mic className={`w-8 h-8 ${isRecordingPreAlert ? "text-white" : "text-red-600"}`} />
-        </button>
-        <p className="mt-4 text-base font-bold text-slate-700">
-          {isRecordingPreAlert ? "Đang ghi âm... Chạm để dừng" : "Chạm để ghi âm"}
-        </p>
-        <p className="mt-1 text-[13px] text-slate-500 text-center px-4 max-w-xs">
-          Ghi âm tình trạng bệnh nhân, chỉ số sinh tồn và gửi trực tiếp về kíp trực cấp cứu.
-        </p>
-      </div>
-
-      <div className="mt-4">
-        <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-1.5">Nội dung cảnh báo</label>
-        <textarea
-          value={preAlertText}
-          onChange={(e) => setPreAlertText(e.target.value)}
-          placeholder="Ví dụ: Bệnh nhân nam 30 tuổi, bị chấn thương sọ não, đang sơ cứu tạm thời, đề nghị chuẩn bị thêm thuốc cầm máu."
-          className="w-full h-24 p-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-cyan-500/20 outline-none resize-none bg-white"
-        />
-      </div>
-    </div>
-
-    {/* ── 2. GPS Map Panel ── */}
+      {/* ── 2. GPS Map Panel ── */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
         <div className="flex items-center gap-2 mb-4">
           <div
@@ -8737,7 +9519,12 @@ function EmsView() {
         </div>
 
         {/* OpenStreetMap via Leaflet (Client side only) */}
-        <ClientEmsLeafletMap lat={mapCenterLat} lng={mapCenterLng} onRouteUpdate={setRouteInfo} hospitalId={isMissionStarted ? hospitalId : undefined} />
+        <ClientEmsLeafletMap
+          lat={mapCenterLat}
+          lng={mapCenterLng}
+          onRouteUpdate={setRouteInfo}
+          hospitalId={isMissionStarted ? hospitalId : undefined}
+        />
 
         {/* ETA info */}
         <div className="grid grid-cols-3 gap-3">
@@ -8799,127 +9586,216 @@ function EmsView() {
 
         {!scannedPatient ? (
           <div className="w-full relative">
-            
             <div className="flex gap-2 mb-4">
-              <button 
+              <button
                 onClick={() => setManualInputMode("cccd")}
                 className={`flex-1 py-2 rounded-lg text-sm font-bold border transition ${manualInputMode === "cccd" ? "bg-cyan-500 text-white border-cyan-500" : "bg-white text-slate-700 border-slate-200"}`}
-              >Quét CCCD</button>
-              <button 
+              >
+                Quét CCCD
+              </button>
+              <button
                 onClick={() => setManualInputMode("unknown")}
                 className={`flex-1 py-2 rounded-lg text-sm font-bold border transition ${manualInputMode === "unknown" ? "bg-cyan-500 text-white border-cyan-500" : "bg-white text-slate-700 border-slate-200"}`}
-              >Không rõ danh tính</button>
-              <button 
+              >
+                Không rõ danh tính
+              </button>
+              <button
                 onClick={() => setManualInputMode("no_cccd")}
                 className={`flex-1 py-2 rounded-lg text-sm font-bold border transition ${manualInputMode === "no_cccd" ? "bg-cyan-500 text-white border-cyan-500" : "bg-white text-slate-700 border-slate-200"}`}
-              >Không có CCCD</button>
+              >
+                Không có CCCD
+              </button>
             </div>
 
             {manualInputMode === "cccd" && (
               <>
-                <CccdCapture 
-              side="front" 
-              capturedUrl={capturedCccdUrl} 
-              onCapture={(url) => {
-                setCapturedCccdUrl(url);
-                if (url) {
-                  processEkycBase64(url);
-                }
-              }} 
-            />
+                <CccdCapture
+                  side="front"
+                  capturedUrl={capturedCccdUrl}
+                  onCapture={(url) => {
+                    setCapturedCccdUrl(url);
+                    if (url) {
+                      processEkycBase64(url);
+                    }
+                  }}
+                />
               </>
             )}
 
             {manualInputMode === "unknown" && (
               <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Giới tính</label>
-                  <select value={manualGender} onChange={e => setManualGender(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300">
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    Giới tính
+                  </label>
+                  <select
+                    value={manualGender}
+                    onChange={(e) => setManualGender(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300"
+                  >
                     <option value="">Chọn giới tính</option>
                     <option value="Nam">Nam</option>
                     <option value="Nữ">Nữ</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Khoảng tuổi</label>
-                  <input type="text" value={manualAgeRange} onChange={e => setManualAgeRange(e.target.value)} placeholder="VD: 20-30, 40-50" className="w-full px-3 py-2 rounded-lg border border-slate-300" />
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    Khoảng tuổi
+                  </label>
+                  <input
+                    type="text"
+                    value={manualAgeRange}
+                    onChange={(e) => setManualAgeRange(e.target.value)}
+                    placeholder="VD: 20-30, 40-50"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300"
+                  />
                 </div>
                 <button
                   className="w-full py-2 bg-cyan-500 text-white font-bold rounded-lg mt-2"
                   onClick={() => {
-                    const fakePatient = { name: "Không rõ", gender: manualGender, age: manualAgeRange, cccd: null, chronic_conditions: [], allergies: [] };
-                    setScannedPatient({ full_name: "Không rõ danh tính", gender: manualGender, dob: null, cccd_number: null, chronic_conditions: [], allergies: [] });
+                    const fakePatient = {
+                      name: "Không rõ",
+                      gender: manualGender,
+                      age: manualAgeRange,
+                      cccd: null,
+                      chronic_conditions: [],
+                      allergies: [],
+                    };
+                    setScannedPatient({
+                      full_name: "Không rõ danh tính",
+                      gender: manualGender,
+                      dob: null,
+                      cccd_number: null,
+                      chronic_conditions: [],
+                      allergies: [],
+                    });
                     sendPatientUpdate(fakePatient);
                   }}
-                >Xác nhận</button>
+                >
+                  Xác nhận
+                </button>
               </div>
             )}
 
             {manualInputMode === "no_cccd" && (
               <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Họ và tên</label>
-                  <input type="text" value={manualName} onChange={e => setManualName(e.target.value)} placeholder="Nhập họ và tên" className="w-full px-3 py-2 rounded-lg border border-slate-300" />
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    Họ và tên
+                  </label>
+                  <input
+                    type="text"
+                    value={manualName}
+                    onChange={(e) => setManualName(e.target.value)}
+                    placeholder="Nhập họ và tên"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300"
+                  />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Giới tính</label>
-                  <select value={manualGender} onChange={e => setManualGender(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300">
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    Giới tính
+                  </label>
+                  <select
+                    value={manualGender}
+                    onChange={(e) => setManualGender(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300"
+                  >
                     <option value="">Chọn giới tính</option>
                     <option value="Nam">Nam</option>
                     <option value="Nữ">Nữ</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Khoảng tuổi</label>
-                  <input type="text" value={manualAgeRange} onChange={e => setManualAgeRange(e.target.value)} placeholder="VD: 20-30, 40-50" className="w-full px-3 py-2 rounded-lg border border-slate-300" />
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    Khoảng tuổi
+                  </label>
+                  <input
+                    type="text"
+                    value={manualAgeRange}
+                    onChange={(e) => setManualAgeRange(e.target.value)}
+                    placeholder="VD: 20-30, 40-50"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300"
+                  />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Liên hệ khẩn cấp</label>
-                  <input type="text" value={manualEmergencyContact} onChange={e => setManualEmergencyContact(e.target.value)} placeholder="Tên & SĐT người thân" className="w-full px-3 py-2 rounded-lg border border-slate-300" />
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    Liên hệ khẩn cấp
+                  </label>
+                  <input
+                    type="text"
+                    value={manualEmergencyContact}
+                    onChange={(e) => setManualEmergencyContact(e.target.value)}
+                    placeholder="Tên & SĐT người thân"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300"
+                  />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Bệnh nền</label>
-                  <input type="text" value={manualChronic} onChange={e => setManualChronic(e.target.value)} placeholder="VD: Cao huyết áp..." className="w-full px-3 py-2 rounded-lg border border-slate-300" />
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    Bệnh nền
+                  </label>
+                  <input
+                    type="text"
+                    value={manualChronic}
+                    onChange={(e) => setManualChronic(e.target.value)}
+                    placeholder="VD: Cao huyết áp..."
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300"
+                  />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Dị ứng thuốc</label>
-                  <input type="text" value={manualAllergies} onChange={e => setManualAllergies(e.target.value)} placeholder="VD: Kháng sinh..." className="w-full px-3 py-2 rounded-lg border border-slate-300" />
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    Dị ứng thuốc
+                  </label>
+                  <input
+                    type="text"
+                    value={manualAllergies}
+                    onChange={(e) => setManualAllergies(e.target.value)}
+                    placeholder="VD: Kháng sinh..."
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300"
+                  />
                 </div>
                 <button
                   className="w-full py-2 bg-cyan-500 text-white font-bold rounded-lg mt-2"
                   onClick={() => {
-                    const c_cond = manualChronic.trim() ? manualChronic.split(',').map(s=>s.trim()) : ["Không"];
-                    const c_allergy = manualAllergies.trim() ? manualAllergies.split(',').map(s=>s.trim()) : ["Không"];
+                    const c_cond = manualChronic.trim()
+                      ? manualChronic.split(",").map((s) => s.trim())
+                      : ["Không"];
+                    const c_allergy = manualAllergies.trim()
+                      ? manualAllergies.split(",").map((s) => s.trim())
+                      : ["Không"];
                     const e_contact = manualEmergencyContact.trim() || "Không";
-                    const fakePatient = { 
-                      name: manualName, 
-                      gender: manualGender, 
-                      age: manualAgeRange, 
-                      cccd: null, 
-                      chronic_conditions: c_cond, 
+                    const fakePatient = {
+                      name: manualName,
+                      gender: manualGender,
+                      age: manualAgeRange,
+                      cccd: null,
+                      chronic_conditions: c_cond,
                       allergies: c_allergy,
-                      emergencyContactName: e_contact
+                      emergencyContactName: e_contact,
                     };
-                    setScannedPatient({ 
-                      full_name: manualName, 
-                      gender: manualGender, 
-                      dob: null, 
-                      cccd_number: null, 
-                      chronic_conditions: c_cond, 
+                    setScannedPatient({
+                      full_name: manualName,
+                      gender: manualGender,
+                      dob: null,
+                      cccd_number: null,
+                      chronic_conditions: c_cond,
                       allergies: c_allergy,
-                      emergencyContactName: e_contact
+                      emergencyContactName: e_contact,
                     });
                     sendPatientUpdate(fakePatient);
                   }}
-                >Xác nhận</button>
+                >
+                  Xác nhận
+                </button>
               </div>
             )}
-  
+
             {scanningEkyc && (
               <div className="absolute inset-0 bg-white/80 flex items-center justify-center backdrop-blur-[2px] z-10 rounded-2xl">
                 <div className="flex flex-col items-center gap-3">
                   <span className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></span>
-                  <p className="text-cyan-700 font-bold text-sm tracking-wide">Đang xác thực...</p>
+                  <p className="text-cyan-700 font-bold text-sm tracking-wide">
+                    Đang xác thực...
+                  </p>
                 </div>
               </div>
             )}
@@ -8943,7 +9819,9 @@ function EmsView() {
                 <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5">
                   Họ và tên
                 </p>
-                <p className="text-sm font-bold text-slate-900">{scannedPatient?.full_name || scannedPatient?.name || "N/A"}</p>
+                <p className="text-sm font-bold text-slate-900">
+                  {scannedPatient?.full_name || scannedPatient?.name || "N/A"}
+                </p>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
                 <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5">
@@ -8963,13 +9841,17 @@ function EmsView() {
                 <p className="text-[10px] font-geist uppercase tracking-wider text-slate-400 mb-0.5">
                   Giới tính
                 </p>
-                <p className="text-sm font-bold text-slate-900">{scannedPatient?.gender || "N/A"}</p>
+                <p className="text-sm font-bold text-slate-900">
+                  {scannedPatient?.gender || "N/A"}
+                </p>
               </div>
               <div className="p-3 rounded-xl bg-red-50 border border-red-100">
                 <p className="text-[10px] font-geist uppercase tracking-wider text-red-400 mb-0.5">
                   Nhóm máu
                 </p>
-                <p className="text-sm font-bold text-red-600">{scannedPatient?.blood_type || "N/A"}</p>
+                <p className="text-sm font-bold text-red-600">
+                  {scannedPatient?.blood_type || "N/A"}
+                </p>
               </div>
               <div className="p-3 rounded-xl bg-amber-50 border border-amber-100">
                 <p className="text-[10px] font-geist uppercase tracking-wider text-amber-500 mb-0.5">
@@ -8986,18 +9868,22 @@ function EmsView() {
                 Bệnh nền
               </p>
               <div className="flex flex-wrap gap-1.5">
-                {(scannedPatient?.chronic_conditions || scannedPatient?.chronicConditions || []).length > 0 ? (
-                  (scannedPatient?.chronic_conditions || scannedPatient?.chronicConditions).map((c: string) => (
-                    <span
-                      key={c}
-                      className="px-2 py-0.5 rounded-full bg-slate-200 text-[11px] font-bold text-slate-700"
-                    >
-                      {c}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-sm font-bold text-slate-500">Không có</span>
-                )}
+                {(() => {
+                  const chronicConditions =
+                    scannedPatient?.chronic_conditions || scannedPatient?.chronicConditions || [];
+                  return chronicConditions.length > 0 ? (
+                    chronicConditions.map((c: string) => (
+                      <span
+                        key={c}
+                        className="px-2 py-0.5 rounded-full bg-slate-200 text-[11px] font-bold text-slate-700"
+                      >
+                        {c}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-sm font-bold text-slate-500">Không có</span>
+                  );
+                })()}
               </div>
             </div>
 
@@ -9010,12 +9896,18 @@ function EmsView() {
                   Người liên hệ khẩn cấp
                 </p>
                 <p className="text-sm font-bold text-blue-900">
-                  {scannedPatient?.emergency_contact?.name || scannedPatient?.emergencyContact?.name || "N/A"} 
-                  {scannedPatient?.emergency_contact?.relation || scannedPatient?.emergencyContact?.relation ? 
-                    ` (${scannedPatient?.emergency_contact?.relation || scannedPatient?.emergencyContact?.relation})` : ""}
+                  {scannedPatient?.emergency_contact?.name ||
+                    scannedPatient?.emergencyContact?.name ||
+                    "N/A"}
+                  {scannedPatient?.emergency_contact?.relation ||
+                  scannedPatient?.emergencyContact?.relation
+                    ? ` (${scannedPatient?.emergency_contact?.relation || scannedPatient?.emergencyContact?.relation})`
+                    : ""}
                 </p>
                 <p className="text-xs text-blue-600 font-mono">
-                  {scannedPatient?.emergency_contact?.phone || scannedPatient?.emergencyContact?.phone || "N/A"}
+                  {scannedPatient?.emergency_contact?.phone ||
+                    scannedPatient?.emergencyContact?.phone ||
+                    "N/A"}
                 </p>
               </div>
               <Phone className="w-5 h-5 text-blue-500" />
@@ -9024,8 +9916,7 @@ function EmsView() {
         )}
       </div>
 
-  
-    {/* Floating GPS Broadcast Button */}
+      {/* Floating GPS Broadcast Button */}
       <button
         onClick={() => {
           if (!isMissionStarted) {
@@ -9035,20 +9926,29 @@ function EmsView() {
           }
         }}
         className={`fixed bottom-6 right-6 z-50 px-6 py-4 rounded-full text-sm font-black shadow-2xl transition-all flex items-center gap-3 hover:scale-105 active:scale-95 ${
-          !isMissionStarted ? "bg-slate-800 text-white" : isBroadcasting ? "bg-red-500 text-white animate-pulse" : "bg-cyan-500 text-white"
+          !isMissionStarted
+            ? "bg-slate-800 text-white"
+            : isBroadcasting
+              ? "bg-red-500 text-white animate-pulse"
+              : "bg-cyan-500 text-white"
         }`}
         style={{
-          boxShadow: !isMissionStarted ? "0 8px 32px rgba(30, 41, 59, 0.4)" : isBroadcasting
-            ? "0 8px 32px rgba(239, 68, 68, 0.5)"
-            : "0 8px 32px rgba(6, 182, 212, 0.4)",
+          boxShadow: !isMissionStarted
+            ? "0 8px 32px rgba(30, 41, 59, 0.4)"
+            : isBroadcasting
+              ? "0 8px 32px rgba(239, 68, 68, 0.5)"
+              : "0 8px 32px rgba(6, 182, 212, 0.4)",
         }}
       >
         <MapPin className="w-5 h-5" />
-        {!isMissionStarted ? "Xác nhận xe làm nhiệm vụ" : isBroadcasting ? "DỪNG TRUYỀN GPS" : "BẬT TRUYỀN GPS"}
+        {!isMissionStarted
+          ? "Xác nhận xe làm nhiệm vụ"
+          : isBroadcasting
+            ? "DỪNG TRUYỀN GPS"
+            : "BẬT TRUYỀN GPS"}
       </button>
 
       {/* ── Modal nhap bien so xe ── */}
-
     </div>
   );
 }
@@ -9084,13 +9984,13 @@ function AdminDashboardView() {
 
   const scrollLeft = () => {
     if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: -200, behavior: 'smooth' });
+      scrollRef.current.scrollBy({ left: -200, behavior: "smooth" });
     }
   };
 
   const scrollRight = () => {
     if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: 200, behavior: 'smooth' });
+      scrollRef.current.scrollBy({ left: 200, behavior: "smooth" });
     }
   };
 
@@ -9098,7 +9998,7 @@ function AdminDashboardView() {
     <div className="space-y-4 pb-20">
       {/* Tab bar */}
       <div className="relative flex items-center group">
-        <button 
+        <button
           onClick={scrollLeft}
           className="absolute left-0 z-10 p-1.5 bg-white border border-slate-200 rounded-full shadow-md text-slate-600 hover:text-slate-900 opacity-0 group-hover:opacity-100 transition-opacity md:-ml-4"
           aria-label="Cuộn trái"
@@ -9124,7 +10024,7 @@ function AdminDashboardView() {
           ))}
         </div>
 
-        <button 
+        <button
           onClick={scrollRight}
           className="absolute right-0 z-10 p-1.5 bg-white border border-slate-200 rounded-full shadow-md text-slate-600 hover:text-slate-900 opacity-0 group-hover:opacity-100 transition-opacity md:-mr-4"
           aria-label="Cuộn phải"
@@ -9166,11 +10066,15 @@ function AdminOverviewTab() {
   }, []);
 
   if (loading) {
-    return <div className="text-center py-8 text-slate-400">Đang tải số liệu tổng quan...</div>;
+    return (
+      <div className="text-center py-8 text-slate-400">Đang tải số liệu tổng quan...</div>
+    );
   }
 
   if (!stats || stats.length === 0) {
-    return <div className="text-center py-8 text-slate-400">Không có dữ liệu thống kê.</div>;
+    return (
+      <div className="text-center py-8 text-slate-400">Không có dữ liệu thống kê.</div>
+    );
   }
 
   return (
@@ -9210,7 +10114,9 @@ function AdminPatientsTab() {
 
   const loadData = () => fetchApi("/admin/tables/patients").then(setPatients).catch(console.error);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Xác nhận xóa bệnh nhân này?")) return;
@@ -9231,15 +10137,23 @@ function AdminPatientsTab() {
       });
       loadData();
       setShowForm(false);
-      setForm({ name: "", cccd: "", phone: "", bhxh_code: "", emergency_contact_name: "", emergency_contact_phone: "", password: "" });
+      setForm({
+        name: "",
+        cccd: "",
+        phone: "",
+        bhxh_code: "",
+        emergency_contact_name: "",
+        emergency_contact_phone: "",
+        password: "",
+      });
     } catch (e) {
       alert("Lỗi khi thêm: " + e);
     }
   };
 
-  const filteredPatients = patients.filter(p => 
-    p.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    p.cccd?.includes(searchQuery)
+  const filteredPatients = patients.filter(
+    (p) =>
+      p.name?.toLowerCase().includes(searchQuery.toLowerCase()) || p.cccd?.includes(searchQuery),
   );
 
   return (
@@ -9251,7 +10165,13 @@ function AdminPatientsTab() {
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <div className="flex flex-1 sm:flex-none items-center rounded-lg border border-slate-200 bg-slate-50/80 px-2 py-1.5">
             <Search className="h-3.5 w-3.5 text-slate-400" />
-            <input type="text" placeholder="Tìm tên/CCCD..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="ml-2 w-full sm:w-40 border-none bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400" />
+            <input
+              type="text"
+              placeholder="Tìm tên/CCCD..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="ml-2 w-full sm:w-40 border-none bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400"
+            />
           </div>
           <button
             onClick={() => setShowForm(!showForm)}
@@ -9264,52 +10184,97 @@ function AdminPatientsTab() {
 
       {showForm && (
         <div className="px-5 py-4 bg-slate-50 border-b border-slate-200 space-y-3">
-          <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Thêm bệnh nhân mới</p>
+          <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+            Thêm bệnh nhân mới
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Họ tên *</label>
-              <input type="text" placeholder="Nguyễn Văn A" value={form.name}
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Họ tên *
+              </label>
+              <input
+                type="text"
+                placeholder="Nguyễn Văn A"
+                value={form.name}
                 onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]" />
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]"
+              />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">CCCD *</label>
-              <input type="text" placeholder="001203001299" value={form.cccd}
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                CCCD *
+              </label>
+              <input
+                type="text"
+                placeholder="001203001299"
+                value={form.cccd}
                 onChange={(e) => setForm((s) => ({ ...s, cccd: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]" />
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]"
+              />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Số điện thoại</label>
-              <input type="text" placeholder="0912345678" value={form.phone}
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Số điện thoại
+              </label>
+              <input
+                type="text"
+                placeholder="0912345678"
+                value={form.phone}
                 onChange={(e) => setForm((s) => ({ ...s, phone: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]" />
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]"
+              />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Mã BHXH</label>
-              <input type="text" placeholder="VN-BHXH-12345" value={form.bhxh_code}
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Mã BHXH
+              </label>
+              <input
+                type="text"
+                placeholder="VN-BHXH-12345"
+                value={form.bhxh_code}
                 onChange={(e) => setForm((s) => ({ ...s, bhxh_code: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]" />
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]"
+              />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Liên hệ khẩn cấp</label>
-              <input type="text" placeholder="Nguyễn Thị B" value={form.emergency_contact_name}
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Liên hệ khẩn cấp
+              </label>
+              <input
+                type="text"
+                placeholder="Nguyễn Thị B"
+                value={form.emergency_contact_name}
                 onChange={(e) => setForm((s) => ({ ...s, emergency_contact_name: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]" />
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]"
+              />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">SĐT liên hệ khẩn cấp</label>
-              <input type="text" placeholder="0987654321" value={form.emergency_contact_phone}
-                onChange={(e) => setForm((s) => ({ ...s, emergency_contact_phone: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]" />
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                SĐT liên hệ khẩn cấp
+              </label>
+              <input
+                type="text"
+                placeholder="0987654321"
+                value={form.emergency_contact_phone}
+                onChange={(e) =>
+                  setForm((s) => ({ ...s, emergency_contact_phone: e.target.value }))
+                }
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]"
+              />
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={handleAdd} disabled={!form.name.trim() || !form.cccd.trim()}
-              className="rounded-lg bg-[#0A9BAD] px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-[#0891b2] disabled:opacity-40 disabled:cursor-not-allowed">
+            <button
+              onClick={handleAdd}
+              disabled={!form.name.trim() || !form.cccd.trim()}
+              className="rounded-lg bg-[#0A9BAD] px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-[#0891b2] disabled:opacity-40 disabled:cursor-not-allowed"
+            >
               Lưu bệnh nhân
             </button>
-            <button onClick={() => setShowForm(false)}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">
+            <button
+              onClick={() => setShowForm(false)}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
+            >
               Hủy
             </button>
           </div>
@@ -9336,14 +10301,23 @@ function AdminPatientsTab() {
                 <td className="px-4 py-3 text-[11px] font-mono text-slate-400">{p.id}</td>
                 <td className="px-4 py-3 font-bold text-slate-900">{p.name}</td>
                 <td className="px-4 py-3 font-mono text-[13px] text-slate-700">{p.cccd}</td>
-                <td className="px-4 py-3 text-[13px] text-slate-600">{p.phone ?? "—"}</td>
-                <td className="px-4 py-3 text-[13px] text-slate-600">{p.bhxh_code ?? "—"}</td>
+                <td className="px-4 py-3 text-[13px] text-slate-600">{p.phone ? "—"}</td>
+                <td className="px-4 py-3 text-[13px] text-slate-600">{p.bhxh_code ? "—"}</td>
                 <td className="px-4 py-3 text-[12px] text-slate-500">
-                  {p.emergency_contact_name ? `${p.emergency_contact_name} · ${p.emergency_contact_phone}` : "—"}
+                  {p.emergency_contact_name
+                    ? `${p.emergency_contact_name} · ${p.emergency_contact_phone}`
+                    : "—"}
                 </td>
                 <td className="px-4 py-3 text-[12px] text-slate-500 font-mono">{p.created_at}</td>
                 <td className="px-4 py-3 text-right">
-                  <button onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }} className="text-slate-400 hover:text-red-600 transition-colors" title="Xóa">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(p.id);
+                    }}
+                    className="text-slate-400 hover:text-red-600 transition-colors"
+                    title="Xóa"
+                  >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </td>
@@ -9371,12 +10345,12 @@ function AdminStaffsTab() {
   const [users, setUsers] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   useEffect(() => {
     fetchApi("/admin/tables/staffs").then(setUsers).catch(console.error);
     fetchApi("/admin/tables/departments").then(setDepartments).catch(console.error);
   }, []);
-  
+
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -9405,7 +10379,7 @@ function AdminStaffsTab() {
     try {
       await fetchApi("/admin/staffs", {
         method: "POST",
-        body: JSON.stringify(form)
+        body: JSON.stringify(form),
       });
       const data = await fetchApi("/admin/tables/staffs");
       setUsers(data);
@@ -9424,9 +10398,9 @@ function AdminStaffsTab() {
     }
   };
 
-  const filteredUsers = users.filter(u => 
-    u.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    u.cccd?.includes(searchQuery)
+  const filteredUsers = users.filter(
+    (u) =>
+      u.name?.toLowerCase().includes(searchQuery.toLowerCase()) || u.cccd?.includes(searchQuery),
   );
 
   return (
@@ -9440,7 +10414,13 @@ function AdminStaffsTab() {
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <div className="flex flex-1 sm:flex-none items-center rounded-lg border border-slate-200 bg-slate-50/80 px-2 py-1.5">
             <Search className="h-3.5 w-3.5 text-slate-400" />
-            <input type="text" placeholder="Tìm tên/CCCD..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="ml-2 w-full sm:w-40 border-none bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400" />
+            <input
+              type="text"
+              placeholder="Tìm tên/CCCD..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="ml-2 w-full sm:w-40 border-none bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400"
+            />
           </div>
           <button
             onClick={() => setShowForm(!showForm)}
@@ -9567,7 +10547,7 @@ function AdminStaffsTab() {
               <th className="px-4 py-3">employee_id</th>
               <th className="px-4 py-3">department_id</th>
               <th className="px-4 py-3">created_at</th>
-            <th className="px-4 py-3"></th>
+              <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -9577,21 +10557,34 @@ function AdminStaffsTab() {
                 <td className="px-4 py-3 font-bold text-slate-900">{u.name}</td>
                 <td className="px-4 py-3">
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${roleColors[u.role] ?? "bg-slate-100 text-slate-600"}`}
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${roleColors[u.role] ? "bg-slate-100 text-slate-600"}`}
                   >
                     {u.role}
                   </span>
                 </td>
                 <td className="px-4 py-3 font-mono text-[13px] text-slate-700">{u.cccd}</td>
                 <td className="px-4 py-3 font-mono text-[13px] text-slate-600">
-                  {u.employee_id ?? "—"}
+                  {u.employee_id ? "—"}
                 </td>
                 <td className="px-4 py-3 text-[13px] text-slate-600">
-                  {u.department_id ? (departments.find(d => d.id === u.department_id)?.name || u.department_id) : "—"}
+                  {u.department_id
+                    ? departments.find((d) => d.id === u.department_id)?.name || u.department_id
+                    : "—"}
                 </td>
                 <td className="px-4 py-3 text-[12px] text-slate-500 font-mono">{u.created_at}</td>
-              
-                <td className="px-4 py-3 text-right"><button onClick={(e) => { e.stopPropagation(); handleDelete(u.id); }} className="text-slate-400 hover:text-red-600 transition-colors" title="Xóa"><Trash2 className="w-4 h-4" /></button></td>
+
+                <td className="px-4 py-3 text-right">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(u.id);
+                    }}
+                    className="text-slate-400 hover:text-red-600 transition-colors"
+                    title="Xóa"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -9607,9 +10600,12 @@ function AdminDepartmentsTab() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", description: "" });
 
-  const loadData = () => fetchApi("/admin/tables/departments").then(setDepartments).catch(console.error);
+  const loadData = () =>
+    fetchApi("/admin/tables/departments").then(setDepartments).catch(console.error);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Xác nhận xóa khoa phòng này?")) return;
@@ -9652,10 +10648,14 @@ function AdminDepartmentsTab() {
 
       {showForm && (
         <div className="px-5 py-4 bg-slate-50 border-b border-slate-200 space-y-3">
-          <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Thêm khoa phòng mới</p>
+          <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+            Thêm khoa phòng mới
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Tên khoa phòng *</label>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Tên khoa phòng *
+              </label>
               <input
                 type="text"
                 placeholder="Khoa Cấp cứu"
@@ -9665,7 +10665,9 @@ function AdminDepartmentsTab() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Mô tả</label>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Mô tả
+              </label>
               <input
                 type="text"
                 placeholder="Mô tả khoa phòng..."
@@ -9699,7 +10701,16 @@ function AdminDepartmentsTab() {
             key={d.id}
             className="relative p-4 rounded-xl border border-slate-100 hover:border-[#88E8F2] hover:shadow-md transition-all cursor-pointer group"
           >
-            <button onClick={(e) => { e.stopPropagation(); handleDelete(d.id); }} className="absolute top-2 right-2 text-slate-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Xóa"><Trash2 className="w-4 h-4" /></button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(d.id);
+              }}
+              className="absolute top-2 right-2 text-slate-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+              title="Xóa"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
             <div className="flex items-center gap-2 mb-2">
               <div className="w-2 h-8 rounded-full bg-[#0A9BAD] transition-transform group-hover:scale-y-110" />
               <div>
@@ -9719,11 +10730,19 @@ function AdminDepartmentsTab() {
 function AdminDevicesTab() {
   const [devices, setDevices] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", device_type: "camera_fall", location: "", ip_address: "", status: "active" });
+  const [form, setForm] = useState({
+    name: "",
+    device_type: "camera_fall",
+    location: "",
+    ip_address: "",
+    status: "active",
+  });
 
   const loadData = () => fetchApi("/admin/tables/devices").then(setDevices).catch(console.error);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Xác nhận xóa thiết bị này?")) return;
@@ -9744,7 +10763,13 @@ function AdminDevicesTab() {
       });
       loadData();
       setShowForm(false);
-      setForm({ name: "", device_type: "camera_fall", location: "", ip_address: "", status: "active" });
+      setForm({
+        name: "",
+        device_type: "camera_fall",
+        location: "",
+        ip_address: "",
+        status: "active",
+      });
     } catch (e) {
       alert("Lỗi khi thêm: " + e);
     }
@@ -9768,7 +10793,9 @@ function AdminDevicesTab() {
           <h3 className="font-bold text-slate-900 flex items-center gap-2">
             <Cpu className="w-5 h-5 text-[#0A9BAD]" /> Quản lý Thiết bị
           </h3>
-          <p className="text-[11px] text-slate-500 font-geist mt-0.5">id · device_type · name · location · status · ip_address</p>
+          <p className="text-[11px] text-slate-500 font-geist mt-0.5">
+            id · device_type · name · location · status · ip_address
+          </p>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
@@ -9780,39 +10807,69 @@ function AdminDevicesTab() {
 
       {showForm && (
         <div className="px-5 py-4 bg-slate-50 border-b border-slate-200 space-y-3">
-          <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Thêm thiết bị mới</p>
+          <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+            Thêm thiết bị mới
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Tên thiết bị *</label>
-              <input type="text" placeholder="Camera sảnh A" value={form.name}
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Tên thiết bị *
+              </label>
+              <input
+                type="text"
+                placeholder="Camera sảnh A"
+                value={form.name}
                 onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]" />
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]"
+              />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Loại thiết bị</label>
-              <select value={form.device_type} onChange={(e) => setForm((s) => ({ ...s, device_type: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2] bg-white">
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Loại thiết bị
+              </label>
+              <select
+                value={form.device_type}
+                onChange={(e) => setForm((s) => ({ ...s, device_type: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2] bg-white"
+              >
                 <option value="camera_fall">Camera AI (phát hiện ngã)</option>
                 <option value="camera_lpr">Camera LPR (biển số)</option>
                 <option value="monitor_spo2">Monitor SpO2</option>
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Vị trí</label>
-              <input type="text" placeholder="Phòng CC01" value={form.location}
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Vị trí
+              </label>
+              <input
+                type="text"
+                placeholder="Phòng CC01"
+                value={form.location}
                 onChange={(e) => setForm((s) => ({ ...s, location: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]" />
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]"
+              />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">IP Address</label>
-              <input type="text" placeholder="192.168.1.100" value={form.ip_address}
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                IP Address
+              </label>
+              <input
+                type="text"
+                placeholder="192.168.1.100"
+                value={form.ip_address}
                 onChange={(e) => setForm((s) => ({ ...s, ip_address: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]" />
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2]"
+              />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Trạng thái</label>
-              <select value={form.status} onChange={(e) => setForm((s) => ({ ...s, status: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2] bg-white">
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Trạng thái
+              </label>
+              <select
+                value={form.status}
+                onChange={(e) => setForm((s) => ({ ...s, status: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#88E8F2] bg-white"
+              >
                 <option value="active">Hoạt động</option>
                 <option value="offline">Offline</option>
                 <option value="maintenance">Bảo trì</option>
@@ -9820,12 +10877,17 @@ function AdminDevicesTab() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={handleAdd} disabled={!form.name.trim()}
-              className="rounded-lg bg-[#0A9BAD] px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-[#0891b2] disabled:opacity-40 disabled:cursor-not-allowed">
+            <button
+              onClick={handleAdd}
+              disabled={!form.name.trim()}
+              className="rounded-lg bg-[#0A9BAD] px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-[#0891b2] disabled:opacity-40 disabled:cursor-not-allowed"
+            >
               Lưu thiết bị
             </button>
-            <button onClick={() => setShowForm(false)}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">
+            <button
+              onClick={() => setShowForm(false)}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
+            >
               Hủy
             </button>
           </div>
@@ -9850,20 +10912,31 @@ function AdminDevicesTab() {
               <tr key={d.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                 <td className="px-4 py-3 text-[11px] font-mono text-slate-400">{d.id}</td>
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${typeLabels[d.device_type]?.color ?? "bg-slate-100 text-slate-600"}`}>
-                    {typeLabels[d.device_type]?.label ?? d.device_type}
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${typeLabels[d.device_type]?.color ? "bg-slate-100 text-slate-600"}`}
+                  >
+                    {typeLabels[d.device_type]?.label ? d.device_type}
                   </span>
                 </td>
                 <td className="px-4 py-3 font-bold text-slate-900">{d.name}</td>
                 <td className="px-4 py-3 text-[13px] text-slate-600">{d.location}</td>
                 <td className="px-4 py-3 font-mono text-[13px] text-slate-500">{d.ip_address}</td>
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusStyle[d.status] ?? ""}`}>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusStyle[d.status] ? ""}`}
+                  >
                     {d.status}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <button onClick={(e) => { e.stopPropagation(); handleDelete(d.id); }} className="text-slate-400 hover:text-red-600 transition-colors" title="Xóa">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(d.id);
+                    }}
+                    className="text-slate-400 hover:text-red-600 transition-colors"
+                    title="Xóa"
+                  >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </td>
@@ -9882,9 +10955,12 @@ function AdminAmbulancesTab() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ plate_number: "", driver_name: "", status: "available" });
 
-  const loadData = () => fetchApi("/admin/tables/ambulances").then(setAmbulances).catch(console.error);
+  const loadData = () =>
+    fetchApi("/admin/tables/ambulances").then(setAmbulances).catch(console.error);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Xác nhận xóa xe cấp cứu này?")) return;
@@ -9933,10 +11009,14 @@ function AdminAmbulancesTab() {
 
       {showForm && (
         <div className="px-5 py-4 bg-slate-50 border-b border-slate-200 space-y-3">
-          <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Thêm xe cấp cứu mới</p>
+          <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+            Thêm xe cấp cứu mới
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Biển số xe *</label>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Biển số xe *
+              </label>
               <input
                 type="text"
                 placeholder="51F-123.45"
@@ -9946,7 +11026,9 @@ function AdminAmbulancesTab() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Tên tài xế *</label>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Tên tài xế *
+              </label>
               <input
                 type="text"
                 placeholder="Nguyễn Văn A"
@@ -9956,7 +11038,9 @@ function AdminAmbulancesTab() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Trạng thái</label>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Trạng thái
+              </label>
               <select
                 value={form.status}
                 onChange={(e) => setForm((s) => ({ ...s, status: e.target.value }))}
@@ -10006,14 +11090,23 @@ function AdminAmbulancesTab() {
                 <td className="px-4 py-3 font-mono font-bold text-slate-900">{a.plate_number}</td>
                 <td className="px-4 py-3 text-[13px] text-slate-700">{a.driver_name}</td>
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${ambStatus[a.status]?.color ?? ""}`}>
-                    {ambStatus[a.status]?.label ?? a.status}
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${ambStatus[a.status]?.color ? ""}`}
+                  >
+                    {ambStatus[a.status]?.label ? a.status}
                   </span>
                 </td>
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-500">{a.last_lat}</td>
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-500">{a.last_lng}</td>
                 <td className="px-4 py-3 text-right">
-                  <button onClick={(e) => { e.stopPropagation(); handleDelete(a.id); }} className="text-slate-400 hover:text-red-600 transition-colors" title="Xóa">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(a.id);
+                    }}
+                    className="text-slate-400 hover:text-red-600 transition-colors"
+                    title="Xóa"
+                  >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </td>
@@ -10066,12 +11159,12 @@ function AdminQueueTab() {
               <th className="px-4 py-3">triage_level</th>
               <th className="px-4 py-3">status</th>
               <th className="px-4 py-3">entered_at</th>
-            <th className="px-4 py-3"></th>
+              <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
             {queue.map((q) => {
-              const triage = triageColors[q.triage_level] ?? triageColors[3];
+              const triage = triageColors[q.triage_level] ? triageColors[3];
               return (
                 <tr
                   key={q.id}
@@ -10096,9 +11189,20 @@ function AdminQueueTab() {
                     </span>
                   </td>
                   <td className="px-4 py-3 font-mono text-[12px] text-slate-500">{q.entered_at}</td>
-                
-                <td className="px-4 py-3 text-right"><button onClick={(e) => { e.stopPropagation(); handleDelete(q.id); }} className="text-slate-400 hover:text-red-600 transition-colors" title="Xóa"><Trash2 className="w-4 h-4" /></button></td>
-              </tr>
+
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(q.id);
+                      }}
+                      className="text-slate-400 hover:text-red-600 transition-colors"
+                      title="Xóa"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
               );
             })}
           </tbody>
@@ -10136,12 +11240,12 @@ function AdminLogsTab() {
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
         <div>
-        <h3 className="font-bold text-slate-900 flex items-center gap-2">
-          <AlertTriangle className="w-5 h-5 text-[#0A9BAD]" /> Nhật ký hệ thống
-        </h3>
-        <p className="text-[11px] text-slate-500 font-geist mt-0.5">
-          id · log_type · device_id (FK) · description · is_alert · resolved_at · created_at
-        </p>
+          <h3 className="font-bold text-slate-900 flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-[#0A9BAD]" /> Nhật ký hệ thống
+          </h3>
+          <p className="text-[11px] text-slate-500 font-geist mt-0.5">
+            id · log_type · device_id (FK) · description · is_alert · resolved_at · created_at
+          </p>
         </div>
         <button
           onClick={() => alert("Chức năng đang phát triển")}
@@ -10161,7 +11265,7 @@ function AdminLogsTab() {
               <th className="px-4 py-3">is_alert</th>
               <th className="px-4 py-3">resolved_at</th>
               <th className="px-4 py-3">created_at</th>
-            <th className="px-4 py-3"></th>
+              <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -10173,9 +11277,9 @@ function AdminLogsTab() {
                 <td className="px-4 py-3 text-[11px] font-mono text-slate-400">{l.id}</td>
                 <td className="px-4 py-3">
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${logTypeLabels[l.log_type]?.color ?? "bg-slate-100 text-slate-600"}`}
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${logTypeLabels[l.log_type]?.color ? "bg-slate-100 text-slate-600"}`}
                   >
-                    {logTypeLabels[l.log_type]?.label ?? l.log_type}
+                    {logTypeLabels[l.log_type]?.label ? l.log_type}
                   </span>
                 </td>
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-500">{l.device_id}</td>
@@ -10193,11 +11297,22 @@ function AdminLogsTab() {
                   )}
                 </td>
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-500">
-                  {l.resolved_at ?? "—"}
+                  {l.resolved_at ? "—"}
                 </td>
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-500">{l.created_at}</td>
-              
-                <td className="px-4 py-3 text-right"><button onClick={(e) => { e.stopPropagation(); handleDelete(l.id); }} className="text-slate-400 hover:text-red-600 transition-colors" title="Xóa"><Trash2 className="w-4 h-4" /></button></td>
+
+                <td className="px-4 py-3 text-right">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(l.id);
+                    }}
+                    className="text-slate-400 hover:text-red-600 transition-colors"
+                    title="Xóa"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -10243,7 +11358,7 @@ function AdminLprTab() {
               <th className="px-4 py-3">plate_number</th>
               <th className="px-4 py-3">confidence</th>
               <th className="px-4 py-3">timestamp</th>
-            <th className="px-4 py-3"></th>
+              <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -10284,8 +11399,19 @@ function AdminLprTab() {
                   </div>
                 </td>
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-500">{l.timestamp}</td>
-              
-                <td className="px-4 py-3 text-right"><button onClick={(e) => { e.stopPropagation(); handleDelete(l.id); }} className="text-slate-400 hover:text-red-600 transition-colors" title="Xóa"><Trash2 className="w-4 h-4" /></button></td>
+
+                <td className="px-4 py-3 text-right">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(l.id);
+                    }}
+                    className="text-slate-400 hover:text-red-600 transition-colors"
+                    title="Xóa"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -10334,7 +11460,7 @@ function AdminMedicalBooksTab() {
               <th className="px-4 py-3">qr_token</th>
               <th className="px-4 py-3">status</th>
               <th className="px-4 py-3">issued_at</th>
-            <th className="px-4 py-3"></th>
+              <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -10345,14 +11471,25 @@ function AdminMedicalBooksTab() {
                 <td className="px-4 py-3 font-mono text-[13px] text-slate-700">{b.qr_token}</td>
                 <td className="px-4 py-3">
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusStyle[b.status] ?? ""}`}
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusStyle[b.status] ? ""}`}
                   >
                     {b.status}
                   </span>
                 </td>
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-500">{b.issued_at}</td>
-              
-                <td className="px-4 py-3 text-right"><button onClick={(e) => { e.stopPropagation(); handleDelete(b.id); }} className="text-slate-400 hover:text-red-600 transition-colors" title="Xóa"><Trash2 className="w-4 h-4" /></button></td>
+
+                <td className="px-4 py-3 text-right">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(b.id);
+                    }}
+                    className="text-slate-400 hover:text-red-600 transition-colors"
+                    title="Xóa"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -10383,13 +11520,13 @@ function AdminWebAuthnTab() {
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
         <div>
-        <h3 className="font-bold text-slate-900 flex items-center gap-2">
-          <Shield className="w-5 h-5 text-[#0A9BAD]" /> Bảng webauthn_credentials
-        </h3>
-        <p className="text-[11px] text-slate-500 font-geist mt-0.5">
-          id · user_id (FK) · credential_id · public_key · sign_count · device_name · created_at ·
-          last_used_at
-        </p>
+          <h3 className="font-bold text-slate-900 flex items-center gap-2">
+            <Shield className="w-5 h-5 text-[#0A9BAD]" /> Bảng webauthn_credentials
+          </h3>
+          <p className="text-[11px] text-slate-500 font-geist mt-0.5">
+            id · user_id (FK) · credential_id · public_key · sign_count · device_name ·
+            created_at · last_used_at
+          </p>
         </div>
         <button
           onClick={() => alert("Chức năng đang phát triển")}
@@ -10409,7 +11546,7 @@ function AdminWebAuthnTab() {
               <th className="px-4 py-3">sign_count</th>
               <th className="px-4 py-3">created_at</th>
               <th className="px-4 py-3">last_used_at</th>
-            <th className="px-4 py-3"></th>
+              <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -10424,7 +11561,18 @@ function AdminWebAuthnTab() {
                 <td className="px-4 py-3 font-mono text-[13px] text-slate-700">{c.sign_count}</td>
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-500">{c.created_at}</td>
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-500">{c.last_used_at}</td>
-                <td className="px-4 py-3 text-right"><button onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }} className="text-slate-400 hover:text-red-600 transition-colors" title="Xóa"><Trash2 className="w-4 h-4" /></button></td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(c.id);
+                    }}
+                    className="text-slate-400 hover:text-red-600 transition-colors"
+                    title="Xóa"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -10469,6 +11617,7 @@ const DEPARTMENTS_QA = [
 ];
 
 function DoctorQAView() {
+  const isMobile = useIsMobile();
   const [questions, setQuestions] = useState<QAQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -10554,10 +11703,10 @@ function DoctorQAView() {
                 answer: answerText.trim(),
                 status: "answered",
                 answered_at: new Date().toISOString(),
-                doctor_name: "Bác sĩ",  // sẽ được cập nhật từ WS broadcast
+                doctor_name: "Bác sĩ", // sẽ được cập nhật từ WS broadcast
               }
-            : q
-        )
+            : q,
+        ),
       );
       setTimeout(() => handleCloseModal(), 1200);
     } catch (e: any) {
@@ -10568,56 +11717,66 @@ function DoctorQAView() {
   };
 
   const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+    new Date(iso).toLocaleDateString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
 
   const formatTime = (iso: string) =>
     new Date(iso).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-4 ${isMobile ? "md:space-y-6" : "space-y-6"}`}>
       {/* ── Stats Row ── */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#88E8F2] to-[#4dd8e8] p-5 shadow-md">
+      <div className={`grid gap-2.5 sm:gap-4 ${isMobile ? "grid-cols-3" : "grid-cols-1 sm:grid-cols-3"}`}>
+        <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#88E8F2] to-[#4dd8e8] shadow-md shadow-[#88E8F2]/20 ${isMobile ? "p-3.5" : "p-5"}`}>
           <div className="relative z-10">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#0d4a56] opacity-80">
+            <p className={`font-semibold uppercase tracking-widest text-[#0d4a56] opacity-80 ${isMobile ? "text-[9px]" : "text-xs"}`}>
               Tổng câu hỏi
             </p>
-            <p className="mt-1 text-4xl font-bold text-[#0d1f2d]">{questions.length}</p>
+            <p className={`font-bold text-[#0d1f2d] ${isMobile ? "mt-1 text-3xl" : "mt-1 text-4xl"}`}>{questions.length}</p>
           </div>
-          <BarChart2 className="absolute right-4 bottom-3 h-14 w-14 text-[#0d1f2d] opacity-10" />
+          {!isMobile && <BarChart2 className="absolute right-4 bottom-3 h-14 w-14 text-[#0d1f2d] opacity-10" />}
         </div>
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-400 to-orange-500 p-5 shadow-md">
+        <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-400 to-orange-500 shadow-md shadow-orange-400/20 ${isMobile ? "p-3.5" : "p-5"}`}>
           <div className="relative z-10">
-            <p className="text-xs font-semibold uppercase tracking-widest text-orange-100 opacity-90">
+            <p className={`font-semibold uppercase tracking-widest text-orange-100 opacity-90 ${isMobile ? "text-[9px]" : "text-xs"}`}>
               Chờ trả lời
             </p>
-            <p className="mt-1 text-4xl font-bold text-white">{unansweredCount}</p>
+            <p className={`font-bold text-white ${isMobile ? "mt-1 text-3xl" : "mt-1 text-4xl"}`}>{unansweredCount}</p>
           </div>
-          <MessageSquare className="absolute right-4 bottom-3 h-14 w-14 text-white opacity-10" />
+          {!isMobile && <MessageSquare className="absolute right-4 bottom-3 h-14 w-14 text-white opacity-10" />}
         </div>
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-500 p-5 shadow-md">
+        <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-500 shadow-md shadow-emerald-400/20 ${isMobile ? "p-3.5" : "p-5"}`}>
           <div className="relative z-10">
-            <p className="text-xs font-semibold uppercase tracking-widest text-emerald-100 opacity-90">
+            <p className={`font-semibold uppercase tracking-widest text-emerald-100 opacity-90 ${isMobile ? "text-[9px]" : "text-xs"}`}>
               Đã trả lời
             </p>
-            <p className="mt-1 text-4xl font-bold text-white">{answeredCount}</p>
+            <p className={`font-bold text-white ${isMobile ? "mt-1 text-3xl" : "mt-1 text-4xl"}`}>{answeredCount}</p>
           </div>
-          <CheckCircle className="absolute right-4 bottom-3 h-14 w-14 text-white opacity-10" />
+          {!isMobile && <CheckCircle className="absolute right-4 bottom-3 h-14 w-14 text-white opacity-10" />}
         </div>
       </div>
 
       {/* ── Filter + Search Bar ── */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-4">
+      <div className={`space-y-3 rounded-2xl border border-slate-100 bg-white shadow-sm sm:space-y-4 ${isMobile ? "p-3" : "p-4 sm:p-5"}`}>
         {/* Status Tabs */}
-        <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
+        <div className="flex gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1">
           {(["all", "unanswered", "answered"] as const).map((s) => {
-            const labels = { all: "Tất cả", unanswered: "Chờ trả lời", answered: "Đã trả lời" };
+            const labels = {
+              all: "Tất cả",
+              unanswered: "Chờ trả lời",
+              answered: "Đã trả lời",
+            };
             const active = filterStatus === s;
             return (
               <button
                 key={s}
                 onClick={() => setFilterStatus(s)}
-                className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-all duration-200 ${
+                className={`min-w-0 flex-1 rounded-lg font-semibold transition-all duration-200 ${
+                  isMobile ? "py-2.5 text-[12px]" : "py-2 text-sm"
+                } ${
                   active
                     ? "bg-white text-[#0d1f2d] shadow-sm"
                     : "text-slate-500 hover:text-slate-700"
@@ -10625,7 +11784,9 @@ function DoctorQAView() {
               >
                 {labels[s]}
                 {s === "unanswered" && unansweredCount > 0 && (
-                  <span className={`ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold ${active ? "bg-orange-500 text-white" : "bg-orange-100 text-orange-600"}`}>
+                  <span
+                    className={`ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold ${active ? "bg-orange-500 text-white" : "bg-orange-100 text-orange-600"}`}
+                  >
                     {unansweredCount}
                   </span>
                 )}
@@ -10635,30 +11796,36 @@ function DoctorQAView() {
         </div>
 
         {/* Search + Dept + Refresh */}
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-2.5 sm:flex-row">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Tìm kiếm câu hỏi, nội dung..."
+              placeholder="Tìm kiếm câu hỏi..."
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-4 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#88E8F2] focus:ring-2 focus:ring-[#88E8F2]/20 transition"
+              className={`h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-4 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#88E8F2] focus:ring-2 focus:ring-[#88E8F2]/20 transition ${
+                isMobile ? "min-h-[44px]" : ""
+              }`}
             />
           </div>
           <select
             value={filterDept}
             onChange={(e) => setFilterDept(e.target.value)}
-            className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 outline-none focus:border-[#88E8F2] focus:ring-2 focus:ring-[#88E8F2]/20 transition cursor-pointer"
+            className={`h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 outline-none transition cursor-pointer focus:border-[#88E8F2] focus:ring-2 focus:ring-[#88E8F2]/20 ${
+              isMobile ? "w-full min-h-[44px]" : "w-full sm:w-auto"
+            }`}
           >
             {DEPARTMENTS_QA.map((d) => (
-              <option key={d} value={d}>{d}</option>
+              <option key={d} value={d}>
+                {d}
+              </option>
             ))}
           </select>
           <button
             onClick={() => fetchQuestions(true)}
             disabled={refreshing}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 hover:border-[#88E8F2] hover:text-[#0d1f2d] transition-all"
+            className="flex h-11 w-11 items-center justify-center self-end rounded-xl border border-slate-200 bg-slate-50 text-slate-500 transition-all hover:border-[#88E8F2] hover:text-[#0d1f2d] sm:self-auto active:scale-95"
             title="Làm mới"
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
@@ -10669,80 +11836,86 @@ function DoctorQAView() {
       {/* ── Question List ── */}
       <div className="space-y-3">
         {loading ? (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-32 animate-pulse rounded-2xl bg-slate-100" />
+              <div key={i} className="h-28 animate-pulse rounded-2xl bg-slate-100" />
             ))}
           </div>
         ) : displayedQuestions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center">
-            <MessageSquare className="mb-3 h-12 w-12 text-slate-300" />
-            <p className="font-semibold text-slate-500">Không có câu hỏi nào</p>
-            <p className="mt-1 text-sm text-slate-400">
-              {searchText ? "Thử thay đổi từ khóa tìm kiếm" : "Bệnh nhân chưa đặt câu hỏi nào"}
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white py-12 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 mb-3">
+              <MessageSquare className="h-7 w-7 text-slate-300" />
+            </div>
+            <p className="font-semibold text-slate-500 text-[14px]">Không có câu hỏi nào</p>
+            <p className="mt-1 text-[12px] text-slate-400 px-6">
+              {searchText
+                ? "Thử thay đổi từ khóa tìm kiếm"
+                : "Bệnh nhân chưa đặt câu hỏi nào"}
             </p>
           </div>
         ) : (
           displayedQuestions.map((q) => (
             <div
               key={q.id}
-              className="group relative overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all duration-200 hover:border-[#88E8F2]/60 hover:shadow-md"
+              className="group relative overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all duration-200 hover:border-[#88E8F2]/60 hover:shadow-md active:scale-[0.99]"
             >
               {/* Left accent bar */}
               <div
-                className={`absolute left-0 top-0 h-full w-1 rounded-l-2xl transition-all ${
-                  q.status === "answered" ? "bg-emerald-400" : "bg-orange-400"
+                className={`absolute left-0 top-0 h-full w-1.5 rounded-l-2xl transition-all ${
+                  q.status === "answered" ? "bg-emerald-400" : "bg-gradient-to-b from-orange-400 to-orange-500"
                 }`}
               />
 
-              <div className="pl-5 pr-5 py-4">
+              <div className={`pl-5 pr-4 ${isMobile ? "py-3.5" : "py-4"}`}>
                 {/* Header row */}
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center gap-1 rounded-lg bg-[#e8f9fb] px-2.5 py-1 text-[12px] font-semibold text-[#0d6b7a]">
-                      <Stethoscope className="h-3.5 w-3.5" />
+                <div className={`flex items-start justify-between gap-2 ${isMobile ? "mb-2.5" : "mb-3"}`}>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="inline-flex items-center gap-1 rounded-lg bg-[#e8f9fb] px-2.5 py-1 text-[11px] font-semibold text-[#0d6b7a]">
+                      <Stethoscope className="h-3 w-3" />
                       {q.department}
                     </span>
                     {q.status === "answered" ? (
-                      <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-600">
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">
                         <CheckCircle className="h-3 w-3" /> Đã trả lời
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 rounded-lg bg-orange-50 px-2.5 py-1 text-[11px] font-semibold text-orange-500">
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-orange-50 px-2 py-0.5 text-[10px] font-semibold text-orange-500">
                         <Clock className="h-3 w-3" /> Chờ trả lời
                       </span>
                     )}
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-[11px] text-slate-400">{formatDate(q.created_at)}</p>
-                    <p className="text-[11px] text-slate-400">{formatTime(q.created_at)}</p>
+                    <p className="text-[10px] text-slate-400">{formatDate(q.created_at)}</p>
+                    <p className="text-[10px] text-slate-400">{formatTime(q.created_at)}</p>
                   </div>
                 </div>
 
                 {/* Sender */}
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100">
-                    <User className="h-4 w-4 text-slate-400" />
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100">
+                    <User className="h-3.5 w-3.5 text-slate-400" />
                   </div>
-                  <p className="text-[12px] font-medium text-slate-500">Bệnh nhân ẩn danh</p>
+                  <p className="text-[11px] font-medium text-slate-500">Bệnh nhân ẩn danh</p>
                 </div>
 
                 {/* Question text */}
-                <p className="text-[14px] text-slate-800 leading-relaxed mb-3">{q.question}</p>
+                <p className={`text-slate-800 leading-relaxed mb-3 ${isMobile ? "text-[13px]" : "text-[14px]"}`}>{q.question}</p>
 
                 {/* Answer (if exists) */}
                 {q.answer ? (
-                  <div className="flex gap-3 rounded-xl bg-emerald-50 border border-emerald-100 p-3 mb-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-white">
-                      <Stethoscope className="h-4 w-4 text-emerald-600" />
+                  <div className="flex gap-2.5 rounded-xl bg-emerald-50 border border-emerald-100 p-3 mb-3">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-white">
+                      <Stethoscope className="h-3.5 w-3.5 text-emerald-600" />
                     </div>
-                    <div className="flex-1">
-                      <p className="text-[11px] font-semibold text-emerald-600 mb-0.5">
-                        {q.doctor_name ? `BS. ${q.doctor_name} trả lời` : "Câu trả lời của bác sĩ"}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-semibold text-emerald-600 mb-0.5">
+                        {q.doctor_name
+                          ? `BS. ${q.doctor_name} trả lời`
+                          : "Câu trả lời của bác sĩ"}
                       </p>
-                      <p className="text-[13px] text-slate-700 leading-relaxed">{q.answer}</p>
+                      <p className={`text-slate-700 leading-relaxed ${isMobile ? "text-[12px]" : "text-[13px]"}`}>{q.answer}</p>
                       {q.answered_at && (
-                        <p className="mt-1 text-[10px] text-slate-400">
+                        <p className="mt-1 text-[9px] text-slate-400">
                           {formatDate(q.answered_at)} · {formatTime(q.answered_at)}
                         </p>
                       )}
@@ -10751,13 +11924,15 @@ function DoctorQAView() {
                 ) : null}
 
                 {/* Action button */}
-                <div className="flex justify-end">
+                <div className={`flex ${isMobile ? "justify-stretch" : "justify-end"}`}>
                   <button
                     onClick={() => handleOpenAnswer(q)}
-                    className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-[13px] font-semibold transition-all duration-200 active:scale-95 ${
+                    className={`inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-200 active:scale-95 ${
+                      isMobile ? "w-full min-h-[48px] py-3 text-[13px]" : "px-4 py-2 text-[13px]"
+                    } ${
                       q.status === "answered"
                         ? "border border-slate-200 text-slate-600 hover:border-[#88E8F2] hover:bg-[#f0fdfe] hover:text-[#0d1f2d]"
-                        : "bg-[#0d1f2d] text-white hover:bg-[#1a3548] shadow-sm"
+                        : "bg-gradient-to-r from-[#0d1f2d] to-[#1a3548] text-white hover:from-[#1a3548] hover:to-[#0d1f2d] shadow-md shadow-[#0d1f2d]/20"
                     }`}
                   >
                     {q.status === "answered" ? (
@@ -10784,21 +11959,30 @@ function DoctorQAView() {
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={handleCloseModal}
           />
 
           {/* Modal panel */}
-          <div className="relative z-10 w-full max-w-2xl rounded-t-3xl sm:rounded-3xl bg-white shadow-2xl overflow-hidden">
+          <div className={`relative z-10 w-full max-w-2xl overflow-hidden bg-white shadow-2xl ${isMobile ? "max-h-[95dvh] rounded-t-3xl" : "rounded-3xl"}`}>
+            {/* Drag handle (mobile) */}
+            {isMobile && (
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="h-1 w-10 rounded-full bg-slate-300" />
+              </div>
+            )}
+
             {/* Modal header */}
-            <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-[#0d1f2d] to-[#1a3548] px-6 py-4">
+            <div className={`flex items-center justify-between gap-3 bg-gradient-to-r from-[#0d1f2d] to-[#1a3548] ${isMobile ? "px-4 py-3.5" : "px-6 py-4"}`}>
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#88E8F2]/20">
                   <MessageSquare className="h-5 w-5 text-[#88E8F2]" />
                 </div>
                 <div>
                   <p className="font-bold text-white text-[15px]">Trả lời câu hỏi</p>
-                  <p className="text-[11px] text-[#88E8F2]/70">Khoa {selectedQuestion.department}</p>
+                  <p className="text-[11px] text-[#88E8F2]/70">
+                    Khoa {selectedQuestion.department}
+                  </p>
                 </div>
               </div>
               <button
@@ -10809,7 +11993,7 @@ function DoctorQAView() {
               </button>
             </div>
 
-            <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
+            <div className={`space-y-4 overflow-y-auto ${isMobile ? "max-h-[calc(95dvh-10rem)] px-4 py-4" : "max-h-[70vh] px-6 py-5"}`}>
               {/* Original question */}
               <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4">
                 <div className="flex items-center gap-2 mb-2">
@@ -10817,32 +12001,38 @@ function DoctorQAView() {
                     <User className="h-4 w-4 text-slate-500" />
                   </div>
                   <p className="text-[12px] font-semibold text-slate-500">Bệnh nhân ẩn danh</p>
-                  <span className="ml-auto text-[11px] text-slate-400">{formatDate(selectedQuestion.created_at)}</span>
+                  <span className="ml-auto text-[11px] text-slate-400">
+                    {formatDate(selectedQuestion.created_at)}
+                  </span>
                 </div>
-                <p className="text-[14px] text-slate-800 leading-relaxed">{selectedQuestion.question}</p>
+                <p className="text-[14px] text-slate-800 leading-relaxed">
+                  {selectedQuestion.question}
+                </p>
               </div>
 
               {/* Answer input */}
               <div>
                 <label className="mb-2 block text-[13px] font-semibold text-slate-700">
                   Câu trả lời của bác sĩ
-                  <span className="ml-1 font-normal text-slate-400">(tối thiểu 10 ký tự)</span>
+                  <span className="ml-1 font-normal text-slate-400">
+                    (tối thiểu 10 ký tự)
+                  </span>
                 </label>
                 <textarea
-                  rows={5}
+                  rows={isMobile ? 4 : 5}
                   value={answerText}
                   onChange={(e) => setAnswerText(e.target.value)}
                   placeholder="Nhập câu trả lời chuyên môn, lời khuyên sức khỏe..."
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-[14px] text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#88E8F2] focus:ring-2 focus:ring-[#88E8F2]/20 resize-none transition"
                   disabled={submitting || submitSuccess}
                 />
-                <div className="mt-1 flex items-center justify-between">
-                  <span className={`text-[11px] ${answerText.length < 10 ? "text-orange-400" : "text-emerald-500"}`}>
+                <div className="mt-1.5 flex items-center justify-between">
+                  <span
+                    className={`text-[11px] ${answerText.length < 10 ? "text-orange-400" : "text-emerald-500"}`}
+                  >
                     {answerText.length} / tối thiểu 10 ký tự
                   </span>
-                  {submitError && (
-                    <span className="text-[12px] text-red-500">{submitError}</span>
-                  )}
+                  {submitError && <span className="text-[12px] text-red-500">{submitError}</span>}
                   {submitSuccess && (
                     <span className="flex items-center gap-1 text-[12px] text-emerald-600 font-semibold">
                       <CheckCircle className="h-4 w-4" /> Đã gửi thành công!
@@ -10852,17 +12042,21 @@ function DoctorQAView() {
               </div>
 
               {/* Action buttons */}
-              <div className="flex gap-3 pt-1 pb-2">
+              <div className={`flex gap-3 ${isMobile ? "pt-1 pb-4" : "pt-1 pb-2"}`}>
                 <button
                   onClick={handleCloseModal}
-                  className="flex-1 rounded-xl border border-slate-200 py-3 text-[14px] font-semibold text-slate-600 hover:bg-slate-50 transition"
+                  className={`rounded-xl border border-slate-200 font-semibold text-slate-600 hover:bg-slate-50 transition ${
+                    isMobile ? "flex-1 py-3.5 text-[14px]" : "flex-1 py-3 text-[14px]"
+                  }`}
                 >
                   Hủy
                 </button>
                 <button
                   onClick={handleSubmitAnswer}
                   disabled={submitting || submitSuccess || answerText.trim().length < 10}
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-[#0d1f2d] py-3 text-[14px] font-bold text-white shadow-md hover:bg-[#1a3548] disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#0d1f2d] to-[#1a3548] font-bold text-white shadow-lg shadow-[#0d1f2d]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 ${
+                    isMobile ? "py-3.5 text-[14px]" : "py-3 text-[14px]"
+                  }`}
                 >
                   {submitSuccess ? (
                     <>

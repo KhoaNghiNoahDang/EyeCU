@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 
-// Dinh nghia cac loai message tu Backend
+// Định nghĩa các loại message từ Backend
 export type SocketMessageType =
   | "ping"
   | "GPS_UPDATE"
@@ -25,9 +25,9 @@ export interface SocketMessage {
   title?: string;
 }
 
-// Dinh nghia cau truc payload cho HTTP Fallback khi socket chet
+// Định nghĩa cấu trúc payload cho HTTP Fallback khi socket chết
 export interface FallbackPayload {
-  // endpoint tuong ung voi API backend (VD: "/api/ems/pre-alert")
+  // endpoint tương ứng với API backend (VD: "/api/ems/pre-alert")
   endpoint: string;
   body: Record<string, unknown>;
 }
@@ -37,23 +37,23 @@ type MessageHandler = (message: SocketMessage) => void;
 interface UseEyeCUSocketOptions {
   url: string;
   onMessage: MessageHandler;
-  // Cho phep tat reconnect (VD: khi user dang nhap lai)
+  // Cho phép tắt reconnect (VD: khi user đang đăng nhập lại)
   reconnect?: boolean;
-  // So lan thu ket noi lai toi da (mac dinh: 10 lan ~ khoang 8 phut)
+  // Số lần thử kết nối lại tối đa (mặc định: 10 lần ~ khoảng 8 phút)
   maxRetries?: number;
 }
 
-const MAX_BACKOFF_MS = 30_000; // Gioi han toi da 30 giay
+const MAX_BACKOFF_MS = 30_000; // Giới hạn tối đa 30 giây
 
 /**
  * useEyeCUSocket — Enterprise WebSocket hook
  *
- * Tinh nang:
- *  - Tu dong loc goi "ping" cua server keep_alive, khong gay re-render thua
- *  - Exponential Backoff: lan 1=2s, lan 2=4s, lan 3=8s... toi da 30s
- *  - HTTP Fallback: khi socket chet va can gui data gap, tu dong goi REST API
- *  - Chong memory leak: huy setTimeout truoc khi unmount
- *  - onMessage luon dung phien ban moi nhat (tranh stale closure)
+ * Tính năng:
+ *  - Tự động lọc gói "ping" của server keep_alive, không gây re-render thừa
+ *  - Exponential Backoff: lần 1=2s, lần 2=4s, lần 3=8s... tối đa 30s
+ *  - HTTP Fallback: khi socket chết và cần gửi data gấp, tự động gọi REST API
+ *  - Chống memory leak: huỷ setTimeout trước khi unmount
+ *  - onMessage luôn dùng phiên bản mới nhất (tránh stale closure)
  */
 export function useEyeCUSocket({
   url,
@@ -64,7 +64,7 @@ export function useEyeCUSocket({
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retriesRef = useRef(0);
-  // Flag de biet component da unmount chua, tranh setState sau unmount
+  // Flag để biết component đã unmount chưa, tránh setState sau unmount
   const isMountedRef = useRef(true);
   // Ref de onMessage luon la phien ban moi nhat
   const onMessageRef = useRef<MessageHandler>(onMessage);
@@ -74,15 +74,15 @@ export function useEyeCUSocket({
   }, [onMessage]);
 
   const connect = useCallback(() => {
-    // Khong ket noi lai neu component da unmount hoac da dat toi gioi han retry
+    // Không kết nối lại nếu component đã unmount hoặc đã đạt tới giới hạn retry
     if (!isMountedRef.current) return;
     if (retriesRef.current >= maxRetries) {
-      console.warn(`[EyeCU WS] Da thu ${maxRetries} lan, dung ket noi lai.`);
+      console.warn(`[EyeCU WS] Đã thử ${maxRetries} lần, dừng kết nối lại.`);
       return;
     }
 
     if (wsRef.current) {
-      // Xoa handler cu de tranh onclose bi goi nhieu lan
+      // Xoá handler cũ để tránh onclose bị gọi nhiều lần
       wsRef.current.onclose = null;
       wsRef.current.close();
     }
@@ -93,7 +93,7 @@ export function useEyeCUSocket({
     ws.onopen = () => {
       if (!isMountedRef.current) return;
       console.log("[EyeCU WS] Connected:", url);
-      retriesRef.current = 0; // Reset so lan thu khi ket noi thanh cong
+      retriesRef.current = 0; // Reset số lần thử khi kết nối thành công
       if (reconnectTimerRef.current) {
         clearTimeout(reconnectTimerRef.current);
         reconnectTimerRef.current = null;
@@ -104,7 +104,7 @@ export function useEyeCUSocket({
       if (!isMountedRef.current) return;
       try {
         const msg: SocketMessage = JSON.parse(event.data);
-        // Loc goi "ping" cua keep_alive — khong chuyen len component, khong gay re-render
+        // Lọc gói "ping" của keep_alive — không chuyển lên component, không gây re-render
         if (msg.type === "ping") return;
         onMessageRef.current(msg);
       } catch {
@@ -113,19 +113,19 @@ export function useEyeCUSocket({
     };
 
     ws.onerror = () => {
-      // onerror luon di kem voi onclose nen khong can xu ly them o day
+      // onerror luôn đi kèm với onclose nên không cần xử lý thêm ở đây
       console.warn("[EyeCU WS] Connection warning: Server might be offline.");
     };
 
     ws.onclose = () => {
-      if (!isMountedRef.current) return; // Component da unmount, khong reconnect
+      if (!isMountedRef.current) return; // Component đã unmount, không reconnect
       wsRef.current = null;
 
       if (reconnect && retriesRef.current < maxRetries) {
-        // Exponential Backoff: 2^n * 1000ms, toi da MAX_BACKOFF_MS
+        // Exponential Backoff: 2^n * 1000ms, tối đa MAX_BACKOFF_MS
         const delay = Math.min(1000 * Math.pow(2, retriesRef.current), MAX_BACKOFF_MS);
         retriesRef.current += 1;
-        console.log(`[EyeCU WS] Ket noi lai lan ${retriesRef.current} sau ${delay / 1000}s...`);
+        console.log(`[EyeCU WS] Kết nối lại lần ${retriesRef.current} sau ${delay / 1000}s...`);
         reconnectTimerRef.current = setTimeout(connect, delay);
       }
     };
@@ -136,8 +136,8 @@ export function useEyeCUSocket({
     connect();
 
     return () => {
-      // Danh dau component da unmount TRUOC khi close socket
-      // Nhu vay onclose se thay isMountedRef.current = false va khong schedule reconnect
+      // Đánh dấu component đã unmount TRƯỚC khi close socket
+      // Như vậy onclose sẽ thấy isMountedRef.current = false và không schedule reconnect
       isMountedRef.current = false;
       if (reconnectTimerRef.current) {
         clearTimeout(reconnectTimerRef.current);
@@ -145,7 +145,7 @@ export function useEyeCUSocket({
       }
       if (wsRef.current) {
         const ws = wsRef.current;
-        ws.onclose = null; // Xoa handler truoc khi close
+        ws.onclose = null; // Xoá handler trước khi close
         if (ws.readyState === WebSocket.CONNECTING) {
           ws.onopen = () => ws.close();
         } else {
@@ -158,13 +158,13 @@ export function useEyeCUSocket({
   }, [url]);
 
   /**
-   * send — Gui message len server
+   * send — Gửi message lên server
    *
-   * - Neu socket dang mo: gui qua WebSocket (nhanh, real-time)
-   * - Neu socket chet: HTTP Fallback qua fetch (dam bao data khong mat)
+   * - Nếu socket đang mở: gửi qua WebSocket (nhanh, real-time)
+   * - Nếu socket chết: HTTP Fallback qua fetch (đảm bảo data không mất)
    *
-   * @param data    Payload can gui
-   * @param fallback Neu socket chet, goi endpoint nao? (tuy chon)
+   * @param data    Payload cần gửi
+   * @param fallback Nếu socket chết, gọi endpoint nào? (tùy chọn)
    */
   const send = useCallback(
     async (data: Record<string, unknown>, fallback?: FallbackPayload): Promise<void> => {
@@ -173,9 +173,9 @@ export function useEyeCUSocket({
         return;
       }
 
-      // Socket khong mo — thu HTTP Fallback neu co cau hinh
+      // Socket không mở — thử HTTP Fallback nếu có cấu hình
       if (fallback) {
-        console.warn("[EyeCU WS] Socket chet, chuyen sang HTTP Fallback:", fallback.endpoint);
+        console.warn("[EyeCU WS] Socket chết, chuyển sang HTTP Fallback:", fallback.endpoint);
         try {
           const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
           const API_URL = import.meta.env.VITE_API_URL ?? `http://${host}:8000`;
@@ -187,13 +187,13 @@ export function useEyeCUSocket({
           if (!res.ok) {
             throw new Error(`HTTP ${res.status}: ${res.statusText}`);
           }
-          console.log("[EyeCU WS] HTTP Fallback thanh cong.");
+          console.log("[EyeCU WS] HTTP Fallback thành công.");
         } catch (err) {
-          // Mat mang hoan toan — PWA Workbox se cache va bắn lai khi co mang
-          console.error("[EyeCU WS] HTTP Fallback that bai (mat mang hoan toan):", err);
+          // Mất mạng hoàn toàn — PWA Workbox sẽ cache và bắn lại khi có mạng
+          console.error("[EyeCU WS] HTTP Fallback thất bại (mất mạng hoàn toàn):", err);
         }
       } else {
-        console.warn("[EyeCU WS] Socket chet va khong co fallback duoc cau hinh.");
+        console.warn("[EyeCU WS] Socket chết và không có fallback được cấu hình.");
       }
     },
     [],

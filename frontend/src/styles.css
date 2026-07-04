@@ -144,6 +144,9 @@
   }
 
   body {
+    font-family:
+      "Hanken Grotesk", "Inter", "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial,
+      sans-serif;
     background-color: var(--color-background);
     color: var(--color-foreground);
     overflow-x: hidden;
@@ -190,10 +193,16 @@
 }
 
 .font-hanken {
-  font-family: "Hanken Grotesk", system-ui, sans-serif;
+  font-family:
+    "Hanken Grotesk", "Inter", "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial,
+    sans-serif;
 }
 .font-geist {
-  font-family: "Geist", ui-monospace, monospace;
+  font-family:
+    "Hanken Grotesk", "Inter", "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial,
+    sans-serif;
+  font-feature-settings: "ss01" on;
+  letter-spacing: 0.04em;
 }
 .material-symbols-outlined {
   font-family: "Material Symbols Outlined";

@@ -16,16 +16,16 @@ function NotFoundComponent() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">Không tìm thấy trang</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+          Trang bạn tìm kiếm không tồn tại hoặc đã được di chuyển.
         </p>
         <div className="mt-6">
           <Link
             to="/"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Go home
+            Về trang chủ
           </Link>
         </div>
       </div>
@@ -41,10 +41,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+          Trang không tải được
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          Đã xảy ra lỗi. Vui lòng thử lại hoặc quay về trang chủ.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -54,13 +54,13 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Try again
+            Thử lại
           </button>
           <a
             href="/"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Go home
+            Về trang chủ
           </a>
         </div>
       </div>
@@ -121,7 +121,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600&family=Geist:wght@400;500&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap",
       },
       {
         rel: "stylesheet",
@@ -200,7 +200,7 @@ function SmartUXLoader() {
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="vi">
       <head>
         <HeadContent />
       </head>
@@ -215,6 +215,7 @@ function RootShell({ children }: { children: ReactNode }) {
 
 import { AuthProvider } from "../lib/auth/auth-context";
 import { useLocation } from "@tanstack/react-router";
+import { PwaInstallPrompt } from "../components/PwaInstallPrompt";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
@@ -233,6 +234,7 @@ function RootComponent() {
       <QueryClientProvider client={queryClient}>
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
+        <PwaInstallPrompt />
       </QueryClientProvider>
     </AuthProvider>
   );
