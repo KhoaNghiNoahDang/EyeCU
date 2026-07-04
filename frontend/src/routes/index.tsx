@@ -1734,10 +1734,7 @@ function AmbientView({
         </div>
       </div>
 
-      {/* Privacy-by-Design Camera Demo — hidden on mobile */}
-      <div className="hidden md:block">
-        <PrivacyCameraFeed />
-      </div>
+
 
       {fullscreen && (
         <CameraModal
@@ -2163,9 +2160,9 @@ function PrivacyCameraFeed() {
         </span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+      <div className="flex flex-col gap-4 max-w-5xl mx-auto w-full">
         {/* Camera 16:9 */}
-        <div className="lg:col-span-3">
+        <div className="w-full">
           <div
             className="relative w-full rounded-xl overflow-hidden bg-slate-900 transition-all duration-500"
             style={{
@@ -2320,115 +2317,6 @@ function PrivacyCameraFeed() {
                 Đặt lại — Chế độ riêng tư
               </button>
             )}
-          </div>
-        </div>
-
-        {/* Right panel */}
-        <div className="lg:col-span-2 flex flex-col gap-3">
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-            <p className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5" style={{ color: ACCENT }} />
-              Privacy-by-Design · Nguyên lý
-            </p>
-            <div className="space-y-2.5 text-[13px]">
-              {[
-                ["Nhận diện khuôn mặt", "TẮT — Không lưu trữ"],
-                ["Video gốc", "Không gửi lên server"],
-                ["Pose Estimation", "Xử lý cục bộ (Edge AI)"],
-                ["Audio raw", "Chuyển thành spectrogram"],
-              ].map(([label, value]) => (
-                <div key={label} className="flex items-start justify-between gap-2">
-                  <span className="text-slate-500">{label}</span>
-                  <span className="font-semibold text-right text-emerald-700">{value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex-1">
-            <p className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-3">
-              Độ tin cậy AI — Thời gian thực
-            </p>
-            <div className="space-y-3">
-              {[
-                {
-                  label: "Phân tích tư thế",
-                  val: isCritical ? 97 : 99,
-                  color: isCritical ? "#EF4444" : "#10B981",
-                  unit: "%",
-                },
-                {
-                  label: "Phân tích âm thanh",
-                  val: isCritical ? 91 : 32,
-                  color: isCritical ? "#EF4444" : ACCENT,
-                  unit: "dB",
-                },
-                {
-                  label: "Điểm hợp nhất cảm biến",
-                  val: isCritical ? 98 : 12,
-                  color: isCritical ? "#DC2626" : "#64748B",
-                  unit: "%",
-                },
-              ].map(({ label, val, color, unit }) => (
-                <div key={label}>
-                  <div className="flex justify-between text-[12px] mb-1">
-                    <span className="text-slate-500">{label}</span>
-                    <span className="font-bold font-mono" style={{ color }}>
-                      {val}
-                      {unit}
-                    </span>
-                  </div>
-                  <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-700"
-                      style={{ width: `${val}%`, backgroundColor: color }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-slate-200">
-              <p className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-2">
-                Nhật ký sự kiện
-              </p>
-              <div className="space-y-1.5 text-[12px] font-mono">
-                {isCritical ? (
-                  <>
-                    <div className="flex gap-2 text-red-600">
-                      <span className="text-slate-400">14:32:07</span> Phát hiện ngã · Phòng
-                      103
-                    </div>
-                    <div className="flex gap-2 text-red-500">
-                      <span className="text-slate-400">14:32:07</span> Âm thanh bất thường ·
-                      Va đập 91dB
-                    </div>
-                    <div className="flex gap-2 text-red-500">
-                      <span className="text-slate-400">14:32:08</span> Cảnh báo hợp nhất →
-                      Kíp trực
-                    </div>
-                    <div className="flex gap-2 text-amber-600">
-                      <span className="text-slate-400">14:32:08</span> Đã điều xe cấp cứu
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex gap-2 text-emerald-600">
-                      <span className="text-slate-400">14:32:07</span> Tư thế bình thường
-                      · Dáng đi ổn định
-                    </div>
-                    <div className="flex gap-2 text-slate-400">
-                      <span className="text-slate-400">14:31:55</span> Âm thanh · Môi trường
-                      32dB
-                    </div>
-                    <div className="flex gap-2 text-slate-400">
-                      <span className="text-slate-400">14:31:40</span> Toàn bộ hệ thống bình
-                      thường
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
           </div>
         </div>
       </div>

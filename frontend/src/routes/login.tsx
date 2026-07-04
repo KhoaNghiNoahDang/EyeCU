@@ -806,7 +806,7 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
       <SectionTitle
         icon={ShieldCheck}
         title="Đăng nhập Bệnh nhân"
-        subtitle="Hệ thống quản lý và chăm sóc sức khỏe nhãn khoa EyeCU"
+        subtitle="Hệ thống quản lý và chăm sóc sức khỏe EyeCU"
       />
 
       {isCapturingFace ? (
