@@ -249,10 +249,16 @@ export function PatientPortalNew({
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showIosPrompt, setShowIosPrompt] = useState(false);
   const [isAppInstalled, setIsAppInstalled] = useState(false);
+  const [showAudioPrompt, setShowAudioPrompt] = useState(false);
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
 
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
     setIsMounted(true);
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    if (/iphone|ipad|ipod/.test(userAgent)) {
+      setShowAudioPrompt(true);
+    }
 
     // Check if already installed
     if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true) {
@@ -953,26 +959,7 @@ export function PatientPortalNew({
              </button>
           </div>
 
-          {/* 5. Doctor Schedule List */}
-          <div className="px-4 mt-6">
-            <h3 className="text-[15px] font-bold text-[#0d1f2d] mb-3">Bác sĩ có lịch khám</h3>
-            <div className="space-y-3">
-              {scheduledDoctors.length === 0 ? (
-                <div className="bg-white rounded-2xl p-4 text-center border border-slate-100 shadow-sm text-sm text-slate-500">
-                  Chưa cập nhật được lịch của bác sĩ
-                </div>
-              ) : (
-                scheduledDoctors.map((doc, idx) => (
-                  <div key={idx} className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm border border-slate-100">
-                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-slate-100 border border-slate-200">
-                       <img src={doc.img} alt={doc.name} className="h-full w-full object-cover" />
-                    </div>
-                    <p className="text-[15px] font-medium text-[#0d1f2d]">{doc.name}</p>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+
           
           <div className="h-10 shrink-0" />
         </div>
@@ -3172,6 +3159,45 @@ export function PatientPortalNew({
                 className="w-full py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold active:bg-slate-300"
               >
                 Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Audio Prompt Modal for iOS */}
+      {showAudioPrompt && !audioUnlocked && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden p-6 text-center animate-in zoom-in-95 duration-200">
+            <div className="mx-auto w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mb-4">
+              <span className="text-3xl">🔊</span>
+            </div>
+            <h3 className="text-lg font-bold text-[#0d1f2d] mb-2">Bật âm thanh tự động?</h3>
+            <p className="text-[14px] text-slate-500 mb-6">
+              Bạn có muốn trợ lý tự động phát âm thanh khi phản hồi không? Bạn có thể thay đổi sau.
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => {
+                  setAutoPlayTTS(false);
+                  setShowAudioPrompt(false);
+                  setAudioUnlocked(true);
+                }}
+                className="flex-1 py-3 rounded-xl bg-slate-100 text-slate-600 font-bold active:bg-slate-200"
+              >
+                Không
+              </button>
+              <button 
+                onClick={() => {
+                  setAutoPlayTTS(true);
+                  setShowAudioPrompt(false);
+                  setAudioUnlocked(true);
+                  const silentAudio = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
+                  silentAudio.play().catch(() => {});
+                }}
+                className="flex-1 py-3 rounded-xl bg-[#88E8F2] text-[#0d1f2d] font-bold active:bg-cyan-300"
+              >
+                Có, bật
               </button>
             </div>
           </div>
