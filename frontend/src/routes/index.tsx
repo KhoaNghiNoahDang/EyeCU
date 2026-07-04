@@ -1146,6 +1146,8 @@ function AmbientView({
   highlightedRoom: string | null;
   setHighlightedRoom: (r: string | null) => void;
 }) {
+  const isMobile = useIsMobile();
+  const gridRef = useRef<HTMLDivElement>(null);
   const [selectedDept, setSelectedDept] = useState("internal");
   const [onlyAlerts, setOnlyAlerts] = useState(false);
   const [fullscreen, setFullscreen] = useState<Camera | null>(null);
@@ -1221,40 +1223,50 @@ function AmbientView({
     if (highlightedRoom) setSelectedDept("internal");
   }, [highlightedRoom]);
 
+  const handleDeptTabClick = (tabId: string) => {
+    setSelectedDept(tabId);
+    setOnlyAlerts(false);
+    setTimeout(() => {
+      gridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  };
+
   return (
     <>
-      <div className="bg-white border border-slate-200 rounded-xl p-5">
+      <div className={`bg-white border border-slate-200 rounded-xl ${isMobile ? "p-3" : "p-5"}`}>
         {/* Header */}
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <h3 className="text-xl font-medium text-slate-900 flex items-center gap-2">
-              <Video className="w-5 h-5" style={{ color: ACCENT }} />
-              Camera AI Giám sát — {currentTab?.name}
+        <div className="flex justify-between items-center mb-3 md:mb-4">
+          <div className="min-w-0">
+            <h3 className={`${isMobile ? "text-base" : "text-xl"} font-medium text-slate-900 flex items-center gap-2`}>
+              <Video className="w-4 h-4 md:w-5 md:h-5 flex-shrink-0" style={{ color: ACCENT }} />
+              <span className="truncate">AI Giám sát · {currentTab?.name}</span>
             </h3>
-            <p className="text-[13px] text-slate-500 font-geist mt-0.5">
-              {deptCameras.length} camera · Phân tích hành vi · Phát hiện ngã · Nhận
-              dạng âm thanh
-            </p>
+            {!isMobile && (
+              <p className="text-[13px] text-slate-500 font-geist mt-0.5">
+                {deptCameras.length} camera · Phân tích hành vi · Phát hiện ngã · Nhận
+                dạng âm thanh
+              </p>
+            )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
             {alertCount > 0 && (
-              <span className="px-2 py-1 rounded-lg text-[10px] font-bold text-white bg-red-500 flex items-center gap-1 animate-pulse">
-                {alertCount} Cảnh báo
+              <span className="px-1.5 md:px-2 py-0.5 md:py-1 rounded-lg text-[9px] md:text-[10px] font-bold text-white bg-red-500 flex items-center gap-1 animate-pulse">
+                {alertCount}{isMobile ? "" : " Cảnh báo"}
               </span>
             )}
             <span
-              className="px-2 py-1 rounded text-[10px] font-geist uppercase tracking-wider text-slate-900 flex items-center gap-1"
+              className="px-1.5 md:px-2 py-0.5 md:py-1 rounded text-[9px] md:text-[10px] font-geist uppercase tracking-wider text-slate-900 flex items-center gap-1"
               style={{ backgroundColor: ACCENT }}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
-              Trực tiếp
+              {isMobile ? "LIVE" : "Trực tiếp"}
             </span>
           </div>
         </div>
 
         {/* Department tab bar — horizontally scrollable */}
-        <div className="-mx-1 mb-4">
-          <div className="flex overflow-x-auto whitespace-nowrap scrollbar-hide gap-3 pb-2 px-1">
+        <div className="-mx-1 mb-3 md:mb-4">
+          <div className="flex overflow-x-auto whitespace-nowrap scrollbar-hide gap-1.5 md:gap-3 pb-2 px-1">
             {DEPT_TABS.map((tab) => {
               const tabCams = ALL_CAMERAS.filter((c) => c.dept === tab.id);
               const tabAlerts = tabCams.filter((c) => c.status === "alert").length;
@@ -1262,11 +1274,8 @@ function AmbientView({
               return (
                 <button
                   key={tab.id}
-                  onClick={() => {
-                    setSelectedDept(tab.id);
-                    setOnlyAlerts(false);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-bold whitespace-nowrap transition-all flex-shrink-0 border"
+                  onClick={() => handleDeptTabClick(tab.id)}
+                  className={`flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1 md:py-1.5 rounded-full ${isMobile ? "text-[11px]" : "text-[13px]"} font-bold whitespace-nowrap transition-all flex-shrink-0 border`}
                   style={{
                     backgroundColor: isActive ? tab.color : "#F8FAFC",
                     color: isActive ? "#fff" : "#475569",
@@ -1274,12 +1283,15 @@ function AmbientView({
                     boxShadow: isActive ? `0 2px 8px ${tab.color}50` : undefined,
                   }}
                 >
-                  <span className="text-[14px] font-semibold tracking-wide">{tab.name}</span>
-                  <span className="opacity-70 text-[11px]">({tabCams.length})</span>
-                  {tabAlerts > 0 && (
+                  <span className="font-semibold tracking-wide">{tab.name}</span>
+                  <span className="opacity-70">({tabCams.length})</span>
+                  {tabAlerts > 0 && !isMobile && (
                     <span className="w-4 h-4 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center">
                       {tabAlerts}
                     </span>
+                  )}
+                  {tabAlerts > 0 && isMobile && (
+                    <span className="text-red-200 text-[10px]">⚠</span>
                   )}
                 </button>
               );
@@ -1288,29 +1300,30 @@ function AmbientView({
         </div>
 
         {/* Controls */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-5 pb-4 border-b border-slate-200">
+        <div className="flex flex-wrap items-center justify-between gap-2 md:gap-3 mb-3 md:mb-5 pb-3 md:pb-4 border-b border-slate-200">
           <button
             onClick={() => setOnlyAlerts((v) => !v)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-[12px] font-geist uppercase tracking-wider transition-colors ${
+            className={`flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1.5 md:py-2 rounded-lg border ${isMobile ? "text-[11px]" : "text-[12px]"} font-geist uppercase tracking-wider transition-colors ${
               onlyAlerts
                 ? "text-slate-900 border-transparent"
                 : "bg-white border-slate-200 text-slate-700 hover:border-[#88E8F2]"
             }`}
             style={onlyAlerts ? { backgroundColor: ACCENT } : undefined}
           >
-            <AlertTriangle className="w-3.5 h-3.5" />
-            {onlyAlerts ? `Cảnh báo (${alertCount})` : "Chỉ hiện Cảnh báo"}
+            <AlertTriangle className="w-3 h-3 md:w-3.5 md:h-3.5" />
+            {onlyAlerts ? `Cảnh báo (${alertCount})` : (isMobile ? "Chỉ cảnh báo" : "Chỉ hiện Cảnh báo")}
           </button>
-          <span className="text-[11px] font-geist text-slate-400">
+          <span className="text-[10px] md:text-[11px] font-geist text-slate-400">
             {filtered.length} / {deptCameras.length} camera
           </span>
         </div>
 
         {/* Camera grid — split when multiple alerts */}
+        <div ref={gridRef}>
         {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-            <Video className="w-10 h-10 mb-2 opacity-30" />
-            <p className="text-sm">Không có cảnh báo nào trong {currentTab?.name}</p>
+          <div className="flex flex-col items-center justify-center py-8 md:py-12 text-slate-400">
+            <Video className="w-8 h-8 md:w-10 md:h-10 mb-2 opacity-30" />
+            <p className="text-xs md:text-sm">Không có cảnh báo nào trong {currentTab?.name}</p>
           </div>
         ) : (
           (() => {
@@ -1319,34 +1332,36 @@ function AmbientView({
             const multiAlarm = alerts.length >= 2 && !onlyAlerts;
             if (!multiAlarm) {
               return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
                   {filtered.map((cam) => (
                     <CameraCard
                       key={cam.room}
                       cam={cam}
                       highlighted={highlightedRoom === cam.room}
                       onClick={() => setFullscreen(cam)}
+                      isMobile={isMobile}
                     />
                   ))}
                 </div>
               );
             }
             return (
-              <div className="space-y-5">
+              <div className="space-y-3 md:space-y-5">
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                    <h4 className="text-[11px] font-bold uppercase tracking-widest text-red-600">
+                    <h4 className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-red-600">
                       Sự cố đang xử lý · {alerts.length}
                     </h4>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-2 gap-2 md:gap-4">
                     {alerts.map((cam) => (
                       <CameraCard
                         key={cam.room}
                         cam={cam}
                         highlighted={highlightedRoom === cam.room}
                         onClick={() => setFullscreen(cam)}
+                        isMobile={isMobile}
                       />
                     ))}
                   </div>
@@ -1355,23 +1370,23 @@ function AmbientView({
                   <div>
                     <div className="flex items-center gap-2 mb-2">
                       <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                      <h4 className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
+                      <h4 className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-slate-500">
                         Phòng ổn định · {stable.length}
                       </h4>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                    <div className="grid grid-cols-3 md:grid-cols-3 lg:grid-cols-5 gap-1.5 md:gap-2">
                       {stable.map((cam) => (
                         <button
                           key={cam.room}
                           onClick={() => setFullscreen(cam)}
-                          className="flex items-center gap-2 p-2 border border-slate-200 rounded-lg bg-white hover:border-[#88E8F2] transition text-left"
+                          className="flex items-center gap-1.5 md:gap-2 p-1.5 md:p-2 border border-slate-200 rounded-lg bg-white hover:border-[#88E8F2] transition text-left"
                         >
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
                           <div className="min-w-0">
-                            <p className="text-[11px] font-bold text-slate-900 truncate">
-                              Phòng {cam.room}
+                            <p className="text-[10px] md:text-[11px] font-bold text-slate-900 truncate">
+                              P.{cam.room}
                             </p>
-                            <p className="text-[9px] text-slate-500 uppercase tracking-wider">
+                            <p className="text-[8px] md:text-[9px] text-slate-500 uppercase tracking-wider">
                               Ổn định
                             </p>
                           </div>
@@ -1384,51 +1399,94 @@ function AmbientView({
             );
           })()
         )}
+        </div>
       </div>
 
-      {/* Privacy-by-Design Camera Demo */}
-      <PrivacyCameraFeed />
+      {/* Privacy-by-Design Camera Demo — hidden on mobile */}
+      <div className="hidden md:block">
+        <PrivacyCameraFeed />
+      </div>
 
       {fullscreen && <CameraModal cam={fullscreen} onClose={() => setFullscreen(null)} />}
 
       {fallAlert && (
-        <div className="fixed top-20 right-6 z-[999] bg-red-950 text-white p-5 rounded-2xl shadow-2xl flex flex-col gap-3 animate-fade-in border border-red-500 max-w-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-6 h-6 text-red-500 animate-pulse" />
-              <h3 className="font-bold text-lg text-red-400 uppercase tracking-widest">
-                Cảnh báo cấp cứu
-              </h3>
+        isMobile ? (
+          <div className="fixed bottom-0 left-0 right-0 z-[999] bg-red-950 text-white p-4 rounded-t-2xl shadow-2xl flex flex-col gap-3 animate-in slide-in-from-bottom duration-300 border-t border-red-500">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-red-500 animate-pulse" />
+                <h3 className="font-bold text-base text-red-400 uppercase tracking-widest">
+                  Cảnh báo cấp cứu
+                </h3>
+              </div>
+              <button onClick={() => setFallAlert(null)} className="text-gray-400 hover:text-white p-1">
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <button onClick={() => setFallAlert(null)} className="text-gray-400 hover:text-white">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          <p className="text-sm font-medium text-slate-300">
-            Phát hiện bệnh nhân ngã tại{" "}
-            <span className="font-bold text-red-300">{fallAlert.room}</span> lúc {fallAlert.time}
-          </p>
-          {fallAlert.imageUrl && (
-            <div className="relative rounded-lg overflow-hidden border-2 border-red-900/50">
-              <img src={fallAlert.imageUrl} alt="Blurred fall evidence" className="w-full h-auto" />
-              <div className="absolute inset-0 bg-red-500/10 animate-pulse" />
+            <p className="text-sm font-medium text-slate-300">
+              Phát hiện bệnh nhân ngã tại{" "}
+              <span className="font-bold text-red-300">{fallAlert.room}</span> lúc {fallAlert.time}
+            </p>
+            {fallAlert.imageUrl && (
+              <div className="relative rounded-lg overflow-hidden border-2 border-red-900/50">
+                <img src={fallAlert.imageUrl} alt="Blurred fall evidence" className="w-full h-auto max-h-40 object-cover" />
+                <div className="absolute inset-0 bg-red-500/10 animate-pulse" />
+              </div>
+            )}
+            <div className="flex gap-2 mt-1 pb-safe">
+              <button
+                onClick={() => setFallAlert(null)}
+                className="flex-1 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-semibold transition"
+              >
+                Bỏ qua
+              </button>
+              <button
+                onClick={() => setFallAlert(null)}
+                className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-semibold shadow-lg shadow-red-500/20 transition"
+              >
+                Cấp cứu
+              </button>
             </div>
-          )}
-          <div className="flex gap-2 mt-2">
-            <button
-              onClick={() => setFallAlert(null)}
-              className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-semibold transition"
-            >
-              Bỏ qua (Giả)
-            </button>
-            <button
-              onClick={() => setFallAlert(null)}
-              className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-semibold shadow-lg shadow-red-500/20 transition"
-            >
-              Cấp cứu
-            </button>
           </div>
-        </div>
+        ) : (
+          <div className="fixed top-20 right-6 z-[999] bg-red-950 text-white p-5 rounded-2xl shadow-2xl flex flex-col gap-3 animate-fade-in border border-red-500 max-w-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-6 h-6 text-red-500 animate-pulse" />
+                <h3 className="font-bold text-lg text-red-400 uppercase tracking-widest">
+                  Cảnh báo cấp cứu
+                </h3>
+              </div>
+              <button onClick={() => setFallAlert(null)} className="text-gray-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm font-medium text-slate-300">
+              Phát hiện bệnh nhân ngã tại{" "}
+              <span className="font-bold text-red-300">{fallAlert.room}</span> lúc {fallAlert.time}
+            </p>
+            {fallAlert.imageUrl && (
+              <div className="relative rounded-lg overflow-hidden border-2 border-red-900/50">
+                <img src={fallAlert.imageUrl} alt="Blurred fall evidence" className="w-full h-auto" />
+                <div className="absolute inset-0 bg-red-500/10 animate-pulse" />
+              </div>
+            )}
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={() => setFallAlert(null)}
+                className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-semibold transition"
+              >
+                Bỏ qua (Giả)
+              </button>
+              <button
+                onClick={() => setFallAlert(null)}
+                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-semibold shadow-lg shadow-red-500/20 transition"
+              >
+                Cấp cứu
+              </button>
+            </div>
+          </div>
+        )
       )}
     </>
   );
@@ -1438,35 +1496,37 @@ function CameraCard({
   cam,
   highlighted,
   onClick,
+  isMobile,
 }: {
   cam: Camera;
   highlighted: boolean;
   onClick: () => void;
+  isMobile?: boolean;
 }) {
   const isAlert = cam.status === "alert";
-  const ring = highlighted ? "ring-4 ring-offset-2 ring-[#88E8F2]" : "";
-  const borderCls = isAlert ? "border-4 border-red-500 animate-pulse" : "border border-slate-200";
+  const ring = highlighted ? "ring-2 md:ring-4 ring-offset-1 md:ring-offset-2 ring-[#88E8F2]" : "";
+  const borderCls = isAlert ? "border-2 md:border-4 border-red-500 animate-pulse" : "border border-slate-200";
   return (
     <button
       onClick={onClick}
-      className={`group relative aspect-video rounded-xl overflow-hidden bg-slate-800 text-left ${borderCls} ${ring} hover:scale-[1.02] cursor-pointer transition-all duration-200`}
+      className={`group relative aspect-video rounded-lg md:rounded-xl overflow-hidden bg-slate-800 text-left ${borderCls} ${ring} hover:scale-[1.02] cursor-pointer transition-all duration-200`}
     >
       <CameraFeed cam={cam} />
 
       {/* Room pill */}
-      <div className="absolute top-2 left-2 z-10 backdrop-blur-sm bg-black/40 text-white text-[11px] font-geist px-2 py-1 rounded-full flex items-center gap-1.5">
-        <Video className="w-3 h-3" />
-        Phòng {cam.room}
+      <div className={`absolute top-1.5 left-1.5 md:top-2 md:left-2 z-10 backdrop-blur-sm bg-black/40 text-white ${isMobile ? "text-[9px] px-1.5 py-0.5" : "text-[11px] px-2 py-1"} rounded-full flex items-center gap-1`}>
+        {!isMobile && <Video className="w-3 h-3" />}
+        {cam.room}
       </div>
 
       {/* Status dot */}
-      <div className="absolute top-2 right-2 z-10 backdrop-blur-sm bg-black/40 px-2 py-1 rounded-full flex items-center gap-1.5">
+      <div className={`absolute top-1.5 right-1.5 md:top-2 md:right-2 z-10 backdrop-blur-sm bg-black/40 ${isMobile ? "px-1.5 py-0.5" : "px-2 py-1"} rounded-full flex items-center gap-1`}>
         <span
-          className="w-1.5 h-1.5 rounded-full animate-pulse"
+          className={`${isMobile ? "w-1 h-1" : "w-1.5 h-1.5"} rounded-full animate-pulse`}
           style={{ backgroundColor: isAlert ? "#EF4444" : ACCENT }}
         />
-        <span className="text-[10px] uppercase tracking-wider text-white font-geist">
-          {isAlert ? "Cảnh báo" : "Ổn định"}
+        <span className={`${isMobile ? "text-[8px]" : "text-[10px]"} uppercase tracking-wider text-white font-geist`}>
+          {isAlert ? (isMobile ? "⚠" : "Cảnh báo") : (isMobile ? "✓" : "Ổn định")}
         </span>
       </div>
 
