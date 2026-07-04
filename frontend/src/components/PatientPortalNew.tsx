@@ -379,19 +379,6 @@ export function PatientPortalNew({
     }
   }, [messages, botTyping, botOpen]);
 
-  useEffect(() => {
-    if (autoPlayTTS && messages.length > 0) {
-      const lastMsgIdx = messages.length - 1;
-      const lastMsg = messages[lastMsgIdx];
-      // Play TTS if it's from bot and not already playing (to prevent re-triggering on re-renders)
-      if (lastMsg.from === "bot" && playingTTSMsgIdx !== lastMsgIdx) {
-        // Debounce slightly to allow UI to render first
-        const t = setTimeout(() => playTTS(lastMsg.text, lastMsgIdx), 300);
-        return () => clearTimeout(t);
-      }
-    }
-  }, [messages.length, autoPlayTTS]);
-
   // Initialize Audio object once for iOS compatibility
   useEffect(() => {
     if (!audioRef.current && typeof window !== "undefined") {
@@ -504,9 +491,29 @@ export function PatientPortalNew({
         message: payloadStr || text,
         screen_context: screenContext
       } 
-    })
       .then((data) => {
-        setMessages((prev) => [...prev, { from: "bot", text: data.reply || "Xin lỗi, tôi không thể trả lời lúc này.", time: getTimeNow(), buttons: data.buttons, images: data.images, raw: data.raw_data }]);
+        const botText = data.reply || "Xin lỗi, tôi không thể trả lời lúc này.";
+        
+        setMessages((prev) => {
+          const nextIdx = prev.length;
+          // Phát âm thanh ngay trong synchronous block của Promise
+          if (autoPlayTTS && audioRef.current && botText) {
+             audioRef.current.src = `${API_URL}/voice/tts?text=${encodeURIComponent(botText)}`;
+             audioRef.current.play().catch(e => console.error("iOS Autoplay blocked:", e));
+             
+             setTimeout(() => {
+                setPlayingTTSMsgIdx(nextIdx);
+                setIsTTSPaused(false);
+             }, 0);
+             
+             audioRef.current.onended = () => {
+                setPlayingTTSMsgIdx(null);
+                setIsTTSPaused(false);
+             };
+          }
+          return [...prev, { from: "bot", text: botText, time: getTimeNow(), buttons: data.buttons, images: data.images, raw: data.raw_data }];
+        });
+        
         setBotTyping(false);
         
         // Check for emergency routing
