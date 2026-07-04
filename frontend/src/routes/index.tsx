@@ -2033,119 +2033,7 @@ function AudioSpectrogram({ state }: { state: PcfState }) {
   );
 }
 
-function StandingSkeleton() {
-  return (
-    <svg
-      viewBox="0 0 80 160"
-      className="w-16 h-32"
-      fill="none"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <defs>
-        <filter id="glow-stand">
-          <feGaussianBlur stdDeviation="2.5" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
-      <g filter="url(#glow-stand)" stroke={ACCENT} strokeWidth="2.5">
-        <circle cx="40" cy="18" r="10" />
-        <line x1="40" y1="28" x2="40" y2="40" />
-        <line x1="16" y1="48" x2="64" y2="48" />
-        <line x1="16" y1="48" x2="10" y2="80" />
-        <line x1="10" y1="80" x2="8" y2="100" />
-        <line x1="64" y1="48" x2="70" y2="80" />
-        <line x1="70" y1="80" x2="72" y2="100" />
-        <line x1="40" y1="40" x2="40" y2="95" />
-        <line x1="24" y1="95" x2="56" y2="95" />
-        <line x1="24" y1="95" x2="20" y2="130" />
-        <line x1="20" y1="130" x2="18" y2="155" />
-        <line x1="56" y1="95" x2="60" y2="130" />
-        <line x1="60" y1="130" x2="62" y2="155" />
-        {[
-          [40, 28],
-          [40, 40],
-          [16, 48],
-          [64, 48],
-          [10, 80],
-          [70, 80],
-          [8, 100],
-          [72, 100],
-          [40, 95],
-          [24, 95],
-          [56, 95],
-          [20, 130],
-          [60, 130],
-        ].map(([cx, cy], i) => (
-          <circle key={i} cx={cx} cy={cy} r="2.5" fill={ACCENT} />
-        ))}
-      </g>
-    </svg>
-  );
-}
 
-function FallenSkeleton() {
-  return (
-    <svg
-      viewBox="0 0 200 80"
-      className="w-44 h-20"
-      fill="none"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <defs>
-        <filter id="glow-fall">
-          <feGaussianBlur stdDeviation="3" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
-      <g filter="url(#glow-fall)" stroke="#EF4444" strokeWidth="2.5">
-        <circle cx="18" cy="52" r="10" />
-        <line x1="28" y1="52" x2="110" y2="54" />
-        <line x1="60" y1="54" x2="55" y2="30" />
-        <line x1="60" y1="54" x2="62" y2="72" />
-        <line x1="55" y1="30" x2="48" y2="18" />
-        <line x1="62" y1="72" x2="58" y2="76" />
-        <line x1="110" y1="54" x2="148" y2="40" />
-        <line x1="110" y1="54" x2="142" y2="66" />
-        <line x1="148" y1="40" x2="175" y2="32" />
-        <line x1="142" y1="66" x2="172" y2="70" />
-        {[
-          [28, 52],
-          [60, 54],
-          [80, 53],
-          [110, 54],
-          [148, 40],
-          [142, 66],
-          [55, 30],
-          [62, 72],
-          [175, 32],
-          [172, 70],
-        ].map(([cx, cy], i) => (
-          <circle key={i} cx={cx} cy={cy} r="2.5" fill="#EF4444" />
-        ))}
-      </g>
-      <circle
-        cx="18"
-        cy="52"
-        r="16"
-        stroke="#EF4444"
-        strokeOpacity="0.3"
-        strokeWidth="1.5"
-        fill="none"
-      >
-        <animate attributeName="r" from="14" to="28" dur="1s" repeatCount="indefinite" />
-        <animate attributeName="opacity" from="0.5" to="0" dur="1s" repeatCount="indefinite" />
-      </circle>
-    </svg>
-  );
-}
 
 function PrivacyCameraFeed() {
   const [pcfState, setPcfState] = useState<PcfState>("normal");
@@ -2304,22 +2192,11 @@ function PrivacyCameraFeed() {
               </span>
             </div>
 
-            {/* Pose skeleton */}
+            {/* Pose skeleton — placeholder */}
             <div
               className="absolute inset-0 z-10 flex items-center justify-center"
               style={{ paddingBottom: "48px" }}
             >
-              <div
-                className={`transition-all duration-500 ${transitioning ? "opacity-0 scale-90" : "opacity-100 scale-100"}`}
-              >
-                {isCritical ? (
-                  <FallenSkeleton />
-                ) : (
-                  <div className="animate-pulse">
-                    <StandingSkeleton />
-                  </div>
-                )}
-              </div>
             </div>
 
             {/* Critical flash text */}
