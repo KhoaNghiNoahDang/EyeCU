@@ -9954,32 +9954,12 @@ function EmsView() {
   // ── MOBILE LAYOUT ──
   if (isMobile) {
     return (
-      <div className="flex flex-col min-h-[100dvh] bg-slate-50">
-        {/* Mobile Header */}
-        <div className="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 py-3 pt-safe">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-cyan-100 flex items-center justify-center">
-                <Siren className="w-4 h-4 text-cyan-600" />
-              </div>
-              <span className="text-sm font-bold text-slate-900">Cấp cứu Ngoại viện</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <button className="p-2 rounded-full hover:bg-slate-100 active:scale-95">
-                <Bell className="w-5 h-5 text-slate-500" />
-              </button>
-              <button className="p-2 rounded-full hover:bg-slate-100 active:scale-95">
-                <User className="w-5 h-5 text-slate-500" />
-              </button>
-            </div>
-          </div>
-        </div>
-
+      <div className="flex flex-col min-h-[100dvh] bg-slate-50 -mx-4">
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 pb-24">
+        <div className="flex-1 overflow-y-auto py-3 space-y-3 pb-24">
           {/* GPS Section (Compact) */}
           <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
-            <div className="rounded-lg overflow-hidden" style={{ height: 140 }}>
+            <div className="rounded-lg" style={{ height: 180 }}>
               <ClientEmsLeafletMap
                 lat={mapCenterLat}
                 lng={mapCenterLng}
@@ -10022,25 +10002,25 @@ function EmsView() {
                 <button
                   type="button"
                   onClick={isRecordingPreAlert ? stopRecording : startRecording}
-                  className={`flex flex-col items-center justify-center py-5 rounded-xl border-2 transition-all active:scale-95 ${
+                  className={`flex flex-col items-center justify-center py-8 rounded-xl border-2 transition-all active:scale-95 ${
                     isRecordingPreAlert
                       ? "bg-red-50 border-red-400"
                       : "bg-red-50/50 border-red-200 hover:bg-red-50"
                   }`}
                 >
                   <div
-                    className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${
+                    className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${
                       isRecordingPreAlert ? "bg-red-500 animate-pulse" : "bg-red-100"
                     }`}
                   >
                     <Mic
-                      className={`w-7 h-7 ${isRecordingPreAlert ? "text-white" : "text-red-500"}`}
+                      className={`w-8 h-8 ${isRecordingPreAlert ? "text-white" : "text-red-500"}`}
                     />
                   </div>
-                  <span className="mt-2 text-xs font-bold text-slate-700">
+                  <span className="mt-2 text-sm font-bold text-slate-700">
                     {isRecordingPreAlert ? "Đang ghi âm..." : "Ghi âm"}
                   </span>
-                  <span className="text-[10px] text-slate-400 mt-0.5">Pre-Alert</span>
+                  <span className="text-[11px] text-slate-400 mt-0.5">Pre-Alert</span>
                 </button>
 
                 {/* Camera / Scan CCCD */}
@@ -10050,35 +10030,36 @@ function EmsView() {
                     setManualInputMode("cccd");
                     setCapturedCccdUrl(null);
                   }}
-                  className={`flex flex-col items-center justify-center py-5 rounded-xl border-2 transition-all active:scale-95 ${
+                  className={`flex flex-col items-center justify-center py-8 rounded-xl border-2 transition-all active:scale-95 ${
                     manualInputMode === "cccd"
                       ? "bg-cyan-50 border-cyan-400"
                       : "bg-cyan-50/50 border-cyan-200 hover:bg-cyan-50"
                   }`}
                 >
-                  <div className="w-14 h-14 rounded-full bg-cyan-500 flex items-center justify-center">
-                    <Camera className="w-7 h-7 text-white" />
+                  <div className="w-16 h-16 rounded-full bg-cyan-500 flex items-center justify-center">
+                    <Camera className="w-8 h-8 text-white" />
                   </div>
-                  <span className="mt-2 text-xs font-bold text-slate-700">Quét CCCD</span>
-                  <span className="text-[10px] text-slate-400 mt-0.5">Nhận diện</span>
+                  <span className="mt-2 text-sm font-bold text-slate-700">Quét CCCD</span>
+                  <span className="text-[11px] text-slate-400 mt-0.5">Nhận diện</span>
                 </button>
               </div>
 
-              {/* Alternative modes */}
-              <div className="flex justify-center gap-4 mt-3">
+              {/* Alternative modes - pill buttons */}
+              <div className="grid grid-cols-2 gap-3 mt-3">
                 <button
                   type="button"
                   onClick={() => {
                     setManualInputMode("unknown");
                     setCapturedCccdUrl(null);
                   }}
-                  className={`text-[11px] font-medium transition-colors ${
+                  className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border transition-all active:scale-95 ${
                     manualInputMode === "unknown"
-                      ? "text-cyan-600 underline"
-                      : "text-slate-400 hover:text-slate-600"
+                      ? "bg-slate-100 border-slate-300 text-slate-800"
+                      : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
                   }`}
                 >
-                  Không rõ danh tính
+                  <User className="w-4 h-4" />
+                  <span className="text-sm font-bold">Không rõ danh tính</span>
                 </button>
                 <button
                   type="button"
@@ -10086,13 +10067,14 @@ function EmsView() {
                     setManualInputMode("no_cccd");
                     setCapturedCccdUrl(null);
                   }}
-                  className={`text-[11px] font-medium transition-colors ${
+                  className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border transition-all active:scale-95 ${
                     manualInputMode === "no_cccd"
-                      ? "text-cyan-600 underline"
-                      : "text-slate-400 hover:text-slate-600"
+                      ? "bg-slate-100 border-slate-300 text-slate-800"
+                      : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
                   }`}
                 >
-                  Không có CCCD
+                  <User className="w-4 h-4" />
+                  <span className="text-sm font-bold">Không có CCCD</span>
                 </button>
               </div>
             </div>
@@ -10458,7 +10440,7 @@ function EmsView() {
                   toggleGpsBroadcast();
                 }
               }}
-              className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all active:scale-[0.98] shadow-lg ${
+              className={`w-full py-4 rounded-xl font-bold text-base transition-all active:scale-[0.98] shadow-lg ${
                 !isMissionStarted
                   ? "bg-slate-800 text-white shadow-slate-800/30"
                   : isBroadcasting

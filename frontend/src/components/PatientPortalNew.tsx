@@ -293,6 +293,8 @@ export function PatientPortalNew({
   const [isAppInstalled, setIsAppInstalled] = useState(false);
   const [showAudioPrompt, setShowAudioPrompt] = useState(false);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const [iosTTSFailed, setIosTTSFailed] = useState(false);
 
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
@@ -397,10 +399,23 @@ export function PatientPortalNew({
     }
   }, []);
 
-  const playTTS = (text: string, idx: number) => {
+  const unlockAudioContext = () => {
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      if (audioCtxRef.current.state === "suspended") {
+        audioCtxRef.current.resume();
+      }
+    } catch (e) {
+      console.warn("AudioContext unlock failed:", e);
+    }
+  };
+
+  const playTTS = async (text: string, idx: number) => {
     if (playingTTSMsgIdx === idx && audioRef.current) {
       if (audioRef.current.paused) {
-        audioRef.current.play();
+        audioRef.current.play().catch(() => {});
         setIsTTSPaused(false);
       } else {
         audioRef.current.pause();
@@ -414,17 +429,43 @@ export function PatientPortalNew({
     }
     setPlayingTTSMsgIdx(idx);
     setIsTTSPaused(false);
+    setIosTTSFailed(false);
     
-    // Tùy chỉnh cách phát âm cho hệ thống TTS
     let spokenText = text;
     spokenText = spokenText.replace(/EyeCU/gi, "ai xi diu");
-    
+    const ttsUrl = `${API_URL}/voice/tts?text=${encodeURIComponent(spokenText)}`;
+
+    // iOS: Try Web Audio API first (works if AudioContext was unlocked by user gesture)
+    if (isIos() && audioCtxRef.current && audioCtxRef.current.state === "running") {
+      try {
+        const resp = await fetch(ttsUrl);
+        const blob = await resp.blob();
+        const arrayBuffer = await blob.arrayBuffer();
+        const audioBuffer = await audioCtxRef.current.decodeAudioData(arrayBuffer);
+        const source = audioCtxRef.current.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioCtxRef.current.destination);
+        source.start(0);
+        source.onended = () => {
+          setPlayingTTSMsgIdx(null);
+          setIsTTSPaused(false);
+        };
+        return;
+      } catch (e) {
+        console.warn("Web Audio TTS failed, falling back:", e);
+      }
+    }
+
+    // Fallback: HTML Audio element
     if (audioRef.current) {
-      audioRef.current.src = `${API_URL}/voice/tts?text=${encodeURIComponent(spokenText)}`;
-      audioRef.current.play().catch(e => {
+      audioRef.current.src = ttsUrl;
+      audioRef.current.play().then(() => {
+        setIosTTSFailed(false);
+      }).catch(e => {
         console.error("Audio playback failed:", e);
         setPlayingTTSMsgIdx(null);
         setIsTTSPaused(false);
+        if (isIos()) setIosTTSFailed(true);
       });
       audioRef.current.onended = () => {
         setPlayingTTSMsgIdx(null);
@@ -434,9 +475,10 @@ export function PatientPortalNew({
   };
 
   const sendMessage = (textStr?: string, payloadStr?: string) => {
-    // Lách luật iOS: Mở khóa thẻ audio ngay lúc người dùng bấm nút Gửi
+    // iOS: Unlock audio on user gesture
+    unlockAudioContext();
     if (audioRef.current && !audioRef.current.src) {
-      audioRef.current.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA"; // âm thanh câm (silent) 1 byte
+      audioRef.current.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
       audioRef.current.play().then(() => {
         audioRef.current?.pause();
       }).catch(() => {});
@@ -3301,6 +3343,16 @@ export function PatientPortalNew({
                       )}
                       <p className={`mt-1.5 text-[9px] font-medium ${msg.from === "user" ? "text-white/60" : "text-slate-400"}`}>{msg.time}</p>
                     </div>
+                    {/* iOS fallback: prominent play button when auto-play fails */}
+                    {isIos() && msg.from === "bot" && iosTTSFailed && i === messages.length - 1 && playingTTSMsgIdx !== i && (
+                      <button
+                        onClick={() => { setIosTTSFailed(false); playTTS(msg.text, i); }}
+                        className="ml-2 flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#88E8F2] text-[#0d1f2d] text-[12px] font-bold shadow-md active:scale-95 transition-all"
+                      >
+                        <Volume2 className="h-4 w-4" />
+                        Nghe
+                      </button>
+                    )}
                   </div>
                 ))}
                 {botTyping && (
@@ -3547,6 +3599,7 @@ export function PatientPortalNew({
                   setAutoPlayTTS(true);
                   setShowAudioPrompt(false);
                   setAudioUnlocked(true);
+                  unlockAudioContext();
                   if (audioRef.current) {
                     audioRef.current.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
                     audioRef.current.play().catch(() => {});
