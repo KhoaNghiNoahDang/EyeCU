@@ -6096,9 +6096,9 @@ function RecordsView() {
         setEkycStatus("idle");
         setIdentityError("Sinh trắc học không khớp. Vui lòng thử lại.");
       }
-    } catch (e) {
-      setEkycStatus("success"); // Fallback
-      setTimeout(() => setStep("records"), 1500);
+    } catch (e: any) {
+      setEkycStatus("idle");
+      setIdentityError(e.message || "Lỗi kết nối VNPT eKYC. Không thể xác thực.");
     }
   };
 
@@ -11536,9 +11536,9 @@ function AdminStaffsTab() {
         setEkycStatus("error");
         setEkycMessage(res.message || "Xác thực khuôn mặt thất bại.");
       }
-    } catch (e) {
-      setEkycStatus("success");
-      setEkycMessage("Đăng ký thành công (Bypass VNPT)");
+    } catch (e: any) {
+      setEkycStatus("error");
+      setEkycMessage(e.message || "Lỗi kết nối VNPT eKYC");
     }
   };
 

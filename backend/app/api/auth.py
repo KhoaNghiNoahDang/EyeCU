@@ -87,16 +87,17 @@ async def login_face_staff(data: FaceStaffLogin, db: Session = Depends(get_db)):
         
         # 1. Upload ảnh chụp từ webcam lên VNPT eKYC để lấy hash
         webcam_hash = await vnpt_client.upload_file(file_bytes, "webcam_face.jpg")
+        
+        matched_user = None
+        highest_prob = 0.0
+
         if not webcam_hash:
-            raise HTTPException(status_code=500, detail="Lỗi kết nối VNPT eKYC")
+            raise HTTPException(status_code=500, detail="Lỗi kết nối VNPT eKYC (Không tải được ảnh webcam)")
 
         # 2. Lấy danh sách nhân viên CÓ ảnh khuôn mặt từ Supabase
         staff_list = db.query(Staff).filter(Staff.face_base64 != None).all()
         if not staff_list:
             raise HTTPException(status_code=404, detail="Chưa có nhân viên nào đăng ký khuôn mặt trên hệ thống")
-
-        matched_user = None
-        highest_prob = 0.0
 
         # 3. Chạy vòng lặp so khớp 1:1
         for staff in staff_list:
@@ -154,16 +155,17 @@ async def login_face_patient(data: FacePatientLogin, db: Session = Depends(get_d
             
         file_bytes = base64.b64decode(b64_data)
         
+        matched_user = None
+        highest_prob = 0.0
+
         webcam_hash = await vnpt_client.upload_file(file_bytes, "webcam_face.jpg")
+
         if not webcam_hash:
-            raise HTTPException(status_code=500, detail="Lỗi kết nối VNPT eKYC")
+            raise HTTPException(status_code=500, detail="Lỗi kết nối VNPT eKYC (Không tải được ảnh webcam)")
 
         patient_list = db.query(Patient).filter(Patient.face_base64 != None).all()
         if not patient_list:
             raise HTTPException(status_code=404, detail="Chưa có bệnh nhân nào đăng ký khuôn mặt trên hệ thống")
-
-        matched_user = None
-        highest_prob = 0.0
 
         for pt in patient_list:
             try:
