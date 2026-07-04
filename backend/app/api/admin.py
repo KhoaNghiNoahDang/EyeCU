@@ -14,7 +14,7 @@ from app.db.models import (
     ClinicalRecord,
 )
 from app.core.security import require_roles
-# Â
+# AA
 router = APIRouter()
 ##
 
