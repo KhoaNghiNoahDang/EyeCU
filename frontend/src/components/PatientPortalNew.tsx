@@ -490,8 +490,9 @@ export function PatientPortalNew({
       body: { 
         message: payloadStr || text,
         screen_context: screenContext
-      } 
-      .then((data) => {
+      }
+    })
+    .then((data) => {
         const botText = data.reply || "Xin lỗi, tôi không thể trả lời lúc này.";
         
         setMessages((prev) => {
