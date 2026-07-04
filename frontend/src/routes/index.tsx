@@ -1398,6 +1398,7 @@ function AmbientView({
 }) {
   const isMobile = useIsMobile();
   const gridRef = useRef<HTMLDivElement>(null);
+  const emergencyAudioRef = useRef<HTMLAudioElement | null>(null);
   const [selectedDept, setSelectedDept] = useState("internal");
   const [onlyAlerts, setOnlyAlerts] = useState(false);
   const [fullscreen, setFullscreen] = useState<Camera | null>(null);
@@ -1413,6 +1414,27 @@ function AmbientView({
     imageUrl: string;
     time: string;
   } | null>(null);
+
+  const handleEmergency = useCallback((room: string) => {
+    // Phat am thanh cap cuu loop
+    if (emergencyAudioRef.current) {
+      emergencyAudioRef.current.pause();
+    }
+    const audio = new Audio("/alert.mp3");
+    audio.loop = true;
+    audio.play().catch(() => {});
+    emergencyAudioRef.current = audio;
+    // Hien thi thong bao
+    ambientShowToast(`🚨 Đã kích hoạt cấp cứu phòng ${room} · Đã gửi thông báo đến kíp trực`);
+  }, [ambientShowToast]);
+
+  const dismissAlert = useCallback(() => {
+    if (emergencyAudioRef.current) {
+      emergencyAudioRef.current.pause();
+      emergencyAudioRef.current = null;
+    }
+    setFallAlert(null);
+  }, []);
 
   const WS_URL = "wss://eyecu.onrender.com/api/ambient/ws/live";
 
@@ -1680,7 +1702,7 @@ function AmbientView({
                   Cảnh báo cấp cứu
                 </h3>
               </div>
-              <button onClick={() => setFallAlert(null)} className="text-gray-400 hover:text-white p-1">
+              <button onClick={dismissAlert} className="text-gray-400 hover:text-white p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1696,13 +1718,13 @@ function AmbientView({
             )}
             <div className="flex gap-2 mt-1 pb-safe">
               <button
-                onClick={() => setFallAlert(null)}
+                onClick={dismissAlert}
                 className="flex-1 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-semibold transition"
               >
                 Bỏ qua
               </button>
               <button
-                onClick={() => setFallAlert(null)}
+                onClick={() => handleEmergency(fallAlert.room)}
                 className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-semibold shadow-lg shadow-red-500/20 transition"
               >
                 Cấp cứu
@@ -1718,7 +1740,7 @@ function AmbientView({
                   Cảnh báo cấp cứu
                 </h3>
               </div>
-              <button onClick={() => setFallAlert(null)} className="text-gray-400 hover:text-white">
+              <button onClick={dismissAlert} className="text-gray-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1734,13 +1756,13 @@ function AmbientView({
             )}
             <div className="flex gap-2 mt-2">
               <button
-                onClick={() => setFallAlert(null)}
+                onClick={dismissAlert}
                 className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-semibold transition"
               >
                 Bỏ qua (Giả)
               </button>
               <button
-                onClick={() => setFallAlert(null)}
+                onClick={() => handleEmergency(fallAlert.room)}
                 className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-semibold shadow-lg shadow-red-500/20 transition"
               >
                 Cấp cứu
@@ -5123,6 +5145,7 @@ function AmbulanceView() {
   const [lprPlate, setLprPlate] = useState("29A-213.07");
   const [toast, setToast] = useState("");
   const [panelMode, setPanelMode] = useState<"dept" | "vehicle">("dept");
+  const emergencyAudioRef = useRef<HTMLAudioElement | null>(null);
   const [fallAlert, setFallAlert] = useState<{
     room: string;
     imageUrl: string;
@@ -5132,6 +5155,25 @@ function AmbulanceView() {
   const showToast = useCallback((msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(""), 4000);
+  }, []);
+
+  const handleEmergency = useCallback((room: string) => {
+    if (emergencyAudioRef.current) {
+      emergencyAudioRef.current.pause();
+    }
+    const audio = new Audio("/alert.mp3");
+    audio.loop = true;
+    audio.play().catch(() => {});
+    emergencyAudioRef.current = audio;
+    showToast(`🚨 Đã kích hoạt cấp cứu phòng ${room} · Đã gửi thông báo đến kíp trực`);
+  }, [showToast]);
+
+  const dismissAlert = useCallback(() => {
+    if (emergencyAudioRef.current) {
+      emergencyAudioRef.current.pause();
+      emergencyAudioRef.current = null;
+    }
+    setFallAlert(null);
   }, []);
 
   const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
@@ -5416,8 +5458,8 @@ function AmbulanceView() {
               <AlertTriangle className="w-6 h-6 text-red-500 animate-pulse" />
               <h3 className="font-bold text-red-400">PHÁT HIỆN TÉ NGÃ</h3>
             </div>
-            <button onClick={() => setFallAlert(null)} className="text-gray-400 hover:text-white">
-              âœ•
+            <button onClick={dismissAlert} className="text-gray-400 hover:text-white">
+              <X className="w-5 h-5" />
             </button>
           </div>
           <p className="text-sm">
@@ -5431,6 +5473,20 @@ function AmbulanceView() {
               className="w-full rounded border border-red-900 mt-2"
             />
           )}
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={dismissAlert}
+              className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-semibold transition"
+            >
+              Bỏ qua
+            </button>
+            <button
+              onClick={() => handleEmergency(fallAlert.room)}
+              className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-semibold shadow-lg shadow-red-500/20 transition"
+            >
+              Cấp cứu
+            </button>
+          </div>
         </div>
       )}
 
