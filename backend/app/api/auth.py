@@ -5,6 +5,7 @@ from app.db.database import get_db
 from app.db.models import Patient, Staff, Department
 from app.core.security import create_access_token, get_current_user
 from pydantic import BaseModel
+from typing import Optional
 from app.services.dataset_reader import get_mock_json
 
 router = APIRouter()
@@ -71,6 +72,7 @@ def login_patient(data: PatientLogin, db: Session = Depends(get_db)):
 
 class FaceStaffLogin(BaseModel):
     face_base64: str
+    target_role: Optional[str] = None
 
 @router.post("/login/face/staff")
 async def login_face_staff(data: FaceStaffLogin, db: Session = Depends(get_db)):
@@ -95,9 +97,14 @@ async def login_face_staff(data: FaceStaffLogin, db: Session = Depends(get_db)):
             raise HTTPException(status_code=500, detail="Lỗi kết nối VNPT eKYC (Không tải được ảnh webcam)")
 
         # 2. Lấy danh sách nhân viên CÓ ảnh khuôn mặt từ Supabase
-        staff_list = db.query(Staff).filter(Staff.face_base64 != None).all()
+        query = db.query(Staff).filter(Staff.face_base64 != None)
+        if data.target_role:
+            query = query.filter(Staff.role == data.target_role)
+        else:
+            query = query.filter(Staff.role != "admin")
+        staff_list = query.all()
         if not staff_list:
-            raise HTTPException(status_code=404, detail="Chưa có nhân viên nào đăng ký khuôn mặt trên hệ thống")
+            raise HTTPException(status_code=404, detail="Chưa có nhân viên nào đăng ký khuôn mặt trên hệ thống hoặc không đúng phân quyền")
 
         # 3. Chạy vòng lặp so khớp 1:1
         for staff in staff_list:

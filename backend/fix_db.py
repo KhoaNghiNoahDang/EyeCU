@@ -1,18 +1,11 @@
-import os
-from sqlalchemy import create_engine, text
-from dotenv import load_dotenv
+from sqlalchemy import text
+from app.db.database import engine
 
-load_dotenv()
-url = os.getenv("DATABASE_URL")
-if not url:
-    print("No DATABASE_URL found.")
-    exit(1)
-
-engine = create_engine(url)
 with engine.connect() as conn:
-    conn.execute(text("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS date VARCHAR(50);"))
-    conn.execute(text("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS time VARCHAR(50);"))
-    conn.execute(text("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS booking_date VARCHAR(20);"))
-    conn.execute(text("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS booking_time VARCHAR(20);"))
-    conn.commit()
-    print("Database updated!")
+    try:
+        conn.execute(text("ALTER TABLE staffs DROP CONSTRAINT IF EXISTS staffs_cccd_key;"))
+        conn.execute(text("DROP INDEX IF EXISTS ix_staffs_cccd;"))
+        conn.commit()
+        print("Dropped unique constraint on cccd.")
+    except Exception as e:
+        print(f"Error: {e}")

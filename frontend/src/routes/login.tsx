@@ -294,6 +294,7 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode,
   const streamRef = useRef<MediaStream | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -355,6 +356,7 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode,
     if (!ctx) return;
     ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
     const base64Image = canvas.toDataURL("image/jpeg", 0.8);
+    setCapturedImage(base64Image);
 
     stopCamera();
     setIsAuthenticating(true);
@@ -386,6 +388,7 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode,
       setStep("manual");
     } finally {
       setIsAuthenticating(false);
+      setCapturedImage(null);
     }
   }, [stopCamera, onLogin]);
 
@@ -436,6 +439,18 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode,
           {cameraError ? (
             <div className="flex h-full w-full items-center justify-center bg-slate-100">
               <Camera className="w-10 h-10 text-slate-400" />
+            </div>
+          ) : isAuthenticating ? (
+            <div className="relative flex flex-col h-full w-full items-center justify-center bg-slate-50 overflow-hidden">
+              {capturedImage && (
+                <img
+                  src={capturedImage}
+                  alt="Captured face"
+                  className="absolute inset-0 w-full h-full object-cover opacity-60 scale-x-[-1] filter blur-[4px]"
+                />
+              )}
+              <div className="relative z-10 w-10 h-10 border-4 border-slate-200/50 border-t-[#0A9BAD] rounded-full animate-spin mb-2 drop-shadow-md" />
+              <span className="relative z-10 text-[10px] font-bold text-[#0A9BAD] drop-shadow-md bg-white/70 px-2 py-0.5 rounded-full">Đang xác thực...</span>
             </div>
           ) : (
             <>
@@ -716,6 +731,8 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
   const [formError, setFormError] = useState<string | null>(null);
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [isCapturingFace, setIsCapturingFace] = useState(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -729,6 +746,10 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
+  };
+
+  const closeCamera = () => {
+    stopCamera();
     setIsCapturingFace(false);
   };
 
@@ -755,7 +776,9 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
     if (!ctx) return;
     ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
     const base64Image = canvas.toDataURL("image/jpeg", 0.8);
+    setCapturedImage(base64Image);
     stopCamera();
+    setIsAuthenticating(true);
 
     try {
       const res = await fetchApi("/auth/login/face/patient", {
@@ -769,6 +792,10 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
       }
     } catch (err: any) {
       setFormError(err.message || "Đăng nhập bằng khuôn mặt thất bại");
+      closeCamera();
+    } finally {
+      setIsAuthenticating(false);
+      setCapturedImage(null);
     }
   };
 
@@ -815,20 +842,36 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
             className="relative w-40 h-40 mx-auto overflow-hidden rounded-full border-2"
             style={{ borderColor: ACCENT }}
           >
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="h-full w-full object-cover scale-x-[-1]"
-            />
-            <div
-              className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2"
-              style={{
-                background: `linear-gradient(90deg, transparent, ${ACCENT}, transparent)`,
-                animation: "face-scan 2s ease-in-out infinite",
-              }}
-            />
+            {isAuthenticating ? (
+              <div className="relative flex flex-col h-full w-full items-center justify-center bg-slate-50 overflow-hidden">
+                {capturedImage && (
+                  <img
+                    src={capturedImage}
+                    alt="Captured face"
+                    className="absolute inset-0 w-full h-full object-cover opacity-60 scale-x-[-1] filter blur-[4px]"
+                  />
+                )}
+                <div className="relative z-10 w-10 h-10 border-4 border-slate-200/50 border-t-[#0A9BAD] rounded-full animate-spin mb-2 drop-shadow-md" />
+                <span className="relative z-10 text-[10px] font-bold text-[#0A9BAD] drop-shadow-md bg-white/70 px-2 py-0.5 rounded-full">Đang xác thực...</span>
+              </div>
+            ) : (
+              <>
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="h-full w-full object-cover scale-x-[-1]"
+                />
+                <div
+                  className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2"
+                  style={{
+                    background: `linear-gradient(90deg, transparent, ${ACCENT}, transparent)`,
+                    animation: "face-scan 2s ease-in-out infinite",
+                  }}
+                />
+              </>
+            )}
             <style>{`
               @keyframes face-scan {
                 0%, 100% { transform: translateY(-30px); opacity: 0.4; }
@@ -837,24 +880,30 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
             `}</style>
           </div>
           <div>
-            <p className="font-bold text-slate-900">Đang nhận diện khuôn mặt</p>
-            <p className="text-xs text-slate-400 mt-1">Vui lòng đưa khuôn mặt vào giữa khung hình...</p>
+            <p className="font-bold text-slate-900">
+              {isAuthenticating ? "Đang xử lý eKYC" : "Đang nhận diện khuôn mặt"}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              {isAuthenticating ? "Hệ thống đang so khớp với CSDL..." : "Vui lòng đưa khuôn mặt vào giữa khung hình..."}
+            </p>
           </div>
           <div className="flex gap-2 w-full">
             <button
               type="button"
-              onClick={stopCamera}
-              className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+              onClick={closeCamera}
+              disabled={isAuthenticating}
+              className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
             >
               <ArrowLeft className="w-3 h-3" /> Hủy
             </button>
             <button
               type="button"
               onClick={captureFaceAndLogin}
-              className="flex-1 rounded-xl py-2.5 text-sm font-bold text-slate-900 transition-all hover:opacity-90"
+              disabled={isAuthenticating}
+              className="flex-1 rounded-xl py-2.5 text-sm font-bold text-slate-900 transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center"
               style={{ backgroundColor: ACCENT }}
             >
-              Xác nhận khuôn mặt
+              {isAuthenticating ? "Đang xử lý..." : "Xác nhận khuôn mặt"}
             </button>
           </div>
         </div>
@@ -1031,6 +1080,7 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string)
   const streamRef = useRef<MediaStream | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -1081,6 +1131,7 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string)
     if (!ctx) return;
     ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
     const base64Image = canvas.toDataURL("image/jpeg", 0.8);
+    setCapturedImage(base64Image);
 
     stopCamera();
     setIsAuthenticating(true);
@@ -1088,7 +1139,7 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string)
     try {
       const res = await fetchApi("/auth/login/face/staff", {
         method: "POST",
-        body: JSON.stringify({ face_base64: base64Image }),
+        body: JSON.stringify({ face_base64: base64Image, target_role: "admin" }),
       });
 
       if (res.access_token) {
@@ -1105,6 +1156,7 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string)
       setStep("manual");
     } finally {
       setIsAuthenticating(false);
+      setCapturedImage(null);
     }
   }, [onLogin, stopCamera]);
 
@@ -1151,13 +1203,27 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string)
             className="relative w-40 h-40 mx-auto overflow-hidden rounded-full border-2"
             style={{ borderColor: ACCENT }}
           >
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="h-full w-full object-cover scale-x-[-1]"
-            />
+            {isAuthenticating ? (
+              <div className="relative flex flex-col h-full w-full items-center justify-center bg-slate-50 overflow-hidden">
+                {capturedImage && (
+                  <img
+                    src={capturedImage}
+                    alt="Captured face"
+                    className="absolute inset-0 w-full h-full object-cover opacity-60 scale-x-[-1] filter blur-[4px]"
+                  />
+                )}
+                <div className="relative z-10 w-10 h-10 border-4 border-slate-200/50 border-t-[#0A9BAD] rounded-full animate-spin mb-2 drop-shadow-md" />
+                <span className="relative z-10 text-[10px] font-bold text-[#0A9BAD] drop-shadow-md bg-white/70 px-2 py-0.5 rounded-full">Đang xác thực...</span>
+              </div>
+            ) : (
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="h-full w-full object-cover scale-x-[-1]"
+              />
+            )}
             {cameraReady && !isAuthenticating && (
               <div
                 className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2"
