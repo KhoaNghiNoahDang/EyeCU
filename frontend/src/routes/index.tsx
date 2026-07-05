@@ -12086,7 +12086,7 @@ function AdminStaffsTab() {
                     disabled={ekycStatus === "checking"}
                     className="w-full py-1.5 px-3 rounded-lg text-xs font-bold text-slate-800 bg-[#88E8F2] hover:bg-[#0A9BAD] transition-colors disabled:opacity-50"
                   >
-                    {ekycStatus === "checking" ? "Đang xác thực..." : "Xác thực VNPT eKYC"}
+                    {ekycStatus === "checking" ? "Đang đăng ký..." : "Đăng ký FaceID eKYC"}
                   </button>
                   {ekycMessage && (
                     <p className={`text-[10px] text-center font-medium ${ekycStatus === "success" ? "text-emerald-600" : "text-red-500"}`}>
