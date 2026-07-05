@@ -188,6 +188,10 @@ from fastapi import Request
 @router.post("/dispatch_records/upsert")
 async def upsert_dispatch_record(req: Request, db: Session = Depends(get_db)):
     data = await req.json()
+    import json
+    for k, v in list(data.items()):
+        if isinstance(v, list):
+            data[k] = json.dumps(v)
     try:
         # Check if exists
         plate = data.get("plate")
@@ -215,6 +219,10 @@ async def upsert_dispatch_record(req: Request, db: Session = Depends(get_db)):
 @router.put("/dispatch_records/{plate}")
 async def update_dispatch_record(plate: str, req: Request, db: Session = Depends(get_db)):
     data = await req.json()
+    import json
+    for k, v in list(data.items()):
+        if isinstance(v, list):
+            data[k] = json.dumps(v)
     try:
         keys = list(data.keys())
         set_clause = ", ".join([f"{k} = :{k}" for k in keys])

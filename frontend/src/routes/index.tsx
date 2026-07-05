@@ -10006,11 +10006,7 @@ function EmsView() {
       const patientName =
         scannedPatient?.name ||
         scannedPatient?.full_name ||
-        (manualInputMode === "cccd" && manualName
-          ? manualName
-          : manualInputMode === "unknown"
-            ? "Chưa rõ danh tính"
-            : "Bệnh nhân không CCCD");
+        null;
       const patientGender =
         scannedPatient?.gender ||
         (manualInputMode === "cccd" && manualGender ? manualGender : null);
@@ -10613,7 +10609,7 @@ function EmsView() {
                     : ["Không"];
                   const e_contact = manualEmergencyContact.trim() || "Không";
                   const fakePatient = {
-                    name: manualName,
+                    name: manualName.trim() || "Bệnh nhân không CCCD",
                     gender: manualGender,
                     age: manualAgeRange,
                     cccd: null,
@@ -10622,7 +10618,7 @@ function EmsView() {
                     emergencyContactName: e_contact,
                   };
                   setScannedPatient({
-                    full_name: manualName,
+                    full_name: manualName.trim() || "Bệnh nhân không CCCD",
                     gender: manualGender,
                     dob: null,
                     cccd_number: null,
@@ -11268,7 +11264,7 @@ function EmsView() {
                       : ["Không"];
                     const e_contact = manualEmergencyContact.trim() || "Không";
                     const fakePatient = {
-                      name: manualName,
+                      name: manualName.trim() || "Bệnh nhân không CCCD",
                       gender: manualGender,
                       age: manualAgeRange,
                       cccd: null,
@@ -11277,7 +11273,7 @@ function EmsView() {
                       emergencyContactName: e_contact,
                     };
                     setScannedPatient({
-                      full_name: manualName,
+                      full_name: manualName.trim() || "Bệnh nhân không CCCD",
                       gender: manualGender,
                       dob: null,
                       cccd_number: null,
