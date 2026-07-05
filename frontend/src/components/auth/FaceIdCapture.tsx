@@ -138,7 +138,7 @@ export function FaceIdCapture({ onCapture, capturedUrl }: FaceIdCaptureProps) {
       {!error && (
         <p className="text-center text-xs text-slate-500">
           {capturedUrl
-            ? "Ảnh sẽ lưu vào avatar_url để so khớp VNPT Face"
+            ? "FaceID sẽ được lưu vào hệ thống để xác thực đăng nhập"
             : "Đưa khuôn mặt vào khung oval · Camera trước iOS/Android"}
         </p>
       )}
