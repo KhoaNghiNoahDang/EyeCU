@@ -7,14 +7,14 @@
 
 ---
 
-## 🌟 Tầm nhìn & Sứ mệnh
+## Tầm nhìn & Sứ mệnh
 **EyeCU** ra đời với khát vọng chuyển đổi số toàn diện quy trình vận hành bệnh viện và cấp cứu ngoại viện. Không chỉ là một phần mềm quản lý thông thường, EyeCU hoạt động như một Hệ điều hành nhận thức ứng dụng sâu rộng hệ sinh thái AI của VNPT để giải phóng nhân viên y tế khỏi gánh nặng hành chính, bảo vệ bệnh nhân theo thời gian thực và tối ưu hóa nguồn lực y tế.
 
 Được thiết kế dựa trên tiêu chí cốt lõi của Vòng 2 HackAIthon: **Bảo mật, Trải nghiệm liền mạch (Zero-friction) và Triển khai thực chiến.**
 
 ---
 
-## 🚀 Hướng dẫn Cài đặt 1-Lệnh (Tiêu chí Vòng 2)
+## Hướng dẫn Cài đặt 1-Lệnh (Tiêu chí Vòng 2)
 
 Theo đúng yêu cầu của Ban tổ chức về tiêu chí **"Hoàn thiện sản phẩm: Repo + hướng dẫn cài đặt 1-lệnh"**, EyeCU đã được đóng gói hoàn chỉnh bằng Docker Compose.
 
@@ -34,7 +34,7 @@ docker compose up -d --build
 - **Backend (FastAPI):** http://localhost:8000
 - **Tài liệu API (Swagger UI):** http://localhost:8000/docs
 
-### 🏃‍♂️ Hướng dẫn Demo Edge AI Camera (Nhận diện té ngã)
+### Hướng dẫn Demo Edge AI Camera (Nhận diện té ngã)
 Tính năng Edge AI xử lý trực tiếp tại máy trạm (Local Edge) để bảo mật hình ảnh nội trú. Để test chức năng này:
 
 1. Mở một terminal mới, di chuyển vào thư mục `edge_ai` và cài đặt thư viện:
@@ -52,7 +52,7 @@ Tính năng Edge AI xử lý trực tiếp tại máy trạm (Local Edge) để 
 
 ---
 
-## 🎯 Điểm chạm Công nghệ - Tích hợp VNPT AI Ecosystem
+## Điểm chạm Công nghệ - Tích hợp VNPT AI Ecosystem
 EyeCU chứng minh tính đổi mới và khác biệt qua việc "nhúng" chặt chẽ hệ sinh thái VNPT AI vào quy trình lõi:
 
 1. **VNPT eKYC (Nhận diện khuôn mặt & Liveness):**
@@ -68,7 +68,7 @@ EyeCU chứng minh tính đổi mới và khác biệt qua việc "nhúng" chặ
 
 4. **VNPT SmartVision (Edge AI Camera):**
    - **Nhận diện té ngã (Fall Detection):** Camera AI giám sát phòng nội trú 24/7. 
-   - ⚠️ *Tính năng đặc biệt bảo mật:* Thuật toán Blur Body (Làm mờ cơ thể) chạy hoàn toàn dưới máy biên (Local Edge) để bảo vệ quyền riêng tư tuyệt đối của bệnh nhân trước khi truyền cảnh báo về trung tâm.
+   - *Tính năng đặc biệt bảo mật:* Thuật toán Blur Body (Làm mờ cơ thể) chạy hoàn toàn dưới máy biên (Local Edge) để bảo vệ quyền riêng tư tuyệt đối của bệnh nhân trước khi truyền cảnh báo về trung tâm.
    - **Đọc biển số xe cấp cứu (LPR):** Quản lý điều phối xe tự động mở cổng.
 
 5. **VNPT Smartbot (LLM & Generative AI):**
@@ -81,7 +81,7 @@ EyeCU chứng minh tính đổi mới và khác biệt qua việc "nhúng" chặ
 
 ---
 
-## 🛡️ Đảm bảo An toàn & Bảo mật Dữ liệu (Tiêu chí Vòng 2)
+## Đảm bảo An toàn & Bảo mật Dữ liệu (Tiêu chí Vòng 2)
 EyeCU tuân thủ nghiêm ngặt tính khả thi pháp lý và bảo mật:
 - **Kiến trúc Edge-to-Cloud:** Phân tích hình ảnh nhạy cảm (phòng bệnh, bệnh nhân) chỉ diễn ra ở thiết bị Local Edge. Video/Hình ảnh gốc KHÔNG bị đẩy lên Cloud, hệ thống chỉ gửi tín hiệu Text cảnh báo (ví dụ: `alert: fall`).
 - **Phân quyền Role-Based JWT:** Cấp cứu viên (EMS) không thể xem dữ liệu tài chính, Bệnh nhân không thể xem dữ liệu người khác. Đảm bảo chặn đứng các hành vi vượt quyền.
@@ -89,13 +89,13 @@ EyeCU tuân thủ nghiêm ngặt tính khả thi pháp lý và bảo mật:
 
 ---
 
-## 💡 Trải nghiệm Người dùng (UX Metrics)
+## Trải nghiệm Người dùng (UX Metrics)
 - **Thiết kế Zero-Friction:** Giao diện tối màu, độ tương phản cao, phông chữ lớn phục vụ môi trường tranh tối tranh sáng ở phòng cấp cứu và cho người dùng cao tuổi.
 - **Chỉ báo trực quan:** Quá trình chờ xử lý FaceID được lót lớp nền ảnh làm mờ (Frosted glass) giảm cảm giác sốt ruột cho người dùng.
 
 ---
 
-## 🧪 Kịch bản Test Tự động
+## Kịch bản Test Tự động
 Để kiểm chứng tính ổn định (đảm bảo chạy >= 3 lần không lỗi), dự án bao gồm Test Script tích hợp:
 ```bash
 # Chạy bộ test hệ thống Backend
