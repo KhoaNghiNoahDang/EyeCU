@@ -5,7 +5,23 @@
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/Frontend-React/Vite-61DAFB.svg)](https://reactjs.org/)
 
-**EyeCU** là giải pháp phần mềm y tế toàn diện (Ambient Intelligence) giúp tự động hoá quy trình làm việc lâm sàng, giám sát an toàn bệnh nhân nội trú 24/7 và thông dịch dữ liệu y khoa. Sản phẩm ứng dụng sâu Hệ sinh thái API của VNPT (SmartVision, SmartVoice, SmartReader) kết hợp cùng kiến trúc Edge-to-Cloud để giải quyết triệt để bài toán quá tải tại các cơ sở y tế.
+**EyeCU** là giải pháp phần mềm y tế toàn diện (Ambient Intelligence) giúp tự động hoá quy trình làm việc lâm sàng, giám sát an toàn bệnh nhân nội trú 24/7 và thông dịch dữ liệu y khoa. Sản phẩm ứng dụng sâu Hệ sinh thái API của VNPT (SmartVision, SmartVoice, SmartReader, SmartBot, SmartUX, VNPT eKYC) kết hợp cùng kiến trúc Edge-to-Cloud để giải quyết triệt để bài toán quá tải tại các cơ sở y tế.
+
+---
+
+## 🌐 TRẢI NGHIỆM DEMO TRỰC TUYẾN (LIVE DEMO)
+
+Bạn có thể truy cập và trải nghiệm nhanh sản phẩm trực tiếp tại: **[https://eyecu.vercel.app/login](https://eyecu.vercel.app/login)**
+
+**Danh sách Tài khoản Demo:**
+- **Tài khoản Bác sĩ:** Tài khoản: `DOC001` | Mật khẩu: `password123` *(Bác sĩ Nguyễn Văn A - Khoa Ngoại tổng hợp)*
+- **Tài khoản Quản trị viên (Admin):** Tài khoản: `AD001` | Mật khẩu: `password123`
+- **Tài khoản Bệnh nhân:** Tài khoản: `001306000000` | Mật khẩu: `password123` *(Hoặc dùng tính năng Quét CCCD)*
+
+> **⚠️ LƯU Ý QUAN TRỌNG VỀ API VNPT:**
+> Do đặc thù bảo mật của hệ sinh thái VNPT AI, các `ACCESS_TOKEN` để gọi API chỉ có hiệu lực tối đa **8 tiếng**. Trên môi trường Live Demo này, một số tính năng AI (như Đăng nhập FaceID, Quét CCCD OCR, Trợ lý giọng nói) có thể không hoạt động nếu Token đã hết hạn mà đội ngũ chưa kịp cập nhật mới.
+> 
+> Để đảm bảo chấm điểm và trải nghiệm trọn vẹn 100% tính năng, Ban giám khảo vui lòng tham khảo **Hướng dẫn cài đặt hệ thống (Local Deployment)** ở bên dưới để cấu hình Token mới nhất.
 
 ---
 
@@ -17,11 +33,14 @@ Hệ thống **Edge AI** (Trí tuệ nhân tạo tại biên) xử lý luồng c
 ### 2. Trợ lý Bệnh án rảnh tay (Voice-to-EMR)
 Tích hợp VNPT SmartVoice, cho phép bác sĩ dùng giọng nói (Speech-to-Text) để đọc y lệnh và nhập liệu trực tiếp vào bệnh án điện tử (EMR) theo chuẩn cấu trúc SOAPE. Tối ưu hoá thời gian hành chính, giải phóng đôi tay để y bác sĩ tập trung thăm khám.
 
-### 3. Tự động điều phối cấp cứu (Ambulance Dispatcher)
-Ứng dụng LPR (Nhận diện biển số) từ SmartVision tại cổng viện để tự động định tuyến xe cấp cứu, liên kết tín hiệu phần cứng (mở barrier, giữ thang máy) nhằm tối ưu "Thời gian vàng" cấp cứu.
+### 3. Cấp cứu Ngoại viện & Điều phối thông minh (EMS Pre-alert & Dispatcher)
+Giải pháp số hóa toàn diện quy trình cấp cứu trước khi nhập viện (Pre-hospital). Nhân viên cấp cứu (EMS) trên xe cứu thương có thể truyền trực tiếp dữ liệu sinh hiệu, hình ảnh hiện trường và dự báo thời gian đến (ETA) qua GPS về khoa Cấp cứu (ER) theo thời gian thực. Khi xe về đến viện, ứng dụng LPR (Nhận diện biển số) từ SmartVision sẽ tự động định tuyến xe, mở barrier và giữ thang máy, tối ưu trọn vẹn "Thời gian vàng" cứu sống bệnh nhân.
 
 ### 4. Đăng nhập sinh trắc học (WebAuthn / Passkey)
 Ứng dụng công nghệ chuẩn WebAuthn, cho phép nhân viên y tế đăng nhập siêu tốc bằng FaceID hoặc Vân tay (TouchID), triệt tiêu hoàn toàn rủi ro lộ lọt mật khẩu truyền thống.
+
+### 5. Ứng dụng PWA Đa nền tảng (Tối ưu cho Người cao tuổi)
+Hệ thống được xây dựng chuẩn Progressive Web App (PWA), cho phép bệnh nhân cài đặt trực tiếp Website lên điện thoại di động như một App độc lập mà không cần tải qua App Store/CH Play. Giao diện App được thiết kế riêng với phông chữ lớn, nút bấm to, thao tác vuốt chạm tinh gọn nhằm giúp người cao tuổi dễ dàng theo dõi sức khỏe và tra cứu bệnh án mọi lúc.
 
 ---
 
@@ -48,18 +67,27 @@ Dự án được đóng gói toàn diện bằng **Docker**, đảm bảo môi 
 
 ### Bước 1: Clone mã nguồn
 ```bash
-git clone https://github.com/your-org/eyecu.git
+git clone https://github.com/KhoaNghiNoahDang/EyeCU.git
 cd eyecu
 ```
 
-### Bước 2: Khởi chạy hệ thống (Deployment)
+### Bước 2: Cấu hình biến môi trường (Tokens & API Keys)
+Bạn cần cấu hình các Token của VNPT và Gemini API để hệ thống hoạt động đầy đủ tính năng.
+1. Copy file mẫu `.env.example` thành `.env` trong thư mục `backend`:
+   ```bash
+   cp backend/.env.example backend/.env
+   ```
+   *(Trên Windows Command Prompt bạn có thể dùng lệnh `copy backend\.env.example backend\.env`)*
+2. Mở file `backend/.env` và điền các giá trị thực tế cho các biến (như `GEMINI_API_KEY`, `VNPT_*`, `DATABASE_URL`, v.v.).
+
+### Bước 3: Khởi chạy hệ thống (Deployment)
 Chỉ cần thực thi lệnh sau tại thư mục gốc của dự án:
 ```bash
 docker-compose up --build -d
 ```
 *Lệnh này sẽ tự động tải các image cần thiết, khởi chạy Backend (FastAPI) tại cổng `8000` và Frontend (React/Vite) tại cổng `5173`. Tuỳ chọn `-d` giúp hệ thống chạy ngầm (Detached mode).*
 
-### Bước 3: Truy cập hệ thống
+### Bước 4: Truy cập hệ thống
 Sau khi quá trình build hoàn tất, mở trình duyệt và truy cập:
 - **Giao diện Người dùng (Frontend):** `http://localhost:5173`
 - **Tài liệu API Backend (Swagger UI):** `http://localhost:8000/docs`
@@ -177,6 +205,7 @@ EyeCU tuân thủ nghiêm ngặt tính khả thi pháp lý và bảo mật:
 
 ## Trải nghiệm Người dùng (UX Metrics)
 - **Thiết kế Zero-Friction:** Giao diện tối màu, độ tương phản cao, phông chữ lớn phục vụ môi trường tranh tối tranh sáng ở phòng cấp cứu và cho người dùng cao tuổi.
+- **Trải nghiệm PWA Mượt mà:** Khả năng lưu trữ Cache Offline giúp Website App tải tức thì ngay cả khi mạng chập chờn. Bệnh nhân có thể dùng tính năng "Thêm vào màn hình chính" (Add to Home Screen) để sử dụng mượt mà như một ứng dụng Native đích thực.
 - **Chỉ báo trực quan:** Quá trình chờ xử lý FaceID được lót lớp nền ảnh làm mờ (Frosted glass) giảm cảm giác sốt ruột cho người dùng.
 
 ---
@@ -184,8 +213,8 @@ EyeCU tuân thủ nghiêm ngặt tính khả thi pháp lý và bảo mật:
 ## Kịch bản Test Tự động
 Để kiểm chứng tính ổn định (đảm bảo chạy >= 3 lần không lỗi), dự án bao gồm Test Script tích hợp:
 ```bash
-# Chạy bộ test hệ thống Backend
-cd backend && pytest tests/
+# Chạy bộ test hệ thống Backend (Tự động chuyển sang cách 2 qua module python nếu cách 1 báo lỗi)
+cd backend && pytest tests/ || python -m pytest tests/
 ```
 
 ---
