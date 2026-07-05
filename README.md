@@ -52,7 +52,7 @@ Số hóa toàn diện quy trình cấp cứu trước khi nhập viện (Pre-ho
 - Tại cổng viện, **LPR (SmartVision)** tự động đọc biển số xe cấp cứu, mở barrier và thông báo luôn kíp trực cấp cứu.
 
 **4. Xác thực Sinh trắc học & Phân quyền (VNPT eKYC / VNFace)**
-- Đăng nhập siêu tốc bằng khuôn mặt (FaceID) hoặc vân tay chuẩn WebAuthn.
+- Đăng nhập nhanh bằng khuôn mặt (FaceID) hoặc vân tay chuẩn WebAuthn.
 - Hệ thống tự động phân loại Role (Admin/Clinician/Ops) nhờ thuật toán trích xuất đặc trưng khuôn mặt (Face Compare 1:1).
 
 **5. Ứng dụng PWA cho Người cao tuổi (VNPT SmartBot & SmartUX)**
