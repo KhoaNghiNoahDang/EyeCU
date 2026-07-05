@@ -4913,6 +4913,8 @@ function AmbulanceView() {
   const [dispatchRecords, setDispatchRecords] = useState<Record<string, any>>({});
 
   const lastSpokenRef = useRef<Record<string, string>>({});
+  const pendingTextRef = useRef<Record<string, string>>({});
+  const ttsTimeoutRef = useRef<Record<string, any>>({});
 
   const playTts = async (text: string) => {
     try {
@@ -5057,6 +5059,7 @@ function AmbulanceView() {
               emergency_contact_phone: d.emergency_contact_phone ?? null,
               chronic_conditions: toStrArray(d.chronic_conditions),
               allergies: toStrArray(d.allergies),
+              er_team: null,
             })
             .then();
 
@@ -5078,6 +5081,8 @@ function AmbulanceView() {
               chronic_conditions: toStrArray(d.chronic_conditions),
               allergies: toStrArray(d.allergies),
               preAlertText: d.pre_alert_text ?? null,
+              er_team: null,
+              erTeam: null,
             },
           }));
 
@@ -5277,12 +5282,47 @@ function AmbulanceView() {
 
   useEffect(() => {
     dispatchList.forEach((rec) => {
-      if (rec.preAlertText && rec.preAlertText !== lastSpokenRef.current[rec.plate]) {
-        lastSpokenRef.current[rec.plate] = rec.preAlertText;
-        const plateSpelled = rec.plate.split("").join(" ");
-        playTts(`Cảnh báo từ xe ${plateSpelled}: ${rec.preAlertText}`);
+      const plate = rec.plate;
+      const text = rec.preAlertText;
+      if (text) {
+        // Nếu cảnh báo trùng với nội dung đã đọc, hủy bỏ lịch đọc đang chờ (nếu có)
+        if (text === lastSpokenRef.current[plate]) {
+          if (ttsTimeoutRef.current[plate]) {
+            clearTimeout(ttsTimeoutRef.current[plate]);
+            delete ttsTimeoutRef.current[plate];
+            delete pendingTextRef.current[plate];
+          }
+          return;
+        }
+
+        // Nếu nội dung thay đổi so với dòng chữ đang chờ đọc, reset bộ đếm thời gian (debounce 3s)
+        if (text !== pendingTextRef.current[plate]) {
+          if (ttsTimeoutRef.current[plate]) {
+            clearTimeout(ttsTimeoutRef.current[plate]);
+          }
+          pendingTextRef.current[plate] = text;
+          ttsTimeoutRef.current[plate] = setTimeout(() => {
+            lastSpokenRef.current[plate] = text;
+            const plateSpelled = plate.split("").join(" ");
+            playTts(`Cảnh báo từ xe ${plateSpelled}: ${text}`);
+            delete pendingTextRef.current[plate];
+            delete ttsTimeoutRef.current[plate];
+          }, 3000);
+        }
+      } else {
+        // Nếu nội dung trống, hủy đọc
+        if (ttsTimeoutRef.current[plate]) {
+          clearTimeout(ttsTimeoutRef.current[plate]);
+          delete ttsTimeoutRef.current[plate];
+          delete pendingTextRef.current[plate];
+        }
       }
     });
+
+    // Cleanup khi component bị hủy
+    return () => {
+      Object.values(ttsTimeoutRef.current).forEach(clearTimeout);
+    };
   }, [dispatchList]);
 
   return (
@@ -10052,6 +10092,7 @@ function EmsView() {
             scannedPatient?.chronicConditions || scannedPatient?.chronic_conditions || [],
           allergies: scannedPatient?.allergies || [],
           pre_alert_text: preAlertText || "",
+          er_team: null,
         })
         .then();
 
@@ -10073,6 +10114,7 @@ function EmsView() {
             scannedPatient?.chronicConditions || scannedPatient?.chronic_conditions || [],
           allergies: scannedPatient?.allergies || [],
           pre_alert_text: preAlertText || "",
+          er_team: null,
         },
       });
 
@@ -10107,6 +10149,7 @@ function EmsView() {
                 scannedPatient?.chronicConditions || scannedPatient?.chronic_conditions || [],
               allergies: scannedPatient?.allergies || [],
               pre_alert_text: preAlertText || "",
+              er_team: null,
             })
             .then();
           send({
@@ -10127,6 +10170,7 @@ function EmsView() {
                 scannedPatient?.chronicConditions || scannedPatient?.chronic_conditions || [],
               allergies: scannedPatient?.allergies || [],
               pre_alert_text: preAlertText || "",
+              er_team: null,
             },
           });
         },
