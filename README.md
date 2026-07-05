@@ -34,7 +34,7 @@ Hệ thống **Edge AI** (Trí tuệ nhân tạo tại biên) xử lý luồng c
 Tích hợp VNPT SmartVoice, cho phép bác sĩ dùng giọng nói (Speech-to-Text) để đọc y lệnh và nhập liệu trực tiếp vào bệnh án điện tử (EMR) theo chuẩn cấu trúc SOAPE. Tối ưu hoá thời gian hành chính, giải phóng đôi tay để y bác sĩ tập trung thăm khám.
 
 ### 3. Cấp cứu Ngoại viện & Điều phối thông minh (EMS Pre-alert & Dispatcher)
-Giải pháp số hóa toàn diện quy trình cấp cứu trước khi nhập viện (Pre-hospital). Nhân viên cấp cứu (EMS) trên xe cứu thương có thể truyền trực tiếp dữ liệu sinh hiệu, hình ảnh hiện trường và dự báo thời gian đến (ETA) qua GPS về khoa Cấp cứu (ER) theo thời gian thực. Khi xe về đến viện, ứng dụng LPR (Nhận diện biển số) từ SmartVision sẽ tự động định tuyến xe, mở barrier và giữ thang máy, tối ưu trọn vẹn "Thời gian vàng" cứu sống bệnh nhân.
+Giải pháp số hóa toàn diện quy trình cấp cứu trước khi nhập viện (Pre-hospital). Nhân viên cấp cứu (EMS) trên xe cứu thương có thể truyền trực tiếp dữ liệu chẩn đoán qua phần đọc y lệnh của bác sĩ và dự báo thời gian đến (ETA) qua GPS về khoa Cấp cứu (ER) theo thời gian thực. Khi xe về đến viện, ứng dụng LPR (Nhận diện biển số) từ SmartVision sẽ tự động định tuyến xe, mở barrier, tối ưu trọn vẹn "Thời gian vàng" cứu sống bệnh nhân. Ngoài ra, nếu bệnh nhân có CCCD, chức năng quét CCCD sẽ được thực hiện ngay trên xe cấp cứu và truyền dữ liệu về bệnh viện để làm hồ sơ nhập viện luôn, giảm bớt thời gian làm thủ tục nhập viện.
 
 ### 4. Đăng nhập sinh trắc học (WebAuthn / Passkey)
 Ứng dụng công nghệ chuẩn WebAuthn, cho phép nhân viên y tế đăng nhập siêu tốc bằng FaceID hoặc Vân tay (TouchID), triệt tiêu hoàn toàn rủi ro lộ lọt mật khẩu truyền thống.
