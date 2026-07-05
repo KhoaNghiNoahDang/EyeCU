@@ -1,27 +1,38 @@
-# EyeCU – Hệ Điều Hành Nhận Thức Không Gian & Y Tế Thông Minh
-# Nhóm Làm này làm nọ
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Docker](https://img.shields.io/badge/Docker-Enabled-blue.svg)](https://www.docker.com/)
-[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/Frontend-React/Vite-61DAFB.svg)](https://reactjs.org/)
+<div align="center">
+  <img src="frontend/public/logo.png" alt="EyeCU Logo" width="120" />
+  <h1>EyeCU – Hệ Điều Hành Nhận Thức Không Gian & Y Tế Thông Minh</h1>
+  <p><strong>Thấu hiểu. Dự báo. Chữa lành.</strong></p>
+  <p><i>Mang tương lai y tế Ambient Computing đến Việt Nam.</i></p>
+  <br/>
+
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+  [![Docker](https://img.shields.io/badge/Docker-Enabled-blue.svg)](https://www.docker.com/)
+  [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
+  [![React](https://img.shields.io/badge/Frontend-React/Vite-61DAFB.svg)](https://reactjs.org/)
+</div>
+
+<br/>
 
 **EyeCU** ra đời với khát vọng chuyển đổi số toàn diện quy trình vận hành bệnh viện và cấp cứu ngoại viện. Không chỉ là một phần mềm thông thường, EyeCU là một **Giải pháp Y tế Toàn diện (Ambient Intelligence)** ứng dụng sâu rộng Hệ sinh thái API của VNPT. Sản phẩm giúp tự động hoá quy trình lâm sàng, giám sát bệnh nhân 24/7 và thông dịch dữ liệu y khoa nhằm giải quyết triệt để bài toán quá tải y tế.
 
 *Sản phẩm dự thi Vòng 2 - Vietnamese Student HackAIthon 2026 (Bảng B - Challenger)*
-
+*Nhóm Làm này làm nọ*
 ---
 
 ## 🌐 TRẢI NGHIỆM DEMO TRỰC TUYẾN (LIVE DEMO)
 
 Truy cập và trải nghiệm nhanh sản phẩm trực tiếp tại: **[https://eyecu.vercel.app/login](https://eyecu.vercel.app/login)**
 
-**Danh sách Tài khoản Demo:**
-- **Tài khoản Bác sĩ:** Tài khoản: `DOC001` | Mật khẩu: `password123` *(Bác sĩ Nguyễn Văn A - Khoa Ngoại tổng hợp)*
-- **Tài khoản Quản trị viên (Admin):** Tài khoản: `AD001` | Mật khẩu: `password123`
-- **Tài khoản Bệnh nhân:** Tài khoản: `001306000000` | Mật khẩu: `password123` *(Hoặc dùng tính năng Quét CCCD)*
+**Danh sách Tài khoản Demo (Nhập để trải nghiệm):**
+- **Tài khoản Bác sĩ:** `BS0012` | Mật khẩu: `password123` *(Bác sĩ Phan Minh Hương - Khoa Dị ứng - Miễn dịch lâm sàng)*
+- **Tài khoản Admin:** `AD001` | Mật khẩu: `password123`
+- **Tài khoản Bệnh nhân:** `001306000000` | Mật khẩu: `password123`
+
+> **⚠️ LƯU Ý VỀ KIỂM TRA THÔNG BÁO LỊCH KHÁM TRÊN GIAO DIỆN BÁC SĨ:**
+> Do lịch trực chỉ thông báo đến bác sĩ mà người dùng đặt, do đó phải dùng tài khoản bệnh nhân để đặt lịch khám "Khoa Dị ứng - Miễn dịch lâm sàng" và chọn "BS Phan Minh Hương". Sau khi xác nhận đặt lịch thành công, dùng tài khoản bác sĩ demo để kiểm tra thông báo. (Biểu tượng hình chuông góc trên bên trái giao diện).
 
 > **⚠️ LƯU Ý QUAN TRỌNG VỀ API VNPT:**
-> Do đặc thù bảo mật của hệ sinh thái VNPT, các `ACCESS_TOKEN` để gọi API chỉ có hiệu lực tối đa **8 tiếng**. Trên môi trường Live Demo này, một số tính năng AI có thể không hoạt động nếu Token đã hết hạn. Để chấm điểm và trải nghiệm trọn vẹn 100% tính năng, Ban giám khảo vui lòng tham khảo **Hướng dẫn cài đặt hệ thống (Local Deployment)** ở bên dưới để cấu hình Token mới nhất.
+> Do đặc thù bảo mật của hệ sinh thái VNPT, các `ACCESS_TOKEN` để gọi API chỉ có hiệu lực tối đa **8 tiếng**. Trên môi trường Live Demo này, một số API của VNPT có thể không hoạt động nếu đội chưa cập nhật Token đã hết hạn. Để chấm điểm và trải nghiệm trọn vẹn 100% tính năng, Ban giám khảo vui lòng tham khảo **Hướng dẫn cài đặt hệ thống (Local Deployment)** ở bên dưới để cấu hình Token mới nhất.
 
 ---
 
@@ -84,10 +95,17 @@ docker compose up -d --build
 ```
 *(Hệ thống sẽ chạy Frontend tại `http://localhost:5173` và API Docs tại `http://localhost:8000/docs`)*
 
-### Phần 2: Hướng dẫn Demo Edge AI Camera (Nhận diện té ngã)
+### Phần 2: Hướng dẫn Trải nghiệm Demo Nhận diện té ngã (Fall Detection)
 
-Vì tính năng Edge AI cần truy cập trực tiếp vào luồng Webcam để bảo vệ quyền riêng tư hình ảnh nội trú, tiến trình này phải chạy trực tiếp trên máy thật:
+Để Ban giám khảo có thể kiểm chứng nguyên lý hoạt động của tính năng giám sát phòng bệnh, hệ thống cung cấp 2 phương thức:
 
+**Cách 1: Xem giả lập Logic trên Website (Nhanh nhất)**
+1. Đăng nhập vào Web App bằng tài khoản Bác sĩ hoặc Admin.
+2. Truy cập vào trang **"Giám sát không gian"** (Camera nội trú).
+3. Nhấn vào nút **"Demo"** trên giao diện để làm rõ nguyên lý phát hiện ngã tự động đẩy cảnh báo về hệ thống.
+
+**Cách 2: Chạy AI trực tiếp qua Webcam (Thực chiến)**
+Vì tính năng Edge AI bảo mật dữ liệu hình ảnh tại biên, tiến trình này phải chạy trực tiếp trên máy thật:
 1. Mở một Terminal mới, cài đặt thư viện:
    ```bash
    cd edge_ai
@@ -97,7 +115,7 @@ Vì tính năng Edge AI cần truy cập trực tiếp vào luồng Webcam để
    ```bash
    python main.py
    ```
-3. Khi đèn Webcam sáng, hãy truy cập vào Web App và điều hướng tới giao diện **Camera giám sát nội trú**. Bạn có thể tự thực hiện động tác "té ngã" trước màn hình. Hệ thống sẽ nhận diện tư thế, làm mờ cơ thể bạn và gửi Cảnh báo Đỏ về bảng điều khiển!
+3. Khi đèn Webcam sáng, hãy quay lại giao diện **Giám sát không gian** và tự thực hiện động tác "té ngã" trước màn hình. Hệ thống sẽ nhận diện tư thế, tự động làm mờ cơ thể bạn và gửi Cảnh báo Đỏ về bảng điều khiển!
 
 ---
 
@@ -110,9 +128,4 @@ Dự án bao gồm Test Script tích hợp trên Backend để kiểm chứng đ
 cd backend && pytest tests/ || python -m pytest tests/
 ```
 
----
-<div align="center">
-  <img src="frontend/public/logo.png" alt="EyeCU Logo" width="120" />
-  <p><strong>EyeCU - Thấu hiểu. Dự báo. Chữa lành.</strong></p>
-  <p><i>Mang tương lai y tế Ambient Computing đến Việt Nam.</i></p>
-</div>
+
