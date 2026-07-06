@@ -87,7 +87,11 @@ cd eyecu
 **Bước 2: Cấu hình biến môi trường (Tokens)**
 Để sử dụng API VNPT, bạn cần cấu hình Token:
 1. Copy file mẫu: `cp backend/.env.example backend/.env` *(Windows: `copy backend\.env.example backend\.env`)*
-2. Mở file `backend/.env` và điền các giá trị `ACCESS_TOKEN` VNPT thực tế.
+2. Mở file `backend/.env` và điền các giá trị `ACCESS_TOKEN` VNPT thực tế, điền thêm các thông tin sau:
+DATABASE_URL=postgresql://postgres.tmjcsqwprlgqqzcubkeb:hackaithon2026%40@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres
+GEMINI_API_KEY=AQ.Ab8RN6JN5Lqng7c7EOELYEyvCKG6iqZxx-9Wf-LbhnxDSgfdJw
+PYTHON_VERSION=3.11.0
+SECRET_KEY=09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7
 
 **Bước 3: Khởi chạy hệ thống 1-lệnh**
 ```bash
