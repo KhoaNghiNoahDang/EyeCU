@@ -225,7 +225,9 @@ function RootComponent() {
   useEffect(() => {
     const track = () => {
       try {
-        if (window.VNPT?.q) {
+        if (typeof window.VNPT?.track_pageview === 'function') {
+          window.VNPT.track_pageview(location.pathname);
+        } else if (window.VNPT?.q) {
           window.VNPT.q.push(['track_pageview', location.pathname]);
         }
       } catch (_) {} // never let tracking crash the app

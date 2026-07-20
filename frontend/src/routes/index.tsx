@@ -327,7 +327,13 @@ function PatientRounds() {
   useEffect(() => {
     const virtualPath = `/dashboard/${activeView}`;
     const track = () => {
-      try { window.VNPT?.q?.push(['track_pageview', virtualPath]); } catch (_) {}
+      try { 
+        if (typeof window.VNPT?.track_pageview === 'function') {
+          window.VNPT.track_pageview(virtualPath);
+        } else if (window.VNPT?.q) {
+          window.VNPT.q.push(['track_pageview', virtualPath]);
+        }
+      } catch (_) {}
     };
     if (typeof requestIdleCallback !== 'undefined') {
       const id = requestIdleCallback(track, { timeout: 3000 });
