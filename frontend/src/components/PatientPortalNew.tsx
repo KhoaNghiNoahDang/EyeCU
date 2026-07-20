@@ -4221,7 +4221,7 @@ export function PatientPortalNew({
                 Hủy
               </button>
               <button
-                onClick={handleCaptureLab}
+                onClick={() => nativeCameraInputRef.current?.click()}
                 disabled={isAnalyzingLab}
                 className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-[#88E8F2] p-1.5 transition-transform active:scale-95 disabled:opacity-60"
               >
@@ -4237,16 +4237,9 @@ export function PatientPortalNew({
                   }
                   fileInputRef.current?.click();
                 }}
-                className="rounded-full bg-white/10 px-3 py-2 text-[11px] font-semibold text-white"
+                className="rounded-full bg-white/15 px-5 py-2.5 text-sm font-semibold text-white transition-colors active:bg-white/25"
               >
                 Thư viện
-              </button>
-              
-              <button
-                onClick={() => nativeCameraInputRef.current?.click()}
-                className="rounded-full bg-white/10 px-3 py-2 text-[11px] font-semibold text-white"
-              >
-                Chụp (Nét)
               </button>
             </div>
             {isAnalyzingLab && (
