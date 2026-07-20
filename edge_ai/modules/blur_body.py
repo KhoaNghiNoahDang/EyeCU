@@ -33,17 +33,20 @@ def _get_segmenter():
     return _segmenter
 
 
-def anonymize_body(frame: np.ndarray, blur_level: str = 'heavy') -> np.ndarray:
+def anonymize_body(frame: np.ndarray, blur_level: str = 'heavy', return_mask: bool = False):
     """
     Lam mo hoac che khuat co the nguoi trong frame, giu nguyen phong canh.
     - 'heavy': Lam mo rat manh hoac to mau den de an hoan toan nguoi (chi hien khung xuong).
     - 'light': Lam mo nhe de thay hinh anh nguoi benh.
+    - return_mask: Tra ve them mang boolean (H, W, 3) chi vi tri nguoi.
     """
     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
 
     result = _get_segmenter().segment(mp_image)
     if result.category_mask is None:
+        if return_mask:
+            return frame, np.zeros((frame.shape[0], frame.shape[1], 3), dtype=bool)
         return frame
 
     mask = result.category_mask.numpy_view()
@@ -53,8 +56,12 @@ def anonymize_body(frame: np.ndarray, blur_level: str = 'heavy') -> np.ndarray:
     if blur_level == 'heavy':
         # Privacy tuyet doi: To mau den hoan toan len co the nguoi benh (tao thanh bong den)
         black_silhouette = np.zeros_like(frame)
-        return np.where(condition, black_silhouette, frame) 
+        res_frame = np.where(condition, black_silhouette, frame) 
     else:
         # Lam mo nhe de van thay hinh dang nguoi benh (giam thieu canh bao nham)
         blurred = cv2.GaussianBlur(frame, (21, 21), 10)
-        return np.where(condition, blurred, frame)
+        res_frame = np.where(condition, blurred, frame)
+
+    if return_mask:
+        return res_frame, condition
+    return res_frame

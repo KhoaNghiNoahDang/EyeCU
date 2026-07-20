@@ -13,7 +13,7 @@ from app.db.models import (
     LprLog,
     ClinicalRecord,
 )
-from app.core.security import require_roles
+from app.core.security import require_roles, get_password_hash
 # AA
 router = APIRouter()
 ##
@@ -139,7 +139,7 @@ def create_staff(data: StaffCreate, db: Session = Depends(get_db)):
         role=data.role,
         cccd=data.cccd,
         employee_id=data.employee_id,
-        password_hash=data.password,
+        password_hash=get_password_hash(data.password),
         department_id=dept_id,
         face_base64=data.face_base64
     )
@@ -147,6 +147,19 @@ def create_staff(data: StaffCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_staff)
     return {"status": "success", "id": str(new_staff.id)}
+
+
+class AdminChangePasswordRequest(BaseModel):
+    new_password: str
+
+@router.put("/staffs/{staff_id}/password", dependencies=[Depends(require_roles(["admin"]))])
+def admin_change_staff_password(staff_id: str, data: AdminChangePasswordRequest, db: Session = Depends(get_db)):
+    staff = db.query(Staff).filter(Staff.id == staff_id).first()
+    if not staff:
+        raise HTTPException(status_code=404, detail="Không tìm thấy nhân viên")
+    staff.password_hash = get_password_hash(data.new_password)
+    db.commit()
+    return {"status": "success", "message": "Đổi mật khẩu thành công"}
 
 
 @router.get("/tables/{table_name}", dependencies=[Depends(require_roles(["admin"]))])

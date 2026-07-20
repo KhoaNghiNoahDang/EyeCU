@@ -62,6 +62,10 @@ class Settings(BaseSettings):
     # Gemini AI
     GEMINI_API_KEY: str = ""
 
+    # HuggingFace (for Pyannote speaker diarization)
+    HUGGINGFACE_TOKEN: str = ""
+
+
     model_config = SettingsConfigDict(
         env_file=".env", extra="ignore", env_file_encoding="utf-8", case_sensitive=True
     )

@@ -177,6 +177,7 @@ class ClinicalRecord(SQLModel, table=True):
     notes: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     is_signed: bool = Field(default=False)
+    encounter_id: str = Field(default="system-generated")
 
 
 class Medication(SQLModel, table=True):
@@ -387,3 +388,25 @@ class QuestionReply(SQLModel, table=True):
     sender_name: str = Field(max_length=100)
     content: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class FunctionalRoom(SQLModel, table=True):
+    __tablename__ = "functional_rooms"
+    __table_args__ = {'extend_existing': True}
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    name: str = Field(max_length=200)
+    room_type: str = Field(max_length=50) # "khám bệnh", "xét nghiệm", "thăm dò chức năng"
+    floor: int = Field(default=1)
+    room_number: str = Field(max_length=50)
+    description: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class ExaminationService(SQLModel, table=True):
+    __tablename__ = "examination_services"
+    __table_args__ = {'extend_existing': True}
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    record_id: str = Field(max_length=100, index=True) # ID của lịch sử khám (hoặc số phiếu)
+    room_id: uuid.UUID = Field(foreign_key="functional_rooms.id")
+    status: str = Field(default="pending", max_length=50) # pending, completed
+    assigned_at: datetime = Field(default_factory=datetime.utcnow)
+    completed_at: Optional[datetime] = None
+    note: Optional[str] = None

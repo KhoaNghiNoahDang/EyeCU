@@ -2,13 +2,15 @@
 import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import { useAuth } from "../lib/auth/auth-context";
 import { fetchApi, API_URL } from "../lib/api/client";
-import { User, LogIn, Calendar, FileText, Settings, Heart, Bell, MessageCircle, MapPin, Menu, X, ArrowLeft, ArrowRight, ShieldCheck, ChevronRight, Mic, Send, Phone, ClipboardList, ScanFace, FileSignature, Info, LogOut, Copy, Download, Eye, Map as MapIcon, Trash2, CalendarClock, Lock, Globe, Users, Activity, Search, Stethoscope, Receipt, Home, Star, Camera, ScanLine, Share, PlusSquare, Volume2, VolumeX, Pause, Loader2, Scan, BriefcaseMedical, ChevronDown, CheckCircle2 , Landmark, CreditCard, QrCode } from "lucide-react";
+import { User, LogIn, Calendar, FileText, Settings, Heart, Bell, MessageCircle, MapPin, Menu, X, ArrowLeft, ArrowRight, ShieldCheck, ChevronRight, Mic, Send, Phone, ClipboardList, ScanFace, FileSignature, Info, LogOut, Copy, Download, Eye, EyeOff, Map as MapIcon, Trash2, CalendarClock, Lock, Globe, Users, Activity, Search, Stethoscope, Receipt, Home, Star, Camera, ScanLine, Share, PlusSquare, Volume2, VolumeX, Pause, Loader2, Scan, BriefcaseMedical, ChevronDown, CheckCircle2 , Landmark, CreditCard, QrCode, PieChart, ActivitySquare } from "lucide-react";
 import { getHospitalsByProvince, CENTRAL_HOSPITALS, Hospital } from "../lib/hospitals";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, ReferenceArea, BarChart, Bar, AreaChart, Area } from "recharts";
 import { MapErrorBoundary } from "./MapErrorBoundary";
 import { VitalSignsView } from "./health-record/VitalSignsView";
 import { MedicationsView } from "./health-record/MedicationsView";
 import { LabResultsView } from "./health-record/LabResultsView";
 import { ImagingResultsView } from "./health-record/ImagingResultsView";
+import { TreatmentInfoView } from "./health-record/TreatmentInfoView";
 import { AdminInfoView } from "./health-record/AdminInfoView";
 import { RecordSummaryView } from "./health-record/RecordSummaryView";
 import { FileResultsView } from "./health-record/FileResultsView";
@@ -32,7 +34,7 @@ function getTimeNow() {
   return new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 }
 
-type ViewState = "home" | "health_record" | "record_lookup" | "community_qa" | "ask_question" | "question_thread" | "invoice_list" | "digital_signature" | "hospital_map" | "payment_confirmation" | "payment_face_capture" | "payment_success";
+type ViewState = "home" | "health_record_list" | "health_dashboard" | "health_record" | "treatment_info" | "record_lookup" | "community_qa" | "ask_question" | "question_thread" | "invoice_list" | "digital_signature" | "hospital_map" | "payment_confirmation" | "payment_face_capture" | "payment_success";
 
 function getAge(dobString?: string) {
   if (!dobString) return "";
@@ -657,6 +659,15 @@ export function PatientPortalNew({
   const [faceIdEnabled, setFaceIdEnabled] = useState(false);
   const [language, setLanguage] = useState<"vi" | "en">("vi");
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%239ca3af'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>";
@@ -697,6 +708,65 @@ export function PatientPortalNew({
   };
 
   
+  const handleVerifyPassword = async () => {
+    if (!currentPassword) return;
+    try {
+      const res = await fetchApi("/auth/verify-password", {
+        method: "POST",
+        body: { password: currentPassword }
+      });
+      if (res && res.message) {
+        if (passwordError === "Sai mật khẩu hiện tại, vui lòng nhập lại.") {
+          setPasswordError("");
+        }
+      }
+    } catch (err: any) {
+      setPasswordError("Sai mật khẩu hiện tại, vui lòng nhập lại.");
+    }
+  };
+
+  const handleChangePassword = async () => {
+    setPasswordError("");
+    setPasswordSuccess("");
+
+    if (!currentPassword) {
+      setPasswordError("Vui lòng nhập mật khẩu hiện tại");
+      return;
+    }
+    if (!newPassword) {
+      setPasswordError("Mật khẩu mới không được để trống");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError("Mật khẩu mới không khớp");
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const res = await fetchApi("/auth/change-password", {
+        method: "POST",
+        body: { current_password: currentPassword, new_password: newPassword }
+      });
+      // Nếu success API thường trả về object có message (như backend code)
+      if (res && res.message) {
+        setPasswordSuccess("Đổi mật khẩu thành công! Hệ thống sẽ tự động đăng xuất.");
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmNewPassword("");
+        setTimeout(() => {
+          setShowPasswordModal(false);
+          setPasswordSuccess("");
+          onRequestLogout();
+        }, 1500);
+      }
+    } catch (err: any) {
+      setPasswordError(err.message || "Lỗi đổi mật khẩu");
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   const handleFaceIdToggle = async () => {
     if (!faceIdEnabled) {
       try {
@@ -713,6 +783,8 @@ export function PatientPortalNew({
   };
   const [currentView, setCurrentView] = useState<ViewState>("home");
   const [showFiles, setShowFiles] = useState(false);
+  const [healthRecordFilterYear, setHealthRecordFilterYear] = useState<string>("all");
+  const [selectedRecordDate, setSelectedRecordDate] = useState<string>("1/4/2026");
   
   const [currentTicket, setCurrentTicket] = useState<any>(null);
   const [searchTicketCode, setSearchTicketCode] = useState("");
@@ -1002,36 +1074,50 @@ export function PatientPortalNew({
     }
   };
 
-  const handleExtractData = async () => {
+  const handleExtractData = async (urls?: string[]) => {
     setIsExtracting(true);
     try {
-      // Mock fetching a local PDF and converting to Base64
-      // In a real app, this would be a file input or blob from the DB
-      const res = await fetch("/mau_xet_nghiem_1.pdf");
-      const blob = await res.blob();
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64data = reader.result;
-        if (typeof base64data === "string") {
-          const response = await fetchApi("/patient/extract-medical-record", {
-            method: "POST",
-            body: JSON.stringify({ image_base64: base64data })
+      const fileUrls = urls && urls.length > 0 ? urls : ["/mau_xet_nghiem_1.pdf"];
+      
+      const allBase64Data: string[] = await Promise.all(
+        fileUrls.map(async (fileUrl) => {
+          const res = await fetch(fileUrl);
+          const blob = await res.blob();
+          return new Promise<string>((resolve, reject) => {
+             const reader = new FileReader();
+             reader.onloadend = () => {
+                if (typeof reader.result === "string") {
+                    resolve(reader.result);
+                } else {
+                    reject("Invalid reader result");
+                }
+             };
+             reader.onerror = reject;
+             reader.readAsDataURL(blob);
           });
-          if (response && response.status === "success") {
-            setExtractedRecordData(response.data);
-            setExpandedSection("record_summary"); // Auto-expand Kết quả khám to show the extracted data
-          } else {
-             console.error("Extraction failed:", response);
-             alert("Lỗi khi bóc tách dữ liệu: " + (response?.message || "Unknown error"));
-          }
+        })
+      );
+
+      if (allBase64Data.length > 0) {
+        const response = await fetchApi("/patient/extract-medical-record", {
+          method: "POST",
+          body: JSON.stringify({ images_base64: allBase64Data, date: selectedRecordDate })
+        });
+        if (response && response.status === "success") {
+          setExtractedRecordData(response.data);
+          setExpandedSection("record_summary"); // Auto-expand Kết quả khám to show the extracted data
+        } else {
+           console.error("Extraction failed:", response);
+           alert("Lỗi khi bóc tách dữ liệu: " + (response?.message || "Unknown error"));
         }
-        setIsExtracting(false);
-      };
-      reader.readAsDataURL(blob);
-    } catch (e) {
-      console.error(e);
+      }
       setIsExtracting(false);
-      alert("Lỗi khi bóc tách dữ liệu");
+    } catch (e) {
+
+      console.error(e);
+      alert("Lỗi khi bóc tách dữ liệu: " + (e.message || "Unknown error"));
+    } finally {
+      setIsExtracting(false);
     }
   };
 
@@ -1133,7 +1219,7 @@ export function PatientPortalNew({
               
               {/* Secondary Buttons */}
               {[
-                { label: "Hồ sơ sức khỏe", icon: Activity, onClick: () => setCurrentView("health_record") },
+                { label: "Hồ sơ sức khỏe", icon: Activity, onClick: () => setCurrentView("health_record_list") },
                 { label: "Tra cứu số khám", icon: Search, onClick: () => setCurrentView("record_lookup") },
                 { label: "Giải đáp cùng chuyên gia", icon: Stethoscope, onClick: () => setCurrentView("community_qa") },
                 { label: "Ký số giấy tờ", icon: FileSignature, onClick: () => setCurrentView("digital_signature") },
@@ -1147,6 +1233,24 @@ export function PatientPortalNew({
                 </button>
               ))}
             </div>
+          </div>
+          {/* Thông tin khám Banner */}
+          <div className="px-4 mt-4">
+            <button 
+              onClick={() => setCurrentView("treatment_info")}
+              className="flex w-full items-center gap-4 rounded-[20px] bg-white p-4 shadow-sm active:scale-95 transition-transform border border-slate-100"
+            >
+              <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[18px] bg-[#88E8F2]/20">
+                <FileText className="h-7 w-7 text-[#0d1f2d]" strokeWidth={1.5} />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-[17px] font-bold text-[#0d1f2d] tracking-wide">Thông tin khám</p>
+                <p className="text-[13px] text-slate-500 mt-1">Xem chi tiết hồ sơ & kết quả</p>
+              </div>
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-50">
+                <ChevronRight className="h-6 w-6 text-slate-400" strokeWidth={1.5} />
+              </div>
+            </button>
           </div>
 
           {/* OCR Banner */}
@@ -1188,89 +1292,600 @@ export function PatientPortalNew({
         </div>
   );
 
+  // Render Health Dashboard View
+
+  const HEALTH_RECORD_APPOINTMENTS = [
+    { date: "1/4/2026", displayDate: "01/04/2026", hospital: "Bệnh viện Nội Tiết Trung ương", year: 2026 },
+    { date: "23/3/2026", displayDate: "23/03/2026", hospital: "Bệnh viện Bạch Mai", year: 2026 },
+    { date: "23/1/2026", displayDate: "23/01/2026", hospital: "Bệnh viện Trung ương Quân Đội 108", year: 2026 },
+    { date: "16/12/2025", displayDate: "16/12/2025", hospital: "Bệnh viện Hữu Nghị Việt Đức", year: 2025 },
+  ];
+
+  const renderHealthRecordList = () => {
+    const filtered = healthRecordFilterYear === "all"
+      ? HEALTH_RECORD_APPOINTMENTS
+      : HEALTH_RECORD_APPOINTMENTS.filter(a => a.year === parseInt(healthRecordFilterYear));
+
+    return (
+      <div className="flex-1 flex flex-col bg-[#f8f9fc] overflow-hidden">
+        {/* Top App Bar */}
+        <div className="flex items-center justify-between px-4 py-3 bg-[#88E8F2] text-[#0d1f2d] pt-safe z-10 shrink-0 shadow-sm relative">
+          <button onClick={() => { setActiveTab("home"); setCurrentView("home"); }} className="p-1 active:scale-95 absolute left-3">
+            <ArrowLeft className="h-6 w-6" />
+          </button>
+          <div className="flex-1 text-center font-bold text-[18px]">Hồ sơ sức khoẻ</div>
+        </div>
+
+        {/* Patient Info Card */}
+        <div className="bg-white px-5 py-5 border-b border-slate-200 flex items-center justify-between gap-4 shrink-0">
+          <div className="flex-1 min-w-0">
+            <p className="text-[20px] font-black text-[#0d1f2d] uppercase leading-tight">{user?.name || "BỆNH NHÂN"}</p>
+            <p className="text-[14px] text-slate-500 mt-1">
+              ({user?.dob || "01/01/1990"}{user?.dob ? (` ${new Date().getFullYear() - parseInt(user.dob.split("/")[2])} tuổi`) : " 35 tuổi"})
+            </p>
+          </div>
+          <button
+            onClick={() => setCurrentView("health_dashboard")}
+            className="flex flex-col items-center gap-1.5 shrink-0 active:scale-95 transition-transform"
+          >
+            <div className="w-[52px] h-[52px] bg-[#e0f7fa] rounded-2xl flex items-center justify-center border border-[#b2ebf2] shadow-sm">
+              <Activity className="h-7 w-7 text-[#00838f]" />
+            </div>
+            <span className="text-[11px] font-bold text-[#0d1f2d] text-center leading-tight">Dashboard<br/>tổng quan</span>
+          </button>
+        </div>
+
+        {/* Filter Tabs */}
+        <div className="flex gap-2 px-4 py-3 bg-white border-b border-slate-100 shrink-0">
+          {["all", "2026", "2025"].map(yr => (
+            <button
+              key={yr}
+              onClick={() => setHealthRecordFilterYear(yr)}
+              className={`px-4 py-1.5 rounded-full text-[13px] font-semibold transition-all ${
+                healthRecordFilterYear === yr
+                  ? "bg-[#88E8F2] text-[#0d1f2d]"
+                  : "bg-slate-100 text-slate-500"
+              }`}
+            >
+              {yr === "all" ? "Tất cả" : yr}
+            </button>
+          ))}
+        </div>
+
+        {/* Appointments List */}
+        <div className="flex-1 overflow-y-auto overscroll-contain pb-24 px-4 pt-4 flex flex-col gap-4 bg-[#f8f9fc]">
+          {filtered.map((appt, i) => (
+            <button
+              key={i}
+              onClick={() => { setSelectedRecordDate(appt.date); setCurrentView("health_record"); }}
+              className="w-full bg-white rounded-[20px] shadow-[0_8px_24px_rgba(0,0,0,0.06)] active:scale-[0.98] transition-transform text-left border border-slate-100 overflow-hidden flex"
+            >
+              <div className="w-[90px] flex flex-col items-center justify-center shrink-0 border-r border-slate-100 py-4">
+                <span className="text-[36px] font-black text-[#0d1f2d] leading-none tracking-tighter">{appt.displayDate.split("/")[0]}</span>
+                <span className="text-[13px] font-bold text-[#0d1f2d] mt-1 tracking-tight">
+                  {appt.displayDate.split("/")[1]}/{appt.displayDate.split("/")[2]}
+                </span>
+              </div>
+              <div className="flex-1 flex flex-col min-w-0">
+                 <div className="bg-[#88E8F2] text-[#0d1f2d] text-[12px] font-bold uppercase px-3 py-1.5 rounded-br-[12px] self-start mb-2 inline-block max-w-full truncate">
+                    {user?.name || "BỆNH NHÂN"}
+                 </div>
+                 <div className="px-3 pb-4">
+                    <p className="text-[14px] font-medium text-[#0d1f2d] leading-snug">{appt.hospital}</p>
+                 </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderHealthDashboard = () => {
+    // ─── DỮ LIỆU THỰC TẾ TỪ PHIẾU XÉT NGHIỆM (4 ngày: 16/12/2025 -> 01/04/2026) ───
+    const realHematologyData = [
+      {
+        date: "16/12/25",
+        rbc: 3.82, hgb: 92,  hct: 30.5, mcv: 71.8, mch: 21.2, mchc: 295, rdw: 17.2,
+        wbc: 6.54, neut_pct: 58.2, lym_pct: 30.1, mono_pct: 6.5, eos_pct: 4.8, baso_pct: 0.4,
+        neut: 3.81, lympt: 1.97, mono: 0.43, eos: 0.31, baso: 0.02,
+        plt: 352, mpv: 9.4,
+      },
+      {
+        date: "23/01/26",
+        rbc: 4.85, hgb: 142, hct: 41.5, mcv: 85.6, mch: 29.3, mchc: 342, rdw: 12.8,
+        wbc: 7.42, neut_pct: 61.5, lym_pct: 28.4, mono_pct: 6.2, eos_pct: 3.5, baso_pct: 0.4,
+        neut: 4.56, lympt: 2.11, mono: 0.46, eos: 0.26, baso: 0.03,
+        plt: 285, mpv: 9.5,
+      },
+      {
+        date: "23/03/26",
+        rbc: 4.12, hgb: 118, hct: 35.8, mcv: 86.9, mch: 28.6, mchc: 330, rdw: 13.2,
+        wbc: 3.85, neut_pct: 52.3, lym_pct: 37.2, mono_pct: 6.5, eos_pct: 3.6, baso_pct: 0.4,
+        neut: 2.01, lympt: 1.43, mono: 0.25, eos: 0.14, baso: 0.02,
+        plt: 224, mpv: 9.8,
+      },
+      {
+        date: "01/04/26",
+        rbc: 4.37, hgb: 121, hct: 37.2, mcv: 85.2, mch: 27.8, mchc: 326, rdw: 16.0,
+        wbc: 6.34, neut_pct: 56.8, lym_pct: 31.6, mono_pct: 6.1, eos_pct: 5.2, baso_pct: 0.3,
+        neut: 3.6, lympt: 2.0, mono: 0.39, eos: 0.33, baso: 0.02,
+        plt: 261, mpv: 10.5,
+      },
+    ];
+
+    const realBiochemData: any[] = [
+      {
+        date: "16/12/25",
+        sat_huyet_thanh: 4.8, glucose: 8.5, creatinine: 4.92, ure: 62.5, calci: 3.12,
+        ast: 18.5, alt: 14.2,
+        cholesterol: null, triglyceride: null, hdl: null, ldl: null, hba1c: null,
+        ft4: null, tsh: null, vitD: null,
+      },
+      {
+        date: "23/01/26",
+        glucose: 9.45, hba1c: 8.2, creatinine: 82.4, ure: 5.12,
+        cholesterol: 6.45, triglyceride: 3.15, hdl: 0.92, ldl: 4.09,
+        ast: 41.2, alt: 56.4,
+        sat_huyet_thanh: null, calci: null, ft4: null, tsh: null, vitD: null,
+      },
+      {
+        date: "23/03/26",
+        ft4: 38.45, tsh: 4, vitD: 28.5,
+        glucose: 5.05, creatinine: 74.2, ure: 4.15, calci: 2.35,
+        ast: 23.4, alt: 17.8,
+        sat_huyet_thanh: null, cholesterol: null, triglyceride: null, hdl: null, ldl: null, hba1c: null,
+      },
+      {
+        date: "01/04/26",
+        ft4: 11.06, tsh: 2.256, vitD: 13.5,
+        glucose: 4.88, creatinine: 68.6, ure: 3.37, calci: 2.4,
+        ast: 21.39, alt: 14.11,
+        sat_huyet_thanh: null, cholesterol: null, triglyceride: null, hdl: null, ldl: null, hba1c: null,
+      }
+    ];
+
+    const glucoseData  = realBiochemData.filter((d) => d.glucose  != null);
+    const liverData    = realBiochemData.filter((d) => d.ast      != null && d.alt != null);
+    const kidneyData   = realBiochemData.filter((d) => d.ure      != null && d.creatinine != null);
+    const lipidData    = realBiochemData.filter((d) => d.cholesterol != null);
+    const thyroidData  = realBiochemData.filter((d) => d.ft4 != null || d.tsh != null);
+
+    const realUrineData = [
+      { name: "Tỷ trọng (SG)",   v1: "1.012", v2: "1.022",   v3: "1.018", v4: "1.007", ref: "1.005–1.030", s1: "normal", s2: "normal", s3: "normal", s4: "normal" },
+      { name: "Bạch cầu (LEU)",  v1: "neg",   v2: "neg",     v3: "neg",   v4: "100 H", ref: "Âm tính",      s1: "normal", s2: "normal", s3: "normal", s4: "high" },
+      { name: "Nitrit (NIT)",    v1: "neg",   v2: "neg",     v3: "neg",   v4: "neg",   ref: "Âm tính",      s1: "normal", s2: "normal", s3: "normal", s4: "normal" },
+      { name: "pH",              v1: "6.0",   v2: "5.5",     v3: "6.0",   v4: "6.5",   ref: "4.6–8",        s1: "normal", s2: "normal", s3: "normal", s4: "normal" },
+      { name: "Protein",         v1: "neg",   v2: "0.15 H",  v3: "neg",   v4: "neg",   ref: "Âm tính",      s1: "normal", s2: "high",   s3: "normal", s4: "normal" },
+      { name: "Hồng cầu (ERY)", v1: "neg",   v2: "neg",     v3: "neg",   v4: "neg",   ref: "Âm tính",      s1: "normal", s2: "normal", s3: "normal", s4: "normal" },
+      { name: "Glucose niệu",   v1: "norm",  v2: "2+ (H)",  v3: "norm",  v4: "norm",  ref: "Bình thường",  s1: "normal", s2: "high",   s3: "normal", s4: "normal" },
+      { name: "Ceton (KET)",    v1: "neg",   v2: "neg",     v3: "neg",   v4: "neg",   ref: "< 0.5",        s1: "normal", s2: "normal", s3: "normal", s4: "normal" },
+    ];
+
+    const lastHema   = realHematologyData[realHematologyData.length - 1];
+    const lastGluc   = glucoseData[glucoseData.length - 1];
+    const lastLiver  = liverData[liverData.length - 1];
+
+    return (
+      <div className="flex-1 flex flex-col bg-[#f0f4f8] overflow-hidden">
+        {/* Top App Bar */}
+        <div className="flex items-center justify-between px-4 py-3 bg-[#0d1f2d] text-white pt-safe z-10 shrink-0 shadow-lg relative">
+          <button onClick={() => setCurrentView("health_record_list")} className="p-1 active:scale-95 absolute left-3">
+            <ArrowLeft className="h-6 w-6" />
+          </button>
+          <div className="flex-1 text-center">
+            <div className="font-bold text-[18px]">Biểu đồ Sức khỏe</div>
+            <div className="text-[11px] text-[#88E8F2] font-medium mt-0.5">Timeline 2025 - 2026</div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide">
+
+          {/* ══════ SECTION 1: HUYẾT HỌC ══════ */}
+          <div className="sticky top-0 z-20 mx-4 pt-4 pb-1 bg-[#f0f4f8]">
+            <div className="bg-gradient-to-r from-red-600 to-rose-500 px-4 py-2.5 rounded-2xl flex items-center gap-2 shadow-md">
+              <Activity className="h-5 w-5 text-white shrink-0" />
+              <h2 className="text-[15px] font-black text-white uppercase tracking-wide">Huyết học</h2>
+            </div>
+          </div>
+
+          <div className="px-4 py-3">
+            {/* Chart 1: RBC + HGB + HCT */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-4">
+              <h3 className="text-[15px] font-bold text-[#0d1f2d] mb-0.5">Hồng cầu (RBC) · HGB · HCT</h3>
+              <p className="text-[11px] text-slate-400 mb-3">RBC [4–4.9 T/L] · HGB [125–145 g/L] · HCT [37–42%]</p>
+              <div className="h-[200px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={realHematologyData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                    <RechartsTooltip contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.12)", fontSize: "12px" }} />
+                    <Legend wrapperStyle={{ fontSize: "11px", marginTop: "4px" }} />
+                    <Line type="monotone" name="RBC (T/L)" dataKey="rbc" stroke="#ef4444" strokeWidth={2.5} dot={{ r: 4, fill: "#ef4444", strokeWidth: 0 }} activeDot={{ r: 6 }} />
+                    <Line type="monotone" name="HCT (%)" dataKey="hct" stroke="#f97316" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 3.5, fill: "#f97316", strokeWidth: 0 }} activeDot={{ r: 5 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-100">
+                {[
+                  { label: "RBC", val: lastHema.rbc, unit: "T/L", low: 4.0,  high: 4.9  },
+                  { label: "HGB", val: lastHema.hgb, unit: "g/L", low: 125,  high: 145  },
+                  { label: "HCT", val: lastHema.hct, unit: "%",   low: 37,   high: 42   },
+                ].map((s, i) => {
+                  const isAbn = s.val < s.low || s.val > s.high;
+                  return (
+                    <div key={i} className={`rounded-xl p-2.5 text-center ${isAbn ? "bg-red-50 border border-red-100" : "bg-emerald-50 border border-emerald-100"}`}>
+                      <div className={`text-[13px] font-black ${isAbn ? "text-red-600" : "text-emerald-600"}`}>{s.val}</div>
+                      <div className="text-[10px] text-slate-500">{s.label}</div>
+                      {isAbn && <div className="text-[9px] text-red-500 font-bold">Bất thường</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Chart 2: WBC + Bạch cầu phân loại */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-4">
+              <h3 className="text-[15px] font-bold text-[#0d1f2d] mb-0.5">Bạch cầu (WBC) &amp; Phân loại</h3>
+              <p className="text-[11px] text-slate-400 mb-3">WBC [4–10 G/L] · NEUT [1.8–7.5] · LYM [1–4.5] G/L</p>
+              <div className="h-[200px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={realHematologyData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                    <RechartsTooltip contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.12)", fontSize: "12px" }} />
+                    <ReferenceArea y1={4.0} y2={10.0} fill="#10b981" fillOpacity={0.08} />
+                    <Legend wrapperStyle={{ fontSize: "11px", marginTop: "4px" }} />
+                    <Line type="monotone" name="WBC (G/L)"  dataKey="wbc"   stroke="#7c3aed" strokeWidth={3}   dot={{ r: 5, fill: "#7c3aed", strokeWidth: 0 }} activeDot={{ r: 7 }} />
+                    <Line type="monotone" name="NEUT (G/L)" dataKey="neut"  stroke="#06b6d4" strokeWidth={2}   strokeDasharray="4 2" dot={{ r: 3.5 }} activeDot={{ r: 5 }} />
+                    <Line type="monotone" name="LYM (G/L)"  dataKey="lympt" stroke="#10b981" strokeWidth={2}   strokeDasharray="4 2" dot={{ r: 3.5 }} activeDot={{ r: 5 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="h-[140px] w-full mt-3 pt-3 border-t border-slate-100">
+                <p className="text-[11px] text-slate-400 mb-1">Tỷ lệ bạch cầu (%)</p>
+                <ResponsiveContainer width="100%" height="85%">
+                  <BarChart data={realHematologyData} margin={{ top: 0, right: 5, left: -25, bottom: 0 }}>
+                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 9, fill: "#94a3b8" }} axisLine={false} tickLine={false} domain={[0, 100]} />
+                    <RechartsTooltip contentStyle={{ borderRadius: "10px", border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.1)", fontSize: "11px" }} />
+                    <Bar dataKey="neut_pct" name="NEUT%" fill="#06b6d4" radius={[3,3,0,0]} barSize={16} stackId="s" />
+                    <Bar dataKey="lym_pct"  name="LYM%"  fill="#10b981" radius={[0,0,0,0]} barSize={16} stackId="s" />
+                    <Bar dataKey="mono_pct" name="MONO%" fill="#f59e0b" radius={[0,0,0,0]} barSize={16} stackId="s" />
+                    <Bar dataKey="eos_pct"  name="EOS%"  fill="#ec4899" radius={[3,3,0,0]} barSize={16} stackId="s" />
+                    <Legend wrapperStyle={{ fontSize: "10px" }} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Chart 3: PLT + MCV/RDW */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-4">
+              <h3 className="text-[15px] font-bold text-[#0d1f2d] mb-0.5">Tiểu cầu (PLT) &amp; Chỉ số HC</h3>
+              <p className="text-[11px] text-slate-400 mb-3">PLT [150–400 G/L] · MCV [80–100 fL] · RDW [10–15%]</p>
+              <div className="h-[200px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={realHematologyData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                    <YAxis yAxisId="left"  tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                    <RechartsTooltip contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.12)", fontSize: "12px" }} />
+                    <Legend wrapperStyle={{ fontSize: "11px", marginTop: "4px" }} />
+                    <Line yAxisId="left"  type="monotone" name="PLT (G/L)" dataKey="plt" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 5, fill: "#8b5cf6", strokeWidth: 0 }} activeDot={{ r: 7 }} />
+                    <Line yAxisId="right" type="monotone" name="MCV (fL)"  dataKey="mcv" stroke="#06b6d4" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 3.5 }} activeDot={{ r: 5 }} />
+                    <Line yAxisId="right" type="monotone" name="RDW (%)"   dataKey="rdw" stroke="#f59e0b" strokeWidth={2} strokeDasharray="2 2" dot={{ r: 3.5 }} activeDot={{ r: 5 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="grid grid-cols-4 gap-1.5 mt-3 pt-3 border-t border-slate-100">
+                {[
+                  { label: "PLT",  val: lastHema.plt,  low: 150, high: 400 },
+                  { label: "MCV",  val: lastHema.mcv,  low: 80,  high: 100 },
+                  { label: "MCHC", val: lastHema.mchc, low: 320, high: 360 },
+                  { label: "RDW",  val: lastHema.rdw,  low: 10,  high: 15  },
+                ].map((s, i) => {
+                  const isAbn = s.val < s.low || s.val > s.high;
+                  return (
+                    <div key={i} className={`rounded-xl p-2 text-center ${isAbn ? "bg-red-50 border border-red-100" : "bg-slate-50 border border-slate-100"}`}>
+                      <div className={`text-[12px] font-black ${isAbn ? "text-red-600" : "text-slate-700"}`}>{s.val}</div>
+                      <div className="text-[9px] text-slate-400">{s.label}</div>
+                      {isAbn && <div className="text-[8px] text-red-500">↑↓</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* ══════ SECTION 2: HÓA SINH ══════ */}
+          <div className="sticky top-0 z-20 mx-4 pt-2 pb-1 bg-[#f0f4f8]">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-500 px-4 py-2.5 rounded-2xl flex items-center gap-2 shadow-md">
+              <PieChart className="h-5 w-5 text-white shrink-0" />
+              <h2 className="text-[15px] font-black text-white uppercase tracking-wide">Hóa sinh</h2>
+            </div>
+          </div>
+
+          <div className="px-4 py-3">
+            {/* Chart 4: Glucose + HbA1c */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-4">
+              <h3 className="text-[15px] font-bold text-[#0d1f2d] mb-0.5">Đường huyết (Glucose) &amp; HbA1c</h3>
+              <p className="text-[11px] text-slate-400 mb-3">Glucose [3.9–5.6 mmol/L] · HbA1c [4–6%]</p>
+              <div className="h-[200px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={glucoseData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                    <YAxis yAxisId="left"  domain={[0, 12]} tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                    <YAxis yAxisId="right" orientation="right" domain={[0, 12]} tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                    <RechartsTooltip contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.12)", fontSize: "12px" }} />
+                    <Legend wrapperStyle={{ fontSize: "11px", marginTop: "4px" }} />
+                    <Line yAxisId="left"  type="monotone" name="Glucose (mmol/L)" dataKey="glucose" stroke="#3b82f6" strokeWidth={3} dot={{ r: 5, fill: "#3b82f6", strokeWidth: 0 }} activeDot={{ r: 7 }} />
+                    <Line yAxisId="right" type="monotone" name="HbA1c (%)"        dataKey="hba1c"   stroke="#f97316" strokeWidth={2.5} strokeDasharray="5 3" dot={{ r: 4, fill: "#f97316", strokeWidth: 0 }} activeDot={{ r: 6 }} connectNulls={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between items-center">
+                <span className="text-[12px] text-slate-500">Gần nhất: <strong className={lastGluc?.glucose > 5.6 ? "text-red-600" : "text-emerald-600"}>{lastGluc?.glucose} mmol/L</strong></span>
+                <span className={`font-semibold px-2 py-0.5 rounded-full text-[11px] ${lastGluc?.glucose > 5.6 ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600"}`}>
+                  {lastGluc?.glucose > 5.6 ? "↑ Cao" : "✓ Bình thường"}
+                </span>
+              </div>
+            </div>
+
+            {/* Chart 5: Men gan AST/ALT */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-4">
+              <h3 className="text-[15px] font-bold text-[#0d1f2d] mb-0.5">Men gan (AST / ALT)</h3>
+              <p className="text-[11px] text-slate-400 mb-3">Ngưỡng bình thường: &lt; 35 U/L</p>
+              <div className="h-[200px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={liverData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                    <RechartsTooltip cursor={{ fill: "rgba(0,0,0,0.04)" }} contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.12)", fontSize: "12px" }} />
+                    <ReferenceArea y1={0} y2={35} fill="#10b981" fillOpacity={0.08} />
+                    <Legend wrapperStyle={{ fontSize: "11px", marginTop: "4px" }} />
+                    <Bar dataKey="ast" name="AST (U/L)" fill="#f59e0b" radius={[4,4,0,0]} barSize={16} />
+                    <Bar dataKey="alt" name="ALT (U/L)" fill="#ec4899" radius={[4,4,0,0]} barSize={16} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex gap-3 mt-3 pt-3 border-t border-slate-100">
+                {([{label:"AST",val:lastLiver?.ast},{label:"ALT",val:lastLiver?.alt}] as {label:string,val:number}[]).map((s, i) => (
+                  <span key={i} className={`px-3 py-1 rounded-full text-[11px] font-semibold ${s.val > 35 ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600"}`}>
+                    {s.label}: {s.val} {s.val > 35 ? "↑ Cao" : "✓"}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Chart 6: Chức năng thận */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-4">
+              <h3 className="text-[15px] font-bold text-[#0d1f2d] mb-0.5">Chức năng thận (Ure / Creatinine)</h3>
+              <p className="text-[11px] text-slate-400 mb-3">Ure [2.8–7.2 mmol/L] · Creatinine [58–96 µmol/L]</p>
+              <div className="h-[200px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={kidneyData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="gUre2" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%"  stopColor="#8b5cf6" stopOpacity={0.5} />
+                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}   />
+                      </linearGradient>
+                      <linearGradient id="gCre2" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%"  stopColor="#06b6d4" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}   />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                    <YAxis yAxisId="left"  tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                    <RechartsTooltip contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.12)", fontSize: "12px" }} />
+                    <Legend wrapperStyle={{ fontSize: "11px", marginTop: "4px" }} />
+                    <Area yAxisId="left"  type="monotone" name="Ure (mmol/L)"       dataKey="ure"        stroke="#8b5cf6" fill="url(#gUre2)" strokeWidth={2.5} dot={{ r: 4 }} />
+                    <Area yAxisId="right" type="monotone" name="Creatinine (µmol/L)" dataKey="creatinine" stroke="#06b6d4" fill="url(#gCre2)" strokeWidth={2.5} dot={{ r: 4 }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Chart 7: Lipid máu */}
+            {lipidData.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-4">
+                <h3 className="text-[15px] font-bold text-[#0d1f2d] mb-0.5">Lipid máu (Mỡ máu)</h3>
+                <p className="text-[11px] text-slate-400 mb-3">Chol &lt;5.2 · TG &lt;1.7 · HDL &gt;1.03 · LDL &lt;3.4 (mmol/L)</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: "Tổng Cholesterol", val: 6.45, isHigh: true,  note: "↑ Cao (> 5.2)"    },
+                    { label: "Triglyceride",      val: 3.15, isHigh: true,  note: "↑ Cao (> 1.7)"    },
+                    { label: "LDL-Cholesterol",   val: 4.09, isHigh: true,  note: "↑ Cao (> 3.4)"    },
+                    { label: "HDL-Cholesterol",   val: 0.92, isHigh: false, note: "↓ Thấp (< 1.03)", isLow: true },
+                  ].map((s, i) => (
+                    <div key={i} className={`rounded-2xl p-3 ${s.isHigh || (s as any).isLow ? "bg-red-50 border border-red-100" : "bg-emerald-50 border border-emerald-100"}`}>
+                      <div className="text-[11px] text-slate-500 mb-1">{s.label}</div>
+                      <div className={`text-[22px] font-black ${s.isHigh || (s as any).isLow ? "text-red-600" : "text-emerald-600"}`}>{s.val}</div>
+                      <div className="text-[10px] text-slate-400">mmol/L</div>
+                      <div className={`text-[10px] font-bold mt-1 ${s.isHigh ? "text-red-500" : (s as any).isLow ? "text-orange-500" : "text-emerald-500"}`}>{s.note}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Chart 8: Tuyến giáp + VitD */}
+            {thyroidData.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-4">
+                <h3 className="text-[15px] font-bold text-[#0d1f2d] mb-0.5">Tuyến giáp &amp; Vitamin D</h3>
+                <p className="text-[11px] text-slate-400 mb-3">FT4 [7.86–14.41 pmol/L] · TSH [0.34–5.6 µIU/mL] · VitD [30–50 ng/mL]</p>
+                <div className="h-[180px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={thyroidData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                      <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                      <RechartsTooltip cursor={{ fill: "rgba(0,0,0,0.04)" }} contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.12)", fontSize: "12px" }} />
+                      <Legend wrapperStyle={{ fontSize: "11px", marginTop: "4px" }} />
+                      <Bar dataKey="ft4"  name="FT4 (pmol/L)" fill="#a855f7" radius={[4,4,0,0]} barSize={16} />
+                      <Bar dataKey="tsh"  name="TSH (µIU/mL)" fill="#6366f1" radius={[4,4,0,0]} barSize={16} />
+                      <Bar dataKey="vitD" name="VitD (ng/mL)"  fill="#f59e0b" radius={[4,4,0,0]} barSize={16} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-100">
+                  {[
+                    { label: "FT4",  val: 11.06, note: "✓ Bình thường", bad: false  },
+                    { label: "TSH",  val: 2.256,   note: "✓ Bình thường", bad: false },
+                    { label: "VitD", val: 13.5,  note: "↓ Thiếu nặng",  bad: true  },
+                  ].map((s, i) => (
+                    <div key={i} className={`rounded-xl p-2.5 text-center ${s.bad ? "bg-red-50 border border-red-100" : "bg-emerald-50 border border-emerald-100"}`}>
+                      <div className={`text-[13px] font-black ${s.bad ? "text-red-600" : "text-emerald-600"}`}>{s.val}</div>
+                      <div className="text-[10px] text-slate-500">{s.label}</div>
+                      <div className={`text-[9px] font-semibold mt-0.5 ${s.bad ? "text-red-500" : "text-emerald-500"}`}>{s.note}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sắt huyết thanh + Calci */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-4">
+              <h3 className="text-[15px] font-bold text-[#0d1f2d] mb-0.5">Sắt huyết thanh &amp; Calci</h3>
+              <p className="text-[11px] text-slate-400 mb-3">Sắt [9–30.4 µmol/L] · Calci [2.2–2.65 mmol/L]</p>
+              <div className="flex gap-3">
+                <div className="flex-1 bg-red-50 border border-red-100 rounded-2xl p-3 text-center">
+                  <div className="text-[11px] text-slate-500 mb-1">Sắt (16/12/25)</div>
+                  <div className="text-[22px] font-black text-red-600">4.8</div>
+                  <div className="text-[10px] text-slate-400">µmol/L</div>
+                  <div className="text-[10px] text-red-500 font-semibold mt-1">↓ Thiếu sắt</div>
+                </div>
+                <div className="flex-1 bg-emerald-50 border border-emerald-100 rounded-2xl p-3 text-center">
+                  <div className="text-[11px] text-slate-500 mb-1">Calci (01/04/26)</div>
+                  <div className="text-[22px] font-black text-emerald-600">2.4</div>
+                  <div className="text-[10px] text-slate-400">mmol/L</div>
+                  <div className="text-[10px] text-emerald-600 font-semibold mt-1">✓ Bình thường</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ══════ SECTION 3: NƯỚC TIỂU ══════ */}
+          <div className="sticky top-0 z-20 mx-4 pt-2 pb-1 bg-[#f0f4f8]">
+            <div className="bg-gradient-to-r from-amber-500 to-yellow-400 px-4 py-2.5 rounded-2xl flex items-center gap-2 shadow-md">
+              <ActivitySquare className="h-5 w-5 text-white shrink-0" />
+              <h2 className="text-[15px] font-black text-white uppercase tracking-wide">Nước tiểu thường quy</h2>
+            </div>
+          </div>
+
+          <div className="px-4 py-3 pb-24">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+              <div className="grid grid-cols-5 bg-slate-50 border-b border-slate-100">
+                <div className="px-2 py-2.5 text-[10px] font-bold text-slate-500">Chỉ số / CSBT</div>
+                <div className="px-1 py-2.5 text-[10px] font-bold text-slate-500 text-center">16/12/25</div>
+                <div className="px-1 py-2.5 text-[10px] font-bold text-slate-500 text-center">23/01/26</div>
+                <div className="px-1 py-2.5 text-[10px] font-bold text-slate-500 text-center">23/03/26</div>
+                <div className="px-1 py-2.5 text-[10px] font-bold text-blue-600 text-center">01/04/26</div>
+              </div>
+              {realUrineData.map((item, idx) => (
+                <div key={idx} className="grid grid-cols-5 items-center border-b border-slate-50 last:border-0">
+                  <div className="px-2 py-3">
+                    <p className="text-[10px] font-semibold text-[#0d1f2d] leading-tight">{item.name}</p>
+                    <p className="text-[8px] text-slate-400">{item.ref}</p>
+                  </div>
+                  {([{v:item.v1,s:item.s1},{v:item.v2,s:item.s2},{v:item.v3,s:item.s3},{v:item.v4,s:item.s4}] as {v:string,s:string}[]).map((cell, ci) => (
+                    <div key={ci} className="px-1 py-3 text-center">
+                      <span className={`text-[10px] font-bold ${cell.s === "high" ? "text-red-600" : "text-emerald-600"}`}>{cell.v}</span>
+                      {cell.s === "high" && <div className="text-[8px] text-red-400 font-semibold">↑</div>}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] text-slate-400 text-center mt-4 pb-2">
+              Dữ liệu thực từ phiếu xét nghiệm · EyeCU Health Portal
+            </p>
+          </div>
+
+        </div>
+      </div>
+    );
+  };
+
   // Render Health Record View
-  const renderHealthRecord = () => (
-    <div className="flex-1 flex flex-col bg-[#88E8F2] overflow-hidden">
+  const renderHealthRecord = () => {
+    const HOSPITAL_MAP: Record<string, string> = {
+      "1/4/2026":   "Bệnh viện Nội Tiết Trung ương",
+      "23/3/2026":  "Bệnh viện Bạch Mai",
+      "23/1/2026":  "Bệnh viện Trung ương Quân Đội 108",
+      "16/12/2025": "Bệnh viện Hữu Nghị Việt Đức",
+    };
+    const hospital = HOSPITAL_MAP[selectedRecordDate] || "Cơ sở Y tế";
+    const isEmpty = selectedRecordDate !== "1/4/2026";
+
+    return (
+    <div className="flex-1 flex flex-col bg-[#f8f9fc] overflow-hidden">
       {/* Top App Bar */}
       <div className="flex items-center justify-between px-4 py-3 bg-[#88E8F2] text-[#0d1f2d] pt-safe z-10 shrink-0 shadow-sm relative">
-        <button onClick={() => setCurrentView("home")} className="p-1 active:scale-95 absolute left-3">
+        <button onClick={() => setCurrentView("health_record_list")} className="p-1 active:scale-95 absolute left-3">
           <ArrowLeft className="h-6 w-6" />
         </button>
-        <div className="flex-1 text-center font-bold text-[18px]">
-          Hồ sơ sức khoẻ
+        <div className="flex-1 text-center">
+          <div className="font-bold text-[16px] leading-tight">Hồ sơ sức khoẻ</div>
+          <div className="text-[12px] font-medium opacity-80">{selectedRecordDate}</div>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide pb-24">
         {/* Profile Card */}
-        <div className="bg-white px-4 pt-6 pb-4 shadow-sm relative">
+        <div className="bg-white px-4 pt-5 pb-4 shadow-sm relative">
            <div className="flex items-start gap-3">
-             <div className="h-16 w-16 shrink-0 rounded-full border border-slate-100 bg-white p-1 shadow-sm overflow-hidden">
+             <div className="h-14 w-14 shrink-0 rounded-full border border-slate-100 bg-white p-1 shadow-sm overflow-hidden">
                 <img src={user?.avatar || DEFAULT_AVATAR} alt="EyeCU" className="h-full w-full object-cover rounded-full" />
              </div>
              <div className="flex-1 min-w-0">
-               <h2 className="text-[16px] font-bold text-[#0d1f2d] uppercase mb-1">{user?.name || "Bệnh nhân"}</h2>
-               <span className="inline-block rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-600 mb-2">Ngoại trú</span>
-               <div className="flex flex-col gap-1 text-[13px] text-slate-500">
+               <h2 className="text-[15px] font-bold text-[#0d1f2d] uppercase mb-0.5">{user?.name || "Bệnh nhân"}</h2>
+               <div className="flex flex-wrap gap-1 mb-2">
+                 <span className="inline-block rounded bg-[#88E8F2]/30 px-2 py-0.5 text-[11px] font-semibold text-[#0d1f2d]">Ngoại trú</span>
+                 <span className="inline-block rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-600">{selectedRecordDate}</span>
+               </div>
+               <div className="flex flex-col gap-1 text-[12px] text-slate-500">
                   <div className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> {user?.dob || "01/01/1990"}</div>
-                  <div className="flex items-center gap-1.5"><User className="h-3.5 w-3.5" /> {user?.gender || "Nam"}</div>
-                  <div className="flex items-center gap-1.5"><CreditCard className="h-3.5 w-3.5" /> {user?.cccd || "0123456789"}</div>
+                  <div className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> {hospital}</div>
                </div>
              </div>
-             <button className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100">
-                <QrCode className="h-5 w-5 text-[#0d1f2d]" />
+             <button className="h-9 w-9 rounded-full bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100">
+                <QrCode className="h-4 w-4 text-[#0d1f2d]" />
              </button>
            </div>
         </div>
 
-        {/* Next Appointment Card (if any) */}
-        {(() => {
-          const upcomingFollowUp = user?.appointments?.find((a: any) => a.is_follow_up && a.status === "scheduled");
-          if (!upcomingFollowUp) return null;
-          
-          const dt = new Date(upcomingFollowUp.time);
-          const dateNum = dt.getDate().toString().padStart(2, '0');
-          const monthYear = `Th${dt.getMonth()+1} ${dt.getFullYear()}`;
-          return (
-            <div className="px-4 mt-4">
-               <div className="flex bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
-                 <div className="flex flex-col items-center justify-center bg-blue-50 px-4 py-3 min-w-[70px]">
-                    <span className="text-[22px] font-black text-blue-600 leading-none">{dateNum}</span>
-                    <span className="text-[11px] font-medium text-blue-600 mt-1">{monthYear}</span>
-                 </div>
-                 <div className="flex flex-col justify-center flex-1 px-3 py-2">
-                    <p className="text-[13px] font-bold text-red-600 mb-1">[Lịch hẹn tái khám] <span className="text-[#0d1f2d]">{upcomingFollowUp.department}</span></p>
-                    <p className="text-[12px] text-slate-600">{upcomingFollowUp.note || "Khám bệnh theo yêu cầu"}</p>
-                 </div>
-               </div>
-            </div>
-          );
-        })()}
-
         {/* Services List as Accordion */}
-        <div className="bg-slate-50 mt-4 pt-2 flex-1 shadow-[0_-4px_10px_rgba(0,0,0,0.02)] min-h-screen relative">
+        <div className="bg-slate-50 mt-3 pt-2 flex-1 shadow-[0_-4px_10px_rgba(0,0,0,0.02)] min-h-screen relative">
               {[
-                { id: "file_results", icon: BriefcaseMedical, label: "File Kết Quả", Component: (props: any) => <FileResultsView {...props} onExtract={handleExtractData} isExtracting={isExtracting} /> },
+                { id: "file_results", icon: BriefcaseMedical, label: "File Kết Quả", Component: (props: any) => <FileResultsView {...props} onExtract={handleExtractData} isExtracting={isExtracting} isEmpty={isEmpty} selectedDate={selectedRecordDate} /> },
                 { id: "record_summary", icon: Stethoscope, label: "Kết quả khám", Component: RecordSummaryView },
+                { id: "treatment_info", icon: CalendarClock, label: "Tiến trình khám & Trạng thái", Component: TreatmentInfoView },
                 { id: "vital_signs", icon: Heart, label: "Sinh hiệu", Component: VitalSignsView },
                 { id: "lab_results", icon: Activity, label: "Kết quả xét nghiệm", Component: LabResultsView },
                 { id: "imaging_results", icon: FileText, label: "Kết quả CĐHA và thăm dò chức năng", Component: ImagingResultsView },
-                { id: "medications", icon: Receipt, label: "Thuốc", Component: MedicationsView },
+                { id: "medications", icon: FileText, label: "Đơn thuốc", Component: MedicationsView },
                 { id: "admin_info", icon: FileText, label: "Thông tin hành chính", Component: AdminInfoView },
               ].map((item, i) => {
                  const isExpanded = expandedSection === item.id;
-                 const isSpecial = item.id === "file_results";
-                 // Always pass ONLY extractedRecordData to the components (except file_results) so they are completely empty before extraction
-                 const mergedData = isSpecial ? clinicalBundle : (extractedRecordData ? { extractedRecordData } : {});
+                 const isSpecial = item.id === "file_results" || item.id === "dashboard_link";
+                 const isLink = (item as any).isLink;
+                 const mergedData = item.id === "file_results" ? clinicalBundle : (extractedRecordData ? { extractedRecordData } : {});
                  return (
-                   <div key={i} className={`border-b border-slate-200/60 last:border-0 ${isSpecial ? "mx-4 mt-2 mb-4 bg-white rounded-xl overflow-hidden shadow-sm border border-slate-200" : "bg-white"}`}>
-                     <button 
-                        onClick={() => setExpandedSection(isExpanded ? null : item.id)} 
+                   <div key={i} className={`border-b border-slate-200/60 last:border-0 ${isSpecial ? "mx-4 mt-2 mb-2 bg-white rounded-xl overflow-hidden shadow-sm border border-slate-200" : "bg-white"}`}>
+                     <button
+                        onClick={() => isLink ? setCurrentView("health_dashboard") : setExpandedSection(isExpanded ? null : item.id)}
                         className={`flex w-full items-center justify-between px-4 py-4 text-left transition-colors duration-200 ${
                            isSpecial
                              ? "bg-[#88E8F2] text-[#0d1f2d]"
-                             : isExpanded 
-                               ? "bg-[#88E8F2]" 
+                             : isExpanded
+                               ? "bg-[#88E8F2]"
                                : "bg-white active:bg-slate-50"
                         }`}
                      >
@@ -1278,11 +1893,11 @@ export function PatientPortalNew({
                            <item.icon className="h-5 w-5 text-[#0d1f2d]" strokeWidth={1.5} />
                            <span className="text-[15px] font-semibold text-[#0d1f2d]">{item.label}</span>
                         </div>
-                        <ChevronRight className={`h-5 w-5 transition-transform duration-200 ${isExpanded ? "rotate-90" : ""} ${isSpecial ? "text-[#0d1f2d]" : "text-slate-400"}`} />
+                        <ChevronRight className={`h-5 w-5 transition-transform duration-200 ${isExpanded && !isLink ? "rotate-90" : ""} ${isSpecial ? "text-[#0d1f2d]" : "text-slate-400"}`} />
                      </button>
-                     
+
                      {/* Accordion Content */}
-                     {isExpanded && (
+                     {isExpanded && !isLink && item.Component && (
                        <div className={`animate-in slide-in-from-top-2 duration-200 ${isSpecial ? "bg-white p-2" : "border-t border-[#88E8F2]/30"}`}>
                           <item.Component data={mergedData} user={user} onBack={() => setExpandedSection(null)} />
                        </div>
@@ -1292,17 +1907,11 @@ export function PatientPortalNew({
               })}
            </div>
       </div>
-
-      {/* Bottom pagination banner */}
-      <div className="flex items-center justify-between bg-white px-4 py-3 border-t border-slate-200 shrink-0">
-         <span className="text-slate-300 text-[13px] font-medium">← Lần khám trước</span>
-         <div className="h-4 w-px bg-slate-300" />
-          <span className="text-slate-300 text-[13px] font-medium">Lần khám sau →</span>
-      </div>
     </div>
-  );
+    );
+  };
 
-  // Render Community QA
+    // Render Community QA
   const renderCommunityQa = () => (
     <div className="flex-1 flex flex-col bg-[#f0f2f5] overflow-hidden relative">
       <div className="flex items-center justify-between px-4 py-3 bg-[#88E8F2] text-[#0d1f2d] pt-safe z-10 shrink-0 shadow-sm">
@@ -2715,7 +3324,7 @@ export function PatientPortalNew({
                   <div className="text-[#0d1f2d]"><Users className="w-7 h-7" /></div>
                   <span className="text-[12px] text-center px-2 font-medium text-slate-700 leading-tight">Thành viên<br/>gia đình</span>
                </button>
-               <button onClick={() => { setActiveTab("home"); setCurrentView("health_record"); }} className="flex-1 flex flex-col items-center gap-2 active:opacity-50">
+               <button onClick={() => { setActiveTab("home"); setCurrentView("health_record_list"); }} className="flex-1 flex flex-col items-center gap-2 active:opacity-50">
                   <div className="text-[#0d1f2d]"><ClipboardList className="w-7 h-7" /></div>
                   <span className="text-[12px] text-center px-2 font-medium text-slate-700 leading-tight">Hồ sơ<br/>sức khỏe</span>
                </button>
@@ -2820,8 +3429,12 @@ export function PatientPortalNew({
               </div>
               {renderHome()}
             </>
+          ) : currentView === "health_dashboard" ? (
+            renderHealthDashboard()
           ) : currentView === "health_record" ? (
             renderHealthRecord()
+          ) : currentView === "treatment_info" ? (
+            <TreatmentInfoView onBack={() => setCurrentView("home")} data={clinicalBundle} extractedMedications={extractedRecordData?.medications} />
           ) : currentView === "record_lookup" ? (
             renderRecordLookup()
           ) : currentView === "community_qa" ? (
@@ -2840,6 +3453,8 @@ export function PatientPortalNew({
             renderPaymentSuccess()
           ) : currentView === "digital_signature" ? (
             renderDigitalSignature()
+          ) : currentView === "health_record_list" ? (
+            renderHealthRecordList()
           ) : (
             renderHospitalMap()
           )
@@ -3246,25 +3861,86 @@ export function PatientPortalNew({
               
               <h3 className="text-[20px] font-bold text-slate-800 mb-6 text-center">Đổi mật khẩu</h3>
               
+              {passwordError && (
+                <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-[13px] font-medium">
+                  {passwordError}
+                </div>
+              )}
+              {passwordSuccess && (
+                <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 text-[13px] font-medium">
+                  {passwordSuccess}
+                </div>
+              )}
+
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[13px] font-bold text-slate-700">Mật khẩu cũ</label>
-                  <input type="password" placeholder="Nhập mật khẩu hiện tại" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[14px] focus:outline-none focus:border-[#88E8F2] focus:bg-white transition-colors" />
+                  <div className="relative">
+                    <input 
+                      type={showOldPassword ? "text" : "password"} 
+                      placeholder="Nhập mật khẩu hiện tại"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      onBlur={handleVerifyPassword}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 pr-10 text-[14px] focus:outline-none focus:border-[#88E8F2] focus:bg-white transition-colors" 
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => setShowOldPassword(!showOldPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showOldPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[13px] font-bold text-slate-700">Mật khẩu mới</label>
-                  <input type="password" placeholder="Nhập mật khẩu mới" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[14px] focus:outline-none focus:border-[#88E8F2] focus:bg-white transition-colors" />
+                  <div className="relative">
+                    <input 
+                      type={showNewPassword ? "text" : "password"} 
+                      placeholder="Nhập mật khẩu mới"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 pr-10 text-[14px] focus:outline-none focus:border-[#88E8F2] focus:bg-white transition-colors" 
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[13px] font-bold text-slate-700">Nhập lại mật khẩu mới</label>
-                  <input type="password" placeholder="Xác nhận mật khẩu mới" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[14px] focus:outline-none focus:border-[#88E8F2] focus:bg-white transition-colors" />
+                  <div className="relative">
+                    <input 
+                      type={showConfirmPassword ? "text" : "password"} 
+                      placeholder="Xác nhận mật khẩu mới"
+                      value={confirmNewPassword}
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 pr-10 text-[14px] focus:outline-none focus:border-[#88E8F2] focus:bg-white transition-colors" 
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
               
-              <button onClick={() => { alert('Đổi mật khẩu thành công!'); setShowPasswordModal(false); }} className="w-full mt-8 py-3.5 bg-[#88E8F2] text-[#0d1f2d] font-bold rounded-xl active:scale-95 transition-transform shadow-md shadow-cyan-900/10">
-                Xác nhận đổi mật khẩu
+              <button 
+                onClick={handleChangePassword} 
+                disabled={isChangingPassword}
+                className="w-full mt-8 py-3.5 bg-[#88E8F2] text-[#0d1f2d] font-bold rounded-xl active:scale-95 transition-transform shadow-md shadow-cyan-900/10 disabled:opacity-50"
+              >
+                {isChangingPassword ? "Đang xử lý..." : "Xác nhận đổi mật khẩu"}
               </button>
             </div>
           </div>

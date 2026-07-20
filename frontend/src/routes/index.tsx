@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect, useRef, useCallback, ComponentType } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, ComponentType, Fragment } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth, type WorkMode } from "../lib/auth/auth-context";
 import { useEyeCUSocket } from "../hooks/useEyeCUSocket";
@@ -12,6 +12,9 @@ import { PatientPortalNew } from "../components/PatientPortalNew";
 import { CENTRAL_HOSPITALS, getHospitalsByProvince, Hospital } from "../lib/hospitals";
 import { CccdCapture } from "../components/auth/CccdCapture";
 import { FaceIdCapture } from "../components/auth/FaceIdCapture";
+import { CrowdDashboard } from "./crowd";
+import { ServiceAssignmentField } from "../components/voice/ServiceAssignmentField";
+import { ServiceUpdateDashboard } from "../components/voice/ServiceUpdateDashboard";
 const gpsToSvg = (lat: number, lng: number) => {
   // Simple dummy fallback
   return { mapX: 200, mapY: 100 };
@@ -120,8 +123,12 @@ import {
   Users,
   Camera,
   Trash2,
+  Edit3,
   MessageSquare,
   CheckCircle,
+  Wrench,
+  Package,
+  ArrowUpRight,
   XCircle,
   BarChart2,
   RefreshCw,
@@ -129,6 +136,9 @@ import {
   Key,
   Maximize2,
   Minimize2,
+  QrCode,
+  Check,
+  Loader2
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -156,7 +166,11 @@ type ViewKey =
   | "patient"
   | "ems"
   | "admin_dashboard"
-  | "doctor_qa";
+  | "doctor_qa"
+  | "crowd"
+  | "medical_inventory"
+  | "blood_bank"
+  | "pharmacy";
 
 const navItems: { key: ViewKey; Icon: typeof Eye; label: string }[] = [
   { key: "ambient", Icon: Eye, label: "Giám sát không gian" },
@@ -167,14 +181,23 @@ const navItems: { key: ViewKey; Icon: typeof Eye; label: string }[] = [
   { key: "chatbot", Icon: Bot, label: "Trợ lý AI Bệnh nhân" },
   { key: "ems" as ViewKey, Icon: Siren, label: "Cấp cứu Ngoại viện" },
   { key: "admin_dashboard" as ViewKey, Icon: Settings, label: "Quản trị Hệ thống" },
+  { key: "medical_inventory" as ViewKey, Icon: Package, label: "Vật tư & Thiết bị Y tế" },
+  { key: "pharmacy" as ViewKey, Icon: Pill, label: "Quản lý Kho thuốc" },
+  { key: "blood_bank" as ViewKey, Icon: Droplets, label: "Quản lý Kho máu" },
   { key: "doctor_qa" as ViewKey, Icon: MessageSquare, label: "Hỏi Đáp Cộng Đồng" },
+  { key: "crowd" as ViewKey, Icon: Users, label: "Kiểm soát Mật độ" },
 ];
 
 const roleConfig: Record<WorkMode, { label: string; views: ViewKey[]; defaultView: ViewKey }> = {
   admin: {
     label: "Quản trị Hệ thống",
-    views: ["admin_dashboard"] as ViewKey[],
+    views: ["admin_dashboard", "medical_inventory", "pharmacy", "blood_bank"] as ViewKey[],
     defaultView: "admin_dashboard" as ViewKey,
+  },
+  crowd: {
+    label: "Kiểm soát Mật độ",
+    views: ["crowd"] as ViewKey[],
+    defaultView: "crowd" as ViewKey,
   },
   ops: {
     label: "Trực Cấp cứu",
@@ -222,9 +245,25 @@ const viewTitles: Record<ViewKey, { title: string; subtitle: string }> = {
     title: "Cấp cứu Ngoại viện",
     subtitle: "Quét BN · Định vị GPS · Liên lạc Kịp thời",
   },
+  crowd: {
+    title: "Kiểm soát Mật độ",
+    subtitle: "VNPT SmartVision · Camera AI",
+  },
   admin_dashboard: {
     title: "Quản trị Hệ thống",
     subtitle: "Tổng quan · Nhân sự · Thiết bị · API",
+  },
+  medical_inventory: {
+    title: "Vật tư & Thiết bị Y tế",
+    subtitle: "Quản lý trang thiết bị · Tồn kho vật tư y tế",
+  },
+  pharmacy: {
+    title: "Quản lý Kho thuốc",
+    subtitle: "Kho dược phẩm · Theo dõi hết hạn & cảnh báo tồn kho",
+  },
+  blood_bank: {
+    title: "Quản lý Kho máu",
+    subtitle: "Quản lý túi máu lưu trữ · Xuất kho thông minh FEFO",
   },
   doctor_qa: {
     title: "Hỏi Đáp Cộng Đồng",
@@ -483,8 +522,8 @@ function PatientRounds() {
             <div className="flex items-center gap-3 justify-between">
               <div className="flex items-center gap-3 min-w-0 relative">
                 <button
-                  onClick={() => workMode !== "admin" && setRoleMenuOpen(!roleMenuOpen)}
-                  className={`flex items-center gap-3 transition-transform text-left ${workMode !== "admin" ? "active:scale-95 cursor-pointer" : "cursor-default"}`}
+                  onClick={() => setRoleMenuOpen(!roleMenuOpen)}
+                  className={`flex items-center gap-3 transition-transform text-left active:scale-95 cursor-pointer`}
                 >
                   <img
                     src="/logo.png"
@@ -507,33 +546,58 @@ function PatientRounds() {
                     <p className="px-4 py-2 text-[12px] font-bold text-slate-400 uppercase tracking-wider">
                       Đổi không gian làm việc
                     </p>
-                    <button
-                      onClick={() => {
-                        setWorkMode("ops");
-                        setRoleMenuOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-[#0A9BAD]"
-                    >
-                      Trực Cấp cứu
-                    </button>
-                    <button
-                      onClick={() => {
-                        setWorkMode("clinician");
-                        setRoleMenuOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-[#0A9BAD]"
-                    >
-                      Khám Lâm sàng
-                    </button>
-                    <button
-                      onClick={() => {
-                        setWorkMode("ems");
-                        setRoleMenuOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-[#0A9BAD]"
-                    >
-                      Cấp cứu Ngoại viện
-                    </button>
+                    {user?.role === "admin" ? (
+                      <>
+                        <button
+                          onClick={() => {
+                            setWorkMode("admin");
+                            setRoleMenuOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-[#0A9BAD]"
+                        >
+                          Quản trị Hệ thống
+                        </button>
+                        <button
+                          onClick={() => {
+                            setWorkMode("crowd");
+                            setRoleMenuOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-[#0A9BAD]"
+                        >
+                          Kiểm soát Mật độ
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => {
+                            setWorkMode("ops");
+                            setRoleMenuOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-[#0A9BAD]"
+                        >
+                          Trực Cấp cứu
+                        </button>
+                        <button
+                          onClick={() => {
+                            setWorkMode("clinician");
+                            setRoleMenuOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-[#0A9BAD]"
+                        >
+                          Khám Lâm sàng
+                        </button>
+                        <button
+                          onClick={() => {
+                            setWorkMode("ems");
+                            setRoleMenuOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-[#0A9BAD]"
+                        >
+                          Cấp cứu Ngoại viện
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -892,6 +956,10 @@ function PatientRounds() {
             )}
             {activeView === "ems" && <EmsView />}
             {activeView === "admin_dashboard" && <AdminDashboardView />}
+            {activeView === "medical_inventory" && <AdminMedicalInventoryTab />}
+            {activeView === "pharmacy" && <AdminPharmacyTab />}
+            {activeView === "blood_bank" && <AdminBloodBankTab />}
+            {activeView === "crowd" && <CrowdDashboard />}
             {activeView === "doctor_qa" && <DoctorQAView />}
           </div>
         </div>
@@ -7621,6 +7689,36 @@ function ScannedDocument() {
 const TRANSCRIPT_FULL =
   "Bệnh nhân nam sáu mươi hai tuổi, vào viện vì đau ngực và khó thở. Khám lâm sàng huyết áp một trăm bốn mươi trên chín mươi, mạch chín mươi lăm. Chẩn đoán theo dõi tăng huyết áp độ hai kèm đau thắt ngực. Y lệnh Amlodipin năm miligam uống một viên mỗi sáng, theo dõi nhịp tim trong bốn mươi tám giờ.";
 
+// Parse diarized transcript thành mảng để hiển thị theo màu
+function parseDiarizedLines(text: string): { speaker: string; line: string }[] {
+  if (!text) return [];
+  // Format: "Speaker_1: text\nSpeaker_2: text"
+  return text.split("\n").filter(Boolean).map(l => {
+    const match = l.match(/^(Speaker_?\d+|BS\.|B\.N\.|Ng\.nhà):\s*(.*)/i);
+    if (match) return { speaker: match[1], line: match[2] };
+    return { speaker: "", line: l };
+  });
+}
+
+const SPEAKER_COLORS: Record<string, string> = {
+  Speaker_1: "#0A9BAD",
+  Speaker_2: "#7C3AED",
+  Speaker_3: "#D97706",
+  Speaker_4: "#DC2626",
+};
+
+function getSpeakerColor(speaker: string): string {
+  for (const key of Object.keys(SPEAKER_COLORS)) {
+    if (speaker.includes(key.replace("_", "_?").replace("_?", "_?")) || speaker === key) {
+      return SPEAKER_COLORS[key];
+    }
+  }
+  // fallback dựa trên ký tự cuối
+  const num = speaker.match(/\d+/)?.[0];
+  const colors = Object.values(SPEAKER_COLORS);
+  return colors[num ? (parseInt(num) - 1) % colors.length : 0];
+}
+
 function VoiceView() {
   const isMobile = useIsMobile();
   const [mobilePanel, setMobilePanel] = useState<"record" | "soap">("record");
@@ -7629,22 +7727,121 @@ function VoiceView() {
   const [transcript, setTranscript] = useState("");
   const [liveTranscript, setLiveTranscript] = useState("");
   const [soapeData, setSoapeData] = useState<any>(null);
+  const [assignedRoomIds, setAssignedRoomIds] = useState<string[]>([]);
+  const [scannedPatient, setScannedPatient] = useState<any>(null);
+  const [faceDataUrl, setFaceDataUrl] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState("");
   const [showSignedEMR, setShowSignedEMR] = useState(false);
+  const [assignedRecordId, setAssignedRecordId] = useState<string | null>(null);
+
+  const [patientConfirmed, setPatientConfirmed] = useState(false);
+  const [showManualCccd, setShowManualCccd] = useState(false);
+  const [manualCccd, setManualCccd] = useState("");
+
+  // === Chế độ Hội thoại ===
+  const [conversationMode, setConversationMode] = useState(true);
+  const [maxSpeakers, setMaxSpeakers] = useState(2);
+  const [diarizedTranscript, setDiarizedTranscript] = useState("");
+  const [speakersDetected, setSpeakersDetected] = useState(0);
+  const [diarizationUsed, setDiarizationUsed] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
 
   const recognitionRef = useRef<any>(null);
   const finalTranscriptRef = useRef<string>("");
+  const isRecordingRef = useRef<boolean>(false);
+  // MediaRecorder refs cho chế độ Hội thoại
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<any>(null);
+
+  const handleFaceCapture = (url: string) => {
+    setFaceDataUrl(url);
+    if (url) {
+      setTimeout(() => {
+        setScannedPatient({
+          name: "NGUYỄN VĂN A",
+          id: "2508103322",
+          dob: "1980",
+          gender: "Nam",
+          record_id: "000005917697"
+        });
+      }, 1000);
+    } else {
+      setScannedPatient(null); setAssignedRecordId(null);
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (!soapeData) return;
+    setIsProcessing(true);
+    try {
+      const res = await fetchApi("/services/assign", {
+        method: "POST",
+        body: { 
+          record_id: scannedPatient?.record_id, 
+          room_ids: assignedRoomIds,
+          soape_data: soapeData
+        },
+      });
+      if (res && res.record_id) setAssignedRecordId(res.record_id);
+      setShowSignedEMR(true);
+    } catch (err) {
+      console.error(err);
+      setErrorMsg("Không thể xác nhận: " + err);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handleEditField = (field: string, newValue: string) => {
     setSoapeData((prev: any) => ({ ...prev, [field]: newValue }));
   };
 
+  const lookupPatientByCccd = async (cccd: string) => {
+    try {
+      setIsProcessing(true);
+      setErrorMsg("");
+      const patientRes = await fetchApi(`/patient/search?cccd=${cccd}`);
+      if (patientRes && patientRes.id) {
+        setScannedPatient({
+          name: patientRes.name,
+          id: patientRes.cccd,
+          dob: patientRes.dob,
+          gender: patientRes.gender,
+          record_id: patientRes.id
+        });
+        setTranscript(""); // Xóa text để chuẩn bị ghi bệnh án
+        setLiveTranscript("");
+        finalTranscriptRef.current = "";
+        setShowManualCccd(false);
+        setManualCccd("");
+      } else {
+        setErrorMsg(`Không tìm thấy bệnh nhân với CCCD: ${cccd}`);
+      }
+    } catch (e) {
+      setErrorMsg("Lỗi khi tìm bệnh nhân theo CCCD");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleManualSubmit = () => {
+    const cleanCccd = manualCccd.replace(/\s+/g, "");
+    if (cleanCccd.length === 12 && /^\d+$/.test(cleanCccd)) {
+      lookupPatientByCccd(cleanCccd);
+    } else {
+      setErrorMsg("CCCD không hợp lệ (phải đủ 12 số).");
+    }
+  };
+
+  // === CHẾĐ ĐỘ GHI ÂM THƯỜNG (Web Speech API) ===
   const startRecording = async () => {
     try {
       setErrorMsg("");
       setLiveTranscript("");
       setTranscript("");
       setSoapeData(null);
+      setDiarizedTranscript("");
       finalTranscriptRef.current = "";
 
       const SpeechRecognition =
@@ -7662,31 +7859,51 @@ function VoiceView() {
       recognition.continuous = true;
       recognition.interimResults = true;
 
+      let sessionFinal = "";
+
       recognition.onresult = (event: any) => {
         let interim = "";
-        let final = "";
+        sessionFinal = "";
         for (let i = 0; i < event.results.length; i++) {
           const result = event.results[i];
           if (result.isFinal) {
-            final += result[0].transcript + " ";
+            sessionFinal += result[0].transcript + " ";
           } else {
             interim += result[0].transcript;
           }
         }
-        finalTranscriptRef.current = final;
-        setLiveTranscript(final + interim);
+        setLiveTranscript((finalTranscriptRef.current + " " + sessionFinal + interim).trim());
       };
 
       recognition.onerror = (event: any) => {
         if (event.error === "not-allowed") {
           setErrorMsg("Bạn cần cấp quyền microphone cho trình duyệt.");
-        } else {
+          isRecordingRef.current = false;
+        } else if (event.error === "aborted") {
+          // Ignore aborted error since it can happen on manual stop or silence
+        } else if (event.error !== "no-speech") {
           setErrorMsg(`Lỗi nhận dạng: ${event.error}`);
         }
-        setRecording(false);
+      };
+
+      recognition.onend = () => {
+        if (sessionFinal.trim()) {
+          finalTranscriptRef.current += " " + sessionFinal;
+          sessionFinal = "";
+        }
+        if (isRecordingRef.current) {
+          try {
+            recognition.start();
+          } catch (e) {
+            console.error(e);
+          }
+        } else {
+          setRecording(false);
+        }
       };
 
       recognitionRef.current = recognition;
+      isRecordingRef.current = true;
       recognition.start();
       setRecording(true);
     } catch (err) {
@@ -7695,6 +7912,7 @@ function VoiceView() {
   };
 
   const stopRecording = async () => {
+    isRecordingRef.current = false;
     if (recognitionRef.current) {
       recognitionRef.current.stop();
       recognitionRef.current = null;
@@ -7711,15 +7929,28 @@ function VoiceView() {
     setIsProcessing(true);
 
     try {
-      const res = await fetchApi("/voice/soape", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: finalText, patient_id: "P-123" }),
-      });
-      if (res.success) {
-        setSoapeData(res.soape);
+      if (!patientConfirmed) {
+        // 1. Chỉ quét CCCD
+        const cleanText = finalText.replace(/\s+/g, "");
+        const cccdMatch = cleanText.match(/\d{12}/);
+        if (cccdMatch) {
+          await lookupPatientByCccd(cccdMatch[0]);
+        } else {
+          setErrorMsg("Không tìm thấy số CCCD hợp lệ (12 số). Vui lòng đọc rõ lại.");
+          setIsProcessing(false);
+        }
       } else {
-        setErrorMsg(res.message || "Lỗi khi phân tích SOAPE");
+        // 2. Chẩn đoán bệnh (SOAPE)
+        const res = await fetchApi("/voice/soape", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ transcript: finalText, patient_id: scannedPatient.record_id }),
+        });
+        if (res.success) {
+          setSoapeData(res.soape);
+        } else {
+          setErrorMsg(res.message || "Lỗi khi phân tích SOAPE");
+        }
       }
     } catch (err: any) {
       setErrorMsg(err.message || "Lỗi kết nối máy chủ");
@@ -7728,6 +7959,123 @@ function VoiceView() {
     }
   };
 
+  // === CHẾĐ ĐỘ HỘI THOẠI (MediaRecorder + VNPT Diarization) ===
+  const startConversationRecording = async () => {
+    try {
+      setErrorMsg("");
+      setTranscript("");
+      setLiveTranscript("");
+      setSoapeData(null);
+      setDiarizedTranscript("");
+      setSpeakersDetected(0);
+      setDiarizationUsed(false);
+      setRecordingSeconds(0);
+      audioChunksRef.current = [];
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4";
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.start(1000); // collect chunks every 1s
+      setRecording(true);
+
+      // --- CHROME MAC MICROPHONE BUG ---
+      // Không thể chạy Web Speech API (chữ nhảy múa) và MediaRecorder CÙNG MỘT LÚC 
+      // trên macOS Chrome. Speech API sẽ ngắt toàn bộ luồng âm thanh của MediaRecorder 
+      // dẫn đến file thu âm bị im lặng (Silent).
+      // Bắt buộc phải tắt Speech API ở chế độ ACI để ưu tiên file ghi âm cho AI.
+      // ------------------------------------------------------------------------
+
+
+      // Bộ đếm thời gian
+      timerRef.current = setInterval(() => {
+        setRecordingSeconds(prev => prev + 1);
+      }, 1000);
+    } catch (err: any) {
+      setErrorMsg("Không thể truy cập microphone. Vui lòng cấp quyền.");
+    }
+  };
+
+  const stopConversationRecording = async () => {
+    if (!mediaRecorderRef.current) return;
+    clearInterval(timerRef.current);
+    
+    // Stop Web Speech API
+    isRecordingRef.current = false;
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    
+    // Clear the visual indicator
+    setLiveTranscript("");
+
+    setRecording(false);
+    setIsProcessing(true);
+
+      mediaRecorderRef.current.onstop = async () => {
+      try {
+        const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4";
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        const fileExt = mimeType === "audio/mp4" ? "mp4" : "webm";
+        // Dừng tracks microphone
+        mediaRecorderRef.current?.stream?.getTracks().forEach(t => t.stop());
+
+        const formData = new FormData();
+        formData.append("audio", audioBlob, `recording.${fileExt}`);
+        formData.append("patient_id", scannedPatient?.record_id || "123");
+        formData.append("max_speakers", String(maxSpeakers));
+
+        const res = await fetchApi("/voice/emr-conversation", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (res.success) {
+          setSoapeData(res.soape);
+          setTranscript(res.transcript || "");
+          setDiarizedTranscript(res.transcript_diarized || "");
+          setSpeakersDetected(res.speakers_detected || 0);
+          setDiarizationUsed(res.diarization_used || false);
+          if (isMobile) setMobilePanel("soap");
+        } else {
+          setErrorMsg(res.message || "Lỗi phân tích hội thoại");
+        }
+      } catch (err: any) {
+        setErrorMsg(err.message || "Lỗi kết nối máy chủ");
+      } finally {
+        setIsProcessing(false);
+        audioChunksRef.current = [];
+        setRecordingSeconds(0);
+      }
+    };
+
+    mediaRecorderRef.current.stop();
+  };
+
+  const handleStartRecording = () => {
+    if (!scannedPatient) {
+      // Bắt buộc dùng Web Speech API / Dictation để đọc CCCD
+      startRecording();
+    } else {
+      conversationMode ? startConversationRecording() : startRecording();
+    }
+  };
+  const handleStopRecording = () => {
+    if (!scannedPatient) {
+      stopRecording();
+    } else {
+      conversationMode ? stopConversationRecording() : stopRecording();
+    }
+  };
+
+  const diarizedLines = parseDiarizedLines(diarizedTranscript);
+
   return (
     <>
       {showSignedEMR ? (
@@ -7735,7 +8083,7 @@ function VoiceView() {
       ) : (
         <div className="space-y-3">
           {isMobile && (
-            <div className="flex gap-1 rounded-xl bg-slate-100 p-1 md:hidden">
+            <div className="flex gap-1 rounded-xl bg-slate-100 p-1 lg:hidden">
               {(
                 [
                   { id: "record" as const, label: "Ghi âm" },
@@ -7758,60 +8106,142 @@ function VoiceView() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
+          <div className="flex justify-center w-full">
+            <div className={`w-full ${scannedPatient && patientConfirmed ? 'grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6' : 'max-w-2xl'}`}>
           {/* LEFT: Recording + transcript */}
           <div
-            className={`flex flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6 lg:h-[620px] ${
+            className={`flex flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6 ${scannedPatient ? "lg:h-[720px]" : "h-auto min-h-[500px]"} ${
               isMobile ? (mobilePanel === "record" ? "min-h-0" : "hidden") : "min-h-[520px]"
             }`}
           >
-            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <h3 className="text-lg font-medium text-slate-900">Ghi âm Lâm sàng</h3>
-              <span
-                className="flex w-fit items-center gap-1 rounded px-2 py-1 text-[10px] uppercase tracking-wider text-slate-900 font-geist transition-colors duration-300"
-                style={{ backgroundColor: recording ? ACCENT : "#F1F5F9" }}
-              >
-                {recording && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
-                )}
-                {recording ? "Đang ghi" : "Sẵn sàng"}
-              </span>
-            </div>
 
-            <div className="flex flex-col items-center justify-center py-2 relative">
-              <Waveform active={recording} />
-              <div
-                className="mt-3 flex max-w-full items-center gap-2 rounded-full border-2 px-3 py-1.5"
-                style={{ borderColor: ACCENT, backgroundColor: "#EAFBFE" }}
-              >
-                <BadgeCheck className="w-4 h-4" style={{ color: "#0891B2" }} />
-                <span className="text-[10px] font-bold uppercase tracking-wide text-slate-900 font-geist sm:text-[11px] sm:tracking-wider">
-                  AI Voice NLU · Tiếng Việt
-                </span>
+
+            {/* Patient Scan Section - Manual CCCD input full card */}
+            {showManualCccd && !scannedPatient ? (
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <div className="w-full max-w-sm">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 rounded-full bg-[#0A9BAD]/10 flex items-center justify-center">
+                      <CreditCard className="w-5 h-5 text-[#0A9BAD]" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-base">Nhập số CCCD</h3>
+                      <p className="text-xs text-slate-500">Căn cước công dân 12 chữ số</p>
+                    </div>
+                  </div>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={12}
+                    value={manualCccd}
+                    onChange={e => { setManualCccd(e.target.value.replace(/\D/g,'')); setErrorMsg(''); }}
+                    onKeyDown={e => e.key === 'Enter' && handleManualSubmit()}
+                    className="border-2 border-slate-200 focus:border-[#0A9BAD] p-4 rounded-xl w-full text-xl font-mono tracking-widest outline-none transition-colors mb-3"
+                    placeholder="000000000000"
+                    autoFocus
+                  />
+                  {errorMsg && <p className="text-red-500 text-sm mb-3 text-center">{errorMsg}</p>}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => { setShowManualCccd(false); setManualCccd(''); setErrorMsg(''); }}
+                      className="flex-1 py-3 rounded-xl bg-slate-100 font-bold text-slate-600 transition hover:bg-slate-200"
+                    >Hủy</button>
+                    <button
+                      onClick={handleManualSubmit}
+                      disabled={isProcessing || manualCccd.length !== 12}
+                      className="flex-1 py-3 rounded-xl bg-[#0A9BAD] font-bold text-white transition hover:opacity-90 disabled:opacity-40"
+                    >{isProcessing ? 'Đang tra...' : 'Xác nhận'}</button>
+                  </div>
+                </div>
               </div>
-              <p className="mt-2 text-[13px] font-geist uppercase tracking-wider text-slate-500">
-                BS. Văn Ngữ · Phòng 103
-              </p>
+            ) : !scannedPatient ? (
+              <div className="mb-4 pb-4 border-b border-slate-100 flex flex-col items-center justify-center bg-blue-50/50 rounded-xl py-6 relative">
+                <CreditCard className="w-12 h-12 text-[#0A9BAD] mb-3 opacity-60" />
+                <h3 className="text-base font-bold text-slate-800 mb-1 text-center">Xác thực Bệnh nhân bằng căn cước công dân</h3>
+                <p className="text-xs text-slate-500 text-center px-8 mb-5">
+                  Vui lòng đọc số CCCD của bệnh nhân trong quá trình ghi âm.<br/>
+                  <span className="italic">VD: "không không một ba ..." <span className="font-semibold not-italic text-[#0A9BAD]">(lưu ý số căn cước phải đủ 12 số)</span></span>
+                </p>
+                <button onClick={() => { setShowManualCccd(true); setErrorMsg(''); }} className="text-sm font-bold text-[#0A9BAD] bg-white hover:bg-[#0A9BAD] hover:text-white border-2 border-[#0A9BAD] transition-colors px-8 py-2.5 rounded-xl shadow-sm">
+                  Nhập tay CCCD
+                </button>
+              </div>
+            ) : (
+              <div className="mb-6 border-b border-slate-100 pb-5 flex-shrink-0">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-base font-bold text-slate-500 uppercase tracking-wider">Thông tin bệnh nhân</h3>
+                  {patientConfirmed && <button onClick={() => { setScannedPatient(null); setAssignedRecordId(null); setPatientConfirmed(false); setErrorMsg(''); }} className="text-sm text-[#0A9BAD] hover:underline font-bold">Hủy / Quét lại</button>}
+                </div>
+                <div className="flex items-center gap-5 bg-slate-50 p-5 rounded-xl border border-slate-100">
+                  <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-[#88E8F2] bg-[#88E8F2]/20 flex items-center justify-center flex-shrink-0">
+                    <User className="w-7 h-7 text-[#0A9BAD]" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-[#0d1f2d] text-xl mb-1">{scannedPatient.name}</p>
+                    <div className="flex gap-2 text-base text-slate-500">
+                      <span>{scannedPatient.gender}</span> •
+                      <span>SN: {scannedPatient.dob}</span> •
+                      <span className="font-mono">{scannedPatient.id}</span>
+                    </div>
+                  </div>
+                </div>
+                {!patientConfirmed && (
+                  <div className="mt-6 flex items-center gap-4">
+                    <button onClick={() => { setPatientConfirmed(true); setErrorMsg(''); }} className="flex-1 rounded-xl bg-[#0A9BAD] py-4 text-base font-bold text-white transition hover:opacity-90 shadow-sm">Xác nhận đúng</button>
+                    <button onClick={() => { setScannedPatient(null); setAssignedRecordId(null); setTranscript(''); setErrorMsg(''); }} className="flex-1 rounded-xl bg-slate-100 py-4 text-base font-bold text-slate-700 transition hover:bg-slate-200">Đọc lại</button>
+                    <button onClick={() => { setScannedPatient(null); setAssignedRecordId(null); setTranscript(''); setShowManualCccd(true); setErrorMsg(''); }} className="flex-1 rounded-xl border border-slate-200 bg-white py-4 text-base font-bold text-slate-700 transition hover:bg-slate-50 shadow-sm">Nhập tay</button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {(!scannedPatient || patientConfirmed) && !showManualCccd && (
+              <div className="flex flex-col items-center justify-center py-2 relative transition-opacity duration-300 opacity-100">
+                <Waveform active={recording} />
+                <button
+                onClick={() => { if (scannedPatient) setConversationMode(!conversationMode) }}
+                className={`mt-4 mb-2 flex max-w-full items-center gap-3 rounded-xl border-2 px-6 py-3 shadow-sm transition-all ${scannedPatient ? "cursor-pointer hover:bg-cyan-50 hover:shadow-md active:scale-[0.98]" : "cursor-default"}`}
+                style={{ borderColor: ACCENT, backgroundColor: "#f8fafc" }}
+              >
+                <BadgeCheck className="w-5 h-5" style={{ color: "#0891B2" }} />
+                <span className="text-sm font-bold uppercase tracking-wide text-slate-800 select-none">
+                  {!scannedPatient ? "Hệ thống VNPT Smartvoice" : (conversationMode ? "Chế độ: Đa giọng (Nhấn để đổi)" : "Chế độ: Đọc y lệnh (Nhấn để đổi)")}
+                </span>
+              </button>
+
+              {/* Timer khi đang ghi âm hội thoại */}
+              {recording && conversationMode && (
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  <span className="text-sm font-mono text-slate-700">
+                    {String(Math.floor(recordingSeconds / 60)).padStart(2, "0")}:{String(recordingSeconds % 60).padStart(2, "0")}
+                  </span>
+                  <span className="text-xs text-slate-500">Ghi âm...</span>
+                </div>
+              )}
 
               {!recording ? (
                 <button
-                  onClick={startRecording}
+                  onClick={handleStartRecording}
                   disabled={isProcessing}
-                  className="mt-3 flex min-h-[48px] items-center gap-2 rounded-full px-6 py-3 text-base font-semibold text-slate-900 transition hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:px-6 sm:py-2.5 sm:font-medium"
+                  className="mt-3 flex min-h-[44px] items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold text-slate-900 transition hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                   style={{ backgroundColor: ACCENT }}
                 >
-                  <Play className="w-5 h-5" /> Bắt đầu thu
+                  <Play className="w-4 h-4" />
+                  {!scannedPatient ? "Bắt đầu nhận diện CCCD" : (conversationMode ? "Bắt đầu Ghi Hội thoại" : "Bắt đầu thu")}
                 </button>
               ) : (
                 <button
-                  onClick={stopRecording}
-                  className="mt-3 flex min-h-[48px] items-center gap-2 rounded-full px-6 py-3 text-base font-semibold text-white transition hover:opacity-90 active:scale-[0.98] animate-pulse sm:px-6 sm:py-2.5 sm:font-medium"
+                  onClick={handleStopRecording}
+                  className="mt-3 flex min-h-[44px] items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 active:scale-[0.98] animate-pulse"
                   style={{ backgroundColor: "#ef4444" }}
                 >
-                  <StopCircle className="w-5 h-5" /> Dừng & Xử lý
+                  <StopCircle className="w-4 h-4" />
+                  {!scannedPatient ? "Dừng & Tìm bệnh nhân" : (conversationMode ? "Dừng & Phân tích ACI" : "Dừng & Xử lý")}
                 </button>
               )}
             </div>
+            )}
 
             {errorMsg && (
               <div className="mt-2 bg-red-50 text-red-600 p-2 rounded-md text-sm font-medium text-center">
@@ -7819,35 +8249,88 @@ function VoiceView() {
               </div>
             )}
 
+            {/* === TRANSCRIPT AREA === */}
             <div className="mt-3 border-t border-slate-200 pt-3 flex-1 overflow-auto scrollbar-hide">
-              <p className="text-[12px] font-geist uppercase tracking-wider text-slate-500 mb-1">
-                Phiên âm thô (raw speech)
-              </p>
               {isProcessing ? (
-                <div className="flex items-center text-slate-400 space-x-2 mt-4">
-                  <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" />
-                  <span className="text-base">Đang phân tích SOAPE qua AI...</span>
+                <div className="flex flex-col items-center justify-center text-slate-400 space-y-2 mt-4">
+                  <div className="w-6 h-6 rounded-full border-2 border-slate-300 border-t-[#0A9BAD] animate-spin" />
+                  <span className="text-sm">
+                    {!scannedPatient
+                      ? "Đang tra cứu cơ sở dữ liệu..."
+                      : conversationMode
+                      ? "AI đang phân tách hội thoại đa giọng..."
+                      : "Đang phân tích SOAPE qua AI..."}
+                  </span>
+                </div>
+              ) : conversationMode && diarizedLines.length > 0 ? (
+                /* Kịch bản hội thoại phân tách */
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                      Kịch bản Hội thoại
+                    </p>
+                    {diarizationUsed && speakersDetected > 0 && (
+                      <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-semibold">
+                        {speakersDetected} người nói
+                      </span>
+                    )}
+                    {!diarizationUsed && (
+                      <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full">
+                        Fallback STT
+                      </span>
+                    )}
+                  </div>
+                  {diarizedLines.map((dl, i) => (
+                    <div key={i} className="flex gap-2">
+                      {dl.speaker && (
+                        <span
+                          className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 h-fit mt-0.5"
+                          style={{ backgroundColor: getSpeakerColor(dl.speaker) + "22", color: getSpeakerColor(dl.speaker) }}
+                        >
+                          {dl.speaker}
+                        </span>
+                      )}
+                      <p className="text-sm text-slate-800 leading-relaxed">{dl.line}</p>
+                    </div>
+                  ))}
                 </div>
               ) : (
-                <p className="text-base text-slate-800 italic leading-relaxed whitespace-pre-wrap">
-                  {recording
-                    ? liveTranscript || "Đang lắng nghe..."
-                    : transcript || "Chưa có dữ liệu..."}
-                </p>
+                /* Transcript thô (chế độ đọc chính tả) */
+                <>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                    Phiên âm thô (raw speech)
+                  </p>
+                  {recording && conversationMode && scannedPatient ? (
+                    <div className="flex flex-col items-center justify-center py-6 gap-3">
+                      <Loader2 className="w-8 h-8 animate-spin" style={{ color: ACCENT }} />
+                      <p className="text-sm font-medium" style={{ color: ACCENT }}>
+                        Đang thu âm đoạn hội thoại để chuyển thành raw text...
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-800 italic leading-relaxed whitespace-pre-wrap">
+                      {recording
+                        ? liveTranscript || "Đang lắng nghe..."
+                        : transcript || "Chưa có dữ liệu..."}
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </div>
 
           {/* RIGHT: SOAPE Form */}
+          {scannedPatient && patientConfirmed && (
           <div
-            className={`flex flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6 lg:h-[620px] ${
+            className={`flex flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6 lg:h-[720px] ${
               isMobile ? (mobilePanel === "soap" ? "min-h-0" : "hidden") : "min-h-[520px]"
             }`}
           >
             <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <h3 className="text-xl font-medium text-slate-900">EMR · Mẫu SOAPE</h3>
               <span className="flex items-center gap-1 text-[12px] uppercase tracking-wider text-slate-500 font-geist">
-                <Cpu className="w-3 h-3" style={{ color: ACCENT }} /> AI Parser · Trực tiếp
+                <Cpu className="w-3 h-3" style={{ color: ACCENT }} />
+                {conversationMode ? "ACI · Đa giọng" : "AI Parser · Trực tiếp"}
               </span>
             </div>
             <div className="space-y-3 flex-1 overflow-auto scrollbar-hide">
@@ -7887,11 +8370,22 @@ function VoiceView() {
                 onEdit={(v) => handleEditField("evaluation", v)}
               />
             </div>
+            
+            {soapeData && (
+              <ServiceAssignmentField 
+                selectedRoomIds={assignedRoomIds}
+                onChange={setAssignedRoomIds}
+                isProcessing={isProcessing}
+                suggestedServices={soapeData.services_assigned || []}
+                planText={soapeData.plan || ""}
+              />
+            )}
+
             <button
               className="mt-4 flex min-h-[48px] items-center justify-center space-x-2 rounded-lg py-3 text-base font-bold text-slate-900 transition hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
               style={{ backgroundColor: ACCENT }}
               disabled={!soapeData || isProcessing}
-              onClick={() => setShowSignedEMR(true)}
+              onClick={handleConfirm}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -7904,13 +8398,16 @@ function VoiceView() {
               <span>Xác nhận và Ký số</span>
             </button>
           </div>
+          )}
+        </div>
         </div>
         </div>
       )}
+      
+      {scannedPatient && assignedRecordId && <ServiceUpdateDashboard recordId={assignedRecordId} />}
     </>
   );
 }
-
 function SignedEMRView({ soapeData, onClose }: { soapeData: any; onClose: () => void }) {
   const { user } = useAuth();
   const isMobile = useIsMobile();
@@ -8451,6 +8948,7 @@ function ChatbotView() {
   const [input, setInput] = useState("");
   const [listening, setListening] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -8830,28 +9328,78 @@ function PatientClinicalSheet({
                       {record ? ` · Kê ngày ${formatRecordDate(record.created_at)}` : ""}
                     </p>
                   </div>
-                  {data.medications.map((med: any) => (
-                    <div
-                      key={med.id}
-                      className="flex gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm"
-                    >
-                      <div
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-                        style={{ backgroundColor: "#7C3AED18" }}
-                      >
-                        <Pill className="h-5 w-5 text-violet-600" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-bold text-slate-900">{med.medicine_name}</p>
-                        <p className="mt-0.5 text-sm text-slate-600">{med.dosage}</p>
-                        {med.instructions && (
-                          <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
-                            {med.instructions}
+                  {data.medications.map((med: any, idx: number) => {
+                    // Explicit Vietnamese → ASCII map (more reliable than NFD)
+                    const normVi = (s: string) =>
+                      (s || "").toLowerCase()
+                        .replace(/[àáâãäåāăą]|[ắặằẳẵăấầẩẫậâáàảãạ]/g, "a")
+                        .replace(/[èéêëēĕęě]|[ếệềểễêéèẻẽẹ]/g, "e")
+                        .replace(/[ìíîïīĭįı]|[íìỉĩịî]/g, "i")
+                        .replace(/[òóôõöōŏő]|[ốộồổỗôóòỏõọơớợờởỡ]/g, "o")
+                        .replace(/[ùúûüūŭůű]|[ướựừửữưúùủũụ]/g, "u")
+                        .replace(/[ýÿ]|[ýỳỷỹỵ]/g, "y")
+                        .replace(/[đ]/g, "d");
+
+                    const instrRaw = med.instructions || "";
+                    const instr = normVi(instrRaw);
+                    
+                    // Extract dosage number from the dosage field
+                    const dosageNum = (med.dosage || "").match(/[\d\.]+\s*(?:vien|ong|goi|ml|mg|mcg|g|\w+)/i)?.[0] || "";
+
+                    // Detect which sessions are active
+                    const hasSang  = /sang|buoi sang|an sang|truoc sang|sau sang/.test(instr);
+                    const hasTrua  = /trua|buoi trua|an trua/.test(instr);
+                    const hasChieu = /chieu|buoi chieu|an chieu/.test(instr);
+                    const hasToi   = /toi|buoi toi|an toi/.test(instr);
+
+                    // Extract dose per session (e.g. "1 viên sáng, 2 viên tối")
+                    const extractDose = (kw: string): string => {
+                      const m = instr.match(new RegExp(`(\\d+\\s*(?:vien|ong|goi|ml|mg|mcg|g)?)[^,]*${kw}`, "i"))
+                        || instr.match(new RegExp(`${kw}[^,]*(\\d+\\s*(?:vien|ong|goi|ml|mg|mcg|g)?)`, "i"));
+                      if (m?.[1]?.trim()) return m[1].trim();
+                      // fallback: first number from dosage
+                      const n = (med.dosage || "").match(/(\d+\s*(?:viên|ống|gói|ml|mg|mcg|g|\w+))/i);
+                      return n ? n[1] : "";
+                    };
+
+                    const sessions = [
+                      { id: "sang",  label: "Sáng",  icon: "☀️",  active: hasSang,  dose: hasSang  ? extractDose("sang")  : "" },
+                      { id: "trua",  label: "Trưa",  icon: "🍽️", active: hasTrua,  dose: hasTrua  ? extractDose("trua")  : "" },
+                      { id: "chieu", label: "Chiều", icon: "🌤️", active: hasChieu, dose: hasChieu ? extractDose("chieu") : "" },
+                      { id: "toi",   label: "Tối",   icon: "🌙",  active: hasToi,   dose: hasToi   ? extractDose("toi")   : "" },
+                    ];
+
+                    return (
+                      <div key={med.id || idx} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+                        <p className="font-bold text-slate-900 text-[15px]">
+                          {idx + 1}. {med.medicine_name} {med.dosage ? `(${med.dosage})` : ""}
+                        </p>
+                        {instrRaw && (
+                          <p className="mt-1 text-xs text-[#0A9BAD] leading-relaxed">
+                            Hướng dẫn: <span className="font-medium">{instrRaw}</span>
                           </p>
                         )}
+                        <div className="mt-3 grid grid-cols-4 gap-2">
+                          {sessions.map(s => (
+                            <div
+                              key={s.id}
+                              className={`flex flex-col items-center justify-center rounded-xl py-2.5 px-1 transition-all ${
+                                s.active ? "bg-amber-50 border border-amber-200" : "bg-slate-50 border border-slate-100"
+                              }`}
+                            >
+                              <span className={`text-xl mb-0.5 leading-none ${!s.active ? "opacity-25" : ""}`}>{s.icon}</span>
+                              <span className={`text-[11px] font-semibold ${s.active ? "text-amber-700" : "text-slate-400"}`}>
+                                {s.label}
+                              </span>
+                              <span className={`text-[10px] mt-0.5 font-medium ${s.active ? "text-amber-600" : "text-slate-300"}`}>
+                                {s.active && s.dose ? s.dose : "—"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </>
               )}
             </div>
@@ -10412,23 +10960,7 @@ function EmsView() {
                 </button>
               </div>
 
-              {/* Alternative modes - pill buttons */}
-              <div className="grid grid-cols-2 gap-3 mt-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setManualInputMode("unknown");
-                    setCapturedCccdUrl(null);
-                  }}
-                  className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border transition-all active:scale-95 ${
-                    manualInputMode === "unknown"
-                      ? "bg-slate-100 border-slate-300 text-slate-800"
-                      : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                  }`}
-                >
-                  <User className="w-4 h-4" />
-                  <span className="text-sm font-bold">Không rõ danh tính</span>
-                </button>
+              <div className="grid grid-cols-1 gap-3 mt-3">
                 <button
                   type="button"
                   onClick={() => {
@@ -10506,62 +11038,6 @@ function EmsView() {
                   {ekycError}
                 </p>
               )}
-            </div>
-          )}
-
-          {/* Unknown Patient Form */}
-          {manualInputMode === "unknown" && !scannedPatient && (
-            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm space-y-3">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Nhập thông tin cơ bản
-              </p>
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">Giới tính</label>
-                <select
-                  value={manualGender}
-                  onChange={(e) => setManualGender(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm"
-                >
-                  <option value="">Chọn giới tính</option>
-                  <option value="Nam">Nam</option>
-                  <option value="Nữ">Nữ</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">Khoảng tuổi</label>
-                <input
-                  type="text"
-                  value={manualAgeRange}
-                  onChange={(e) => setManualAgeRange(e.target.value)}
-                  placeholder="VD: 20-30, 40-50"
-                  className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm"
-                />
-              </div>
-              <button
-                type="button"
-                className="w-full py-3 bg-cyan-500 text-white font-bold text-sm rounded-xl active:scale-[0.98]"
-                onClick={() => {
-                  const fakePatient = {
-                    name: "Không rõ",
-                    gender: manualGender,
-                    age: manualAgeRange,
-                    cccd: null,
-                    chronic_conditions: [],
-                    allergies: [],
-                  };
-                  setScannedPatient({
-                    full_name: "Không rõ danh tính",
-                    gender: manualGender,
-                    dob: null,
-                    cccd_number: null,
-                    chronic_conditions: [],
-                    allergies: [],
-                  });
-                  sendPatientUpdate(fakePatient);
-                }}
-              >
-                Xác nhận
-              </button>
             </div>
           )}
 
@@ -10653,7 +11129,7 @@ function EmsView() {
                     : ["Không"];
                   const e_contact = manualEmergencyContact.trim() || "Không";
                   const fakePatient = {
-                    name: manualName.trim() || "Bệnh nhân không CCCD",
+                    name: manualName.trim() || "-",
                     gender: manualGender,
                     age: manualAgeRange,
                     cccd: null,
@@ -10662,7 +11138,7 @@ function EmsView() {
                     emergencyContactName: e_contact,
                   };
                   setScannedPatient({
-                    full_name: manualName.trim() || "Bệnh nhân không CCCD",
+                    full_name: manualName.trim() || "-",
                     gender: manualGender,
                     dob: null,
                     cccd_number: null,
@@ -11138,12 +11614,6 @@ function EmsView() {
                 Quét CCCD
               </button>
               <button
-                onClick={() => setManualInputMode("unknown")}
-                className={`flex-1 py-2 rounded-lg text-sm font-bold border transition ${manualInputMode === "unknown" ? "bg-cyan-500 text-white border-cyan-500" : "bg-white text-slate-700 border-slate-200"}`}
-              >
-                Không rõ danh tính
-              </button>
-              <button
                 onClick={() => setManualInputMode("no_cccd")}
                 className={`flex-1 py-2 rounded-lg text-sm font-bold border transition ${manualInputMode === "no_cccd" ? "bg-cyan-500 text-white border-cyan-500" : "bg-white text-slate-700 border-slate-200"}`}
               >
@@ -11164,61 +11634,6 @@ function EmsView() {
                   }}
                 />
               </>
-            )}
-
-            {manualInputMode === "unknown" && (
-              <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                    Giới tính
-                  </label>
-                  <select
-                    value={manualGender}
-                    onChange={(e) => setManualGender(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300"
-                  >
-                    <option value="">Chọn giới tính</option>
-                    <option value="Nam">Nam</option>
-                    <option value="Nữ">Nữ</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                    Khoảng tuổi
-                  </label>
-                  <input
-                    type="text"
-                    value={manualAgeRange}
-                    onChange={(e) => setManualAgeRange(e.target.value)}
-                    placeholder="VD: 20-30, 40-50"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300"
-                  />
-                </div>
-                <button
-                  className="w-full py-2 bg-cyan-500 text-white font-bold rounded-lg mt-2"
-                  onClick={() => {
-                    const fakePatient = {
-                      name: "Không rõ",
-                      gender: manualGender,
-                      age: manualAgeRange,
-                      cccd: null,
-                      chronic_conditions: [],
-                      allergies: [],
-                    };
-                    setScannedPatient({
-                      full_name: "Không rõ danh tính",
-                      gender: manualGender,
-                      dob: null,
-                      cccd_number: null,
-                      chronic_conditions: [],
-                      allergies: [],
-                    });
-                    sendPatientUpdate(fakePatient);
-                  }}
-                >
-                  Xác nhận
-                </button>
-              </div>
             )}
 
             {manualInputMode === "no_cccd" && (
@@ -11308,7 +11723,7 @@ function EmsView() {
                       : ["Không"];
                     const e_contact = manualEmergencyContact.trim() || "Không";
                     const fakePatient = {
-                      name: manualName.trim() || "Bệnh nhân không CCCD",
+                      name: manualName.trim() || "-",
                       gender: manualGender,
                       age: manualAgeRange,
                       cccd: null,
@@ -11317,7 +11732,7 @@ function EmsView() {
                       emergencyContactName: e_contact,
                     };
                     setScannedPatient({
-                      full_name: manualName.trim() || "Bệnh nhân không CCCD",
+                      full_name: manualName.trim() || "-",
                       gender: manualGender,
                       dob: null,
                       cccd_number: null,
@@ -11510,7 +11925,9 @@ type AdminTab =
   | "ambulances"
   | "queue"
   | "lpr"
-  | "medical_books";
+  | "medical_books"
+  | "logs"
+  | "webauthn";
 
 const ADMIN_TABS: { key: AdminTab; Icon: typeof Users; label: string }[] = [
   { key: "overview", Icon: Activity, label: "Tổng quan" },
@@ -11911,6 +12328,30 @@ function AdminStaffsTab() {
   const [ekycStatus, setEkycStatus] = useState<"idle" | "checking" | "success" | "error">("idle");
   const [ekycMessage, setEkycMessage] = useState("");
 
+  const [changePasswordModal, setChangePasswordModal] = useState(false);
+  const [selectedStaffId, setSelectedStaffId] = useState("");
+  const [newPasswordAdmin, setNewPasswordAdmin] = useState("");
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
+  const [isChangingAdminPassword, setIsChangingAdminPassword] = useState(false);
+
+  const handleAdminChangePassword = async () => {
+    if (!newPasswordAdmin) return alert("Vui lòng nhập mật khẩu mới");
+    setIsChangingAdminPassword(true);
+    try {
+      await fetchApi(`/admin/staffs/${selectedStaffId}/password`, {
+        method: "PUT",
+        body: JSON.stringify({ new_password: newPasswordAdmin })
+      });
+      alert("Đổi mật khẩu thành công!");
+      setChangePasswordModal(false);
+      setNewPasswordAdmin("");
+    } catch (e) {
+      alert("Lỗi khi đổi mật khẩu: " + e);
+    } finally {
+      setIsChangingAdminPassword(false);
+    }
+  };
+
   const handleVerifyFace = async () => {
     if (!form.face_base64) return;
     setEkycStatus("checking");
@@ -11998,6 +12439,8 @@ function AdminStaffsTab() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="ml-2 w-full sm:w-40 border-none bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400"
+              autoComplete="off"
+              data-form-type="other"
             />
           </div>
           <button
@@ -12163,20 +12606,18 @@ function AdminStaffsTab() {
         <table className="w-full text-sm text-left">
           <thead className="text-[10px] text-slate-500 font-geist uppercase tracking-wider bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="px-4 py-3">id</th>
               <th className="px-4 py-3">name</th>
               <th className="px-4 py-3">role</th>
               <th className="px-4 py-3">cccd</th>
               <th className="px-4 py-3">employee_id</th>
               <th className="px-4 py-3">department_id</th>
-              <th className="px-4 py-3">created_at</th>
+              <th className="px-4 py-3 text-center">Đổi mật khẩu</th>
               <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
             {filteredUsers.map((u) => (
               <tr key={u.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                <td className="px-4 py-3 text-[11px] font-mono text-slate-400">{u.id}</td>
                 <td className="px-4 py-3 font-bold text-slate-900">{u.name}</td>
                 <td className="px-4 py-3">
                   <span
@@ -12194,7 +12635,21 @@ function AdminStaffsTab() {
                     ? departments.find((d) => d.id === u.department_id)?.name || u.department_id
                     : "—"}
                 </td>
-                <td className="px-4 py-3 text-[12px] text-slate-500 font-mono">{u.created_at}</td>
+
+                <td className="px-4 py-3 text-center">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedStaffId(u.id);
+                      setNewPasswordAdmin("");
+                      setChangePasswordModal(true);
+                    }}
+                    className="text-slate-400 hover:text-[#0A9BAD] transition-colors"
+                    title="Đổi mật khẩu"
+                  >
+                    <Key className="w-4 h-4 mx-auto" />
+                  </button>
+                </td>
 
                 <td className="px-4 py-3 text-right">
                   <button
@@ -12213,6 +12668,55 @@ function AdminStaffsTab() {
           </tbody>
         </table>
       </div>
+
+      {changePasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl animate-in zoom-in-95 duration-200">
+            <h3 className="font-bold text-lg text-slate-900 mb-4 flex items-center gap-2">
+              <Key className="w-5 h-5 text-[#0A9BAD]" /> Đổi mật khẩu
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-xs font-bold text-slate-600">
+                  Mật khẩu mới
+                </label>
+                <div className="relative">
+                  <input
+                    type={showAdminPassword ? "text" : "password"}
+                    value={newPasswordAdmin}
+                    onChange={(e) => setNewPasswordAdmin(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-[#88E8F2] focus:bg-slate-50"
+                    placeholder="Nhập mật khẩu mới"
+                    autoComplete="new-password"
+                    data-form-type="other"
+                  />
+                  <button 
+                    onClick={() => setShowAdminPassword(!showAdminPassword)}
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                  >
+                    {showAdminPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  onClick={() => setChangePasswordModal(false)}
+                  className="px-4 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleAdminChangePassword}
+                  disabled={isChangingAdminPassword || !newPasswordAdmin}
+                  className="px-4 py-2 rounded-xl text-sm font-bold text-white bg-[#0A9BAD] hover:bg-[#0891b2] transition-colors disabled:opacity-50"
+                >
+                  {isChangingAdminPassword ? "Đang đổi..." : "Lưu mật khẩu"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -13716,6 +14220,3113 @@ function DoctorQAView() {
                 <p className="text-[12px] text-red-500">{submitError}</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   TAB: QUẢN LÝ VẬT TƯ & THIẾT BỊ Y TẾ
+   ============================================================ */
+function AdminMedicalInventoryTab() {
+  const [activeSubTab, setActiveSubTab] = useState<"equipment" | "supplies">("equipment");
+  return (
+    <div className="space-y-4">
+      {/* Sub-tab switcher */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setActiveSubTab("equipment")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-bold transition-all border ${
+            activeSubTab === "equipment"
+              ? "bg-[#0A9BAD] text-white border-transparent shadow-sm"
+              : "bg-white text-slate-600 border-slate-200 hover:border-[#88E8F2]"
+          }`}
+        >
+          <Wrench className="w-3.5 h-3.5" />
+          Thiết bị Y tế
+        </button>
+        <button
+          onClick={() => setActiveSubTab("supplies")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-bold transition-all border ${
+            activeSubTab === "supplies"
+              ? "bg-[#0A9BAD] text-white border-transparent shadow-sm"
+              : "bg-white text-slate-600 border-slate-200 hover:border-[#88E8F2]"
+          }`}
+        >
+          <Package className="w-3.5 h-3.5" />
+          Vật tư Y tế
+        </button>
+      </div>
+
+      {activeSubTab === "equipment" && <AdminEquipmentSubTab />}
+      {activeSubTab === "supplies" && <AdminSuppliesSubTab />}
+    </div>
+  );
+}
+
+/* ── Sub-tab A: Thiết bị Y tế ── */
+function AdminEquipmentSubTab() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterDept, setFilterDept] = useState("all");
+  const [showForm, setShowForm] = useState(false);
+  
+  const [form, setForm] = useState({
+    name: "",
+    model: "",
+    serial_number: "",
+    manufacturer: "",
+    department_id: "",
+    next_maintenance_date: "",
+    status: "active",
+    purchase_date: new Date().toISOString().split("T")[0],
+    purchase_price: "0",
+    notes: "",
+  });
+
+  const [equipments, setEquipments] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>({ total: 0, active: 0, maintenance: 0, broken: 0, retired: 0 });
+  const [loading, setLoading] = useState(true);
+
+  const fetchEquipmentAndStats = (showLoading = true) => {
+    if (showLoading) setLoading(true);
+    Promise.all([
+      fetchApi("/inventory/equipment"),
+      fetchApi("/inventory/equipment/stats"),
+      fetchApi("/admin/tables/departments"),
+    ])
+      .then(([eqData, statsData, deptData]) => {
+        setEquipments(eqData || []);
+        setStats(statsData || { total: 0, active: 0, maintenance: 0, broken: 0, retired: 0 });
+        setDepartments(deptData || []);
+      })
+      .catch((err) => console.error("Error loading equipment data", err))
+      .finally(() => {
+        if (showLoading) setLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    fetchEquipmentAndStats();
+  }, []);
+
+  const handleAddSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name.trim()) return;
+
+    // generate random code
+    const code = "EQ-" + form.name.substring(0, 3).toUpperCase() + "-" + Math.floor(1000 + Math.random() * 9000);
+
+    fetchApi("/inventory/equipment", {
+      method: "POST",
+      body: JSON.stringify({
+        ...form,
+        code,
+        purchase_price: parseInt(form.purchase_price, 10),
+        category_id: null,
+      }),
+    })
+      .then((res) => {
+        if (res.status === "success") {
+          setShowForm(false);
+          setForm({
+            name: "",
+            model: "",
+            serial_number: "",
+            manufacturer: "",
+            department_id: "",
+            next_maintenance_date: "",
+            status: "active",
+            purchase_date: new Date().toISOString().split("T")[0],
+            purchase_price: "0",
+            notes: "",
+          });
+          fetchEquipmentAndStats();
+        } else {
+          alert("Lỗi thêm thiết bị: " + JSON.stringify(res));
+        }
+      })
+      .catch((err) => alert("Lỗi kết nối: " + err));
+  };
+
+  const handleDelete = (id: string) => {
+    if (!confirm("Bạn có chắc chắn muốn xóa thiết bị này không?")) return;
+    fetchApi(`/inventory/equipment/${id}`, { method: "DELETE" })
+      .then((res) => {
+        if (res.status === "success") {
+          fetchEquipmentAndStats();
+        } else {
+          alert("Lỗi xóa thiết bị");
+        }
+      })
+      .catch((err) => alert("Lỗi kết nối: " + err));
+  };
+
+  const handleStatusChange = (id: string, newStatus: string) => {
+    fetchApi(`/inventory/equipment/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: newStatus }),
+    })
+      .then((res) => {
+        if (res.status === "success") {
+          fetchEquipmentAndStats();
+        } else {
+          alert("Lỗi cập nhật trạng thái thiết bị");
+        }
+      })
+      .catch((err) => alert("Lỗi kết nối: " + err));
+  };
+
+  const filteredEquipment = equipments.filter((e) => {
+    const matchSearch =
+      !searchQuery ||
+      e.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      e.serial_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      e.model?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchStatus = filterStatus === "all" || e.status === filterStatus;
+    const matchDept = filterDept === "all" || e.department_id === filterDept;
+    return matchSearch && matchStatus && matchDept;
+  });
+
+  return (
+    <div className="space-y-4">
+      {/* Stats row */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {[
+          { label: "Tổng số thiết bị", value: stats.total, color: "text-slate-800" },
+          { label: "Đang hoạt động", value: stats.active, color: "text-emerald-600" },
+          { label: "Đang bảo trì", value: stats.maintenance, color: "text-blue-600" },
+          { label: "Đang hỏng hóc", value: stats.broken, color: "text-red-600 bg-red-50/20" },
+          { label: "Đã thanh lý", value: stats.retired, color: "text-slate-400" },
+        ].map((s, idx) => (
+          <div key={idx} className="p-4 rounded-xl border border-slate-200 bg-white relative overflow-hidden shadow-sm">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{s.label}</p>
+            <p className={`text-2xl font-black mt-1 ${s.color}`}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-slate-200">
+          <div>
+            <h3 className="font-bold text-slate-900 flex items-center gap-2">
+              Danh sách Thiết bị Y tế
+            </h3>
+          </div>
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#0A9BAD] hover:bg-[#0891b2] text-white text-[11px] font-bold uppercase tracking-wider transition-colors self-start sm:self-auto"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Thêm thiết bị mới
+          </button>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-2 px-5 py-3 border-b border-slate-100 bg-slate-50/60">
+          <div className="flex flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5">
+            <Search className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            <input
+              type="text"
+              placeholder="Tìm kiếm thiết bị..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full border-none bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400"
+            />
+          </div>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 outline-none"
+          >
+            <option value="all">Tất cả trạng thái</option>
+            <option value="active">Đang hoạt động</option>
+            <option value="maintenance">Đang bảo trì</option>
+            <option value="broken">Đang hỏng hóc</option>
+            <option value="retired">Đã thanh lý</option>
+          </select>
+          <select
+            value={filterDept}
+            onChange={(e) => setFilterDept(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 outline-none"
+          >
+            <option value="all">Tất cả khoa phòng</option>
+            {departments.map((d) => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Add Form */}
+        {showForm && (
+          <form onSubmit={handleAddSubmit} className="px-5 py-4 bg-slate-50 border-b border-slate-200 space-y-3">
+            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Thêm thiết bị y tế mới</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Tên thiết bị *</label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: Máy siêu âm"
+                  value={form.name}
+                  onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Model</label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: GE-Vivid-E9"
+                  value={form.model}
+                  onChange={(e) => setForm((s) => ({ ...s, model: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Số sê-ri</label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: SN-99812A"
+                  value={form.serial_number}
+                  onChange={(e) => setForm((s) => ({ ...s, serial_number: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Hãng sản xuất</label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: GE Healthcare"
+                  value={form.manufacturer}
+                  onChange={(e) => setForm((s) => ({ ...s, manufacturer: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Khoa phòng quản lý</label>
+                <select
+                  value={form.department_id}
+                  onChange={(e) => setForm((s) => ({ ...s, department_id: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
+                >
+                  <option value="">Chọn khoa phòng...</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Ngày bảo trì tiếp theo</label>
+                <input
+                  type="date"
+                  value={form.next_maintenance_date}
+                  onChange={(e) => setForm((s) => ({ ...s, next_maintenance_date: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Ngày mua</label>
+                <input
+                  type="date"
+                  value={form.purchase_date}
+                  onChange={(e) => setForm((s) => ({ ...s, purchase_date: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button type="submit" className="rounded-lg bg-[#0A9BAD] px-4 py-2 text-xs font-bold text-white hover:bg-[#0891b2]">Thêm mới</button>
+              <button type="button" onClick={() => setShowForm(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">Hủy</button>
+            </div>
+          </form>
+        )}
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="text-[10px] text-slate-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className="px-4 py-3">Tên thiết bị</th>
+                <th className="px-4 py-3">Model / Hãng</th>
+                <th className="px-4 py-3">Số sê-ri</th>
+                <th className="px-4 py-3">Khoa phòng</th>
+                <th className="px-4 py-3">Trạng thái</th>
+                <th className="px-4 py-3">Lịch bảo trì</th>
+                <th className="px-4 py-3">Ngày mua</th>
+                <th className="px-4 py-3 text-right">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="text-center py-10 text-slate-400">Đang tải danh sách thiết bị y tế...</td>
+                </tr>
+              ) : filteredEquipment.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="text-center py-10 text-slate-400">Không tìm thấy thiết bị nào phù hợp</td>
+                </tr>
+              ) : (
+                filteredEquipment.map((eq) => (
+                  <tr key={eq.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                    <td className="px-4 py-3 font-bold text-slate-800">{eq.name}</td>
+                    <td className="px-4 py-3 text-xs text-slate-600">
+                      {eq.model && <p className="font-semibold">{eq.model}</p>}
+                      {eq.manufacturer && <p className="text-[10px] text-slate-400">{eq.manufacturer}</p>}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-500">{eq.serial_number || "—"}</td>
+                    <td className="px-4 py-3 text-xs text-slate-700">{eq.department_name || "—"}</td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={eq.status}
+                        onChange={(e) => handleStatusChange(eq.id, e.target.value)}
+                        className={`text-[11px] font-bold border border-slate-200 rounded-lg px-2 py-1 outline-none transition-colors ${
+                          eq.status === "active"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100"
+                            : eq.status === "maintenance"
+                            ? "bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100"
+                            : eq.status === "broken"
+                            ? "bg-red-50 text-red-700 border-red-100 hover:bg-red-100"
+                            : "bg-slate-50 text-slate-600 border-slate-100 hover:bg-slate-100"
+                        }`}
+                      >
+                        <option value="active">Đang hoạt động</option>
+                        <option value="maintenance">Đang bảo trì</option>
+                        <option value="broken">Đang hỏng hóc</option>
+                        <option value="retired">Đã thanh lý</option>
+                      </select>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-600">{eq.next_maintenance_date || "—"}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-600">{eq.purchase_date || "—"}</td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => handleDelete(eq.id)}
+                        className="text-slate-400 hover:text-red-600 transition-colors"
+                        title="Xóa"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Sub-tab B: Vật tư Y tế ── */
+function AdminSuppliesSubTab() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [filterStockStatus, setFilterStockStatus] = useState("all");
+  const [groupByName, setGroupByName] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  
+  // State expanded grouped rows
+  const [expandedRows, setExpandedRows] = useState<string[]>([]);
+
+  const [supplies, setSupplies] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>({ total: 0, low_stock: 0, expired: 0, expiring_soon: 0 });
+  const [loading, setLoading] = useState(true);
+
+  // === XUẤT KHO FIFO ===
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportBarcode, setExportBarcode] = useState("");
+  const [exportSupply, setExportSupply] = useState<any>(null);
+  const [exportQty, setExportQty] = useState("");
+  const [exportLookupLoading, setExportLookupLoading] = useState(false);
+  const [exportLookupError, setExportLookupError] = useState("");
+  const [exportSubmitting, setExportSubmitting] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState<any>(null);
+  const [scannerActive, setScannerActive] = useState(false);
+  const scannerRef = useRef<any>(null);
+  const scannerDivRef = useRef<HTMLDivElement>(null);
+
+  const stopScanner = () => {
+    if (scannerRef.current) {
+      scannerRef.current.stop().catch(() => {});
+      scannerRef.current = null;
+    }
+    setScannerActive(false);
+  };
+
+  const closeExportModal = () => {
+    stopScanner();
+    setShowExportModal(false);
+    setExportBarcode("");
+    setExportSupply(null);
+    setExportQty("");
+    setExportLookupError("");
+    setExportSuccess(null);
+  };
+
+  const startScanner = () => {
+    import("html5-qrcode").then(({ Html5Qrcode, Html5QrcodeSupportedFormats }) => {
+      if (!scannerDivRef.current) return;
+      const formatsToSupport = [
+        Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.DATA_MATRIX,
+      ];
+      const html5QrCode = new Html5Qrcode("supply-barcode-scanner", { formatsToSupport, verbose: false });
+      scannerRef.current = html5QrCode;
+      
+      const scanConfig = { fps: 15, qrbox: { width: 300, height: 120 }, aspectRatio: 1.7 };
+      const onSuccess = (decodedText: string) => {
+        setExportBarcode(decodedText);
+        stopScanner();
+        handleLookupBarcode(decodedText);
+      };
+      setScannerActive(true);
+      Html5Qrcode.getCameras().then((cameras: any[]) => {
+        if (cameras.length === 0) {
+          setScannerActive(false);
+          return;
+        }
+        const backCam = cameras.find((c: any) => c.label.toLowerCase().includes("back") || c.label.toLowerCase().includes("environment") || c.label.toLowerCase().includes("rear"));
+        const camId = backCam ? backCam.id : cameras[0].id;
+        html5QrCode.start(camId, scanConfig, onSuccess, () => {}).catch(() => setScannerActive(false));
+      }).catch(() => setScannerActive(false));
+    });
+  };
+
+  const handleLookupBarcode = (barcode: string) => {
+    if (!barcode.trim()) return;
+    setExportLookupLoading(true);
+    setExportLookupError("");
+    setExportSupply(null);
+    fetchApi(`/inventory/supplies/lookup-barcode/${barcode.trim()}`)
+      .then((data: any) => setExportSupply(data))
+      .catch((err: any) => setExportLookupError(err?.message || "Không tìm thấy vật tư với mã barcode này"))
+      .finally(() => setExportLookupLoading(false));
+  };
+
+  const handleConfirmExport = () => {
+    if (!exportSupply || !exportBarcode || !exportQty) return;
+    const qty = parseInt(exportQty);
+    if (isNaN(qty) || qty <= 0) return;
+    setExportSubmitting(true);
+    fetchApi("/inventory/supplies/export-fifo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ barcode: exportBarcode, quantity: qty }),
+    })
+      .then((data: any) => {
+        setExportSuccess(data);
+        fetchSuppliesAndStats();
+      })
+      .catch((err: any) => setExportLookupError(err?.message || "Xuất kho thất bại"))
+      .finally(() => setExportSubmitting(false));
+  };
+
+  // === NHẬP KHO ===
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importBarcode, setImportBarcode] = useState("");
+  const [importSupply, setImportSupply] = useState<any>(null);
+  const [importName, setImportName] = useState("");
+  const [importCategory, setImportCategory] = useState("consumables");
+  const [importUnit, setImportUnit] = useState("Hộp");
+  const [importMinQuantity, setImportMinQuantity] = useState("10");
+  const [importQty, setImportQty] = useState("");
+  const [importExpDate, setImportExpDate] = useState("");
+  const [importSupplier, setImportSupplier] = useState("");
+  const [importLocation, setImportLocation] = useState("");
+  const [importLookupLoading, setImportLookupLoading] = useState(false);
+  const [importSubmitting, setImportSubmitting] = useState(false);
+  const [importSuccess, setImportSuccess] = useState(false);
+  const [importScannerActive, setImportScannerActive] = useState(false);
+  const importScannerRef = useRef<any>(null);
+  const importScannerDivRef = useRef<HTMLDivElement>(null);
+
+  const stopImportScanner = () => {
+    if (importScannerRef.current) {
+      importScannerRef.current.stop().catch(() => {});
+      importScannerRef.current = null;
+    }
+    setImportScannerActive(false);
+  };
+
+  const closeImportModal = () => {
+    stopImportScanner();
+    setShowImportModal(false);
+    setImportBarcode("");
+    setImportSupply(null);
+    setImportName("");
+    setImportQty("");
+    setImportExpDate("");
+    setImportSupplier("");
+    setImportLocation("");
+    setImportSuccess(false);
+  };
+
+  const startImportScanner = () => {
+    import("html5-qrcode").then(({ Html5Qrcode, Html5QrcodeSupportedFormats }) => {
+      if (!importScannerDivRef.current) return;
+      const formatsToSupport = [
+        Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.DATA_MATRIX,
+      ];
+      const html5QrCode = new Html5Qrcode("supply-import-scanner", { formatsToSupport, verbose: false });
+      importScannerRef.current = html5QrCode;
+      
+      const scanConfig = { fps: 15, qrbox: { width: 300, height: 120 }, aspectRatio: 1.7 };
+      const onSuccess = (decodedText: string) => {
+        setImportBarcode(decodedText);
+        stopImportScanner();
+        handleLookupImportBarcode(decodedText);
+      };
+      
+      setImportScannerActive(true);
+      Html5Qrcode.getCameras().then((cameras: any[]) => {
+        if (cameras.length === 0) {
+          setImportScannerActive(false);
+          return;
+        }
+        const backCam = cameras.find((c: any) => c.label.toLowerCase().includes("back") || c.label.toLowerCase().includes("environment") || c.label.toLowerCase().includes("rear"));
+        const camId = backCam ? backCam.id : cameras[0].id;
+        html5QrCode.start(camId, scanConfig, onSuccess, () => {}).catch(() => setImportScannerActive(false));
+      }).catch(() => setImportScannerActive(false));
+    });
+  };
+
+  const handleLookupImportBarcode = (barcode: string) => {
+    if (!barcode.trim()) return;
+    setImportLookupLoading(true);
+    fetchApi(`/inventory/supplies/lookup-barcode/${barcode.trim()}`)
+      .then((data: any) => {
+        setImportSupply(data);
+        setImportName(data.name);
+        setImportCategory(data.category);
+        setImportUnit(data.unit);
+      })
+      .catch((err: any) => setImportSupply(null))
+      .finally(() => setImportLookupLoading(false));
+  };
+
+  const handleConfirmImport = async () => {
+    if (!importBarcode || !importName || !importQty) return;
+    setImportSubmitting(true);
+    try {
+      await fetchApi("/inventory/supplies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          barcode: importBarcode,
+          name: importName,
+          category: importCategory,
+          quantity: parseInt(importQty),
+          min_quantity: parseInt(importMinQuantity) || 10,
+          unit: importUnit,
+          expiration_date: importExpDate || undefined,
+          supplier: importSupplier,
+          location: importLocation
+        })
+      });
+      
+      setImportSuccess(true);
+      fetchSuppliesAndStats();
+    } catch (error) {
+      console.error(error);
+      alert("Nhập kho thất bại: " + (error as Error).message);
+    } finally {
+      setImportSubmitting(false);
+    }
+  };
+
+  const fetchSuppliesAndStats = () => {
+    setLoading(true);
+    Promise.all([
+      fetchApi("/inventory/supplies"),
+      fetchApi("/inventory/supplies/stats"),
+    ])
+      .then(([supData, statsData]) => {
+        setSupplies(supData || []);
+        setStats(statsData || { total: 0, low_stock: 0, expired: 0, expiring_soon: 0 });
+      })
+      .catch((err) => console.error("Error loading supplies data", err))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchSuppliesAndStats();
+  }, []);
+
+  const handleDelete = (id: string) => {
+    if (!confirm("Bạn có chắc chắn muốn xóa lô hàng vật tư này không?")) return;
+    fetchApi(`/inventory/supplies/${id}`, { method: "DELETE" })
+      .then((res) => {
+        if (res.status === "success") {
+          fetchSuppliesAndStats();
+        } else {
+          alert("Lỗi xóa vật tư");
+        }
+      })
+      .catch((err) => alert("Lỗi kết nối: " + err));
+  };
+
+  // Filter supplies list
+  const filteredSupplies = supplies.filter((s) => {
+    const matchSearch =
+      !searchQuery ||
+      s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.supplier?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchCategory = filterCategory === "all" || s.category === filterCategory;
+
+    // stock status filters
+    const qty = parseInt(s.quantity || "0", 10);
+    const min = parseInt(s.min_quantity || "0", 10);
+    const isExpired = s.expiration_date && new Date(s.expiration_date) < new Date();
+    const isExpiring =
+      s.expiration_date &&
+      new Date(s.expiration_date) >= new Date() &&
+      new Date(s.expiration_date) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    let matchStock = true;
+    if (filterStockStatus === "low") {
+      matchStock = qty < min;
+    } else if (filterStockStatus === "expired") {
+      matchStock = !!isExpired;
+    } else if (filterStockStatus === "expiring") {
+      matchStock = !!isExpiring;
+    } else if (filterStockStatus === "ok") {
+      matchStock = qty >= min && !isExpired;
+    }
+
+    return matchSearch && matchCategory && matchStock;
+  });
+
+  // Grouped supplies logic
+  const groupedData = useMemo(() => {
+    if (!groupByName) return filteredSupplies;
+
+    const groups: Record<
+      string,
+      {
+        name: string;
+        unit: string;
+        quantity: number;
+        min_quantity: number;
+        batches: any[];
+        lowStock: boolean;
+        expiring: boolean;
+        expired: boolean;
+      }
+    > = {};
+
+    filteredSupplies.forEach((s) => {
+      const name = s.name;
+      if (!groups[name]) {
+        groups[name] = {
+          name,
+          unit: s.unit || "Cái",
+          quantity: 0,
+          min_quantity: parseInt(s.min_quantity || "0", 10),
+          batches: [],
+          lowStock: false,
+          expiring: false,
+          expired: false,
+        };
+      }
+      const qty = parseInt(s.quantity || "0", 10);
+      groups[name].quantity += qty;
+      groups[name].batches.push(s);
+
+      const isExpired = s.expiration_date && new Date(s.expiration_date) < new Date();
+      const isExpiring =
+        s.expiration_date &&
+        new Date(s.expiration_date) >= new Date() &&
+        new Date(s.expiration_date) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+      if (isExpired) groups[name].expired = true;
+      if (isExpiring) groups[name].expiring = true;
+    });
+
+    return Object.values(groups).map((g) => {
+      g.lowStock = g.quantity < g.min_quantity;
+      return g;
+    });
+  }, [filteredSupplies, groupByName]);
+
+  const toggleRow = (name: string) => {
+    if (expandedRows.includes(name)) {
+      setExpandedRows(expandedRows.filter((r) => r !== name));
+    } else {
+      setExpandedRows([...expandedRows, name]);
+    }
+  };
+
+  const lowStockCount = stats.low_stock || 0;
+
+  return (
+    <div className="space-y-4">
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="p-4 rounded-xl border border-slate-200 bg-white relative overflow-hidden shadow-sm">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tổng số dòng lô hàng</p>
+          <p className="text-2xl font-black text-slate-800 mt-1">{stats.total}</p>
+        </div>
+        <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/15 relative overflow-hidden shadow-sm">
+          <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Dưới mức tối thiểu</p>
+          <p className="text-2xl font-black text-amber-600 mt-1">{stats.low_stock}</p>
+        </div>
+        <div className="p-4 rounded-xl border border-purple-200 bg-purple-50 relative overflow-hidden shadow-sm">
+          <p className="text-[10px] font-bold text-purple-700 uppercase tracking-wider">Sắp hết hạn (30 ngày)</p>
+          <p className="text-2xl font-black text-purple-800 mt-1">
+            {stats.expiring_soon}
+            <button
+              onClick={() => {
+                setFilterStockStatus("expiring");
+                setFilterCategory("all");
+              }}
+              className="ml-3 px-2 py-0.5 rounded bg-purple-600 text-white text-[9px] font-black uppercase hover:bg-purple-700 transition-colors"
+            >
+              Xem ngay
+            </button>
+          </p>
+        </div>
+        <div className="p-4 rounded-xl border border-red-200 bg-red-50/10 relative overflow-hidden shadow-sm">
+          <p className="text-[10px] font-bold text-red-600 uppercase tracking-wider">Đã hết hạn sử dụng</p>
+          <p className="text-2xl font-black text-red-600 mt-1">{stats.expired}</p>
+        </div>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
+        {/* Header */}
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-200">
+          <div>
+            <h3 className="font-bold text-slate-900 flex items-center gap-2">
+              Danh sách Vật tư Y tế
+            </h3>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5 cursor-pointer text-xs text-slate-600 font-bold select-none">
+              <input
+                type="checkbox"
+                checked={groupByName}
+                onChange={(e) => {
+                  setGroupByName(e.target.checked);
+                  setExpandedRows([]);
+                }}
+                className="rounded text-[#0A9BAD] focus:ring-[#88E8F2] w-4 h-4"
+              />
+              Gộp theo tên
+            </label>
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold uppercase tracking-wider transition-colors"
+            >
+              Xuất kho
+            </button>
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#0A9BAD] hover:bg-[#0891b2] text-white text-[11px] font-bold uppercase tracking-wider transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Nhập kho
+            </button>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-2 px-5 py-3 border-b border-slate-100 bg-slate-50/60">
+          <div className="flex flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5">
+            <Search className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            <input
+              type="text"
+              placeholder="Tìm kiếm theo tên vật tư, nhà sản xuất..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full border-none bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400"
+            />
+          </div>
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 outline-none"
+          >
+            <option value="all">Tất cả phân loại</option>
+            <option value="consumables">Vật tư tiêu hao</option>
+            <option value="protective_gear">Đồ bảo hộ</option>
+            <option value="chemicals">Hóa chất xét nghiệm</option>
+            <option value="other">Khác</option>
+          </select>
+          <select
+            value={filterStockStatus}
+            onChange={(e) => setFilterStockStatus(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 outline-none"
+          >
+            <option value="all">Tất cả trạng thái kho</option>
+            <option value="ok">Đủ số lượng (OK)</option>
+            <option value="low">Thiếu số lượng (Low)</option>
+            <option value="expiring">Sắp hết hạn sử dụng</option>
+            <option value="expired">Đã hết hạn sử dụng</option>
+          </select>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="text-[10px] text-slate-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200">
+              <tr>
+                {groupByName && <th className="w-8 px-4"></th>}
+                <th className="px-4 py-3">Tên vật tư</th>
+                <th className="px-4 py-3">Số lượng</th>
+                <th className="px-4 py-3">Đơn vị</th>
+                <th className="px-4 py-3">Hạn sử dụng</th>
+                <th className="px-4 py-3">Nhà cung cấp</th>
+                <th className="px-4 py-3">Vị trí</th>
+                {!groupByName && <th className="px-4 py-3 text-right">Thao tác</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={groupByName ? 8 : 7} className="text-center py-10 text-slate-400">Đang tải danh sách vật tư y tế...</td>
+                </tr>
+              ) : groupedData.length === 0 ? (
+                <tr>
+                  <td colSpan={groupByName ? 8 : 7} className="text-center py-10 text-slate-400">Không tìm thấy vật tư nào phù hợp</td>
+                </tr>
+              ) : (
+                groupedData.map((item: any, idx: number) => {
+                  if (groupByName) {
+                    const isExpanded = expandedRows.includes(item.name);
+                    const qty = item.quantity;
+                    const min = item.min_quantity;
+                    const pct = Math.min(100, Math.floor((qty / min) * 100));
+
+                    return (
+                      <Fragment key={idx}>
+                        <tr
+                          onClick={() => toggleRow(item.name)}
+                          className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors cursor-pointer"
+                        >
+                          <td className="px-4 py-3 text-center">
+                            {isExpanded ? <ChevronDown className="w-4 h-4 inline" /> : <ChevronRight className="w-4 h-4 inline" />}
+                          </td>
+                          <td className="px-4 py-3 font-bold text-slate-800">
+                            {item.name}
+                            {item.expired && <span className="ml-2 text-[9px] bg-red-100 text-red-700 px-1 py-0.5 rounded font-bold uppercase">Có lô hết hạn</span>}
+                            {!item.expired && item.expiring && <span className="ml-2 text-[9px] bg-purple-100 text-purple-700 px-1 py-0.5 rounded font-bold uppercase">Có lô sắp hết hạn</span>}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className={`font-black ${item.lowStock ? "text-amber-600" : "text-slate-900"}`}>{qty}</span>
+                              <span className="text-[10px] text-slate-400">/ tối thiểu {min}</span>
+                              <div className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${item.lowStock ? "bg-amber-500" : "bg-emerald-500"}`}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-slate-600">{item.unit}</td>
+                          <td className="px-4 py-3 text-slate-400">—</td>
+                          <td className="px-4 py-3 text-xs text-slate-400">{item.batches.length} lô hàng</td>
+                          <td className="px-4 py-3 text-slate-400">—</td>
+                        </tr>
+                        {isExpanded &&
+                          item.batches.map((batch: any, bIdx: number) => {
+                            const bExpired = batch.expiration_date && new Date(batch.expiration_date) < new Date();
+                            const bExpiring =
+                              batch.expiration_date &&
+                              new Date(batch.expiration_date) >= new Date() &&
+                              new Date(batch.expiration_date) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+                            return (
+                              <tr key={`${idx}-${bIdx}`} className="bg-slate-50/60 border-b border-slate-100 text-xs">
+                                <td></td>
+                                <td className="pl-8 py-2 text-slate-500 font-mono">↳ Lô số {bIdx + 1}</td>
+                                <td className="px-4 py-2 font-semibold text-slate-700">{batch.quantity}</td>
+                                <td className="px-4 py-2 text-slate-500">{batch.unit}</td>
+                                <td className="px-4 py-2">
+                                  <span className={`font-mono font-bold ${bExpired ? "text-red-600" : bExpiring ? "text-purple-600" : "text-slate-600"}`}>
+                                    {batch.expiration_date || "—"}
+                                    {bExpired && " (HẾT HẠN)"}
+                                    {bExpiring && " (Hạn ngắn)"}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2 text-slate-700 font-semibold">{batch.supplier || "—"}</td>
+                                <td className="px-4 py-2 text-slate-500">{batch.location || "—"}</td>
+                              </tr>
+                            );
+                          })}
+                      </Fragment>
+                    );
+                  } else {
+                    const isExpired = item.expiration_date && new Date(item.expiration_date) < new Date();
+                    const isExpiring =
+                      item.expiration_date &&
+                      new Date(item.expiration_date) >= new Date() &&
+                      new Date(item.expiration_date) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                    const isLow = parseInt(item.quantity || "0", 10) < parseInt(item.min_quantity || "0", 10);
+
+                    return (
+                      <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                        <td className="px-4 py-3 font-bold text-slate-800">{item.name}</td>
+                        <td className="px-4 py-3">
+                          <span className={`font-bold ${isLow ? "text-amber-600" : "text-slate-900"}`}>{item.quantity}</span>
+                          <span className="text-[10px] text-slate-400"> / tối thiểu {item.min_quantity}</span>
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">{item.unit}</td>
+                        <td className="px-4 py-3">
+                          <span className={`font-mono text-xs ${isExpired ? "text-red-600 font-bold" : isExpiring ? "text-purple-600 font-bold" : "text-slate-600"}`}>
+                            {item.expiration_date || "—"}
+                            {isExpired && " (HẾT HẠN)"}
+                            {isExpiring && " (Hạn ngắn)"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-slate-700 font-semibold">{item.supplier || "—"}</td>
+                        <td className="px-4 py-3 text-slate-500 text-xs">{item.location || "—"}</td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => handleDelete(item.id)}
+                            className="text-slate-400 hover:text-red-600 transition-colors"
+                            title="Xóa"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  }
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+        
+        {/* Footer */}
+        <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
+          <p className="text-[11px] text-slate-400">
+            {groupByName
+              ? <>Tổng hợp <span className="font-bold text-slate-700">{groupedData.length}</span> loại vật tư từ {filteredSupplies.length} lô hàng</>
+              : <>Hiển thị <span className="font-bold text-slate-700">{filteredSupplies.length}</span> / {supplies.length} lô hàng</>
+            }
+          </p>
+          {lowStockCount > 0 && (
+            <p className="text-[11px] text-amber-600 font-semibold">
+              ⚠ {lowStockCount} lô hàng cần bổ sung tồn kho
+            </p>
+          )}
+        </div>
+
+        {/* Modals here */}
+        {showExportModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-orange-500 to-orange-400">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+                    <ArrowUpRight className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-base">Xuất kho vật tư</h3>
+                    <p className="text-orange-100 text-xs">Quét barcode hoặc nhập mã thủ công</p>
+                  </div>
+                </div>
+                <button onClick={closeExportModal} className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors">
+                  <X className="w-4 h-4 text-white" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-5">
+                {exportSuccess ? (
+                  /* Màn hình thành công */
+                  <div className="text-center space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
+                      <CheckCircle className="w-9 h-9 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-800 text-lg">Xuất kho thành công!</h4>
+                      <p className="text-slate-500 text-sm mt-1">
+                        Đã xuất <span className="font-bold text-slate-800">{exportSuccess.exported_quantity} {exportSuccess.unit}</span> vật tư <span className="font-bold text-orange-600">{exportSuccess.supply_name}</span>
+                      </p>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-4 text-left space-y-2">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Chi tiết FIFO</p>
+                      {exportSuccess.fifo_detail?.map((d: any, i: number) => (
+                        <div key={i} className="flex justify-between items-center text-sm">
+                          <span className="font-mono text-slate-600">Lô {d.batch_number}</span>
+                          <span className="text-slate-500 text-xs">HSD: {d.expiration_date}</span>
+                          <span className="font-bold text-orange-600">-{d.deducted} {exportSuccess.unit}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={closeExportModal}
+                      className="w-full py-2.5 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 transition-colors"
+                    >
+                      Đóng
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {/* Bước 1: Nhập / Quét barcode */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
+                        Bước 1 — Mã Barcode vật tư
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Nhập mã barcode thủ công..."
+                          value={exportBarcode}
+                          onChange={(e) => {
+                            setExportBarcode(e.target.value);
+                            setExportSupply(null);
+                            setExportLookupError("");
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleLookupBarcode(exportBarcode);
+                          }}
+                          className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 transition-all font-mono"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => handleLookupBarcode(exportBarcode)}
+                          disabled={!exportBarcode.trim() || exportLookupLoading}
+                          className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-sm transition-colors disabled:opacity-50"
+                        >
+                          {exportLookupLoading ? (
+                            <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Search className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Nút quét camera */}
+                      <button
+                        onClick={() => { if (scannerActive) { stopScanner(); } else { startScanner(); } }}
+                        className={`mt-2 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed text-sm font-medium transition-all ${
+                          scannerActive
+                            ? "border-orange-400 bg-orange-50 text-orange-600"
+                            : "border-slate-200 text-slate-500 hover:border-orange-300 hover:text-orange-500 hover:bg-orange-50/50"
+                        }`}
+                      >
+                        <Camera className="w-4 h-4" />
+                        {scannerActive ? "Đang quét... (nhấn để tắt camera)" : "Quét bằng camera máy tính"}
+                      </button>
+
+                      {/* Khung camera scanner */}
+                      <div
+                        id="supply-barcode-scanner"
+                        ref={scannerDivRef}
+                        className={`mt-3 rounded-xl overflow-hidden bg-black transition-all duration-300 ${
+                          scannerActive ? "h-48" : "h-0"
+                        }`}
+                      />
+                    </div>
+
+                    {/* Kết quả tra cứu */}
+                    {exportLookupError && (
+                      <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-200">
+                        <XCircle className="w-4 h-4 text-red-500 shrink-0" />
+                        <p className="text-sm text-red-700">{exportLookupError}</p>
+                      </div>
+                    )}
+
+                    {exportSupply && (
+                      <>
+                        {/* Thông tin vật tư */}
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-2">
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="w-7 h-7 rounded-lg bg-emerald-500 flex items-center justify-center">
+                              <CheckCircle className="w-4 h-4 text-white" />
+                            </div>
+                            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Đã tìm thấy vật tư</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                              <p className="text-xs text-slate-500">Tên vật tư</p>
+                              <p className="font-bold text-slate-800">{exportSupply.name}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-slate-500">Phân loại</p>
+                              <p className="font-semibold text-slate-700">{exportSupply.category || "—"}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-slate-500">Tổng tồn kho</p>
+                              <p className={`font-black text-lg ${
+                                exportSupply.total_quantity <= exportSupply.min_quantity
+                                  ? "text-amber-600"
+                                  : "text-emerald-600"
+                              }`}>
+                                {exportSupply.total_quantity}
+                                <span className="text-xs font-medium text-slate-500 ml-1">{exportSupply.unit}</span>
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Bước 2: Nhập số lượng */}
+                        <div>
+                          <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
+                            Bước 2 — Số lượng xuất ({exportSupply.unit})
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max={exportSupply.total_quantity}
+                            placeholder={`Tối đa ${exportSupply.total_quantity} ${exportSupply.unit}`}
+                            value={exportQty}
+                            onChange={(e) => setExportQty(e.target.value)}
+                            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 transition-all text-lg font-bold"
+                          />
+                          {parseInt(exportQty) > exportSupply.total_quantity && (
+                            <p className="text-xs text-red-500 mt-1">⚠ Vượt quá số lượng tồn kho ({exportSupply.total_quantity} {exportSupply.unit})</p>
+                          )}
+                        </div>
+
+                        {/* Nút xác nhận */}
+                        <button
+                          onClick={handleConfirmExport}
+                          disabled={exportSubmitting || !exportQty || parseInt(exportQty) <= 0 || parseInt(exportQty) > exportSupply.total_quantity}
+                          className="w-full py-3 rounded-xl bg-orange-500 text-white font-bold text-sm hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                          {exportSubmitting ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              Đang xử lý...
+                            </>
+                          ) : (
+                            <>
+                              <ArrowUpRight className="w-4 h-4" />
+                              Xác nhận xuất kho {exportQty && parseInt(exportQty) > 0 ? `${exportQty} ${exportSupply.unit}` : ""}
+                            </>
+                          )}
+                        </button>
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ===== MODAL NHẬP KHO ===== */}
+        {showImportModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden my-8">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-[#0A9BAD] to-[#0A9BAD]/80">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+                    <Plus className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-base">Nhập kho vật tư</h3>
+                    <p className="text-white/80 text-xs">Quét mã để tìm hoặc tạo mới</p>
+                  </div>
+                </div>
+                <button onClick={closeImportModal} className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors">
+                  <X className="w-4 h-4 text-white" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+                {importSuccess ? (
+                  <div className="text-center space-y-4 py-8">
+                    <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
+                      <CheckCircle className="w-9 h-9 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-800 text-lg">Nhập kho thành công!</h4>
+                      <p className="text-slate-500 text-sm mt-1">
+                        Đã thêm lô mới cho vật tư <span className="font-bold text-[#0A9BAD]">{importName}</span>
+                      </p>
+                    </div>
+                    <button onClick={closeImportModal} className="w-full max-w-xs mx-auto block py-2.5 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 transition-colors mt-4">
+                      Hoàn tất
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {/* Quét Barcode */}
+                    <div className="space-y-3">
+                      <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">Mã Barcode</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Quét hoặc nhập mã..."
+                          value={importBarcode}
+                          onChange={(e) => setImportBarcode(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") handleLookupImportBarcode(importBarcode); }}
+                          className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0A9BAD] focus:ring-2 focus:ring-[#0A9BAD]/20 font-mono"
+                          autoFocus
+                        />
+                        <button onClick={() => handleLookupImportBarcode(importBarcode)} disabled={!importBarcode.trim() || importLookupLoading} className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors">
+                          {importLookupLoading ? <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" /> : <Search className="w-4 h-4" />}
+                        </button>
+                      </div>
+
+                      <button
+                        onClick={() => importScannerActive ? stopImportScanner() : startImportScanner()}
+                        className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed text-sm font-medium transition-all ${
+                          importScannerActive ? "border-[#0A9BAD] bg-[#0A9BAD]/10 text-[#0A9BAD]" : "border-slate-200 text-slate-500 hover:border-[#0A9BAD]/50 hover:bg-[#0A9BAD]/5"
+                        }`}
+                      >
+                        <Camera className="w-4 h-4" />
+                        {importScannerActive ? "Đang quét... (nhấn để tắt camera)" : "Quét bằng camera máy tính"}
+                      </button>
+                      <div 
+                        id="supply-import-scanner" 
+                        ref={importScannerDivRef} 
+                        className={`mt-2 rounded-xl overflow-hidden bg-black transition-all duration-300 ${importScannerActive ? "opacity-100 h-48" : "opacity-0 h-0"}`} 
+                      />
+                    </div>
+
+                    {/* Thông tin vật tư (Nếu có) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-500">Tên vật tư <span className="text-red-500">*</span></label>
+                        <input type="text" value={importName} onChange={(e) => setImportName(e.target.value)} disabled={!!importSupply} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#0A9BAD] disabled:bg-slate-50 disabled:text-slate-500" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-500">Phân loại</label>
+                        <select value={importCategory} onChange={(e) => setImportCategory(e.target.value)} disabled={!!importSupply} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#0A9BAD] disabled:bg-slate-50 disabled:text-slate-500">
+                          <option value="consumables">Vật tư tiêu hao</option>
+                          <option value="protective_gear">Đồ bảo hộ</option>
+                          <option value="chemicals">Hóa chất xét nghiệm</option>
+                          <option value="other">Khác</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-500">Số lượng nhập <span className="text-red-500">*</span></label>
+                        <input type="number" value={importQty} onChange={(e) => setImportQty(e.target.value)} className="w-full border border-[#0A9BAD] rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0A9BAD]/20" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-500">Đơn vị <span className="text-red-500">*</span></label>
+                        <input type="text" value={importUnit} onChange={(e) => setImportUnit(e.target.value)} disabled={!!importSupply} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#0A9BAD] disabled:bg-slate-50 disabled:text-slate-500" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-500">Hạn sử dụng</label>
+                        <input type="date" value={importExpDate} onChange={(e) => setImportExpDate(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#0A9BAD]" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-500">Nhà cung cấp</label>
+                        <input type="text" value={importSupplier} onChange={(e) => setImportSupplier(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#0A9BAD]" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-500">Vị trí lưu kho</label>
+                        <input type="text" value={importLocation} onChange={(e) => setImportLocation(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#0A9BAD]" />
+                      </div>
+                      {!importSupply && (
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium text-slate-500">Tồn tối thiểu</label>
+                          <input type="number" value={importMinQuantity} onChange={(e) => setImportMinQuantity(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#0A9BAD]" />
+                        </div>
+                      )}
+                    </div>
+
+                    {importSupply === null && importName.length > 0 && (
+                      <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded-lg border border-blue-100 flex items-center gap-2 mt-4">
+                        <AlertTriangle className="w-4 h-4" />
+                        Đây là vật tư mới. Hệ thống sẽ tự động tạo danh mục trước khi nhập lô.
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 justify-end pt-4 border-t border-slate-100 mt-4">
+                      <button onClick={closeImportModal} className="px-4 py-2 font-bold text-slate-500 hover:text-slate-700">Hủy</button>
+                      <button onClick={handleConfirmImport} disabled={importSubmitting || !importName || !importQty} className="px-5 py-2 font-bold text-white bg-[#0A9BAD] rounded-lg hover:bg-[#0891b2] disabled:opacity-50">
+                        {importSubmitting ? "Đang xử lý..." : "Hoàn tất nhập kho"}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   TAB: QUẢN LÝ KHO MÁU (BLOOD BANK MANAGEMENT)
+   ============================================================ */
+// =========================================================================
+// QUẢN LÝ KHO THUỐC (PHARMACY)
+// =========================================================================
+
+function AdminPharmacyTab() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [filterStockStatus, setFilterStockStatus] = useState("all");
+  const [groupByName, setGroupByName] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<string[]>([]);
+  const [medicines, setMedicines] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // === XUẤT KHO FIFO ===
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportBarcode, setExportBarcode] = useState("");
+  const [exportMedicine, setExportMedicine] = useState<any>(null);
+  const [exportQty, setExportQty] = useState("");
+  const [exportLookupLoading, setExportLookupLoading] = useState(false);
+  const [exportLookupError, setExportLookupError] = useState("");
+  const [exportSubmitting, setExportSubmitting] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState<any>(null);
+  const [scannerActive, setScannerActive] = useState(false);
+  const scannerRef = useRef<any>(null);
+  const scannerDivRef = useRef<HTMLDivElement>(null);
+
+  // Cleanup camera khi đóng modal
+  const stopScanner = () => {
+    if (scannerRef.current) {
+      scannerRef.current.stop().catch(() => {});
+      scannerRef.current = null;
+    }
+    setScannerActive(false);
+  };
+
+  const closeExportModal = () => {
+    stopScanner();
+    setShowExportModal(false);
+    setExportBarcode("");
+    setExportMedicine(null);
+    setExportQty("");
+    setExportLookupError("");
+    setExportSuccess(null);
+  };
+
+  const startScanner = () => {
+    import("html5-qrcode").then(({ Html5Qrcode, Html5QrcodeSupportedFormats }) => {
+      if (!scannerDivRef.current) return;
+
+      // Khai bao cac dinh dang ma vach can ho tro (EAN-13, Code128, QR...)
+      const formatsToSupport = [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.QR_CODE,
+        Html5QrcodeSupportedFormats.DATA_MATRIX,
+      ];
+
+      const html5QrCode = new Html5Qrcode("pharmacy-barcode-scanner", {
+        formatsToSupport,
+        verbose: false,
+      });
+      scannerRef.current = html5QrCode;
+
+      const scanConfig = {
+        fps: 15,
+        qrbox: { width: 300, height: 120 }, // khung det ngang phu hop voi EAN-13
+        aspectRatio: 1.7,
+      };
+
+      const onSuccess = (decodedText: string) => {
+        setExportBarcode(decodedText);
+        stopScanner();
+        handleLookupBarcode(decodedText);
+      };
+
+      setScannerActive(true);
+
+      // Thu dung camera sau truoc (environment), fallback sang camera dau tien tim duoc
+      Html5Qrcode.getCameras().then((cameras: any[]) => {
+        if (cameras.length === 0) {
+          setScannerActive(false);
+          return;
+        }
+        // Uu tien camera co label chua "back" hoac "environment"
+        const backCam = cameras.find((c: any) =>
+          c.label.toLowerCase().includes("back") ||
+          c.label.toLowerCase().includes("environment") ||
+          c.label.toLowerCase().includes("rear")
+        );
+        const camId = backCam ? backCam.id : cameras[0].id;
+        html5QrCode.start(camId, scanConfig, onSuccess, () => {}).catch(() => {
+          setScannerActive(false);
+        });
+      }).catch(() => {
+        setScannerActive(false);
+      });
+    });
+  };
+
+  const handleLookupBarcode = (barcode: string) => {
+    if (!barcode.trim()) return;
+    setExportLookupLoading(true);
+    setExportLookupError("");
+    setExportMedicine(null);
+    fetchApi(`/pharmacy/lookup-barcode/${barcode.trim()}`)
+      .then((data: any) => {
+        setExportMedicine(data);
+      })
+      .catch((err: any) => {
+        setExportLookupError(err?.message || "Không tìm thấy thuốc với mã barcode này");
+      })
+      .finally(() => setExportLookupLoading(false));
+  };
+
+  const handleConfirmExport = () => {
+    if (!exportMedicine || !exportBarcode || !exportQty) return;
+    const qty = parseInt(exportQty);
+    if (isNaN(qty) || qty <= 0) return;
+    setExportSubmitting(true);
+    fetchApi("/pharmacy/export-fifo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ barcode: exportBarcode, quantity: qty }),
+    })
+      .then((data: any) => {
+        setExportSuccess(data);
+        fetchPharmacy();
+      })
+      .catch((err: any) => {
+        setExportLookupError(err?.message || "Xuất kho thất bại");
+      })
+      .finally(() => setExportSubmitting(false));
+  };
+
+  // === NHẬP KHO ===
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importBarcode, setImportBarcode] = useState("");
+  const [importMedicine, setImportMedicine] = useState<any>(null);
+  const [importName, setImportName] = useState("");
+  const [importActiveIngredient, setImportActiveIngredient] = useState("");
+  const [importCategory, setImportCategory] = useState("Kháng sinh");
+  const [importUnit, setImportUnit] = useState("Hộp");
+  const [importMinQuantity, setImportMinQuantity] = useState("50");
+  const [importQty, setImportQty] = useState("");
+  const [importBatchNumber, setImportBatchNumber] = useState("");
+  const [importExpDate, setImportExpDate] = useState("");
+  const [importSupplier, setImportSupplier] = useState("");
+  const [importLocation, setImportLocation] = useState("");
+  const [importLookupLoading, setImportLookupLoading] = useState(false);
+  const [importSubmitting, setImportSubmitting] = useState(false);
+  const [importSuccess, setImportSuccess] = useState(false);
+  const [importScannerActive, setImportScannerActive] = useState(false);
+  const importScannerRef = useRef<any>(null);
+  const importScannerDivRef = useRef<HTMLDivElement>(null);
+
+  const stopImportScanner = () => {
+    if (importScannerRef.current) {
+      importScannerRef.current.stop().catch(() => {});
+      importScannerRef.current = null;
+    }
+    setImportScannerActive(false);
+  };
+
+  const closeImportModal = () => {
+    stopImportScanner();
+    setShowImportModal(false);
+    setImportBarcode("");
+    setImportMedicine(null);
+    setImportName("");
+    setImportActiveIngredient("");
+    setImportQty("");
+    setImportBatchNumber("");
+    setImportExpDate("");
+    setImportSupplier("");
+    setImportLocation("");
+    setImportSuccess(false);
+  };
+
+  const startImportScanner = () => {
+    import("html5-qrcode").then(({ Html5Qrcode, Html5QrcodeSupportedFormats }) => {
+      if (!importScannerDivRef.current) return;
+      const formatsToSupport = [
+        Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.DATA_MATRIX,
+      ];
+      const html5QrCode = new Html5Qrcode("pharmacy-import-scanner", { formatsToSupport, verbose: false });
+      importScannerRef.current = html5QrCode;
+      
+      const scanConfig = { fps: 15, qrbox: { width: 300, height: 120 }, aspectRatio: 1.7 };
+      
+      const onSuccess = (decodedText: string) => {
+        setImportBarcode(decodedText);
+        stopImportScanner();
+        handleLookupImportBarcode(decodedText);
+      };
+      
+      setImportScannerActive(true);
+      
+      Html5Qrcode.getCameras().then((cameras: any[]) => {
+        if (cameras.length === 0) {
+          setImportScannerActive(false);
+          return;
+        }
+        const backCam = cameras.find((c: any) => c.label.toLowerCase().includes("back") || c.label.toLowerCase().includes("environment") || c.label.toLowerCase().includes("rear"));
+        const camId = backCam ? backCam.id : cameras[0].id;
+        html5QrCode.start(camId, scanConfig, onSuccess, () => {}).catch(() => setImportScannerActive(false));
+      }).catch(() => setImportScannerActive(false));
+    });
+  };
+
+  const handleLookupImportBarcode = (barcode: string) => {
+    if (!barcode.trim()) return;
+    setImportLookupLoading(true);
+    fetchApi(`/pharmacy/lookup-barcode/${barcode.trim()}`)
+      .then((data: any) => {
+        setImportMedicine(data);
+        setImportName(data.name);
+        setImportActiveIngredient(data.active_ingredient);
+        setImportCategory(data.category);
+        setImportUnit(data.unit);
+      })
+      .catch((err: any) => {
+        setImportMedicine(null);
+      })
+      .finally(() => setImportLookupLoading(false));
+  };
+
+  const handleConfirmImport = async () => {
+    if (!importBarcode || !importName || !importQty || !importBatchNumber || !importExpDate) return;
+    setImportSubmitting(true);
+    try {
+      let medId = importMedicine?.id;
+      if (!medId) {
+        // Thuốc chưa có -> tạo mới
+        const medRes = await fetchApi("/pharmacy/medicines", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            barcode: importBarcode,
+            name: importName,
+            active_ingredient: importActiveIngredient,
+            category: importCategory,
+            min_quantity: parseInt(importMinQuantity) || 50,
+            unit: importUnit
+          })
+        });
+        medId = medRes.id;
+      }
+      
+      await fetchApi("/pharmacy/batches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          medicine_id: medId,
+          batch_number: importBatchNumber,
+          quantity: parseInt(importQty),
+          expiration_date: importExpDate,
+          supplier: importSupplier,
+          location: importLocation
+        })
+      });
+      
+      setImportSuccess(true);
+      fetchPharmacy();
+    } catch (error) {
+      console.error(error);
+      alert("Nhập kho thất bại: " + (error as Error).message);
+    } finally {
+      setImportSubmitting(false);
+    }
+  };
+
+  const fetchPharmacy = () => {
+    setLoading(true);
+    fetchApi("/pharmacy/batches")
+      .then((data) => {
+        const parsedData = (data || []).map((m: any) => ({
+          ...m,
+          quantity: parseInt(m.quantity || "0", 10),
+          min_quantity: parseInt(m.min_quantity || "0", 10),
+        }));
+        setMedicines(parsedData);
+      })
+      .catch((err) => console.error("Error fetching pharmacy", err))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchPharmacy();
+  }, []);
+
+  const stats = useMemo(() => {
+    let lowStock = 0;
+    let expired = 0;
+    let expiringSoon = 0;
+
+    // To count unique medicines that are low in stock across ALL batches
+    const groupedByName: Record<string, number> = {};
+    const minQByName: Record<string, number> = {};
+
+    medicines.forEach((m) => {
+      if (!groupedByName[m.name]) {
+        groupedByName[m.name] = 0;
+        minQByName[m.name] = m.min_quantity;
+      }
+      groupedByName[m.name] += m.quantity;
+
+      const expDate = new Date(m.expiration_date);
+      const now = new Date();
+      const diffDays = (expDate.getTime() - now.getTime()) / (1000 * 3600 * 24);
+      if (diffDays < 0) expired++;
+      else if (diffDays <= 30) expiringSoon++;
+    });
+
+    Object.keys(groupedByName).forEach((name) => {
+      if (groupedByName[name] < minQByName[name]) lowStock++;
+    });
+
+    return { lowStock, expired, expiringSoon };
+  }, [medicines]);
+
+  const filteredMedicines = useMemo(() => {
+    return medicines.filter((m) => {
+      const matchesSearch =
+        m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        m.active_ingredient.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        m.batch_number.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesCategory = filterCategory === "all" || m.category === filterCategory;
+
+      let matchesStatus = true;
+      if (filterStockStatus !== "all") {
+        const isExp = new Date(m.expiration_date) < new Date();
+        const isExpiring = !isExp && (new Date(m.expiration_date).getTime() - new Date().getTime()) / (1000 * 3600 * 24) <= 30;
+        const isLow = m.quantity < m.min_quantity;
+
+        if (filterStockStatus === "low_stock") matchesStatus = isLow;
+        if (filterStockStatus === "expired") matchesStatus = isExp;
+        if (filterStockStatus === "expiring") matchesStatus = isExpiring;
+      }
+
+      return matchesSearch && matchesCategory && matchesStatus;
+    });
+  }, [medicines, searchQuery, filterCategory, filterStockStatus]);
+
+  const groupedData = useMemo(() => {
+    if (!groupByName) return [];
+
+    const groups: Record<string, any> = {};
+    filteredMedicines.forEach((m) => {
+      if (!groups[m.name]) {
+        groups[m.name] = {
+          name: m.name,
+          active_ingredient: m.active_ingredient,
+          category: m.category,
+          min_quantity: m.min_quantity,
+          unit: m.unit,
+          quantity: 0,
+          batches: [],
+          expired: false,
+          expiring: false,
+        };
+      }
+
+      groups[m.name].quantity += m.quantity;
+      groups[m.name].batches.push(m);
+
+      const expDate = new Date(m.expiration_date);
+      const isExp = expDate < new Date();
+      const isExpiring = !isExp && (expDate.getTime() - new Date().getTime()) / (1000 * 3600 * 24) <= 30;
+
+      if (isExp) groups[m.name].expired = true;
+      if (isExpiring) groups[m.name].expiring = true;
+    });
+
+    return Object.values(groups).map((g) => {
+      g.lowStock = g.quantity < g.min_quantity;
+      return g;
+    });
+  }, [filteredMedicines, groupByName]);
+
+  const toggleRow = (name: string) => {
+    if (expandedRows.includes(name)) {
+      setExpandedRows(expandedRows.filter((r) => r !== name));
+    } else {
+      setExpandedRows([...expandedRows, name]);
+    }
+  };
+
+  return (
+    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Stats row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/60 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-500">Sắp hết hàng</p>
+            <div className="flex items-baseline gap-2">
+              <h3 className="text-2xl font-black text-slate-800">{stats.lowStock}</h3>
+              <span className="text-xs font-bold text-slate-400">loại thuốc</span>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/60 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="w-12 h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+            <XCircle className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-500">Đã hết hạn</p>
+            <div className="flex items-baseline gap-2">
+              <h3 className="text-2xl font-black text-red-600">{stats.expired}</h3>
+              <span className="text-xs font-bold text-slate-400">lô thuốc</span>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/60 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+            <Clock className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-500">Hạn ngắn (&le; 30 ngày)</p>
+            <div className="flex items-baseline gap-2">
+              <h3 className="text-2xl font-black text-purple-600">{stats.expiringSoon}</h3>
+              <span className="text-xs font-bold text-slate-400">lô thuốc</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        {/* Toolbar */}
+        <div className="p-4 border-b border-slate-100 flex flex-col xl:flex-row items-start xl:items-center gap-4 justify-between bg-slate-50/50">
+          <div className="flex flex-wrap gap-3 w-full xl:w-auto">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Tìm tên, hoạt chất, mã lô..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#0A9BAD] focus:ring-2 focus:ring-[#0A9BAD]/20 transition-all"
+              />
+            </div>
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#0A9BAD] text-slate-700 w-full sm:w-auto"
+            >
+              <option value="all">Tất cả phân loại</option>
+              <option value="Kháng sinh">Kháng sinh</option>
+              <option value="Giảm đau, hạ sốt">Giảm đau, hạ sốt</option>
+              <option value="Tim mạch">Tim mạch</option>
+              <option value="Dạ dày">Dạ dày</option>
+              <option value="Hô hấp, Dị ứng">Hô hấp, Dị ứng</option>
+              <option value="Thần kinh">Thần kinh</option>
+              <option value="Nội tiết, Tiểu đường">Nội tiết, Tiểu đường</option>
+              <option value="Vitamin, Khoáng chất">Vitamin, Khoáng chất</option>
+              <option value="Cấp cứu">Cấp cứu</option>
+            </select>
+            <select
+              value={filterStockStatus}
+              onChange={(e) => setFilterStockStatus(e.target.value)}
+              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#0A9BAD] text-slate-700 w-full sm:w-auto"
+            >
+              <option value="all">Tất cả trạng thái</option>
+              <option value="low_stock">Sắp hết hàng</option>
+              <option value="expired">Đã hết hạn</option>
+              <option value="expiring">Hạn ngắn (&le; 30 ngày)</option>
+            </select>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+            <label className="flex items-center gap-1.5 cursor-pointer text-xs text-slate-600 font-bold select-none">
+              <input
+                type="checkbox"
+                checked={groupByName}
+                onChange={(e) => {
+                  setGroupByName(e.target.checked);
+                  setExpandedRows([]);
+                }}
+                className="rounded text-[#0A9BAD] focus:ring-[#88E8F2] w-4 h-4"
+              />
+              Gộp theo tên
+            </label>
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="flex items-center gap-2 bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-sm hover:bg-orange-600 transition-all w-full md:w-auto justify-center"
+            >
+              <ArrowUpRight className="w-4 h-4" />
+              Xuất kho
+            </button>
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="flex items-center gap-2 bg-[#0A9BAD] text-white px-4 py-2 rounded-xl text-sm font-medium shadow-sm hover:bg-[#0A9BAD]/90 transition-all flex-1 sm:flex-none justify-center"
+            >
+              <Plus className="w-4 h-4" />
+              Nhập thuốc mới
+            </button>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="text-[10px] text-slate-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className="px-4 py-3">Mã lô</th>
+                <th className="px-4 py-3">Tên thuốc</th>
+                <th className="px-4 py-3">Hoạt chất</th>
+                <th className="px-4 py-3">Nhóm thuốc</th>
+                <th className="px-4 py-3">Tồn kho (Hộp)</th>
+                <th className="px-4 py-3">Hạn sử dụng</th>
+                <th className="px-4 py-3 text-right">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {groupByName ? (
+                groupedData.map((g) => {
+                  const isExpanded = expandedRows.includes(g.name);
+                  const isLow = g.lowStock;
+                  const pct = Math.min(100, Math.floor((g.quantity / g.min_quantity) * 100));
+
+                  return (
+                    <Fragment key={g.name}>
+                      <tr
+                        className="border-b border-slate-100 bg-white hover:bg-slate-50/50 cursor-pointer transition-colors"
+                        onClick={() => toggleRow(g.name)}
+                      >
+                        <td className="px-4 py-3">
+                          <button className="text-slate-400 hover:text-slate-600 transition-colors">
+                            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 font-bold text-[#0A9BAD]">{g.name}</td>
+                        <td className="px-4 py-3 text-slate-600">{g.active_ingredient}</td>
+                        <td className="px-4 py-3 text-slate-500 text-xs">
+                          <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded font-medium">{g.category}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className={`font-black ${isLow ? "text-amber-600" : "text-slate-900"}`}>{g.quantity}</span>
+                            <span className="text-[10px] text-slate-400">/ tối thiểu {g.min_quantity}</span>
+                          </div>
+                          <div className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden mt-1">
+                            <div
+                              className={`h-full rounded-full ${isLow ? "bg-amber-500" : "bg-emerald-500"}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-xs font-semibold text-slate-500">
+                            {g.batches.length} lô hàng
+                            {g.expired && <span className="text-red-500 ml-1">(Có hết hạn)</span>}
+                            {!g.expired && g.expiring && <span className="text-purple-500 ml-1">(Có hạn ngắn)</span>}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="text-xs text-slate-400">Gộp nhóm</span>
+                        </td>
+                      </tr>
+                      {isExpanded &&
+                        g.batches.map((batch: any) => {
+                          const expDate = new Date(batch.expiration_date);
+                          const isExpired = expDate < new Date();
+                          const isExpiring = !isExpired && (expDate.getTime() - new Date().getTime()) / (1000 * 3600 * 24) <= 30;
+
+                          return (
+                            <tr key={batch.id} className="border-b border-slate-50 bg-slate-50/50 hover:bg-slate-100/50">
+                              <td className="px-4 py-2 text-xs font-mono font-bold text-slate-700 pl-8">
+                                └ {batch.batch_number}
+                              </td>
+                              <td className="px-4 py-2 text-slate-500 text-xs">{batch.name}</td>
+                              <td className="px-4 py-2 text-slate-500 text-xs">—</td>
+                              <td className="px-4 py-2 text-slate-500 text-xs">—</td>
+                              <td className="px-4 py-2 font-semibold text-slate-700">{batch.quantity}</td>
+                              <td className="px-4 py-2">
+                                <span className={`font-mono font-bold text-xs ${isExpired ? "text-red-600" : isExpiring ? "text-purple-600" : "text-slate-600"}`}>
+                                  {batch.expiration_date}
+                                </span>
+                                {isExpired && <span className="text-[9px] bg-red-100 text-red-700 px-1 py-0.5 rounded font-bold uppercase ml-2">Hết hạn</span>}
+                                {isExpiring && <span className="text-[9px] bg-purple-100 text-purple-700 px-1 py-0.5 rounded font-bold uppercase ml-2">Hạn ngắn</span>}
+                              </td>
+                              <td className="px-4 py-2 text-right">
+                                <button className="text-red-500 hover:text-red-700 transition-colors" title="Xóa"><Trash2 className="w-4 h-4 inline-block" /></button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </Fragment>
+                  );
+                })
+              ) : (
+                filteredMedicines.map((m) => {
+                  const isLow = m.quantity < m.min_quantity;
+                  const expDate = new Date(m.expiration_date);
+                  const isExpired = expDate < new Date();
+                  const isExpiring = !isExpired && (expDate.getTime() - new Date().getTime()) / (1000 * 3600 * 24) <= 30;
+
+                  return (
+                    <tr key={m.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                      <td className="px-4 py-3 font-mono font-bold text-slate-700">{m.batch_number}</td>
+                      <td className="px-4 py-3 font-bold text-slate-800">{m.name}</td>
+                      <td className="px-4 py-3 text-slate-600">{m.active_ingredient}</td>
+                      <td className="px-4 py-3 text-slate-500 text-xs">
+                        <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded font-medium">{m.category}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`font-black ${isLow ? "text-amber-600" : "text-slate-900"}`}>{m.quantity}</span>
+                        <span className="text-xs text-slate-400 ml-1">/ {m.min_quantity}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`font-mono font-bold ${isExpired ? "text-red-600" : isExpiring ? "text-purple-600" : "text-slate-600"}`}>
+                          {m.expiration_date}
+                        </span>
+                        {isExpired && <span className="text-[9px] bg-red-100 text-red-700 px-1 py-0.5 rounded font-bold uppercase ml-2">Hết hạn</span>}
+                        {isExpiring && <span className="text-[9px] bg-purple-100 text-purple-700 px-1 py-0.5 rounded font-bold uppercase ml-2">Hạn ngắn</span>}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button className="text-red-500 hover:text-red-700 transition-colors" title="Xóa"><Trash2 className="w-4 h-4 inline-block" /></button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {/* ===== MODAL XUẤT KHO FIFO ===== */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-orange-500 to-orange-400">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+                  <ArrowUpRight className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-base">Xuất kho thuốc</h3>
+                  <p className="text-orange-100 text-xs">Quét barcode hoặc nhập mã thủ công</p>
+                </div>
+              </div>
+              <button onClick={closeExportModal} className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors">
+                <X className="w-4 h-4 text-white" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {exportSuccess ? (
+                /* Màn hình thành công */
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
+                    <CheckCircle className="w-9 h-9 text-emerald-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-800 text-lg">Xuất kho thành công!</h4>
+                    <p className="text-slate-500 text-sm mt-1">
+                      Đã xuất <span className="font-bold text-slate-800">{exportSuccess.total_exported} {exportSuccess.unit}</span> thuốc <span className="font-bold text-orange-600">{exportSuccess.medicine_name}</span>
+                    </p>
+                  </div>
+                  <div className="bg-slate-50 rounded-xl p-4 text-left space-y-2">
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Chi tiết FIFO</p>
+                    {exportSuccess.fifo_detail.map((d: any, i: number) => (
+                      <div key={i} className="flex justify-between items-center text-sm">
+                        <span className="font-mono text-slate-600">Lô {d.batch_number}</span>
+                        <span className="text-slate-500 text-xs">HSD: {d.expiration_date}</span>
+                        <span className="font-bold text-orange-600">-{d.deducted} {exportSuccess.unit}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={closeExportModal}
+                    className="w-full py-2.5 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 transition-colors"
+                  >
+                    Đóng
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Bước 1: Nhập / Quét barcode */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
+                      Bước 1 — Mã Barcode thuốc
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Nhập mã barcode thủ công..."
+                        value={exportBarcode}
+                        onChange={(e) => {
+                          setExportBarcode(e.target.value);
+                          setExportMedicine(null);
+                          setExportLookupError("");
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleLookupBarcode(exportBarcode);
+                        }}
+                        className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 transition-all font-mono"
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => handleLookupBarcode(exportBarcode)}
+                        disabled={!exportBarcode.trim() || exportLookupLoading}
+                        className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-sm transition-colors disabled:opacity-50"
+                      >
+                        {exportLookupLoading ? (
+                          <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Search className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Nút quét camera */}
+                    <button
+                      onClick={() => { if (scannerActive) { stopScanner(); } else { startScanner(); } }}
+                      className={`mt-2 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed text-sm font-medium transition-all ${
+                        scannerActive
+                          ? "border-orange-400 bg-orange-50 text-orange-600"
+                          : "border-slate-200 text-slate-500 hover:border-orange-300 hover:text-orange-500 hover:bg-orange-50/50"
+                      }`}
+                    >
+                      <Camera className="w-4 h-4" />
+                      {scannerActive ? "Đang quét... (nhấn để tắt camera)" : "Quét bằng camera máy tính"}
+                    </button>
+
+                    {/* Khung camera scanner */}
+                    <div
+                      id="pharmacy-barcode-scanner"
+                      ref={scannerDivRef}
+                      className={`mt-3 rounded-xl overflow-hidden bg-black transition-all duration-300 ${
+                        scannerActive ? "h-48" : "h-0"
+                      }`}
+                    />
+                  </div>
+
+                  {/* Kết quả tra cứu */}
+                  {exportLookupError && (
+                    <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-200">
+                      <XCircle className="w-4 h-4 text-red-500 shrink-0" />
+                      <p className="text-sm text-red-700">{exportLookupError}</p>
+                    </div>
+                  )}
+
+                  {exportMedicine && (
+                    <>
+                      {/* Thông tin thuốc */}
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-2">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-7 h-7 rounded-lg bg-emerald-500 flex items-center justify-center">
+                            <CheckCircle className="w-4 h-4 text-white" />
+                          </div>
+                          <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Đã tìm thấy thuốc</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <p className="text-xs text-slate-500">Tên thuốc</p>
+                            <p className="font-bold text-slate-800">{exportMedicine.name}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500">Hoạt chất</p>
+                            <p className="font-semibold text-slate-700">{exportMedicine.active_ingredient || "—"}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500">Nhóm thuốc</p>
+                            <p className="font-semibold text-slate-700">{exportMedicine.category || "—"}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500">Tổng tồn kho</p>
+                            <p className={`font-black text-lg ${
+                              exportMedicine.total_quantity <= exportMedicine.min_quantity
+                                ? "text-amber-600"
+                                : "text-emerald-600"
+                            }`}>
+                              {exportMedicine.total_quantity}
+                              <span className="text-xs font-medium text-slate-500 ml-1">{exportMedicine.unit}</span>
+                            </p>
+                          </div>
+                        </div>
+                        {/* Danh sách lô FIFO */}
+                        {exportMedicine.batches.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-emerald-200">
+                            <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider mb-1.5">Thứ tự xuất FIFO (lô hạn gần nhất trước)</p>
+                            {exportMedicine.batches.slice(0, 3).map((b: any, i: number) => (
+                              <div key={i} className="flex justify-between text-xs text-slate-600 py-0.5">
+                                <span className="font-mono">{i + 1}. Lô {b.batch_number}</span>
+                                <span>HSD: {b.expiration_date}</span>
+                                <span className="font-bold">{b.quantity} {exportMedicine.unit}</span>
+                              </div>
+                            ))}
+                            {exportMedicine.batches.length > 3 && (
+                              <p className="text-[10px] text-slate-400 mt-1">...và {exportMedicine.batches.length - 3} lô khác</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Bước 2: Nhập số lượng */}
+                      <div>
+                        <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
+                          Bước 2 — Số lượng xuất ({exportMedicine.unit})
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max={exportMedicine.total_quantity}
+                          placeholder={`Tối đa ${exportMedicine.total_quantity} ${exportMedicine.unit}`}
+                          value={exportQty}
+                          onChange={(e) => setExportQty(e.target.value)}
+                          className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 transition-all text-lg font-bold"
+                        />
+                        {parseInt(exportQty) > exportMedicine.total_quantity && (
+                          <p className="text-xs text-red-500 mt-1">⚠ Vượt quá số lượng tồn kho ({exportMedicine.total_quantity} {exportMedicine.unit})</p>
+                        )}
+                      </div>
+
+                      {/* Nút xác nhận */}
+                      <button
+                        onClick={handleConfirmExport}
+                        disabled={exportSubmitting || !exportQty || parseInt(exportQty) <= 0 || parseInt(exportQty) > exportMedicine.total_quantity}
+                        className="w-full py-3 rounded-xl bg-orange-500 text-white font-bold text-sm hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {exportSubmitting ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Đang xử lý...
+                          </>
+                        ) : (
+                          <>
+                            <ArrowUpRight className="w-4 h-4" />
+                            Xác nhận xuất kho {exportQty && parseInt(exportQty) > 0 ? `${exportQty} ${exportMedicine.unit}` : ""}
+                          </>
+                        )}
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ===== MODAL NHẬP KHO ===== */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden my-8">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-[#0A9BAD] to-[#0A9BAD]/80">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+                  <Plus className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-base">Nhập kho thuốc mới</h3>
+                  <p className="text-white/80 text-xs">Quét mã để tìm hoặc tạo mới</p>
+                </div>
+              </div>
+              <button onClick={closeImportModal} className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors">
+                <X className="w-4 h-4 text-white" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+              {importSuccess ? (
+                <div className="text-center space-y-4 py-8">
+                  <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
+                    <CheckCircle className="w-9 h-9 text-emerald-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-800 text-lg">Nhập kho thành công!</h4>
+                    <p className="text-slate-500 text-sm mt-1">
+                      Đã thêm lô <span className="font-bold">{importBatchNumber}</span> cho thuốc <span className="font-bold text-[#0A9BAD]">{importName}</span>
+                    </p>
+                  </div>
+                  <button onClick={closeImportModal} className="w-full max-w-xs mx-auto block py-2.5 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 transition-colors mt-4">
+                    Hoàn tất
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Quét Barcode */}
+                  <div className="space-y-3">
+                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">Mã Barcode</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Quét hoặc nhập mã..."
+                        value={importBarcode}
+                        onChange={(e) => setImportBarcode(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleLookupImportBarcode(importBarcode); }}
+                        className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0A9BAD] focus:ring-2 focus:ring-[#0A9BAD]/20 font-mono"
+                        autoFocus
+                      />
+                      <button onClick={() => handleLookupImportBarcode(importBarcode)} disabled={!importBarcode.trim() || importLookupLoading} className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors">
+                        {importLookupLoading ? <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" /> : <Search className="w-4 h-4" />}
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={() => importScannerActive ? stopImportScanner() : startImportScanner()}
+                      className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed text-sm font-medium transition-all ${
+                        importScannerActive ? "border-[#0A9BAD] bg-[#0A9BAD]/10 text-[#0A9BAD]" : "border-slate-200 text-slate-500 hover:border-[#0A9BAD]/50 hover:bg-[#0A9BAD]/5"
+                      }`}
+                    >
+                      <Camera className="w-4 h-4" />
+                      {importScannerActive ? "Đang quét... (nhấn để tắt camera)" : "Quét bằng camera máy tính"}
+                    </button>
+                    <div 
+                      id="pharmacy-import-scanner" 
+                      ref={importScannerDivRef} 
+                      className={`mt-2 rounded-xl overflow-hidden bg-black transition-all duration-300 ${importScannerActive ? "opacity-100 max-h-96" : "opacity-0 max-h-0"}`} 
+                    />
+                  </div>
+
+                  {/* Thông tin thuốc (Nếu có) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-slate-500">Tên thuốc <span className="text-red-500">*</span></label>
+                      <input type="text" value={importName} onChange={(e) => setImportName(e.target.value)} disabled={!!importMedicine} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#0A9BAD] disabled:bg-slate-50 disabled:text-slate-500" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-slate-500">Hoạt chất</label>
+                      <input type="text" value={importActiveIngredient} onChange={(e) => setImportActiveIngredient(e.target.value)} disabled={!!importMedicine} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#0A9BAD] disabled:bg-slate-50 disabled:text-slate-500" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-slate-500">Nhóm phân loại</label>
+                      <select value={importCategory} onChange={(e) => setImportCategory(e.target.value)} disabled={!!importMedicine} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#0A9BAD] disabled:bg-slate-50 disabled:text-slate-500">
+                        <option value="Kháng sinh">Kháng sinh</option>
+                        <option value="Giảm đau, hạ sốt">Giảm đau, hạ sốt</option>
+                        <option value="Tim mạch">Tim mạch</option>
+                        <option value="Dạ dày">Dạ dày</option>
+                        <option value="Hô hấp, Dị ứng">Hô hấp, Dị ứng</option>
+                        <option value="Thần kinh">Thần kinh</option>
+                        <option value="Nội tiết, Tiểu đường">Nội tiết, Tiểu đường</option>
+                        <option value="Vitamin, Khoáng chất">Vitamin, Khoáng chất</option>
+                        <option value="Cấp cứu">Cấp cứu</option>
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-500">Đơn vị</label>
+                        <input type="text" value={importUnit} onChange={(e) => setImportUnit(e.target.value)} disabled={!!importMedicine} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#0A9BAD] disabled:bg-slate-50 disabled:text-slate-500" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-500">Mức tối thiểu</label>
+                        <input type="number" value={importMinQuantity} onChange={(e) => setImportMinQuantity(e.target.value)} disabled={!!importMedicine} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#0A9BAD] disabled:bg-slate-50 disabled:text-slate-500" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {importMedicine === null && importName.length > 0 && (
+                    <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded-lg border border-blue-100 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4" />
+                      Đây là thuốc mới. Hệ thống sẽ tự động tạo danh mục trước khi nhập lô.
+                    </div>
+                  )}
+
+                  {/* Thông tin lô hàng */}
+                  <div className="pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-slate-500">Mã lô <span className="text-red-500">*</span></label>
+                      <input type="text" value={importBatchNumber} onChange={(e) => setImportBatchNumber(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#0A9BAD]" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-slate-500">Số lượng <span className="text-red-500">*</span></label>
+                      <input type="number" min="1" value={importQty} onChange={(e) => setImportQty(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#0A9BAD]" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-slate-500">Hạn sử dụng <span className="text-red-500">*</span></label>
+                      <input type="date" value={importExpDate} onChange={(e) => setImportExpDate(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#0A9BAD]" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-slate-500">Nhà cung cấp</label>
+                      <input type="text" value={importSupplier} onChange={(e) => setImportSupplier(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#0A9BAD]" />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleConfirmImport}
+                    disabled={importSubmitting || !importBarcode || !importName || !importQty || !importBatchNumber || !importExpDate}
+                    className="w-full py-3 rounded-xl bg-[#0A9BAD] text-white font-bold text-sm hover:bg-[#0A9BAD]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4"
+                  >
+                    {importSubmitting ? (
+                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Đang lưu...</>
+                    ) : (
+                      <><Plus className="w-4 h-4" /> Xác nhận Nhập Kho</>
+                    )}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdminBloodBankTab() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterGroup, setFilterGroup] = useState("all");
+  const [filterComponent, setFilterComponent] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("in_stock");
+  
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  
+  // Add Form State
+  const [form, setForm] = useState({
+    bag_code: "",
+    donor_code: "",
+    blood_group: "O+",
+    component_type: "Máu toàn phần",
+    volume: "350",
+    test_result: "Đang xét nghiệm",
+    source: "Cá nhân",
+    donation_date: new Date().toISOString().split("T")[0],
+    expiration_date: "",
+    storage_location: "",
+    storage_temp: "4.0",
+  });
+
+  // Export Modal State
+  const [exportPatientName, setExportPatientName] = useState("");
+  const [exportPatientGroup, setExportPatientGroup] = useState("O+");
+  const [exportComponent, setExportComponent] = useState("Khối hồng cầu");
+  const [compatibleBags, setCompatibleBags] = useState<any[]>([]);
+  const [selectedBags, setSelectedBags] = useState<string[]>([]);
+  const [searchingCompat, setSearchingCompat] = useState(false);
+
+  const [bags, setBags] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>({
+    total_in_stock: 0,
+    testing: 0,
+    expiring_soon: 0,
+    group_o: 0,
+    group_a: 0,
+    group_b: 0,
+    group_ab: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
+  const fetchBagsAndStats = (showLoading = true) => {
+    if (showLoading) setLoading(true);
+    const statusParam = (filterStatus === "expiring" || filterStatus === "expired") ? "in_stock" : filterStatus;
+    Promise.all([
+      fetchApi("/bloodbank/bags?status=" + statusParam),
+      fetchApi("/bloodbank/stats"),
+    ])
+      .then(([bagsData, statsData]) => {
+        setBags(bagsData || []);
+        setStats(statsData || {
+          total_in_stock: 0,
+          testing: 0,
+          expiring_soon: 0,
+          group_o: 0,
+          group_a: 0,
+          group_b: 0,
+          group_ab: 0,
+        });
+      })
+      .catch((err) => console.error("Error fetching blood bank data", err))
+      .finally(() => {
+        if (showLoading) setLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    fetchBagsAndStats();
+  }, [filterStatus]);
+
+  // Find compatible bags when inputs change in Export Modal
+  const findCompatibleBags = () => {
+    if (!exportPatientGroup) return;
+    setSearchingCompat(true);
+    fetchApi(`/bloodbank/compatible?patient_bg=${encodeURIComponent(exportPatientGroup)}&component=${encodeURIComponent(exportComponent)}`)
+      .then((data) => {
+        setCompatibleBags(data || []);
+        setSelectedBags([]);
+      })
+      .catch((err) => console.error("Error finding compatible bags", err))
+      .finally(() => setSearchingCompat(false));
+  };
+
+  // Trigger search whenever patient group or component changes
+  useEffect(() => {
+    if (showExportModal) {
+      findCompatibleBags();
+    }
+  }, [exportPatientGroup, exportComponent, showExportModal]);
+
+  const handleAddSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.bag_code.trim() || !form.donor_code.trim()) return;
+
+    fetchApi("/bloodbank/bags", {
+      method: "POST",
+      body: JSON.stringify({
+        ...form,
+        volume: parseInt(form.volume, 10),
+        storage_temp: parseFloat(form.storage_temp),
+      }),
+    })
+      .then((res) => {
+        if (res.status === "success") {
+          setShowAddForm(false);
+          setForm({
+            bag_code: "",
+            donor_code: "",
+            blood_group: "O+",
+            component_type: "Máu toàn phần",
+            volume: "350",
+            test_result: "Đang xét nghiệm",
+            source: "Cá nhân",
+            donation_date: new Date().toISOString().split("T")[0],
+            expiration_date: "",
+            storage_location: "",
+            storage_temp: "4.0",
+          });
+          fetchBagsAndStats(false);
+        } else {
+          alert("Lỗi thêm túi máu: " + JSON.stringify(res));
+        }
+      })
+      .catch((err) => alert("Lỗi kết nối: " + err));
+  };
+
+  const handleExportSubmit = () => {
+    if (!exportPatientName.trim()) {
+      alert("Vui lòng nhập tên bệnh nhân");
+      return;
+    }
+    if (selectedBags.length === 0) {
+      alert("Vui lòng chọn ít nhất một túi máu để xuất");
+      return;
+    }
+
+    fetchApi("/bloodbank/export", {
+      method: "POST",
+      body: JSON.stringify({
+        bag_ids: selectedBags,
+        patient_name: exportPatientName,
+        patient_blood_group: exportPatientGroup,
+      }),
+    })
+      .then((res) => {
+        if (res.status === "success") {
+          setShowExportModal(false);
+          setExportPatientName("");
+          setSelectedBags([]);
+          setCompatibleBags([]);
+          fetchBagsAndStats(false);
+        } else {
+          alert("Lỗi xuất kho: " + JSON.stringify(res));
+        }
+      })
+      .catch((err) => alert("Lỗi kết nối: " + err));
+  };
+
+  const handleCancelExport = (bagId: string) => {
+    if (!confirm("Bạn có chắc chắn muốn hủy xuất kho cho túi máu này không? Trạng thái sẽ quay về 'Trong kho'.")) return;
+    fetchApi(`/bloodbank/cancel-export/${bagId}`, { method: "POST" })
+      .then((res) => {
+        if (res.status === "success") {
+          fetchBagsAndStats(false);
+        } else {
+          alert("Lỗi khi hủy xuất kho");
+        }
+      })
+      .catch((err) => alert("Lỗi kết nối: " + err));
+  };
+
+  const handleDeleteBag = (bagId: string) => {
+    if (!confirm("Bạn có chắc chắn muốn xóa vĩnh viễn túi máu này khỏi hệ thống không?")) return;
+    fetchApi(`/bloodbank/bags/${bagId}`, { method: "DELETE" })
+      .then((res) => {
+        if (res.status === "success") {
+          fetchBagsAndStats(false);
+        } else {
+          alert("Lỗi khi xóa túi máu");
+        }
+      })
+      .catch((err) => alert("Lỗi kết nối: " + err));
+  };
+
+  const filteredBags = bags.filter((b) => {
+    const matchSearch =
+      !searchQuery ||
+      b.bag_code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      b.donor_code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      b.source?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchGroup = filterGroup === "all" || b.blood_group === filterGroup;
+    const matchComponent = filterComponent === "all" || b.component_type === filterComponent;
+    
+    let matchStatus = true;
+    if (filterStatus === "expiring") {
+      const isExpiring = new Date(b.expiration_date) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      const isExpired = new Date(b.expiration_date) < new Date();
+      matchStatus = isExpiring && !isExpired;
+    } else if (filterStatus === "expired") {
+      const isExpired = new Date(b.expiration_date) < new Date();
+      matchStatus = isExpired;
+    }
+
+    return matchSearch && matchGroup && matchComponent && matchStatus;
+  });
+
+  const totalSelectedVolume = compatibleBags
+    .filter((b) => selectedBags.includes(b.id))
+    .reduce((sum, b) => sum + parseInt(b.volume || 0, 10), 0);
+
+  return (
+    <div className="space-y-5 p-2">
+      {/* Stats Row */}
+      <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-3">
+        <div className="p-4 rounded-xl border border-slate-200 bg-white relative overflow-hidden shadow-sm">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tổng Tồn Kho</p>
+          <p className="text-2xl font-black text-slate-800 mt-1">{stats.total_in_stock} <span className="text-[11px] font-normal text-slate-500">túi</span></p>
+          <div className="absolute top-3 right-3 text-slate-300"><Droplets className="w-5 h-5" /></div>
+        </div>
+        
+        <div className="p-4 rounded-xl border border-purple-200 bg-purple-50 relative overflow-hidden shadow-sm">
+          <p className="text-[10px] font-bold text-purple-700 uppercase tracking-wider">Sắp Hết Hạn (≤7 ngày)</p>
+          <p className="text-2xl font-black text-purple-800 mt-1">{stats.expiring_soon} <span className="text-[11px] font-normal text-slate-500">túi</span></p>
+          <div className="absolute top-3 right-3 text-purple-300"><Clock className="w-5 h-5" /></div>
+        </div>
+
+        <div className="p-4 rounded-xl border border-slate-200 bg-white relative overflow-hidden shadow-sm">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Đang xét nghiệm</p>
+          <p className="text-2xl font-black text-amber-700 mt-1">{stats.testing} <span className="text-[11px] font-normal text-slate-500">túi</span></p>
+          <div className="absolute top-3 right-3 text-amber-300"><Activity className="w-5 h-5" /></div>
+        </div>
+
+        {/* Blood Groups */}
+        <div className="p-4 rounded-xl border border-red-100 bg-red-50/55 relative overflow-hidden shadow-sm">
+          <p className="text-[10px] font-bold text-red-600 uppercase tracking-wider">Nhóm O (O+/O-)</p>
+          <p className="text-2xl font-black text-red-800 mt-1">{stats.group_o} <span className="text-[11px] font-normal text-slate-500">túi</span></p>
+        </div>
+
+        <div className="p-4 rounded-xl border border-rose-100 bg-rose-50/30 relative overflow-hidden shadow-sm">
+          <p className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">Nhóm A (A+/A-)</p>
+          <p className="text-2xl font-black text-rose-800 mt-1">{stats.group_a} <span className="text-[11px] font-normal text-slate-500">túi</span></p>
+        </div>
+
+        <div className="p-4 rounded-xl border border-pink-100 bg-pink-50/30 relative overflow-hidden shadow-sm">
+          <p className="text-[10px] font-bold text-pink-600 uppercase tracking-wider">Nhóm B (B+/B-)</p>
+          <p className="text-2xl font-black text-pink-800 mt-1">{stats.group_b} <span className="text-[11px] font-normal text-slate-500">túi</span></p>
+        </div>
+
+        <div className="p-4 rounded-xl border border-orange-100 bg-orange-50/30 relative overflow-hidden shadow-sm">
+          <p className="text-[10px] font-bold text-orange-600 uppercase tracking-wider">Nhóm AB (AB+/AB-)</p>
+          <p className="text-2xl font-black text-orange-800 mt-1">{stats.group_ab} <span className="text-[11px] font-normal text-slate-500">túi</span></p>
+        </div>
+      </div>
+
+      {/* Main Panel */}
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-slate-200">
+          <div>
+            <h3 className="font-bold text-slate-900 flex items-center gap-2">
+              <Droplets className="w-5 h-5 text-red-600" />
+              Danh sách Kho máu Bệnh viện
+            </h3>
+            <p className="text-[11px] text-slate-400 mt-0.5 font-geist">
+              Quản lý các túi máu lưu trữ, hỗ trợ tìm kiếm máu tương thích cấp cứu và xuất kho theo quy tắc FEFO
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold uppercase tracking-wider transition-colors shadow-sm"
+            >
+              <ArrowUpRight className="w-3.5 h-3.5" />
+              Yêu cầu Xuất kho
+            </button>
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#0A9BAD] hover:bg-[#0891b2] text-white text-[11px] font-bold uppercase tracking-wider transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Nhập kho túi máu
+            </button>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-2 px-5 py-3 border-b border-slate-100 bg-slate-50/60">
+          <div className="flex flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5">
+            <Search className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            <input
+              type="text"
+              placeholder="Tìm mã túi máu, người hiến, nguồn gốc..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full border-none bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery("")} className="text-slate-400 hover:text-slate-600">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          <select
+            value={filterGroup}
+            onChange={(e) => setFilterGroup(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 outline-none focus:border-[#88E8F2]"
+          >
+            <option value="all">Tất cả nhóm máu</option>
+            {["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"].map((g) => (
+              <option key={g} value={g}>{g}</option>
+            ))}
+          </select>
+          <select
+            value={filterComponent}
+            onChange={(e) => setFilterComponent(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 outline-none focus:border-[#88E8F2]"
+          >
+            <option value="all">Tất cả chế phẩm</option>
+            {["Máu toàn phần", "Khối hồng cầu", "Huyết tương", "Khối tiểu cầu"].map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 outline-none focus:border-[#88E8F2]"
+          >
+            <option value="in_stock">Trong kho (In Stock)</option>
+            <option value="exported">Đã xuất (Exported)</option>
+            <option value="expiring">Sắp hết hạn (≤7 ngày)</option>
+            <option value="expired">Đã hết hạn</option>
+            <option value="all">Tất cả trạng thái</option>
+          </select>
+        </div>
+
+        {/* Add Form */}
+        {showAddForm && (
+          <form onSubmit={handleAddSubmit} className="px-5 py-4 bg-slate-50 border-b border-slate-200 space-y-3">
+            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Nhập kho túi máu mới
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Mã định danh túi máu *</label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: BB-017"
+                  value={form.bag_code}
+                  onChange={(e) => setForm((s) => ({ ...s, bag_code: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Mã người hiến *</label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: DN-9900"
+                  value={form.donor_code}
+                  onChange={(e) => setForm((s) => ({ ...s, donor_code: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Nhóm máu</label>
+                <select
+                  value={form.blood_group}
+                  onChange={(e) => setForm((s) => ({ ...s, blood_group: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
+                >
+                  {["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"].map((g) => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Chế phẩm máu</label>
+                <select
+                  value={form.component_type}
+                  onChange={(e) => setForm((s) => ({ ...s, component_type: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
+                >
+                  {["Máu toàn phần", "Khối hồng cầu", "Huyết tương", "Khối tiểu cầu"].map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Thể tích (ml) *</label>
+                <input
+                  type="number"
+                  value={form.volume}
+                  onChange={(e) => setForm((s) => ({ ...s, volume: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Kết quả xét nghiệm</label>
+                <select
+                  value={form.test_result}
+                  onChange={(e) => setForm((s) => ({ ...s, test_result: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
+                >
+                  <option value="Đang xét nghiệm">Đang xét nghiệm</option>
+                  <option value="An toàn">An toàn</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Nguồn gốc</label>
+                <input
+                  type="text"
+                  placeholder="Cá nhân hoặc Tên viện"
+                  value={form.source}
+                  onChange={(e) => setForm((s) => ({ ...s, source: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Ngày lấy máu</label>
+                <input
+                  type="date"
+                  value={form.donation_date}
+                  onChange={(e) => setForm((s) => ({ ...s, donation_date: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Hạn sử dụng *</label>
+                <input
+                  type="date"
+                  value={form.expiration_date}
+                  onChange={(e) => setForm((s) => ({ ...s, expiration_date: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Vị trí tủ lưu trữ</label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: Tủ A - Ngăn 1"
+                  value={form.storage_location}
+                  onChange={(e) => setForm((s) => ({ ...s, storage_location: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Nhiệt độ (°C)</label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: 4.0"
+                  value={form.storage_temp}
+                  onChange={(e) => setForm((s) => ({ ...s, storage_temp: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                className="rounded-lg bg-[#0A9BAD] px-4 py-2 text-xs font-bold text-white hover:bg-[#0891b2]"
+              >
+                Nhập kho
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAddForm(false)}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
+              >
+                Hủy
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="text-[10px] text-slate-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className="px-4 py-3">Mã túi máu</th>
+                <th className="px-4 py-3">Người hiến</th>
+                <th className="px-4 py-3">Nhóm máu</th>
+                <th className="px-4 py-3">Chế phẩm</th>
+                <th className="px-4 py-3">Thể tích</th>
+                <th className="px-4 py-3">Xét nghiệm</th>
+                <th className="px-4 py-3">Nhiệt độ</th>
+                <th className="px-4 py-3">Hạn sử dụng</th>
+                <th className="px-4 py-3">Vị trí tủ</th>
+                {filterStatus === "exported" && <th className="px-4 py-3">Bệnh nhân nhận</th>}
+                <th className="px-4 py-3 text-right">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={11} className="text-center py-12 text-slate-400">
+                    Đang tải dữ liệu kho máu...
+                  </td>
+                </tr>
+              ) : filteredBags.length === 0 ? (
+                <tr>
+                  <td colSpan={11} className="text-center py-16 text-slate-400">
+                    <Droplets className="w-10 h-10 opacity-30 mx-auto mb-2" />
+                    Không tìm thấy túi máu nào phù hợp
+                  </td>
+                </tr>
+              ) : (
+                filteredBags.map((bag) => {
+                  const isExpiring = new Date(bag.expiration_date) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+                  const isExpired = new Date(bag.expiration_date) < new Date();
+                  
+                  return (
+                    <tr key={bag.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3 font-bold text-slate-800">{bag.bag_code}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-slate-500">{bag.donor_code}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center justify-center font-black text-xs px-2 py-0.5 rounded-md ${
+                          bag.blood_group.includes("-") ? "bg-red-100 text-red-700" : "bg-red-600 text-white"
+                        }`}>
+                          {bag.blood_group}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-[13px] text-slate-700">{bag.component_type}</td>
+                      <td className="px-4 py-3 font-bold text-slate-900">{bag.volume} ml</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          bag.test_result === "An toàn" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                        }`}>
+                          {bag.test_result}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-slate-600">
+                        {bag.storage_temp ? `${bag.storage_temp} °C` : "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`font-mono text-xs ${
+                          isExpired ? "text-red-600 font-black" : isExpiring ? "text-purple-600 font-bold" : "text-slate-600"
+                        }`}>
+                          {bag.expiration_date}
+                          {isExpired && " (HẾT HẠN)"}
+                          {!isExpired && isExpiring && " (Hạn ngắn)"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 text-[13px]">{bag.storage_location || "—"}</td>
+                      {filterStatus === "exported" && (
+                        <td className="px-4 py-3">
+                          <p className="text-[13px] font-bold text-slate-900">{bag.patient_name}</p>
+                          <p className="text-[10px] text-slate-400">Nhóm: <span className="font-bold">{bag.patient_blood_group}</span></p>
+                        </td>
+                      )}
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-1.5">
+                          {bag.status === "exported" && (
+                            <button
+                              onClick={() => handleCancelExport(bag.id)}
+                              className="text-[11px] font-bold text-slate-500 hover:text-slate-800 border border-slate-200 hover:border-slate-300 rounded px-2.5 py-1 bg-white hover:bg-slate-50 transition-colors shrink-0"
+                            >
+                              Hủy xuất
+                            </button>
+                          )}
+                          {isExpired && (
+                            <button
+                              onClick={() => handleDeleteBag(bag.id)}
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded transition-colors shrink-0"
+                              title="Xóa túi máu hết hạn"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                          {!isExpired && bag.status !== "exported" && (
+                            <span className="text-slate-300 text-xs px-2">—</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+        
+        {/* Footer */}
+        <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
+          <p className="text-[11px] text-slate-400">
+            Hiển thị <span className="font-bold text-slate-700">{filteredBags.length}</span> túi máu
+          </p>
+          {stats.expiring_soon > 0 && (
+            <p className="text-[11px] text-purple-600 font-bold">
+              ⚠ Có {stats.expiring_soon} túi máu sắp hết hạn (dưới 7 ngày) cần ưu tiên sử dụng
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-3xl rounded-xl bg-white shadow-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-red-50/50">
+              <div className="flex items-center gap-2">
+                <ArrowUpRight className="w-5 h-5 text-red-600" />
+                <h4 className="font-black text-slate-900">Yêu Cầu Xuất Kho Máu Cấp Cứu</h4>
+              </div>
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Tên bệnh nhân nhận *</label>
+                  <input
+                    type="text"
+                    placeholder="Nhập tên bệnh nhân..."
+                    value={exportPatientName}
+                    onChange={(e) => setExportPatientName(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Nhóm máu bệnh nhân *</label>
+                  <select
+                    value={exportPatientGroup}
+                    onChange={(e) => setExportPatientGroup(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
+                  >
+                    {["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"].map((g) => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Chế phẩm máu yêu cầu</label>
+                  <select
+                    value={exportComponent}
+                    onChange={(e) => setExportComponent(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
+                  >
+                    {["Máu toàn phần", "Khối hồng cầu", "Huyết tương", "Khối tiểu cầu"].map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Compatible Blood Bags Section */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Các bịch máu tương thích sẵn có (Sắp xếp theo FEFO - Hạn dùng ngắn nhất trước)
+                  </p>
+                  <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded font-black">FEFO Enabled</span>
+                </div>
+
+                {searchingCompat ? (
+                  <p className="text-center py-6 text-xs text-slate-400">Đang tìm các túi máu tương thích...</p>
+                ) : compatibleBags.length === 0 ? (
+                  <div className="p-6 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-center">
+                    <p className="text-sm font-bold">⚠️ CẢNH BÁO: Không có bịch máu nào tương thích trong kho!</p>
+                    <p className="text-xs mt-1">Vui lòng kiểm tra lại tủ lưu trữ hoặc liên hệ trạm truyền máu trung ương.</p>
+                  </div>
+                ) : (
+                  <div className="border border-slate-200 rounded-lg overflow-hidden max-h-[250px] overflow-y-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="text-[10px] text-slate-500 bg-slate-50 uppercase border-b border-slate-200">
+                        <tr>
+                          <th className="px-4 py-2 w-10">Chọn</th>
+                          <th className="px-4 py-2">Mã túi máu</th>
+                          <th className="px-4 py-2">Nhóm máu</th>
+                          <th className="px-4 py-2">Chế phẩm</th>
+                          <th className="px-4 py-2">Thể tích</th>
+                          <th className="px-4 py-2">Hạn sử dụng</th>
+                          <th className="px-4 py-2">Vị trí</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {compatibleBags.map((bag, index) => {
+                          const isSelected = selectedBags.includes(bag.id);
+                          return (
+                            <tr
+                              key={bag.id}
+                              className={`border-b border-slate-100 hover:bg-slate-50 cursor-pointer ${
+                                isSelected ? "bg-red-50/30" : ""
+                              }`}
+                              onClick={() => {
+                                if (isSelected) {
+                                  setSelectedBags(selectedBags.filter((id) => id !== bag.id));
+                                } else {
+                                  setSelectedBags([...selectedBags, bag.id]);
+                                }
+                              }}
+                            >
+                              <td className="px-4 py-2 text-center">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => {}}
+                                  className="rounded text-red-600 focus:ring-red-500 h-3.5 w-3.5"
+                                />
+                              </td>
+                              <td className="px-4 py-2 font-bold">
+                                {bag.bag_code}
+                                {index === 0 && (
+                                  <span className="ml-2 text-[9px] bg-purple-100 text-purple-700 px-1 py-0.5 rounded font-black uppercase">Ưu tiên (FEFO)</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-2">
+                                <span className={`inline-flex items-center justify-center font-black text-[10px] px-2 py-0.5 rounded-md ${
+                                  bag.blood_group.includes("-") ? "bg-red-100 text-red-700" : "bg-red-600 text-white"
+                                }`}>
+                                  {bag.blood_group}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 text-xs">{bag.component_type}</td>
+                              <td className="px-4 py-2 font-bold text-xs">{bag.volume} ml</td>
+                              <td className="px-4 py-2 font-mono text-xs text-red-600 font-bold">{bag.expiration_date}</td>
+                              <td className="px-4 py-2 text-xs text-slate-500">{bag.storage_location}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-slate-500">Đã chọn: <span className="font-bold text-slate-900">{selectedBags.length} bịch máu</span></p>
+                <p className="text-sm font-black text-slate-900">Tổng thể tích: <span className="text-red-600 font-black">{totalSelectedVolume} ml</span></p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowExportModal(false)}
+                  className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 bg-white"
+                >
+                  Đóng
+                </button>
+                <button
+                  onClick={handleExportSubmit}
+                  disabled={!exportPatientName.trim() || selectedBags.length === 0}
+                  className="rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-2 text-xs font-bold text-white transition-colors"
+                >
+                  Xác nhận Xuất kho
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -9,11 +9,18 @@ import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
   nitro: true,
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
+  vite: {
+    server: {
+      proxy: {
+        '/api': {
+          target: 'http://backend:8000',
+          changeOrigin: true,
+        },
+        '/ws': {
+          target: 'ws://backend:8000',
+          ws: true,
+          changeOrigin: true,
+        }
       }
     }
   },

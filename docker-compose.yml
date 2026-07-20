@@ -4,9 +4,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: eyecu_backend
+    container_name: demo_eyecu_backend
     ports:
-      - "8000:8000"
+      - "8001:8000"
     volumes:
       # Hot-reload: thay đổi code Python → uvicorn tự reload
       - ./backend:/app
@@ -25,9 +25,9 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
-    container_name: eyecu_frontend
+    container_name: demo_eyecu_frontend
     ports:
-      - "5173:5173"
+      - "5174:5173"
     volumes:
       # Hot-reload: thay đổi code React → Vite tự reload
       - ./frontend:/app
@@ -35,8 +35,8 @@ services:
       - /app/node_modules
     environment:
       # Backend chạy trên host machine port 8000
-      - VITE_API_URL=http://localhost:8000/api
-      - VITE_WS_URL=ws://localhost:8000
+      - VITE_API_URL=http://localhost:8001/api
+      - VITE_WS_URL=ws://localhost:8001
     depends_on:
       backend:
         condition: service_healthy

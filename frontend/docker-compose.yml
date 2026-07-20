@@ -6,5 +6,5 @@ services:
       dockerfile: Dockerfile
     container_name: eyecu
     ports:
-      - "8080:8080"
+      - "5173:8080"
     restart: unless-stopped

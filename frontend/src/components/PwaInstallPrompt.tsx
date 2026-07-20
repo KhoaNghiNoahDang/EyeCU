@@ -1,8 +1,8 @@
 import { Download, Share, Smartphone, X } from "lucide-react";
 import { usePwaInstall } from "../hooks/use-pwa-install";
 
-export function PwaInstallPrompt() {
-  const { visible, isInstallEligible, showIosHint, dismiss, install } = usePwaInstall();
+export function PwaInstallPrompt({ forceShow }: { forceShow?: boolean } = {}) {
+  const { visible, isInstallEligible, showIosHint, dismiss, install } = usePwaInstall({ forceShow });
 
   if (!visible) return null;
 

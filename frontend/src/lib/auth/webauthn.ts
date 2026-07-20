@@ -9,8 +9,8 @@ function getRpId() {
   return window.location.hostname;
 }
 
-function randomChallenge(): Uint8Array {
-  return crypto.getRandomValues(new Uint8Array(32));
+function randomChallenge(): ArrayBuffer {
+  return crypto.getRandomValues(new Uint8Array(32)).buffer;
 }
 
 function bufferToBase64url(buffer: ArrayBuffer): string {
@@ -30,9 +30,9 @@ function base64urlToBuffer(base64url: string): ArrayBuffer {
   return bytes.buffer;
 }
 
-function cccdToUserId(cccd: string): Uint8Array {
+function cccdToUserId(cccd: string): ArrayBuffer {
   const encoder = new TextEncoder();
-  return encoder.encode(cccd.padEnd(32, "0").slice(0, 32));
+  return encoder.encode(cccd.padEnd(32, "0").slice(0, 32)).buffer;
 }
 
 export function isWebAuthnSupported(): boolean {

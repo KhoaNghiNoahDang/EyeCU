@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.db.database import engine
 from sqlmodel import SQLModel
-from app.api import auth, admin, ambulance, ambient, ems, patient, records, voice
+from app.api import auth, admin, ambulance, ambient, ems, patient, records, voice, crowd, services, inventory, blood_bank, pharmacy
 from app.api.ambulance import background_db_updater
 
 SQLModel.metadata.create_all(bind=engine)
@@ -12,19 +12,20 @@ SQLModel.metadata.create_all(bind=engine)
 def _run_migrations():
     """Tự động thêm cột mới vào bảng hiện có khi upgrade."""
     from sqlalchemy import text
-    with engine.connect() as conn:
-        # Thêm doctor_name vào community_questions
-        try:
+    try:
+        with engine.begin() as conn:
             conn.execute(text("ALTER TABLE community_questions ADD COLUMN doctor_name TEXT"))
-            conn.commit()
-        except Exception:
-            pass  # Cột đã tồn tại
-        # Thêm doctor_id vào community_questions
-        try:
+    except Exception:
+        pass
+
+    try:
+        with engine.begin() as conn:
             conn.execute(text("ALTER TABLE community_questions ADD COLUMN doctor_id TEXT"))
-            conn.commit()
-        except Exception:
-            pass  # Cột đã tồn tại
+    except Exception:
+        pass
+
+
+
 
 _run_migrations()
 
@@ -48,12 +49,17 @@ app.add_middleware(
 # API Routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin Dashboard"])
+app.include_router(services.router, prefix="/api/services", tags=["Services"])
 app.include_router(ambulance.router, prefix="/api/ambulance", tags=["Ambulance & Map"])
 app.include_router(ambient.router, prefix="/api/ambient", tags=["AI Ambient Camera"])
 app.include_router(ems.router, prefix="/api/ems", tags=["EMS & ER Ops"])
 app.include_router(patient.router, prefix="/api/patient", tags=["Patient Portal"])
 app.include_router(records.router, prefix="/api/records", tags=["Medical Records OCR"])
 app.include_router(voice.router, prefix="/api/voice", tags=["Voice EMR"])
+app.include_router(crowd.router, prefix="/api/crowd", tags=["Crowd AI"])
+app.include_router(inventory.router, prefix="/api/inventory", tags=["Medical Inventory"])
+app.include_router(blood_bank.router, prefix="/api/bloodbank", tags=["Blood Bank"])
+app.include_router(pharmacy.router, prefix="/api/pharmacy", tags=["Pharmacy Management"])
 
 
 @app.get("/")

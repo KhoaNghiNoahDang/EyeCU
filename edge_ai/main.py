@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 import time
 import sys
 import json
@@ -12,10 +13,36 @@ from modules.pose_extractor import get_landmarks, draw_skeleton
 from modules.feature_extractor import extract_features
 from modules.fall_detector import predict_fall
 from modules.blur_body import anonymize_body
-from modules.websocket_client import send_fall_alert, send_camera_stream
+from modules.iv_detector import IVDetector
+from modules.audio_detector import audio_detector
+from modules.websocket_client import send_fall_alert, send_camera_stream, send_iv_alert
 
 # Hang doi de gui anh qua mang ma khong block Camera (chong lag 100%)
 ws_queue = queue.Queue(maxsize=3)
+
+# Bien toan cuc cho Live ROI
+iv_roi = None
+drawing = False
+ix, iy = -1, -1
+temp_roi = None
+
+def draw_roi(event, x, y, flags, param):
+    global iv_roi, drawing, ix, iy, temp_roi
+    if event == cv2.EVENT_LBUTTONDOWN:
+        drawing = True
+        ix, iy = x, y
+        temp_roi = None
+    elif event == cv2.EVENT_MOUSEMOVE:
+        if drawing:
+            temp_roi = (min(ix, x), min(iy, y), abs(x - ix), abs(y - iy))
+    elif event == cv2.EVENT_LBUTTONUP:
+        drawing = False
+        w = abs(x - ix)
+        h = abs(y - iy)
+        if w > 10 and h > 10:
+            iv_roi = (min(ix, x), min(iy, y), w, h)
+            print(f"[INFO] Da cap nhat ROI moi: {iv_roi}")
+        temp_roi = None
 
 def ws_worker():
     while True:
@@ -60,8 +87,6 @@ def connect_ws():
         try:
             ws = websocket.create_connection(WS_BACKEND_URL, timeout=60)
             print(f"[OK] WebSocket ket noi thanh cong: {WS_BACKEND_URL}")
-            # Khoi tao luong doc du lieu rac (ping, broadcast loopback)
-            threading.Thread(target=ws_reader, args=(ws,), daemon=True).start()
             return ws
         except Exception as e:
             print(f"[RETRY {attempt+1}/5] {e}. Thu lai sau 3s...")
@@ -114,10 +139,23 @@ def main():
     # Dang ky room voi server
     room_id = register_room(ws)
 
+    # SAU KHI DANG KY XONG moi bat dau doc tin nhan rac de tranh nuot mat ROOM_ASSIGNED
+    threading.Thread(target=ws_reader, args=(ws,), daemon=True).start()
+
+    global iv_roi
+    
     cam = int(CAMERA_SOURCE) if CAMERA_SOURCE.isdigit() else CAMERA_SOURCE
     cap = cv2.VideoCapture(cam)
     last_alert = 0
     last_stream_time = 0
+    
+    iv_detector = IVDetector()
+    
+    cv2.namedWindow("EyeCU - Live Camera")
+    cv2.setMouseCallback("EyeCU - Live Camera", draw_roi)
+    print("[INFO] Bam giu chuot tren cua so 'EyeCU - Live Camera' roi keo de khoanh vung binh truyen dich. Nhan Q de thoat.")
+
+    audio_detector.start()
 
     # --- Adaptive FPS ---
     # 4 may x 5 FPS x ~8KB = ~160 KB/s upload tong cong -> Render.com Free an toan
@@ -150,35 +188,76 @@ def main():
                     pass
             continue
 
-        # Buoc 1: Kiem tra xem co ai bi nga khong
+        # Buoc 1: Kiem tra am thanh va hinh anh ngã
+        audio_triggered = audio_detector.is_loud_noise_recently()
         is_falling = False
         all_results = []
         
         for bbox in bboxes:
-            landmarks_info = get_landmarks(frame, bbox)
-            if landmarks_info is None:
+            poses = get_landmarks(frame, bbox)
+            if not poses:
                 continue
                 
-            results, shape = landmarks_info
-            features = extract_features(results, shape)
-            all_results.append(results)
-            
-            if features is not None and predict_fall(features):
-                is_falling = True
+            for landmarks, shape in poses:
+                features = extract_features(landmarks, shape)
+                all_results.append(landmarks)
+                
+                if features is not None:
+                    fall_flag, fall_prob, person_id = predict_fall(features, landmarks)
+                    if fall_prob > 0.90:
+                        is_falling = True
+                    elif fall_prob > 0.50 and audio_triggered:
+                        is_falling = True
 
-        # Buoc 2: Xu ly rieng tu va hien thi
+        # Buoc 2: Xu ly rieng tu va hien thi khung xuong
         if is_falling:
-            # KHI NGA: Khung xuong BIEN MAT, nguoi benh HIEN LEN nhung bi lam HOI MO (light blur) de kiem tra chan thuong
-            display_frame = anonymize_body(frame, blur_level='light')
-            # KHONG VE khung xuong (bo qua buoc ve)
+            display_frame, person_mask = anonymize_body(frame, blur_level='light', return_mask=True)
         else:
-            # TRANG THAI BINH THUONG: Nguoi benh bi che khuat hoan toan (heavy blur/den), CHI HIEN KHUNG XUONG + Phong canh that
-            display_frame = anonymize_body(frame, blur_level='heavy')
-            # Ve khung xuong len tren cung
-            for results in all_results:
-                display_frame = draw_skeleton(display_frame, results)
+            display_frame, person_mask = anonymize_body(frame, blur_level='heavy', return_mask=True)
+            for landmarks in all_results:
+                display_frame = draw_skeleton(display_frame, landmarks)
+                
+        # Buoc 3: Xu ly binh truyen dich
+        if temp_roi is not None:
+            tx, ty, tw, th = temp_roi
+            cv2.rectangle(display_frame, (tx, ty), (tx+tw, ty+th), (255, 0, 0), 2)
+            cv2.putText(display_frame, "Drawing...", (tx, ty-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
             
-        # Buoc 4: Gui canh bao (Neu can)
+        elif iv_roi is not None:
+            x, y, w, h = iv_roi
+            
+            # person_mask(H, W, 3) chua True neu la pixels cua nguoi
+            # Check xem nguoi co dang che khuat binh truyen dich khong
+            # Truong hop ROI vuot qua bien cua hinh anh se gay loi IndexError
+            # Ta can phai kiem tra boundary cua x, y, w, h.
+            fh, fw = frame.shape[:2]
+            x_end = min(x+w, fw)
+            y_end = min(y+h, fh)
+            
+            if x_end <= x or y_end <= y:
+                pass # ROI nam ngoai man hinh hoac ko hop le
+            else:
+                # Hien thi anh chai nuoc goc (khong bi che boi mat na den cua nguoi benh)
+                display_frame[y:y_end, x:x_end] = frame[y:y_end, x:x_end]
+                
+                # Tinh toan muc nuoc truc tiep bang 1D Projection (Da chong nhieu)
+                roi_frame = frame[y:y_end, x:x_end]
+                percentage = iv_detector.detect_water_level(roi_frame)
+                
+                # Ve o hien thi binh thuong
+                cv2.rectangle(display_frame, (x, y), (x_end, y_end), (0, 255, 255), 2)
+                cv2.putText(display_frame, f"IV: {percentage:.0f}%", (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                
+                # Gui canh bao vang neu < 15% (Chỉ gửi 1 lần duy nhất)
+                if percentage < 15.0 and not iv_detector.alert_triggered:
+                    print(f"[ALERT] Binh truyen dich sap het! (< 15%)")
+                    try:
+                        ws_queue.put_nowait((send_iv_alert, (ws, room_id, display_frame.copy(), percentage)))
+                        iv_detector.alert_triggered = True
+                    except queue.Full:
+                        pass
+        
+        # Buoc 4: Gui canh bao NGA (Neu can)
         if is_falling:
             now = time.time()
             if now - last_alert >= FALL_COOLDOWN_SECONDS:
@@ -202,11 +281,12 @@ def main():
             except queue.Full:
                 pass
                     
-        # Hien thi hinh anh len man hinh de test
-        # cv2.imshow("EyeCU - Camera Test (Bam Q de thoat)", display_frame)
-        # if cv2.waitKey(1) & 0xFF == ord('q'):
-        #     break
+        # Hien thi hinh anh len man hinh de test va chon ROI
+        cv2.imshow("EyeCU - Live Camera", display_frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
 
+    audio_detector.stop()
     cap.release()
     # cv2.destroyAllWindows()
     ws.close()

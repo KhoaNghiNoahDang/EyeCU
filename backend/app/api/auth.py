@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.db.models import Patient, Staff, Department
-from app.core.security import create_access_token, get_current_user
+from app.core.security import create_access_token, get_current_user, verify_password, get_password_hash
 from pydantic import BaseModel
 from typing import Optional
 from app.services.dataset_reader import get_mock_json
@@ -25,8 +25,13 @@ def login(
     if not user:
         raise HTTPException(status_code=401, detail="Sai mã nhân viên hoặc mật khẩu")
 
-    # TODO: Verify password_hash
-    # if not verify_password(form_data.password, user.password_hash): ...
+    if user.password_hash:
+        if user.password_hash.startswith("$2"):
+            if not verify_password(form_data.password, user.password_hash):
+                raise HTTPException(status_code=401, detail="Sai mã nhân viên hoặc mật khẩu")
+        else:
+            if user.password_hash != form_data.password:
+                raise HTTPException(status_code=401, detail="Sai mã nhân viên hoặc mật khẩu")
 
     access_token = create_access_token(subject=user.id, role=user.role)
     return {"access_token": access_token, "token_type": "bearer", "role": user.role}
@@ -61,11 +66,13 @@ def login_patient(data: PatientLogin, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=401, detail="Sai CCCD hoặc mật khẩu")
         
-    # TODO: Verify password_hash
-    # if not verify_password(data.password, user.password_hash): ...
-    if user.password_hash and user.password_hash != data.password: # temporary plaintext check for hackathon
-         pass # Replace with actual hash verification if needed
-    
+    if user.password_hash:
+        if user.password_hash.startswith("$2"):
+            if not verify_password(data.password, user.password_hash):
+                raise HTTPException(status_code=401, detail="Sai CCCD hoặc mật khẩu")
+        else:
+            if user.password_hash != data.password:
+                raise HTTPException(status_code=401, detail="Sai CCCD hoặc mật khẩu")
     access_token = create_access_token(subject=user.id, role="patient")
     return {"access_token": access_token, "token_type": "bearer", "role": "patient", "name": user.name}
 
@@ -256,6 +263,23 @@ class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
 
+class VerifyPasswordRequest(BaseModel):
+    password: str
+
+@router.post("/verify-password")
+def verify_password_endpoint(
+    data: VerifyPasswordRequest,
+    current_user: Staff | Patient = Depends(get_current_user)
+):
+    if current_user.password_hash:
+        if current_user.password_hash.startswith("$2"):
+            if not verify_password(data.password, current_user.password_hash):
+                raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không đúng")
+        else:
+            if current_user.password_hash != data.password:
+                raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không đúng")
+    return {"message": "Mật khẩu hợp lệ"}
+
 
 @router.post("/change-password")
 def change_password(
@@ -263,13 +287,18 @@ def change_password(
     current_user: Staff | Patient = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if not data.new_password or len(data.new_password) < 6:
-        raise HTTPException(status_code=400, detail="Mật khẩu mới phải có ít nhất 6 ký tự")
+    if not data.new_password:
+        raise HTTPException(status_code=400, detail="Mật khẩu mới không được để trống")
 
-    if current_user.password_hash and current_user.password_hash != data.current_password:
-        raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không đúng")
+    if current_user.password_hash:
+        if current_user.password_hash.startswith("$2"):
+            if not verify_password(data.current_password, current_user.password_hash):
+                raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không đúng")
+        else:
+            if current_user.password_hash != data.current_password:
+                raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không đúng")
 
-    current_user.password_hash = data.new_password
+    current_user.password_hash = get_password_hash(data.new_password)
     db.commit()
     return {"message": "Đổi mật khẩu thành công"}
 
@@ -414,7 +443,7 @@ async def finalize_ekyc(data: FinalizeRegisterRequest, db: Session = Depends(get
 
         new_patient = Patient(
             name=data.name,
-            password_hash=data.password,
+            password_hash=get_password_hash(data.password),
             phone=data.phone,
             bhxh_code=data.bhxh_code,
             emergency_contact_name=data.emergency_contact_name,

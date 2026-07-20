@@ -31,6 +31,7 @@ def _get_landmarker():
             output_segmentation_masks=False,
             min_pose_detection_confidence=0.5,
             min_tracking_confidence=0.5,
+            num_poses=4,
         )
         _landmarker = mp_vision.PoseLandmarker.create_from_options(options)
     return _landmarker
@@ -63,9 +64,9 @@ def get_landmarks(frame: np.ndarray, bbox: tuple = None):
     result = _get_landmarker().detect(mp_image)
 
     if not result.pose_landmarks:
-        return None
+        return []
 
-    return result.pose_landmarks[0], crop.shape
+    return [(landmarks, crop.shape) for landmarks in result.pose_landmarks]
 
 def draw_skeleton(frame: np.ndarray, landmarks: list):
     """

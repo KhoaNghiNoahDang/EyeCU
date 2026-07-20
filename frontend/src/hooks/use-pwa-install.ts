@@ -40,7 +40,7 @@ function wasRecentlyDismissed() {
   }
 }
 
-export function usePwaInstall() {
+export function usePwaInstall(options?: { forceShow?: boolean }) {
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(
     null,
   );
@@ -54,7 +54,7 @@ export function usePwaInstall() {
     setIsStandalone(standalone);
     setShowIosHint(isIosDevice() && !standalone);
 
-    if (standalone || wasRecentlyDismissed() || !isMobileDevice()) {
+    if (standalone || (!options?.forceShow && wasRecentlyDismissed()) || !isMobileDevice()) {
       return;
     }
 

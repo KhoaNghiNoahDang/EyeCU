@@ -37,3 +37,15 @@ def send_camera_stream(ws: websocket.WebSocket, room_id: str, frame: np.ndarray)
     # In log moi 30 frame (~3 giay) de xac nhan stream dang hoat dong
     if _stream_frame_count % 30 == 0:
         print(f"[STREAM] Da gui {_stream_frame_count} frame toi room {room_id}")
+
+def send_iv_alert(ws: websocket.WebSocket, room_id: str, display_frame: np.ndarray, percentage: float):
+    payload = {
+        "type": "INCIDENT_ALERT",
+        "data": {
+            "room": room_id,
+            "severity": "warning",
+            "title": "CẢNH BÁO TRUYỀN DỊCH",
+            "description": f"Mực nước bình truyền dịch còn {percentage:.1f}%",
+        }
+    }
+    ws.send(json.dumps(payload))

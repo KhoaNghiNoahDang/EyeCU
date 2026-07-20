@@ -1,0 +1,6 @@
+ultralytics>=8.3.0
+supervision>=0.23.0
+opencv-python>=4.8.0
+websocket-client>=1.6.0
+lapx>=0.5.5
+filterpy>=1.4.5

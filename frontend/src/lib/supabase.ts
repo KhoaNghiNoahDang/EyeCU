@@ -2,9 +2,9 @@ import { fetchApi } from "./api/client";
 
 export const supabase = {
   from: (table: string) => ({
-    select: () => ({
+    select: (arg?: any) => ({
       eq: (field: string, val: string) => {
-        let p;
+        let p: any;
         if (table === 'dispatch_records' && field === 'status' && (val === 'active' || val === 'completed')) {
           p = fetchApi(`/ems/dispatch_records?status=${val}`)
             .then(data => ({ data: Array.isArray(data) ? data : [] }))
@@ -35,8 +35,8 @@ export const supabase = {
       }
     })
   }),
-  channel: () => ({
-    on: () => ({ subscribe: () => ({}) }),
+  channel: (name?: string) => ({
+    on: (type?: string, filter?: any, callback?: any) => ({ subscribe: () => ({}) }),
   }),
-  removeChannel: () => {}
+  removeChannel: (channel?: any) => {}
 };

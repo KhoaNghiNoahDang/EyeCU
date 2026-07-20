@@ -2,11 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Chỉ cài thư viện tối thiểu cần cho opencv-headless
-# (bỏ ffmpeg vì LPR chỉ xử lý ảnh tĩnh, không cần encode video)
+# Cài thư viện hệ thống cần thiết (bao gồm ffmpeg cho xử lý âm thanh)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
     libglib2.0-0 \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Cài Python dependencies trước (tận dụng Docker layer cache)

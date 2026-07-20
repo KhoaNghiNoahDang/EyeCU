@@ -10,6 +10,19 @@ from pydantic import BaseModel
 from app.core.config import settings
 from app.db.database import get_db
 from app.db.models import Patient, Staff
+import bcrypt
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    pwd_bytes = plain_password.encode('utf-8')[:72]
+    hash_bytes = hashed_password.encode('utf-8')
+    try:
+        return bcrypt.checkpw(pwd_bytes, hash_bytes)
+    except ValueError:
+        return False
+
+def get_password_hash(password: str) -> str:
+    pwd_bytes = password.encode('utf-8')[:72]
+    return bcrypt.hashpw(pwd_bytes, bcrypt.gensalt()).decode('utf-8')
 #
 # ─────────────────────────────────────────────
 # OAuth2 scheme — FastAPI tự đọc "Bearer <token>" từ Header

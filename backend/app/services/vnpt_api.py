@@ -399,12 +399,20 @@ class VnptAPIClient:
                 results = data.get("object", {}).get("results", [])
                 transcript = ""
                 for res in results:
+                    # Dạng 1: Nằm trực tiếp
                     if "transcript" in res:
                         transcript += str(res.get("transcript", "")) + " "
                     elif "text" in res:
                         transcript += str(res.get("text", "")) + " "
                     elif "sentence" in res:
                         transcript += str(res.get("sentence", "")) + " "
+                    # Dạng 2: Nằm trong 'alternatives' (Chuẩn trả về của VNPT grpc/standard)
+                    elif "alternatives" in res and len(res["alternatives"]) > 0:
+                        alt = res["alternatives"][0]
+                        if "transcript" in alt:
+                            transcript += str(alt.get("transcript", "")) + " "
+                        elif "text" in alt:
+                            transcript += str(alt.get("text", "")) + " "
                         
                 return {
                     "transcript": transcript.strip(),
@@ -481,6 +489,93 @@ class VnptAPIClient:
 
         except Exception:
             return get_mock_json("smartreader_ocr")
+
+    # ── SmartVoice: Speaker Diarization (ACI - Ambient Clinical Intelligence) ──
+
+    async def call_smartvoice_diarization(
+        self,
+        audio_bytes: bytes,
+        max_speakers: int = 3,
+        filename: str = "audio.wav",
+    ) -> dict:
+        """Phân tách hội thoại đa người (Speaker Diarization) qua VNPT SmartVoice.
+
+        Gọi endpoint summary-meeting để bóc tách từng câu nói theo người nói.
+        Dùng cho tính năng ACI (Ambient Clinical Intelligence) - tự động điền bệnh án SOAPE
+        từ hội thoại giữa Bác sĩ - Bệnh nhân - Người nhà.
+
+        Args:
+            audio_bytes: Nội dung file WAV.
+            max_speakers: Số người nói tối đa (mặc định 3).
+            filename: Tên file gửi lên API.
+
+        Returns:
+            dict với các trường:
+                - transcript_diarized (str): Kịch bản hội thoại phân tách theo người nói,
+                  dạng "Speaker_1: ...\nSpeaker_2: ..."
+                - speakers_detected (int): Số người nói phát hiện được.
+                - raw (dict): Raw response từ VNPT.
+        """
+        try:
+            async with httpx.AsyncClient(timeout=90.0) as client:
+                resp = await client.post(
+                    "https://api.idg.vnpt.vn/eval-emotion-service/v1/conversation/summary-meeting",
+                    headers=_smartvoice_headers(),
+                    files={"file": (filename, audio_bytes, "audio/wav")},
+                    data={
+                        "maxNumSpeakers": str(max_speakers),
+                        "languageCode": "vi-VN",
+                    },
+                )
+                data = resp.json()
+                obj = data.get("object", {})
+
+                transcript_lines = []
+                speakers_detected = 0
+
+                # ── Dạng 1: Diarized transcript (object.results là list với speaker_tag) ──
+                results = obj.get("results", [])
+                if isinstance(results, list) and results:
+                    speaker_set = set()
+                    for item in results:
+                        speaker_tag = item.get("speaker_tag") or item.get("speakerTag")
+                        # Lấy nội dung câu nói (ưu tiên transcript > text > sentence)
+                        sentence = (
+                            item.get("transcript")
+                            or item.get("text")
+                            or item.get("sentence")
+                            or ""
+                        )
+                        if speaker_tag is not None and sentence:
+                            label = f"Speaker_{speaker_tag}"
+                            transcript_lines.append(f"{label}: {sentence.strip()}")
+                            speaker_set.add(speaker_tag)
+                        elif sentence:
+                            # Có kết quả nhưng không có speaker_tag — gộp thành 1 dòng
+                            transcript_lines.append(sentence.strip())
+                    speakers_detected = len(speaker_set) if speaker_set else (1 if transcript_lines else 0)
+
+                # ── Dạng 2: Summary text (object.summary hoặc object.text) ──
+                if not transcript_lines:
+                    summary_text = obj.get("summary") or obj.get("text") or ""
+                    if summary_text:
+                        transcript_lines.append(str(summary_text).strip())
+                        speakers_detected = 0  # Không xác định được số người nói từ summary
+
+                transcript_diarized = "\n".join(transcript_lines)
+
+                return {
+                    "transcript_diarized": transcript_diarized,
+                    "speakers_detected": speakers_detected,
+                    "raw": data,
+                }
+        except Exception as e:
+            print(f"[Diarization] Exception: {e}")
+            return {
+                "transcript_diarized": "",
+                "speakers_detected": 0,
+                "raw": {"error": str(e)},
+            }
 
 
 vnpt_client = VnptAPIClient()

@@ -32,6 +32,7 @@ import {
   updatePatientCredentialId,
   type RegisteredPatient,
 } from "../lib/auth/patient-registry";
+import { PwaInstallPrompt } from "../components/PwaInstallPrompt";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -236,11 +237,11 @@ function LoginPage() {
             }}
           >
             {activeTab === "staff" ? (
-              <StaffLoginFlow onLogin={(u, m) => login(u, m)} />
+              <StaffLoginFlow onLogin={(u, m, token) => login(u, m, token)} />
             ) : activeTab === "patient" ? (
-              <PatientLoginFlow onLogin={(u, _token) => login(u, "patient")} />
+              <PatientLoginFlow onLogin={(u, token) => login(u, "patient", token)} />
             ) : (
-              <AdminLoginFlow onLogin={(u, _token) => login(u, "admin")} />
+              <AdminLoginFlow onLogin={(u, token) => login(u, "admin", token)} />
             )}
           </div>
 
@@ -252,6 +253,8 @@ function LoginPage() {
           </p>
         </div>
       </div>
+      {/* PWA Install Prompt — hiện khi vào trang login, ẩn khi đã cài rồi */}
+      <PwaInstallPrompt forceShow />
     </div>
   );
 }
@@ -808,6 +811,7 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
       return;
     }
 
+    setIsAuthenticating(true);
     try {
       const res = await fetchApi("/auth/login/patient", {
         method: "POST",
@@ -820,6 +824,8 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
       }
     } catch (err: any) {
       setFormError(err.message || "Sai CCCD hoặc mật khẩu");
+    } finally {
+      setIsAuthenticating(false);
     }
   };
 
@@ -984,11 +990,18 @@ function PatientLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: strin
           <div className="flex gap-2 pt-1">
             <button
               type="submit"
-              disabled={!cccd || !password}
-              className="flex-1 rounded-xl py-3 text-sm font-bold text-white transition-all disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={!cccd || !password || isAuthenticating}
+              className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white transition-all disabled:cursor-not-allowed disabled:opacity-40"
               style={{ backgroundColor: "#0d1f2d" }}
             >
-              ĐĂNG NHẬP
+              {isAuthenticating ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin" />{" "}
+                  ĐANG ĐĂNG NHẬP...
+                </>
+              ) : (
+                "ĐĂNG NHẬP"
+              )}
             </button>
             <button
               type="button"

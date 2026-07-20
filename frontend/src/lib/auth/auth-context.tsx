@@ -3,7 +3,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { fetchApi } from "../api/client";
 
 /* ─── Types ─── */
-export type WorkMode = "ops" | "clinician" | "patient" | "admin" | "ems";
+export type WorkMode = "ops" | "clinician" | "patient" | "admin" | "ems" | "crowd";
 
 export interface AuthUser {
   id: string;
@@ -20,6 +20,9 @@ export interface AuthUser {
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
   staffCode?: string;
+  appointments?: any[];
+  address?: string;
+  role?: string;
 }
 
 interface AuthContextValue {
