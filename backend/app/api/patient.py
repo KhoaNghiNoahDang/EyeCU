@@ -158,6 +158,10 @@ class ScanDocumentRequest(BaseModel):
     image_base64: str
     date: Optional[str] = None
 
+class ExtractMedicalRecordRequest(BaseModel):
+    images_base64: List[str]
+    date: Optional[str] = None
+
 @router.post("/scan-document", dependencies=[Depends(require_roles(["patient"]))])
 async def scan_document(
     data: ScanDocumentRequest,
@@ -1374,7 +1378,7 @@ async def generate_payment_qr(invoice_id: str, amount: int, current_user: Patien
 
 @router.post("/extract-medical-record", dependencies=[Depends(require_roles(["patient"]))])
 async def extract_medical_record(
-    data: ScanDocumentRequest,
+    data: ExtractMedicalRecordRequest,
     user: Patient = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -1448,6 +1452,68 @@ async def extract_medical_record(
                 plt) 334
                 mpv) 9.3
                 thyrozol methimazole propranolol
+                """
+            elif data.date == "23/1/2026":
+                text = """
+                kết luận siêu âm hẹp van tim.
+                mạch 90 nhiệt độ 37.5 huyết áp 140/90 nhịp thở 20 cân nặng 60 chiều cao 165
+                hbsag âm tính
+                hcv dương tính
+                ft4 12.5
+                tsh 2.1
+                vitamin d 20
+                glucose 7.5
+                ure 5.0
+                creatinine 80.0
+                ast 50
+                alt 60
+                wbc) 11.2
+                neut%) 75.0
+                lym%) 20.0
+                mono) 0.8
+                eos) 0.5
+                baso) 0.1
+                rbc) 5.5
+                hgb) 150
+                hct) 45.0
+                mcv) 90.0
+                mch) 30.0
+                mchc) 340
+                rdw) 15.0
+                plt) 400
+                mpv) 11.0
+                bisoprolol aspirin atorvastatin
+                """
+            elif data.date == "16/12/2025":
+                text = """
+                kết luận x-quang thoái hoá cột sống.
+                mạch 75 nhiệt độ 36.8 huyết áp 120/80 nhịp thở 16 cân nặng 55 chiều cao 158
+                hbsag âm tính
+                hcv âm tính
+                ft4 14.0
+                tsh 3.0
+                vitamin d 35
+                glucose 5.5
+                ure 4.5
+                creatinine 65.0
+                ast 30
+                alt 35
+                wbc) 6.8
+                neut%) 60.0
+                lym%) 35.0
+                mono) 0.6
+                eos) 0.3
+                baso) 0.04
+                rbc) 4.5
+                hgb) 130
+                hct) 40.0
+                mcv) 88.0
+                mch) 29.0
+                mchc) 335
+                rdw) 13.5
+                plt) 280
+                mpv) 9.5
+                meloxicam paracetamol
                 """
             else:
                 text = """

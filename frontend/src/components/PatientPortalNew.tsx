@@ -795,6 +795,12 @@ export function PatientPortalNew({
   const [healthRecordFilterYear, setHealthRecordFilterYear] = useState<string>("all");
   const [selectedRecordDate, setSelectedRecordDate] = useState<string>("1/4/2026");
   
+  // Reset extracted data when switching dates
+  useEffect(() => {
+    setExtractedRecordData(null);
+    setExpandedSection("file_results");
+  }, [selectedRecordDate]);
+  
   const [currentTicket, setCurrentTicket] = useState<any>(null);
   const [searchTicketCode, setSearchTicketCode] = useState("");
   const [isSearchingTicket, setIsSearchingTicket] = useState(false);
@@ -1397,7 +1403,12 @@ export function PatientPortalNew({
           {filtered.map((appt, i) => (
             <button
               key={i}
-              onClick={() => { setSelectedRecordDate(appt.date); setCurrentView("health_record"); }}
+              onClick={() => { 
+                setSelectedRecordDate(appt.date); 
+                setExtractedRecordData(null);
+                setExpandedSection("file_results");
+                setCurrentView("health_record"); 
+              }}
               className="w-full bg-white rounded-[20px] shadow-[0_8px_24px_rgba(0,0,0,0.06)] active:scale-[0.98] transition-transform text-left border border-slate-100 overflow-hidden flex"
             >
               <div className="w-[90px] flex flex-col items-center justify-center shrink-0 border-r border-slate-100 py-4">
