@@ -321,8 +321,11 @@ function PatientRounds() {
 
   // ── SmartUX: Virtual Pageview cho 13 màn hình dashboard ─────────────────
   useEffect(() => {
-    const virtualPath = `/dashboard/${activeView}`;
+    const virtualPath = `/?view=${activeView}`;
     try { 
+      // Lén đổi thanh địa chỉ để SmartUX Heatmap có thể phân biệt URL
+      window.history.replaceState(null, '', virtualPath);
+      
       if (window.VNPT?.q) {
         window.VNPT.q.push(['track_pageview', virtualPath]);
       }
