@@ -320,27 +320,13 @@ function PatientRounds() {
   const notifUnread = clinicNotifs.filter((n) => !n.read).length;
 
   // ── SmartUX: Virtual Pageview cho 13 màn hình dashboard ─────────────────
-  // Problem: Tất cả màn hình (ambient/ems/blood_bank...) đều dùng chung URL "/"
-  //          nên SmartUX chỉ thấy 1 pageview duy nhất cho tất cả.
-  // Fix: Mỗi khi user chuyển màn hình → push virtual path để SmartUX tạo heatmap riêng.
-  // requestIdleCallback: chỉ chạy khi browser RẢNH sau khi render xong → không ảnh hưởng UX.
   useEffect(() => {
     const virtualPath = `/dashboard/${activeView}`;
-    const track = () => {
-      try { 
-        if (typeof window.VNPT?.track_pageview === 'function') {
-          window.VNPT.track_pageview(virtualPath);
-        } else if (window.VNPT?.q) {
-          window.VNPT.q.push(['track_pageview', virtualPath]);
-        }
-      } catch (_) {}
-    };
-    if (typeof requestIdleCallback !== 'undefined') {
-      const id = requestIdleCallback(track, { timeout: 3000 });
-      return () => cancelIdleCallback(id);
-    }
-    const t = setTimeout(track, 150); // fallback Safari (không có requestIdleCallback)
-    return () => clearTimeout(t);
+    try { 
+      if (window.VNPT?.q) {
+        window.VNPT.q.push(['track_pageview', virtualPath]);
+      }
+    } catch (_) {}
   }, [activeView]);
 
   // TTS helper

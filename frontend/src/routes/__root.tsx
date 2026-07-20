@@ -220,27 +220,15 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const location = useLocation();
 
-  // SmartUX Virtual Pageview — chạy khi browser rảnh, không block UI
+  // SmartUX Virtual Pageview — chạy đồng bộ để đảm bảo SDK bắt được view context ngay lập tức
   useEffect(() => {
     if (location.pathname === '/') return; // Bỏ qua trang chủ, index.tsx sẽ tự lo virtual path
     
-    const track = () => {
-      try {
-        if (typeof window.VNPT?.track_pageview === 'function') {
-          window.VNPT.track_pageview(location.pathname);
-        } else if (window.VNPT?.q) {
-          window.VNPT.q.push(['track_pageview', location.pathname]);
-        }
-      } catch (_) {} // never let tracking crash the app
-    };
-    // requestIdleCallback: chạy sau khi tất cả rendering đã xong, hoàn toàn không ảnh hưởng UX
-    if (typeof requestIdleCallback !== 'undefined') {
-      const id = requestIdleCallback(track, { timeout: 3000 });
-      return () => cancelIdleCallback(id);
-    } else {
-      const t = setTimeout(track, 150); // fallback cho Safari
-      return () => clearTimeout(t);
-    }
+    try {
+      if (window.VNPT?.q) {
+        window.VNPT.q.push(['track_pageview', location.pathname]);
+      }
+    } catch (_) {} // never let tracking crash the app
   }, [location.pathname]);
 
   return (
