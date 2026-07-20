@@ -14,6 +14,7 @@ LOUD_NOISE_WINDOW = 3.0     # 3 giay
 class AudioDetector:
     def __init__(self):
         self._last_loud_time = 0.0
+        self._last_rms = 0.0
         self._is_running = False
         self._stream = None
 
@@ -29,6 +30,7 @@ class AudioDetector:
             
             # Tinh toan RMS cua chunk am thanh
             rms = np.sqrt(np.mean(indata**2))
+            self._last_rms = float(rms)  # Luon cap nhat de tinh xac suat
             
             # Neu RMS vuot nguong -> co tieng dong lon
             if rms > AUDIO_THRESHOLD_RMS:
@@ -55,6 +57,13 @@ class AudioDetector:
             return False
         # Tra ve True neu co tieng dong lon trong vong LOUD_NOISE_WINDOW giay qua
         return (time.time() - self._last_loud_time) < LOUD_NOISE_WINDOW
+
+    def get_audio_prob(self) -> float:
+        """Tra ve xac suat am thanh nga 0.0-1.0 dua tren RMS cuoi cung.
+        0% = yen lang, 100% = tieng dong manh (> 3x nguong).
+        """
+        # Chuan hoa: nguong = 33%, 3x nguong = 100%
+        return min(1.0, self._last_rms / (AUDIO_THRESHOLD_RMS * 3))
 
 # Instance toàn cục để main.py có thể dùng chung
 audio_detector = AudioDetector()
