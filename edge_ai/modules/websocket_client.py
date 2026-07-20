@@ -11,7 +11,8 @@ def encode_frame_base64(frame: np.ndarray, quality: int = 60) -> str:
     _, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, quality])
     return "data:image/jpeg;base64," + base64.b64encode(buffer).decode("utf-8")
 
-def send_fall_alert(ws: websocket.WebSocket, room_id: str, blurred_frame: np.ndarray):
+def send_fall_alert(ws: websocket.WebSocket, room_id: str, blurred_frame: np.ndarray,
+                    fall_prob: float = 0.0, audio_prob: float = 0.0):
     payload = {
         "type": "FALL_DETECTED",
         "room_id": room_id,
@@ -20,6 +21,8 @@ def send_fall_alert(ws: websocket.WebSocket, room_id: str, blurred_frame: np.nda
         "description": f"AI Camera phat hien nguoi nga tai phong {room_id}",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "blurred_image_base64": encode_frame_base64(blurred_frame),
+        "fall_prob": round(fall_prob * 100, 1),    # % xac suat nga tu model (0-100)
+        "audio_prob": round(audio_prob * 100, 1),  # % cuong do am thanh (0-100)
     }
     ws.send(json.dumps(payload))
 

@@ -1482,6 +1482,8 @@ function AmbientView({
     room: string;
     imageUrl: string;
     time: string;
+    fallProb?: number;
+    audioProb?: number;
   } | null>(null);
 
   const handleEmergency = useCallback((room: string) => {
@@ -1509,6 +1511,8 @@ function AmbientView({
       room: "P.201",
       imageUrl: "/fall_demo2.png",
       time: new Date().toLocaleTimeString(),
+      fallProb: 87.4,
+      audioProb: 64.2,
     });
     try {
       const audio = new Audio("/alert.mp3");
@@ -1549,6 +1553,8 @@ function AmbientView({
         room: msg.room_id || "Unknown",
         imageUrl: msg.blurred_image_base64 || "",
         time: new Date().toLocaleTimeString(),
+        fallProb: (msg as any).fall_prob,
+        audioProb: (msg as any).audio_prob,
       });
       try {
         new Audio("/alert.mp3").play().catch(() => {});
@@ -1830,6 +1836,43 @@ function AmbientView({
               Phát hiện bệnh nhân ngã tại{" "}
               <span className="font-bold text-red-300">{fallAlert.room}</span> lúc {fallAlert.time}
             </p>
+            {/* Chỉ số xác suất */}
+            <div className="flex gap-2">
+              <div className="flex-1 bg-slate-900/60 rounded-xl p-2.5 flex flex-col gap-1">
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider">&#129504; Tỉ lệ ngã</span>
+                <span className={`text-lg font-bold ${
+                  (fallAlert.fallProb ?? 0) >= 80 ? "text-red-400" :
+                  (fallAlert.fallProb ?? 0) >= 60 ? "text-orange-400" : "text-yellow-400"
+                }`}>
+                  {fallAlert.fallProb != null ? `${fallAlert.fallProb.toFixed(1)}%` : "--"}
+                </span>
+                <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      (fallAlert.fallProb ?? 0) >= 80 ? "bg-red-500" :
+                      (fallAlert.fallProb ?? 0) >= 60 ? "bg-orange-500" : "bg-yellow-500"
+                    }`}
+                    style={{ width: `${fallAlert.fallProb ?? 0}%` }}
+                  />
+                </div>
+              </div>
+              <div className="flex-1 bg-slate-900/60 rounded-xl p-2.5 flex flex-col gap-1">
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider">&#128266; Âm thanh ngã</span>
+                <span className={`text-lg font-bold ${
+                  (fallAlert.audioProb ?? 0) >= 50 ? "text-yellow-400" : "text-slate-400"
+                }`}>
+                  {fallAlert.audioProb != null ? `${fallAlert.audioProb.toFixed(1)}%` : "--"}
+                </span>
+                <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      (fallAlert.audioProb ?? 0) >= 50 ? "bg-yellow-500" : "bg-slate-500"
+                    }`}
+                    style={{ width: `${fallAlert.audioProb ?? 0}%` }}
+                  />
+                </div>
+              </div>
+            </div>
             {fallAlert.imageUrl && (
               <div className="relative rounded-lg overflow-hidden border-2 border-red-900/50">
                 <img src={fallAlert.imageUrl} alt="Blurred fall evidence" className="w-full h-auto max-h-40 object-cover" />
@@ -1868,6 +1911,43 @@ function AmbientView({
               Phát hiện bệnh nhân ngã tại{" "}
               <span className="font-bold text-red-300">{fallAlert.room}</span> lúc {fallAlert.time}
             </p>
+            {/* Chỉ số xác suất */}
+            <div className="flex gap-2">
+              <div className="flex-1 bg-slate-900/60 rounded-xl p-2.5 flex flex-col gap-1">
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider">&#129504; Tỉ lệ ngã</span>
+                <span className={`text-xl font-bold ${
+                  (fallAlert.fallProb ?? 0) >= 80 ? "text-red-400" :
+                  (fallAlert.fallProb ?? 0) >= 60 ? "text-orange-400" : "text-yellow-400"
+                }`}>
+                  {fallAlert.fallProb != null ? `${fallAlert.fallProb.toFixed(1)}%` : "--"}
+                </span>
+                <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      (fallAlert.fallProb ?? 0) >= 80 ? "bg-red-500" :
+                      (fallAlert.fallProb ?? 0) >= 60 ? "bg-orange-500" : "bg-yellow-500"
+                    }`}
+                    style={{ width: `${fallAlert.fallProb ?? 0}%` }}
+                  />
+                </div>
+              </div>
+              <div className="flex-1 bg-slate-900/60 rounded-xl p-2.5 flex flex-col gap-1">
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider">&#128266; Âm thanh ngã</span>
+                <span className={`text-xl font-bold ${
+                  (fallAlert.audioProb ?? 0) >= 50 ? "text-yellow-400" : "text-slate-400"
+                }`}>
+                  {fallAlert.audioProb != null ? `${fallAlert.audioProb.toFixed(1)}%` : "--"}
+                </span>
+                <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      (fallAlert.audioProb ?? 0) >= 50 ? "bg-yellow-500" : "bg-slate-500"
+                    }`}
+                    style={{ width: `${fallAlert.audioProb ?? 0}%` }}
+                  />
+                </div>
+              </div>
+            </div>
             {fallAlert.imageUrl && (
               <div className="relative rounded-lg overflow-hidden border-2 border-red-900/50">
                 <img src={fallAlert.imageUrl} alt="Blurred fall evidence" className="w-full h-auto" />
@@ -5062,6 +5142,8 @@ function AmbulanceView() {
     room: string;
     imageUrl: string;
     time: string;
+    fallProb?: number;
+    audioProb?: number;
   } | null>(null);
 
   const showToast = useCallback((msg: string) => {
@@ -5321,6 +5403,8 @@ function AmbulanceView() {
           room: msg.room_id || "Unknown",
           imageUrl: msg.blurred_image_base64 || "",
           time: new Date().toLocaleTimeString(),
+          fallProb: (msg as any).fall_prob,
+          audioProb: (msg as any).audio_prob,
         });
         try {
           new Audio("/alert.mp3").play().catch(() => {});
@@ -5416,6 +5500,43 @@ function AmbulanceView() {
             Camera AI phát hiện sự cố ngã tại phòng{" "}
             <span className="font-bold text-red-300">{fallAlert.room}</span> lúc {fallAlert.time}
           </p>
+          {/* Chỉ số xác suất */}
+          <div className="flex gap-2">
+            <div className="flex-1 bg-slate-900/60 rounded-xl p-2.5 flex flex-col gap-1">
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider">&#129504; Tỉ lệ ngã</span>
+              <span className={`text-xl font-bold ${
+                (fallAlert.fallProb ?? 0) >= 80 ? "text-red-400" :
+                (fallAlert.fallProb ?? 0) >= 60 ? "text-orange-400" : "text-yellow-400"
+              }`}>
+                {fallAlert.fallProb != null ? `${fallAlert.fallProb.toFixed(1)}%` : "--"}
+              </span>
+              <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    (fallAlert.fallProb ?? 0) >= 80 ? "bg-red-500" :
+                    (fallAlert.fallProb ?? 0) >= 60 ? "bg-orange-500" : "bg-yellow-500"
+                  }`}
+                  style={{ width: `${fallAlert.fallProb ?? 0}%` }}
+                />
+              </div>
+            </div>
+            <div className="flex-1 bg-slate-900/60 rounded-xl p-2.5 flex flex-col gap-1">
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider">&#128266; Âm thanh ngã</span>
+              <span className={`text-xl font-bold ${
+                (fallAlert.audioProb ?? 0) >= 50 ? "text-yellow-400" : "text-slate-400"
+              }`}>
+                {fallAlert.audioProb != null ? `${fallAlert.audioProb.toFixed(1)}%` : "--"}
+              </span>
+              <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    (fallAlert.audioProb ?? 0) >= 50 ? "bg-yellow-500" : "bg-slate-500"
+                  }`}
+                  style={{ width: `${fallAlert.audioProb ?? 0}%` }}
+                />
+              </div>
+            </div>
+          </div>
           {fallAlert.imageUrl && (
             <img
               src={fallAlert.imageUrl}

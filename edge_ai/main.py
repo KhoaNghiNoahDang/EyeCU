@@ -192,6 +192,7 @@ def main():
         audio_triggered = audio_detector.is_loud_noise_recently()
         is_falling = False
         all_results = []
+        max_fall_prob = 0.0  # Luu xac suat nga cao nhat trong frame nay
         
         for bbox in bboxes:
             poses = get_landmarks(frame, bbox)
@@ -204,9 +205,14 @@ def main():
                 
                 if features is not None:
                     fall_flag, fall_prob, person_id = predict_fall(features, landmarks)
-                    if fall_prob > 0.90:
+                    if fall_prob > max_fall_prob:
+                        max_fall_prob = fall_prob
+                    # Stage 2 xac nhan → fall_flag = True moi gui canh bao
+                    if fall_flag:
                         is_falling = True
-                    elif fall_prob > 0.50 and audio_triggered:
+                    # Audio fusion: chi ho tro khi am thanh THAT SU lon (> 70%)
+                    # Tranh bao nham do tieng dong binh thuong trong benh vien
+                    elif fall_prob > 0.70 and audio_triggered:
                         is_falling = True
 
         # Buoc 2: Xu ly rieng tu va hien thi khung xuong
@@ -257,13 +263,14 @@ def main():
                     except queue.Full:
                         pass
         
-        # Buoc 4: Gui canh bao NGA (Neu can)
+        # Buoc 4: Gui canh bao NGA (da qua Stage 2 xac nhan)
         if is_falling:
             now = time.time()
             if now - last_alert >= FALL_COOLDOWN_SECONDS:
-                print(f"[ALERT] TE NGA tai phong {room_id}!")
+                print(f"[ALERT] *** TE NGA XAC NHAN *** phong={room_id} "
+                      f"fall={max_fall_prob*100:.1f}% audio={audio_detector.get_audio_prob()*100:.1f}%")
                 try:
-                    ws_queue.put_nowait((send_fall_alert, (ws, room_id, display_frame.copy())))
+                    ws_queue.put_nowait((send_fall_alert, (ws, room_id, display_frame.copy(), max_fall_prob, audio_detector.get_audio_prob())))
                     last_alert = now
                 except queue.Full:
                     pass
