@@ -154,7 +154,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           VNPT.app_key = '3d4e11b8bb1194a02ffbad65aca9e0dad528be55';
           VNPT.url = 'https://console-smartux.vnpt.vn';
           VNPT.q.push(['track_sessions']);
-          VNPT.q.push(['track_pageview']);
           VNPT.q.push(['track_clicks']);
           VNPT.q.push(['track_scrolls']);
           VNPT.q.push(['track_errors']);
@@ -223,6 +222,8 @@ function RootComponent() {
 
   // SmartUX Virtual Pageview — chạy khi browser rảnh, không block UI
   useEffect(() => {
+    if (location.pathname === '/') return; // Bỏ qua trang chủ, index.tsx sẽ tự lo virtual path
+    
     const track = () => {
       try {
         if (typeof window.VNPT?.track_pageview === 'function') {
