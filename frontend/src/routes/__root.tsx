@@ -152,6 +152,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           // Dùng proxy Vercel để vượt tường lửa CORS và chống Adblock
           VNPT.url = window.location.origin + '/smartux-api';
           VNPT.q.push(['track_sessions']);
+          VNPT.q.push(['track_pageview']);
           VNPT.q.push(['track_clicks']);
           VNPT.q.push(['track_scrolls']);
           VNPT.q.push(['track_errors']);
@@ -179,17 +180,27 @@ function SmartUXLoader() {
     // Tránh load hai lần
     if (document.getElementById('vnpt-smartux-sdk')) return;
 
-    const cly = document.createElement('script');
-    cly.id = 'vnpt-smartux-sdk';
-    cly.type = 'text/javascript';
-    cly.async = true;
-    cly.src = window.location.origin + '/smartux-api/sdk/web/core-track.js';
-    cly.onload = function () {
-      if (window.VNPT && typeof window.VNPT.init === 'function') {
-        window.VNPT.init();
+    const paths = [
+      window.location.origin + '/smartux-api/sdk/web/core-track.js',
+      window.location.origin + '/smartux-api/sdk/web/minify.min.js'
+    ];
+    for (let i = 0; i < paths.length; i++) {
+      const cly = document.createElement('script');
+      if (i === 0) cly.id = 'vnpt-smartux-sdk';
+      cly.type = 'text/javascript';
+      cly.async = true;
+      cly.src = paths[i];
+      cly.onload = i === 0 
+        ? function () { if (window.VNPT && typeof window.VNPT.init === 'function') window.VNPT.init(); } 
+        : function() { window.minify = require("html-minifier").minify; };
+      
+      const s = document.getElementsByTagName('script')[0];
+      if (s && s.parentNode) {
+        s.parentNode.insertBefore(cly, s);
+      } else {
+        document.head.appendChild(cly);
       }
-    };
-    document.head.appendChild(cly);
+    }
   }, []); // chạy 1 lần duy nhất khi app mount
 
   return null;
