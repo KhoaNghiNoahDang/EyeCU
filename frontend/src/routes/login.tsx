@@ -289,6 +289,7 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode,
     "manual",
   );
   const [identifiedUser, setIdentifiedUser] = useState<AuthUser | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [employeeId, setEmployeeId] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -387,7 +388,7 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode,
         }
       }
     } catch (err: any) {
-      alert(err.message || "Không tìm thấy dữ liệu khuôn mặt. Vui lòng đăng nhập thủ công.");
+      setFormError(err.message || "Không tìm thấy dữ liệu khuôn mặt. Vui lòng đăng nhập thủ công.");
       setStep("manual");
     } finally {
       setIsAuthenticating(false);
@@ -422,7 +423,7 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode,
         setStep("pick_shift");
       }
     } catch (err: any) {
-      alert(err.message || "Đăng nhập thất bại");
+      setFormError(err.message || "Đăng nhập thất bại");
     } finally {
       setIsAuthenticating(false);
     }
@@ -549,6 +550,7 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode,
         />
 
         <form onSubmit={handleManualLogin} className="w-full flex flex-col gap-4 text-left">
+
           <div>
             <label htmlFor="employeeId" className="block text-xs font-bold text-slate-700 mb-1">MÃ NHÂN VIÊN</label>
             <div className="relative">
@@ -605,6 +607,12 @@ function StaffLoginFlow({ onLogin }: { onLogin: (user: AuthUser, mode: WorkMode,
               "Đăng nhập"
             )}
           </button>
+          
+          {formError && (
+            <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-[13px] font-medium text-red-600 animate-in fade-in zoom-in text-center mt-2">
+              {formError}
+            </div>
+          )}
         </form>
 
         <div className="flex items-center gap-3">
@@ -1087,6 +1095,7 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string)
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -1165,7 +1174,7 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string)
         onLogin(me as AuthUser, res.access_token);
       }
     } catch (err: any) {
-      alert(err.message || "Không nhận diện được khuôn mặt");
+      setFormError(err.message || "Không nhận diện được khuôn mặt");
       setStep("manual");
     } finally {
       setIsAuthenticating(false);
@@ -1197,7 +1206,7 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string)
         onLogin(me as AuthUser, res.access_token);
       }
     } catch (err: any) {
-      alert(err.message || "Đăng nhập thất bại");
+      setFormError(err.message || "Đăng nhập thất bại");
     } finally {
       setIsAuthenticating(false);
     }
@@ -1294,6 +1303,7 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string)
         title="Đăng nhập Quản trị"
         subtitle="Dành cho Quản trị viên hệ thống"
       />
+
       <div className="space-y-3">
         {[
           {
@@ -1366,6 +1376,12 @@ function AdminLoginFlow({ onLogin }: { onLogin: (user: AuthUser, token?: string)
           )}
         </button>
       </div>
+      
+      {formError && (
+        <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-[13px] font-medium text-red-600 animate-in fade-in zoom-in text-center mt-3">
+          {formError}
+        </div>
+      )}
 
       <div className="flex items-center gap-3 mt-4">
         <div className="flex-1 h-px bg-slate-200" />

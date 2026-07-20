@@ -909,7 +909,22 @@ export function PatientPortalNew({
       setIsAnalyzingLab(false);
       setIsScanningLab(false);
       stopCamera();
-      alert("Quét tài liệu thất bại: " + e.message);
+      
+      setMessages((prev) => [
+        ...prev,
+        {
+          from: "user",
+          text: "Tôi vừa tải lên một tài liệu nhưng hệ thống báo lỗi.",
+          time: getTimeNow(),
+          images: imageDataUrl ? [imageDataUrl] : [],
+        },
+        {
+          from: "bot",
+          text: `Xin lỗi bạn, quá trình bóc tách OCR gặp sự cố: ${e.message || "Lỗi không xác định"}. Tuy nhiên, bạn vẫn có thể nhập chỉ số trực tiếp vào đây hoặc hỏi mình bất cứ câu hỏi nào về sức khỏe nhé!`,
+          time: getTimeNow(),
+        }
+      ]);
+      setBotOpen(true);
     }
   };
 
@@ -4198,7 +4213,15 @@ export function PatientPortalNew({
                 <div className={`h-full w-full rounded-full bg-white ${isAnalyzingLab ? "animate-pulse bg-[#88E8F2]" : ""}`} />
               </button>
               <button
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => {
+                  const hasAsked = localStorage.getItem("hasAskedPhotoPermission");
+                  if (!hasAsked) {
+                    const allow = window.confirm("Bạn có muốn cho EyeCU truy cập ảnh và nội dung nghe nhìn trên thiết bị của bạn không?");
+                    if (!allow) return;
+                    localStorage.setItem("hasAskedPhotoPermission", "true");
+                  }
+                  fileInputRef.current?.click();
+                }}
                 className="rounded-full bg-white/10 px-3 py-2 text-[11px] font-semibold text-white"
               >
                 Thư viện
@@ -4221,7 +4244,6 @@ export function PatientPortalNew({
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         className="hidden"
         onChange={handleFileSelectedLab}
       />

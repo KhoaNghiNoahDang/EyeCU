@@ -155,7 +155,7 @@ async def trigger_patient_sos(user: Patient = Depends(get_current_user)):
 
 from typing import Optional, List
 class ScanDocumentRequest(BaseModel):
-    images_base64: List[str]
+    image_base64: str
     date: Optional[str] = None
 
 @router.post("/scan-document", dependencies=[Depends(require_roles(["patient"]))])
