@@ -553,22 +553,21 @@ export function PatientPortalNew({
       recognition.interimResults = true;
       recognition.lang = 'vi-VN';
       
-      let finalTranscript = chatInput ? chatInput + " " : "";
+      let initialChatInput = chatInput ? chatInput + " " : "";
 
       recognition.onresult = (event: any) => {
         let interimTranscript = '';
-        let currentFinal = '';
+        let sessionFinal = '';
         
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
+        for (let i = 0; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
-            currentFinal += event.results[i][0].transcript;
+            sessionFinal += event.results[i][0].transcript;
           } else {
             interimTranscript += event.results[i][0].transcript;
           }
         }
         
-        finalTranscript += currentFinal;
-        setChatInput(finalTranscript + interimTranscript);
+        setChatInput((initialChatInput + sessionFinal + interimTranscript).trim());
       };
 
       recognition.onerror = (event: any) => {

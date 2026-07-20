@@ -7975,58 +7975,68 @@ function VoiceView() {
         return;
       }
 
-      const recognition = new SpeechRecognition();
-      recognition.lang = "vi-VN";
-      recognition.continuous = true;
-      recognition.interimResults = true;
-
-      let sessionFinal = "";
-
-      recognition.onresult = (event: any) => {
-        let interim = "";
-        sessionFinal = "";
-        for (let i = 0; i < event.results.length; i++) {
-          const result = event.results[i];
-          if (result.isFinal) {
-            sessionFinal += result[0].transcript + " ";
-          } else {
-            interim += result[0].transcript;
-          }
-        }
-        setLiveTranscript((finalTranscriptRef.current + " " + sessionFinal + interim).trim());
-      };
-
-      recognition.onerror = (event: any) => {
-        if (event.error === "not-allowed") {
-          setErrorMsg("Bạn cần cấp quyền microphone cho trình duyệt.");
-          isRecordingRef.current = false;
-        } else if (event.error === "aborted") {
-          // Ignore aborted error since it can happen on manual stop or silence
-        } else if (event.error !== "no-speech") {
-          setErrorMsg(`Lỗi nhận dạng: ${event.error}`);
-        }
-      };
-
-      recognition.onend = () => {
-        if (sessionFinal.trim()) {
-          finalTranscriptRef.current += " " + sessionFinal;
-          sessionFinal = "";
-        }
-        if (isRecordingRef.current) {
-          try {
-            recognition.start();
-          } catch (e) {
-            console.error(e);
-          }
-        } else {
-          setRecording(false);
-        }
-      };
-
-      recognitionRef.current = recognition;
       isRecordingRef.current = true;
-      recognition.start();
       setRecording(true);
+
+      const startNewSession = () => {
+        if (!isRecordingRef.current) return;
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = "vi-VN";
+        recognition.continuous = true;
+        recognition.interimResults = true;
+
+        let sessionFinal = "";
+
+        recognition.onresult = (event: any) => {
+          let interim = "";
+          sessionFinal = "";
+          for (let i = 0; i < event.results.length; i++) {
+            const result = event.results[i];
+            if (result.isFinal) {
+              sessionFinal += result[0].transcript + " ";
+            } else {
+              interim += result[0].transcript;
+            }
+          }
+          setLiveTranscript((finalTranscriptRef.current + " " + sessionFinal + interim).trim());
+        };
+
+        recognition.onerror = (event: any) => {
+          if (event.error === "not-allowed") {
+            setErrorMsg("Bạn cần cấp quyền microphone cho trình duyệt.");
+            isRecordingRef.current = false;
+          } else if (event.error === "aborted") {
+            // Ignore aborted error since it can happen on manual stop or silence
+          } else if (event.error !== "no-speech") {
+            setErrorMsg(`Lỗi nhận dạng: ${event.error}`);
+          }
+        };
+
+        recognition.onend = () => {
+          if (sessionFinal.trim()) {
+            finalTranscriptRef.current += " " + sessionFinal;
+          }
+          if (isRecordingRef.current) {
+            try {
+              startNewSession();
+            } catch (e) {
+              console.error(e);
+            }
+          } else {
+            setRecording(false);
+          }
+        };
+
+        recognitionRef.current = recognition;
+        try {
+          recognition.start();
+        } catch (e) {
+          console.error(e);
+        }
+      };
+
+      startNewSession();
     } catch (err) {
       setErrorMsg("Không thể khởi động nhận dạng giọng nói. Vui lòng dùng Chrome.");
     }
