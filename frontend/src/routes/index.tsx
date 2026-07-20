@@ -283,6 +283,8 @@ function PatientRounds() {
 
   // We must always call hooks at the top level
   const getInitialView = (): ViewKey => {
+    if (typeof window === "undefined") return "ambient";
+
     const searchParams = new URLSearchParams(window.location.search);
     const viewFromQuery = searchParams.get("view") as ViewKey;
     if (viewFromQuery) return viewFromQuery;
