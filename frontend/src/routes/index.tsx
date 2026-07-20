@@ -138,7 +138,9 @@ import {
   Minimize2,
   QrCode,
   Check,
-  Loader2
+  Loader2,
+  Activity,
+  Volume2
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -1863,7 +1865,7 @@ function AmbientView({
             {/* Chỉ số xác suất */}
             <div className="flex gap-2">
               <div className="flex-1 bg-slate-900/60 rounded-xl p-2.5 flex flex-col gap-1">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider">&#129504; Tỉ lệ ngã</span>
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider flex items-center gap-1"><Activity className="w-3.5 h-3.5" /> Tỉ lệ ngã</span>
                 <span className={`text-lg font-bold ${
                   (fallAlert.fallProb ?? 0) >= 80 ? "text-red-400" :
                   (fallAlert.fallProb ?? 0) >= 60 ? "text-orange-400" : "text-yellow-400"
@@ -1881,7 +1883,7 @@ function AmbientView({
                 </div>
               </div>
               <div className="flex-1 bg-slate-900/60 rounded-xl p-2.5 flex flex-col gap-1">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider">&#128266; Âm thanh ngã</span>
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider flex items-center gap-1"><Volume2 className="w-3.5 h-3.5" /> Âm thanh ngã</span>
                 <span className={`text-lg font-bold ${
                   (fallAlert.audioProb ?? 0) >= 50 ? "text-yellow-400" : "text-slate-400"
                 }`}>
@@ -1938,7 +1940,7 @@ function AmbientView({
             {/* Chỉ số xác suất */}
             <div className="flex gap-2">
               <div className="flex-1 bg-slate-900/60 rounded-xl p-2.5 flex flex-col gap-1">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider">&#129504; Tỉ lệ ngã</span>
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider flex items-center gap-1"><Activity className="w-3.5 h-3.5" /> Tỉ lệ ngã</span>
                 <span className={`text-xl font-bold ${
                   (fallAlert.fallProb ?? 0) >= 80 ? "text-red-400" :
                   (fallAlert.fallProb ?? 0) >= 60 ? "text-orange-400" : "text-yellow-400"
@@ -1956,7 +1958,7 @@ function AmbientView({
                 </div>
               </div>
               <div className="flex-1 bg-slate-900/60 rounded-xl p-2.5 flex flex-col gap-1">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider">&#128266; Âm thanh ngã</span>
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider flex items-center gap-1"><Volume2 className="w-3.5 h-3.5" /> Âm thanh ngã</span>
                 <span className={`text-xl font-bold ${
                   (fallAlert.audioProb ?? 0) >= 50 ? "text-yellow-400" : "text-slate-400"
                 }`}>
@@ -5527,7 +5529,7 @@ function AmbulanceView() {
           {/* Chỉ số xác suất */}
           <div className="flex gap-2">
             <div className="flex-1 bg-slate-900/60 rounded-xl p-2.5 flex flex-col gap-1">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider">&#129504; Tỉ lệ ngã</span>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider flex items-center gap-1"><Activity className="w-3.5 h-3.5" /> Tỉ lệ ngã</span>
               <span className={`text-xl font-bold ${
                 (fallAlert.fallProb ?? 0) >= 80 ? "text-red-400" :
                 (fallAlert.fallProb ?? 0) >= 60 ? "text-orange-400" : "text-yellow-400"
@@ -5545,7 +5547,7 @@ function AmbulanceView() {
               </div>
             </div>
             <div className="flex-1 bg-slate-900/60 rounded-xl p-2.5 flex flex-col gap-1">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider">&#128266; Âm thanh ngã</span>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider flex items-center gap-1"><Volume2 className="w-3.5 h-3.5" /> Âm thanh ngã</span>
               <span className={`text-xl font-bold ${
                 (fallAlert.audioProb ?? 0) >= 50 ? "text-yellow-400" : "text-slate-400"
               }`}>
