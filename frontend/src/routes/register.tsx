@@ -50,7 +50,7 @@ function RegisterPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated) navigate({ to: "/" });
+    if (isAuthenticated) navigate({ to: "/", search: { view: '' } });
   }, [isAuthenticated, navigate]);
 
   const STEPS: Step[] = ["cccd-front", "cccd-back", "face", "processing", "confirm", "done"];

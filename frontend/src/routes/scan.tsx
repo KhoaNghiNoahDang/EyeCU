@@ -46,7 +46,7 @@ function ScanPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate({ to: "/" });
+      navigate({ to: "/", search: { view: '' } });
     }
   }, [isAuthenticated, navigate]);
 
@@ -110,7 +110,7 @@ function ScanPage() {
     if (!patient) return;
     login(toAuthUser(patient));
     setStep("done");
-    setTimeout(() => navigate({ to: "/" }), 800);
+    setTimeout(() => navigate({ to: "/", search: { view: '' } }), 800);
   };
 
   return (

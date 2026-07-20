@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useState, useEffect, useRef, useCallback, useMemo, ComponentType, Fragment } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth, type WorkMode } from "../lib/auth/auth-context";
@@ -142,6 +142,9 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    view: (typeof search.view === 'string' ? search.view : "") as ViewKey | "",
+  }),
   head: () => ({
     meta: [
       { title: "EyeCU — Ambient Clinical OS" },
@@ -281,21 +284,9 @@ function PatientRounds() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
-  // We must always call hooks at the top level
-  const getInitialView = (): ViewKey => {
-    if (typeof window === "undefined") return "ambient";
-
-    const searchParams = new URLSearchParams(window.location.search);
-    const viewFromQuery = searchParams.get("view") as ViewKey;
-    if (viewFromQuery) return viewFromQuery;
-    
-    // Nếu URL là /dashboard/ems, cắt chuỗi lấy "ems"
-    if (window.location.pathname.startsWith('/dashboard/')) {
-      return window.location.pathname.split('/')[2] as ViewKey || "ambient";
-    }
-    return "ambient";
-  };
-  const [activeView, setActiveView] = useState<ViewKey>(getInitialView());
+  // Đọc ?view= từ URL qua TanStack Router (SSR-safe, không cần window.location)
+  const { view: viewFromSearch } = useSearch({ from: '/' });
+  const [activeView, setActiveView] = useState<ViewKey>(viewFromSearch || "ambient");
   const [collapsed, setCollapsed] = useState(false);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [workspaceSheetOpen, setWorkspaceSheetOpen] = useState(false);
