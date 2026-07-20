@@ -221,11 +221,22 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const location = useLocation();
 
-  // FIX: Track SPA page navigations for SmartUX heatmap
-  // TanStack Router không reload browser khi chuyển trang → cần notify SmartUX thủ công
+  // SmartUX Virtual Pageview — chạy khi browser rảnh, không block UI
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.VNPT && typeof window.VNPT.q !== 'undefined') {
-      window.VNPT.q.push(['track_pageview', location.pathname]);
+    const track = () => {
+      try {
+        if (window.VNPT?.q) {
+          window.VNPT.q.push(['track_pageview', location.pathname]);
+        }
+      } catch (_) {} // never let tracking crash the app
+    };
+    // requestIdleCallback: chạy sau khi tất cả rendering đã xong, hoàn toàn không ảnh hưởng UX
+    if (typeof requestIdleCallback !== 'undefined') {
+      const id = requestIdleCallback(track, { timeout: 3000 });
+      return () => cancelIdleCallback(id);
+    } else {
+      const t = setTimeout(track, 150); // fallback cho Safari
+      return () => clearTimeout(t);
     }
   }, [location.pathname]);
 
