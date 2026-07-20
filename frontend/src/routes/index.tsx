@@ -138,9 +138,7 @@ import {
   Minimize2,
   QrCode,
   Check,
-  Loader2,
-  Activity,
-  Volume2
+  Loader2
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
