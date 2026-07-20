@@ -556,14 +556,24 @@ export function PatientPortalNew({
       let initialChatInput = chatInput ? chatInput + " " : "";
 
       recognition.onresult = (event: any) => {
-        let interimTranscript = '';
         let sessionFinal = '';
-        
-        for (let i = 0; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            sessionFinal += event.results[i][0].transcript;
+        let interimTranscript = '';
+        const isAndroid = /Android/i.test(navigator.userAgent);
+
+        if (isAndroid) {
+          const lastResult = event.results[event.results.length - 1];
+          if (lastResult.isFinal) {
+            sessionFinal = lastResult[0].transcript + " ";
           } else {
-            interimTranscript += event.results[i][0].transcript;
+            interimTranscript = lastResult[0].transcript;
+          }
+        } else {
+          for (let i = 0; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              sessionFinal += event.results[i][0].transcript + " ";
+            } else {
+              interimTranscript += event.results[i][0].transcript;
+            }
           }
         }
         

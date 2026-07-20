@@ -8015,29 +8015,26 @@ function VoiceView() {
         recognition.onresult = (event: any) => {
           sessionFinal = "";
           let interim = "";
-          for (let i = 0; i < event.results.length; i++) {
-            const text = event.results[i][0].transcript;
-            if (event.results[i].isFinal) {
-              let cleanFinal = sessionFinal.trim().toLowerCase();
-              let cleanText = text.trim().toLowerCase();
-              if (cleanFinal && cleanText.startsWith(cleanFinal)) {
-                sessionFinal = text + " ";
-              } else {
-                sessionFinal += text + " ";
-              }
+          const isAndroid = /Android/i.test(navigator.userAgent);
+
+          if (isAndroid) {
+            const lastResult = event.results[event.results.length - 1];
+            if (lastResult.isFinal) {
+              sessionFinal = lastResult[0].transcript + " ";
             } else {
-              interim = text;
+              interim = lastResult[0].transcript;
+            }
+          } else {
+            for (let i = 0; i < event.results.length; i++) {
+              const result = event.results[i];
+              if (result.isFinal) {
+                sessionFinal += result[0].transcript + " ";
+              } else {
+                interim += result[0].transcript;
+              }
             }
           }
-          let displayStr = "";
-          let cleanFinal = sessionFinal.trim().toLowerCase();
-          let cleanInterim = interim.trim().toLowerCase();
-          if (cleanFinal && cleanInterim.startsWith(cleanFinal)) {
-            displayStr = interim;
-          } else {
-            displayStr = sessionFinal + interim;
-          }
-          setLiveTranscript((finalTranscriptRef.current + " " + displayStr).trim());
+          setLiveTranscript((finalTranscriptRef.current + " " + sessionFinal + interim).trim());
         };
 
         recognition.onerror = (event: any) => {
@@ -10500,29 +10497,26 @@ function EmsView() {
       recognition.onresult = (event: any) => {
         let final = "";
         let interim = "";
-        for (let i = 0; i < event.results.length; i++) {
-          const text = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            let cleanFinal = final.trim().toLowerCase();
-            let cleanText = text.trim().toLowerCase();
-            if (cleanFinal && cleanText.startsWith(cleanFinal)) {
-              final = text + " ";
-            } else {
-              final += text + " ";
-            }
+        const isAndroid = /Android/i.test(navigator.userAgent);
+
+        if (isAndroid) {
+          const lastResult = event.results[event.results.length - 1];
+          if (lastResult.isFinal) {
+            final = lastResult[0].transcript + " ";
           } else {
-            interim = text;
+            interim = lastResult[0].transcript;
+          }
+        } else {
+          for (let i = 0; i < event.results.length; i++) {
+            const result = event.results[i];
+            if (result.isFinal) {
+              final += result[0].transcript + " ";
+            } else {
+              interim += result[0].transcript;
+            }
           }
         }
-        let displayStr = "";
-        let cleanFinal = final.trim().toLowerCase();
-        let cleanInterim = interim.trim().toLowerCase();
-        if (cleanFinal && cleanInterim.startsWith(cleanFinal)) {
-          displayStr = interim;
-        } else {
-          displayStr = final + interim;
-        }
-        setPreAlertText(displayStr.trim());
+        setPreAlertText((final + interim).trim());
       };
 
       recognition.onerror = (event: any) => {
