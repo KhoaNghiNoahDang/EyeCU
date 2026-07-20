@@ -8007,17 +8007,31 @@ function VoiceView() {
         let sessionFinal = "";
 
         recognition.onresult = (event: any) => {
-          let interim = "";
           sessionFinal = "";
+          let interim = "";
           for (let i = 0; i < event.results.length; i++) {
-            const result = event.results[i];
-            if (result.isFinal) {
-              sessionFinal += result[0].transcript + " ";
+            const text = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              let cleanFinal = sessionFinal.trim().toLowerCase();
+              let cleanText = text.trim().toLowerCase();
+              if (cleanFinal && cleanText.startsWith(cleanFinal)) {
+                sessionFinal = text + " ";
+              } else {
+                sessionFinal += text + " ";
+              }
             } else {
-              interim += result[0].transcript;
+              interim = text;
             }
           }
-          setLiveTranscript((finalTranscriptRef.current + " " + sessionFinal + interim).trim());
+          let displayStr = "";
+          let cleanFinal = sessionFinal.trim().toLowerCase();
+          let cleanInterim = interim.trim().toLowerCase();
+          if (cleanFinal && cleanInterim.startsWith(cleanFinal)) {
+            displayStr = interim;
+          } else {
+            displayStr = sessionFinal + interim;
+          }
+          setLiveTranscript((finalTranscriptRef.current + " " + displayStr).trim());
         };
 
         recognition.onerror = (event: any) => {
@@ -10478,18 +10492,31 @@ function EmsView() {
       recognition.interimResults = true;
 
       recognition.onresult = (event: any) => {
-        let interim = "";
         let final = "";
+        let interim = "";
         for (let i = 0; i < event.results.length; i++) {
-          const result = event.results[i];
-          if (result.isFinal) {
-            final += result[0].transcript + " ";
+          const text = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            let cleanFinal = final.trim().toLowerCase();
+            let cleanText = text.trim().toLowerCase();
+            if (cleanFinal && cleanText.startsWith(cleanFinal)) {
+              final = text + " ";
+            } else {
+              final += text + " ";
+            }
           } else {
-            interim += result[0].transcript;
+            interim = text;
           }
         }
-        const text = (final + interim).trim();
-        setPreAlertText(text);
+        let displayStr = "";
+        let cleanFinal = final.trim().toLowerCase();
+        let cleanInterim = interim.trim().toLowerCase();
+        if (cleanFinal && cleanInterim.startsWith(cleanFinal)) {
+          displayStr = interim;
+        } else {
+          displayStr = final + interim;
+        }
+        setPreAlertText(displayStr.trim());
       };
 
       recognition.onerror = (event: any) => {
