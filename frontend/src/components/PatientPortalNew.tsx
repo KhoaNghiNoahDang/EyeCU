@@ -833,6 +833,7 @@ export function PatientPortalNew({
   const [isScanningLab, setIsScanningLab] = useState(false);
   const [isAnalyzingLab, setIsAnalyzingLab] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const nativeCameraInputRef = useRef<HTMLInputElement>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -851,7 +852,11 @@ export function PatientPortalNew({
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
+        video: { 
+          facingMode: { ideal: "environment" },
+          width: { ideal: 4096 },
+          height: { ideal: 2160 }
+        },
         audio: false,
       });
       streamRef.current = stream;
@@ -4226,6 +4231,13 @@ export function PatientPortalNew({
               >
                 Thư viện
               </button>
+              
+              <button
+                onClick={() => nativeCameraInputRef.current?.click()}
+                className="rounded-full bg-white/10 px-3 py-2 text-[11px] font-semibold text-white"
+              >
+                Chụp (Nét)
+              </button>
             </div>
             {isAnalyzingLab && (
               <div className="absolute inset-0 z-[70] flex flex-col items-center justify-center bg-slate-900/90 backdrop-blur-md">
@@ -4243,7 +4255,15 @@ export function PatientPortalNew({
       <input
         ref={fileInputRef}
         type="file"
+        accept="image/png, image/jpeg, image/heic"
+        className="hidden"
+        onChange={handleFileSelectedLab}
+      />
+      <input
+        ref={nativeCameraInputRef}
+        type="file"
         accept="image/*"
+        capture="environment"
         className="hidden"
         onChange={handleFileSelectedLab}
       />

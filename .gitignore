@@ -1,2 +1,5 @@
 **/.DS_Store
 .DS_Store
+_temp_fall/
+backend/backend_logs.txt
+backend/uvicorn.log
