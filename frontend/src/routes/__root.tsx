@@ -140,9 +140,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "apple-touch-startup-image", href: "/apple-touch-icon.png" },
       // Performance: preconnect to backends
       { rel: "dns-prefetch", href: "https://ekyc.vnpt.vn" },
-      // SmartUX: preconnect to VNPT tracking CDN
-      { rel: "dns-prefetch", href: "https://console-smartux.vnpt.vn" },
-      { rel: "preconnect", href: "https://console-smartux.vnpt.vn" },
     ],
     // VNPT SmartUX — khai báo config object trước khi SDK lôad
     // Dùng head() scripts[] là cách duy nhất để inject script đúng trong TanStack Start SSR
@@ -152,7 +149,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           var VNPT = window.VNPT || {};
           VNPT.q = VNPT.q || [];
           VNPT.app_key = '3d4e11b8bb1194a02ffbad65aca9e0dad528be55';
-          VNPT.url = 'https://console-smartux.vnpt.vn';
+          // Dùng proxy Vercel để vượt tường lửa CORS và chống Adblock
+          VNPT.url = window.location.origin + '/smartux-api';
           VNPT.q.push(['track_sessions']);
           VNPT.q.push(['track_clicks']);
           VNPT.q.push(['track_scrolls']);
@@ -185,7 +183,7 @@ function SmartUXLoader() {
     cly.id = 'vnpt-smartux-sdk';
     cly.type = 'text/javascript';
     cly.async = true;
-    cly.src = 'https://console-smartux.vnpt.vn/sdk/web/core-track.js';
+    cly.src = window.location.origin + '/smartux-api/sdk/web/core-track.js';
     cly.onload = function () {
       if (window.VNPT && typeof window.VNPT.init === 'function') {
         window.VNPT.init();
