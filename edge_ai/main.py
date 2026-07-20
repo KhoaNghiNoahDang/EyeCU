@@ -207,11 +207,12 @@ def main():
                     fall_flag, fall_prob, person_id = predict_fall(features, landmarks)
                     if fall_prob > max_fall_prob:
                         max_fall_prob = fall_prob
-                    # Dung ket qua voting window (>= 40% frames trong 10 frames gan nhat)
+                    # Stage 2 xac nhan → fall_flag = True moi gui canh bao
                     if fall_flag:
                         is_falling = True
-                    # Audio fusion: xac suat trung binh > 60% + co tieng dong lon -> canh bao
-                    elif fall_prob > 0.60 and audio_triggered:
+                    # Audio fusion: chi ho tro khi am thanh THAT SU lon (> 70%)
+                    # Tranh bao nham do tieng dong binh thuong trong benh vien
+                    elif fall_prob > 0.70 and audio_triggered:
                         is_falling = True
 
         # Buoc 2: Xu ly rieng tu va hien thi khung xuong
@@ -262,11 +263,12 @@ def main():
                     except queue.Full:
                         pass
         
-        # Buoc 4: Gui canh bao NGA (Neu can)
+        # Buoc 4: Gui canh bao NGA (da qua Stage 2 xac nhan)
         if is_falling:
             now = time.time()
             if now - last_alert >= FALL_COOLDOWN_SECONDS:
-                print(f"[ALERT] TE NGA tai phong {room_id}! fall={max_fall_prob*100:.1f}% audio={audio_detector.get_audio_prob()*100:.1f}%")
+                print(f"[ALERT] *** TE NGA XAC NHAN *** phong={room_id} "
+                      f"fall={max_fall_prob*100:.1f}% audio={audio_detector.get_audio_prob()*100:.1f}%")
                 try:
                     ws_queue.put_nowait((send_fall_alert, (ws, room_id, display_frame.copy(), max_fall_prob, audio_detector.get_audio_prob())))
                     last_alert = now
