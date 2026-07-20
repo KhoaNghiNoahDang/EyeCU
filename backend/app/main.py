@@ -1,4 +1,5 @@
 import asyncio
+import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.db.database import engine
@@ -32,10 +33,21 @@ _run_migrations()
 app = FastAPI(title="EyeCU Ambient Clinical OS", version="1.0.0")
 
 
+async def keep_awake():
+    """Background task to keep Render server awake by pinging itself every 14 minutes."""
+    while True:
+        await asyncio.sleep(14 * 60)  # 14 minutes
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.get("https://eyecu.onrender.com/")
+        except Exception:
+            pass
+
 # Dang ky Background Task: chay ngam khi server khoi dong
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(background_db_updater())
+    asyncio.create_task(keep_awake())
 
 
 app.add_middleware(
