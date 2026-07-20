@@ -13,6 +13,7 @@ import { Route as ScanRouteImport } from './routes/scan'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as CrowdRouteImport } from './routes/crowd'
+import { Route as SplatRouteImport } from './routes/$'
 import { Route as IndexRouteImport } from './routes/index'
 
 const ScanRoute = ScanRouteImport.update({
@@ -35,6 +36,11 @@ const CrowdRoute = CrowdRouteImport.update({
   path: '/crowd',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SplatRoute = SplatRouteImport.update({
+  id: '/$',
+  path: '/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -43,6 +49,7 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
   '/crowd': typeof CrowdRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
   '/crowd': typeof CrowdRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
   '/crowd': typeof CrowdRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
@@ -65,14 +74,15 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/crowd' | '/login' | '/register' | '/scan'
+  fullPaths: '/' | '/$' | '/crowd' | '/login' | '/register' | '/scan'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/crowd' | '/login' | '/register' | '/scan'
-  id: '__root__' | '/' | '/crowd' | '/login' | '/register' | '/scan'
+  to: '/' | '/$' | '/crowd' | '/login' | '/register' | '/scan'
+  id: '__root__' | '/' | '/$' | '/crowd' | '/login' | '/register' | '/scan'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SplatRoute: typeof SplatRoute
   CrowdRoute: typeof CrowdRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
@@ -109,6 +119,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrowdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/$': {
+      id: '/$'
+      path: '/$'
+      fullPath: '/$'
+      preLoaderRoute: typeof SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -121,6 +138,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SplatRoute: SplatRoute,
   CrowdRoute: CrowdRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,

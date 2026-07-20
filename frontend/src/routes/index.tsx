@@ -282,7 +282,18 @@ function PatientRounds() {
   const isMobile = useIsMobile();
 
   // We must always call hooks at the top level
-  const [activeView, setActiveView] = useState<ViewKey>("ambient");
+  const getInitialView = (): ViewKey => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const viewFromQuery = searchParams.get("view") as ViewKey;
+    if (viewFromQuery) return viewFromQuery;
+    
+    // Nếu URL là /dashboard/ems, cắt chuỗi lấy "ems"
+    if (window.location.pathname.startsWith('/dashboard/')) {
+      return window.location.pathname.split('/')[2] as ViewKey || "ambient";
+    }
+    return "ambient";
+  };
+  const [activeView, setActiveView] = useState<ViewKey>(getInitialView());
   const [collapsed, setCollapsed] = useState(false);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [workspaceSheetOpen, setWorkspaceSheetOpen] = useState(false);
@@ -321,7 +332,7 @@ function PatientRounds() {
 
   // ── SmartUX: Virtual Pageview cho 13 màn hình dashboard ─────────────────
   useEffect(() => {
-    const virtualPath = `/?view=${activeView}`;
+    const virtualPath = `/dashboard/${activeView}`;
     try { 
       // Lén đổi thanh địa chỉ để SmartUX Heatmap có thể phân biệt URL
       window.history.replaceState(null, '', virtualPath);
