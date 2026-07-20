@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useRef, useCallback, useMemo, ComponentType, Fragment } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth, type WorkMode } from "../lib/auth/auth-context";
@@ -142,9 +142,6 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    view: (typeof search.view === 'string' ? search.view : "") as ViewKey | "",
-  }),
   head: () => ({
     meta: [
       { title: "EyeCU — Ambient Clinical OS" },
@@ -284,9 +281,7 @@ function PatientRounds() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
-  // Đọc ?view= từ URL qua TanStack Router (SSR-safe, không cần window.location)
-  const { view: viewFromSearch } = useSearch({ from: '/' });
-  const [activeView, setActiveView] = useState<ViewKey>(viewFromSearch || "ambient");
+  const [activeView, setActiveView] = useState<ViewKey>("ambient");
   const [collapsed, setCollapsed] = useState(false);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [workspaceSheetOpen, setWorkspaceSheetOpen] = useState(false);
@@ -326,10 +321,7 @@ function PatientRounds() {
   // ── SmartUX: Virtual Pageview cho 13 màn hình dashboard ─────────────────
   useEffect(() => {
     const virtualPath = `/dashboard/${activeView}`;
-    try { 
-      // Lén đổi thanh địa chỉ để SmartUX Heatmap có thể phân biệt URL
-      window.history.replaceState(null, '', virtualPath);
-      
+    try {
       if (window.VNPT?.q) {
         window.VNPT.q.push(['track_pageview', virtualPath]);
       }

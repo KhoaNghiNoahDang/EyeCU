@@ -52,7 +52,7 @@ function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate({ to: "/", search: { view: '' } });
+      navigate({ to: "/" });
     }
   }, [isAuthenticated, navigate]);
 
