@@ -10488,7 +10488,7 @@ function EmsView() {
   // Khi scannedPatient được cập nhật và xe đã có biển số → gửi PATIENT_UPDATE lên dispatch
   const sendPatientUpdate = useCallback(
     (patient: any, alertLabel?: string) => {
-      const activePlate = plate.trim() || localStorage.getItem("ems_plate") || "";
+      const activePlate = plateConfirmed || plate.trim() || localStorage.getItem("ems_plate") || "";
       if (!activePlate || !patient) return;
 
       let age = patient.age ?? null;
@@ -10502,24 +10502,47 @@ function EmsView() {
         }
       }
 
+      const patientPayload = {
+        plate: activePlate,
+        name: patient.full_name || patient.name || null,
+        gender: patient.gender || null,
+        age,
+        cccd: patient.cccd_number || patient.cccd || null,
+        chronic_conditions: patient.chronic_conditions || patient.chronicConditions || [],
+        allergies: patient.allergies || [],
+        alert_label: alertLabel || selectedAlert || null,
+        bhxh_code: patient.insurance || null,
+        emergency_contact_name: patient.emergencyContactName || null,
+        emergency_contact_phone: patient.emergencyContactPhone || null,
+      };
+
+      // Gửi qua WebSocket
       send({
         type: "PATIENT_UPDATE",
-        data: {
-          plate: activePlate,
-          name: patient.full_name || patient.name || null,
-          gender: patient.gender || null,
-          age,
-          cccd: patient.cccd_number || patient.cccd || null,
-          chronic_conditions: patient.chronic_conditions || patient.chronicConditions || [],
-          allergies: patient.allergies || [],
-          alert_label: alertLabel || selectedAlert || null,
-          bhxh_code: patient.insurance || null,
-          emergency_contact_name: patient.emergencyContactName || null,
-          emergency_contact_phone: patient.emergencyContactPhone || null,
-        },
+        data: patientPayload,
       });
+
+      // Đồng thời ghi thẳng vào Supabase (quan trọng cho mobile
+      // khi plate state chưa được set hoặc WS chưa ổn định)
+      supabase
+        .from("dispatch_records")
+        .upsert({
+          plate: activePlate,
+          patient_name: patientPayload.name,
+          gender: patientPayload.gender,
+          age: patientPayload.age,
+          cccd: patientPayload.cccd,
+          bhxh_code: patientPayload.bhxh_code,
+          emergency_contact_name: patientPayload.emergency_contact_name,
+          emergency_contact_phone: patientPayload.emergency_contact_phone,
+          chronic_conditions: patientPayload.chronic_conditions,
+          allergies: patientPayload.allergies,
+          status: "active",
+          added_at: Date.now(),
+        })
+        .then();
     },
-    [plate, send, selectedAlert],
+    [plateConfirmed, plate, send, selectedAlert],
   );
 
   useEffect(() => {
@@ -10542,6 +10565,15 @@ function EmsView() {
       });
     }
   }, [preAlertText, isBroadcasting, plateConfirmed, send]);
+
+  // Khi plateConfirmed vừa được set (bắt đầu nhiệm vụ) mà đã có scannedPatient
+  // → gửi lại thông tin bệnh nhân để bảng điều phối cập nhật
+  // (quan trọng cho mobile: người dùng thường quét CCCD trước khi nhấn Bắt đầu nhiệm vụ)
+  useEffect(() => {
+    if (plateConfirmed && scannedPatient) {
+      sendPatientUpdate(scannedPatient);
+    }
+  }, [plateConfirmed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Khi an nut BẬT TRUYỀN GPS -> hien modal nhap bien so
   const toggleGpsBroadcast = () => {
@@ -10910,75 +10942,74 @@ function EmsView() {
             </div>
           </div>
 
-          {/* Action Buttons (Mic + Camera) */}
-          {!scannedPatient && (
-            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-              <div className="grid grid-cols-2 gap-3">
-                {/* Mic / Pre-Alert */}
-                <button
-                  type="button"
-                  onClick={isRecordingPreAlert ? stopRecording : startRecording}
-                  className={`flex flex-col items-center justify-center py-8 rounded-xl border-2 transition-all active:scale-95 ${
-                    isRecordingPreAlert
-                      ? "bg-red-50 border-red-400"
-                      : "bg-red-50/50 border-red-200 hover:bg-red-50"
+          {/* Action Buttons (Mic + Camera) - always visible */}
+          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+            <div className="grid grid-cols-2 gap-3">
+              {/* Mic / Pre-Alert */}
+              <button
+                type="button"
+                onClick={isRecordingPreAlert ? stopRecording : startRecording}
+                className={`flex flex-col items-center justify-center py-8 rounded-xl border-2 transition-all active:scale-95 ${
+                  isRecordingPreAlert
+                    ? "bg-red-50 border-red-400"
+                    : "bg-red-50/50 border-red-200 hover:bg-red-50"
+                }`}
+              >
+                <div
+                  className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${
+                    isRecordingPreAlert ? "bg-red-500 animate-pulse" : "bg-red-100"
                   }`}
                 >
-                  <div
-                    className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${
-                      isRecordingPreAlert ? "bg-red-500 animate-pulse" : "bg-red-100"
-                    }`}
-                  >
-                    <Mic
-                      className={`w-8 h-8 ${isRecordingPreAlert ? "text-white" : "text-red-500"}`}
-                    />
-                  </div>
-                  <span className="mt-2 text-sm font-bold text-slate-700">
-                    {isRecordingPreAlert ? "Đang ghi âm..." : "Ghi âm"}
-                  </span>
-                  <span className="text-[11px] text-slate-400 mt-0.5">Pre-Alert</span>
-                </button>
+                  <Mic
+                    className={`w-8 h-8 ${isRecordingPreAlert ? "text-white" : "text-red-500"}`}
+                  />
+                </div>
+                <span className="mt-2 text-sm font-bold text-slate-700">
+                  {isRecordingPreAlert ? "Đang ghi âm..." : "Ghi âm"}
+                </span>
+                <span className="text-[11px] text-slate-400 mt-0.5">Pre-Alert</span>
+              </button>
 
-                {/* Camera / Scan CCCD */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setManualInputMode("cccd");
-                    setCapturedCccdUrl(null);
-                  }}
-                  className={`flex flex-col items-center justify-center py-8 rounded-xl border-2 transition-all active:scale-95 ${
-                    manualInputMode === "cccd"
-                      ? "bg-cyan-50 border-cyan-400"
-                      : "bg-cyan-50/50 border-cyan-200 hover:bg-cyan-50"
-                  }`}
-                >
-                  <div className="w-16 h-16 rounded-full bg-cyan-500 flex items-center justify-center">
-                    <Camera className="w-8 h-8 text-white" />
-                  </div>
-                  <span className="mt-2 text-sm font-bold text-slate-700">Quét CCCD</span>
-                  <span className="text-[11px] text-slate-400 mt-0.5">Nhận diện</span>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 mt-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setManualInputMode("no_cccd");
-                    setCapturedCccdUrl(null);
-                  }}
-                  className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border transition-all active:scale-95 ${
-                    manualInputMode === "no_cccd"
-                      ? "bg-slate-100 border-slate-300 text-slate-800"
-                      : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                  }`}
-                >
-                  <User className="w-4 h-4" />
-                  <span className="text-sm font-bold">Không có CCCD</span>
-                </button>
-              </div>
+              {/* Camera / Scan CCCD */}
+              <button
+                type="button"
+                onClick={() => {
+                  setScannedPatient(null);
+                  setManualInputMode("cccd");
+                  setCapturedCccdUrl(null);
+                }}
+                className={`flex flex-col items-center justify-center py-8 rounded-xl border-2 transition-all active:scale-95 ${
+                  manualInputMode === "cccd" && !scannedPatient
+                    ? "bg-cyan-50 border-cyan-400"
+                    : "bg-cyan-50/50 border-cyan-200 hover:bg-cyan-50"
+                }`}
+              >
+                <div className="w-16 h-16 rounded-full bg-cyan-500 flex items-center justify-center">
+                  <Camera className="w-8 h-8 text-white" />
+                </div>
+                <span className="mt-2 text-sm font-bold text-slate-700">Quét CCCD</span>
+                <span className="text-[11px] text-slate-400 mt-0.5">Nhận diện</span>
+              </button>
             </div>
-          )}
+
+            <div className="grid grid-cols-1 gap-3 mt-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setManualInputMode("no_cccd");
+                  setCapturedCccdUrl(null);
+                }}
+                className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border transition-all active:scale-95 ${
+                  manualInputMode === "no_cccd"
+                    ? "bg-slate-100 border-slate-300 text-slate-800"
+                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <User className="w-4 h-4" />
+                <span className="text-sm font-bold">Không có CCCD</span>
+              </button>
+            </div>
+          </div>
 
           {/* Pre-Alert Text Preview */}
           {preAlertText && (
