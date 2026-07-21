@@ -1,4 +1,9 @@
-#  [EyeCU] Hướng dẫn Cài đặt & Trải nghiệm
+<p align="center">
+  <img src="frontend/public/logo.png" alt="EyeCU Logo" width="250"><br>
+  <i><b>Giải phóng đôi tay, kịp thời cấp cứu.</b></i>
+</p>
+
+# 🏥 [EyeCU] Hướng dẫn Cài đặt & Trải nghiệm
 
 **Truy cập ngay phiên bản thử nghiệm (Live Demo):** [https://eyecu.vercel.app/login](https://eyecu.vercel.app/login)
 
@@ -94,13 +99,13 @@ python run_fall_detection.py
 ```bash
 python run_iv_monitor.py --source demo_iv_video.mp4
 ```
-> **Trải nghiệm:** Hệ thống sẽ phân tích luồng video bầu nhỏ giọt, tính toán Real-time số giọt nhỏ xuống mỗi phút và cảnh báo "CẠN DỊCH" bằng viền đỏ trên màn hình.
+> **Trải nghiệm:** Khi video bật lên, hệ thống sẽ yêu cầu khoanh vùng quan tâm (ROI). Hãy sử dụng **Chuột trái (Left Mouse Button)** click chọn các góc để khoanh vùng bầu nhỏ giọt hoặc khu vực giường bệnh cần giám sát, sau đó nhấn phím `Enter` để xác nhận. Hệ thống sẽ bắt đầu phân tích luồng video, tính toán Real-time số giọt nhỏ xuống mỗi phút và cảnh báo "CẠN DỊCH" bằng viền đỏ trên màn hình.
 
 **4. Trải nghiệm Module Phân Tích Đám Đông (Crowd AI):**
 ```bash
 python run_crowd_ai.py --source 0  # 0 để dùng Webcam hoặc điền link video
 ```
-> **Trải nghiệm:** YOLOv8 sẽ quét không gian, vẽ Bounding Box bao quanh người và hiển thị tổng số lượng bệnh nhân/người nhà đang hiện diện tại khu vực giám sát.
+> **Trải nghiệm:** Tương tự, nếu hệ thống yêu cầu xác định khu vực, hãy dùng **Chuột trái** để tô vùng không gian phòng chờ/hành lang. YOLOv8 sẽ quét không gian trong vùng đã khoanh, vẽ Bounding Box bao quanh và hiển thị tổng số lượng bệnh nhân/người nhà đang hiện diện tại khu vực giám sát.
 
 *(Lưu ý: Bạn cũng có thể xem nhanh giả lập Logic bằng cách đăng nhập Web App -> Camera giám sát nội trú -> Nhấn nút "Demo").*
 
@@ -122,3 +127,9 @@ pytest tests/ || python -m pytest tests/
 *   Khả năng mã hóa và phân quyền Role-based JWT của Token.
 *   Độ phản hồi của các luồng CRUD dữ liệu nội trú.
 *   Cấu trúc giả lập của các gói tin gửi về từ AI Camera và luồng VNPT API.
+
+---
+<p align="center">
+  <img src="frontend/public/logo.png" alt="EyeCU Logo" width="250"><br>
+  <i><b>Giải phóng đôi tay, kịp thời cấp cứu.</b></i>
+</p>
