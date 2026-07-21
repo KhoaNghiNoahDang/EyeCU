@@ -553,22 +553,31 @@ export function PatientPortalNew({
       recognition.interimResults = true;
       recognition.lang = 'vi-VN';
       
-      let finalTranscript = chatInput ? chatInput + " " : "";
+      let initialChatInput = chatInput ? chatInput + " " : "";
 
       recognition.onresult = (event: any) => {
+        let sessionFinal = '';
         let interimTranscript = '';
-        let currentFinal = '';
-        
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            currentFinal += event.results[i][0].transcript;
+        const isAndroid = /Android/i.test(navigator.userAgent);
+
+        if (isAndroid) {
+          const lastResult = event.results[event.results.length - 1];
+          if (lastResult.isFinal) {
+            sessionFinal = lastResult[0].transcript + " ";
           } else {
-            interimTranscript += event.results[i][0].transcript;
+            interimTranscript = lastResult[0].transcript;
+          }
+        } else {
+          for (let i = 0; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              sessionFinal += event.results[i][0].transcript + " ";
+            } else {
+              interimTranscript += event.results[i][0].transcript;
+            }
           }
         }
         
-        finalTranscript += currentFinal;
-        setChatInput(finalTranscript + interimTranscript);
+        setChatInput((initialChatInput + sessionFinal + interimTranscript).trim());
       };
 
       recognition.onerror = (event: any) => {
@@ -786,6 +795,12 @@ export function PatientPortalNew({
   const [healthRecordFilterYear, setHealthRecordFilterYear] = useState<string>("all");
   const [selectedRecordDate, setSelectedRecordDate] = useState<string>("1/4/2026");
   
+  // Reset extracted data when switching dates
+  useEffect(() => {
+    setExtractedRecordData(null);
+    setExpandedSection("file_results");
+  }, [selectedRecordDate]);
+  
   const [currentTicket, setCurrentTicket] = useState<any>(null);
   const [searchTicketCode, setSearchTicketCode] = useState("");
   const [isSearchingTicket, setIsSearchingTicket] = useState(false);
@@ -832,8 +847,10 @@ export function PatientPortalNew({
   // Camera / Scan logic
   const [isScanning, setIsScanning] = useState(false);
   const [isScanningLab, setIsScanningLab] = useState(false);
+  const [capturedLabImage, setCapturedLabImage] = useState<string | null>(null);
   const [isAnalyzingLab, setIsAnalyzingLab] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const nativeCameraInputRef = useRef<HTMLInputElement>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -852,7 +869,11 @@ export function PatientPortalNew({
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
+        video: { 
+          facingMode: { ideal: "environment" },
+          width: { ideal: 4096 },
+          height: { ideal: 2160 }
+        },
         audio: false,
       });
       streamRef.current = stream;
@@ -910,7 +931,22 @@ export function PatientPortalNew({
       setIsAnalyzingLab(false);
       setIsScanningLab(false);
       stopCamera();
-      alert("Quét tài liệu thất bại: " + e.message);
+      
+      setMessages((prev) => [
+        ...prev,
+        {
+          from: "user",
+          text: "Tôi vừa tải lên một tài liệu nhưng hệ thống báo lỗi.",
+          time: getTimeNow(),
+          images: imageDataUrl ? [imageDataUrl] : [],
+        },
+        {
+          from: "bot",
+          text: `Xin lỗi bạn, quá trình bóc tách OCR gặp sự cố: ${e.message || "Lỗi không xác định"}. Tuy nhiên, bạn vẫn có thể nhập chỉ số trực tiếp vào đây hoặc hỏi mình bất cứ câu hỏi nào về sức khỏe nhé!`,
+          time: getTimeNow(),
+        }
+      ]);
+      setBotOpen(true);
     }
   };
 
@@ -924,11 +960,21 @@ export function PatientPortalNew({
       if (ctx) {
         ctx.drawImage(video, 0, 0);
         const imageDataUrl = canvas.toDataURL("image/jpeg", 0.9);
-        runLabAnalysis(imageDataUrl);
+        setCapturedLabImage(imageDataUrl);
         return;
       }
     }
-    runLabAnalysis();
+  };
+
+  const handleConfirmLabImage = () => {
+    if (capturedLabImage) {
+      runLabAnalysis(capturedLabImage);
+      setCapturedLabImage(null);
+    }
+  };
+
+  const handleRetakeLabImage = () => {
+    setCapturedLabImage(null);
   };
 
   const handleFileSelectedLab = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1357,7 +1403,12 @@ export function PatientPortalNew({
           {filtered.map((appt, i) => (
             <button
               key={i}
-              onClick={() => { setSelectedRecordDate(appt.date); setCurrentView("health_record"); }}
+              onClick={() => { 
+                setSelectedRecordDate(appt.date); 
+                setExtractedRecordData(null);
+                setExpandedSection("file_results");
+                setCurrentView("health_record"); 
+              }}
               className="w-full bg-white rounded-[20px] shadow-[0_8px_24px_rgba(0,0,0,0.06)] active:scale-[0.98] transition-transform text-left border border-slate-100 overflow-hidden flex"
             >
               <div className="w-[90px] flex flex-col items-center justify-center shrink-0 border-r border-slate-100 py-4">
@@ -4153,6 +4204,13 @@ export function PatientPortalNew({
                 muted
                 className="absolute inset-0 h-full w-full object-cover"
               />
+              {capturedLabImage && (
+                <img 
+                  src={capturedLabImage} 
+                  className="absolute inset-0 z-[15] h-full w-full object-cover" 
+                  alt="Captured document" 
+                />
+              )}
               {cameraError && (
                 <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/90 p-6 text-center">
                   <Camera className="mb-4 h-12 w-12 text-red-400" />
@@ -4184,27 +4242,53 @@ export function PatientPortalNew({
                 <div className="w-full h-6 bg-slate-900/60 backdrop-blur-md" />
               </div>
             </div>
-            <div className="flex h-36 shrink-0 items-center justify-around bg-black px-6">
-              <button
-                onClick={() => { setIsScanningLab(false); stopCamera(); }}
-                className="px-4 py-2 font-medium text-white opacity-80"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleCaptureLab}
-                disabled={isAnalyzingLab}
-                className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-[#88E8F2] p-1.5 transition-transform active:scale-95 disabled:opacity-60"
-              >
-                <div className={`h-full w-full rounded-full bg-white ${isAnalyzingLab ? "animate-pulse bg-[#88E8F2]" : ""}`} />
-              </button>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="rounded-full bg-white/10 px-3 py-2 text-[11px] font-semibold text-white"
-              >
-                Thư viện
-              </button>
-            </div>
+            {!capturedLabImage ? (
+              <div className="flex h-36 shrink-0 items-center justify-around bg-black px-6">
+                <button
+                  onClick={() => { setIsScanningLab(false); stopCamera(); }}
+                  className="px-4 py-2 font-medium text-white opacity-80"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleCaptureLab}
+                  disabled={isAnalyzingLab}
+                  className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-[#88E8F2] p-1.5 transition-transform active:scale-95 disabled:opacity-60"
+                >
+                  <div className={`h-full w-full rounded-full bg-white ${isAnalyzingLab ? "animate-pulse bg-[#88E8F2]" : ""}`} />
+                </button>
+                <button
+                  onClick={() => {
+                    const hasAsked = localStorage.getItem("hasAskedPhotoPermission");
+                    if (!hasAsked) {
+                      const allow = window.confirm("Bạn có muốn cho EyeCU truy cập ảnh và nội dung nghe nhìn trên thiết bị của bạn không?");
+                      if (!allow) return;
+                      localStorage.setItem("hasAskedPhotoPermission", "true");
+                    }
+                    fileInputRef.current?.click();
+                  }}
+                  className="rounded-full bg-white/15 px-5 py-2.5 text-sm font-semibold text-white transition-colors active:bg-white/25"
+                >
+                  Thư viện
+                </button>
+              </div>
+            ) : (
+              <div className="flex h-36 shrink-0 items-center justify-around bg-black px-6">
+                <button
+                  onClick={handleRetakeLabImage}
+                  className="px-6 py-3 font-semibold text-white opacity-90 transition-opacity active:opacity-60"
+                >
+                  Chụp lại
+                </button>
+                <button
+                  onClick={handleConfirmLabImage}
+                  disabled={isAnalyzingLab}
+                  className="rounded-full bg-[#88E8F2] px-8 py-3.5 font-bold text-[#0d1f2d] shadow-[0_4px_20px_rgba(136,232,242,0.4)] transition-transform active:scale-95 disabled:opacity-60"
+                >
+                  Sử dụng ảnh
+                </button>
+              </div>
+            )}
             {isAnalyzingLab && (
               <div className="absolute inset-0 z-[70] flex flex-col items-center justify-center bg-slate-900/90 backdrop-blur-md">
                 <ScanLine className="mb-6 h-20 w-20 animate-pulse text-[#88E8F2]" />
@@ -4220,6 +4304,13 @@ export function PatientPortalNew({
         )}
       <input
         ref={fileInputRef}
+        type="file"
+        accept="image/png, image/jpeg, image/heic"
+        className="hidden"
+        onChange={handleFileSelectedLab}
+      />
+      <input
+        ref={nativeCameraInputRef}
         type="file"
         accept="image/*"
         capture="environment"

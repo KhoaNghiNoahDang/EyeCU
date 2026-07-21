@@ -4,22 +4,29 @@ from app.core.config import settings
 from app.services.dataset_reader import get_mock_json
 import base64
 
-VNPT_TIMEOUT = 15
-
+VNPT_TIMEOUT = 60
 
 def _ekyc_headers() -> dict:
+    token = str(settings.VNPT_EKYC_ACCESS_TOKEN).strip().strip('"').strip("'")
+    if token.lower().startswith("bearer "):
+        auth_header = f"Bearer {token[7:].strip()}"
+    else:
+        auth_header = f"Bearer {token}"
     return {
         "Token-id": settings.VNPT_EKYC_TOKEN_ID,
         "Token-key": settings.VNPT_EKYC_TOKEN_KEY,
-        "Authorization": f"{settings.VNPT_EKYC_ACCESS_TOKEN}",
+        "Authorization": auth_header,
         "mac-address": "WEB-001",
         "Content-Type": "application/json",
     }
 
 
 def _smartvision_headers() -> dict:
-    token = str(settings.VNPT_SMARTVISION_ACCESS_TOKEN)
-    auth_header = token if token.startswith("Bearer") else f"Bearer {token[7:].strip() if token.lower().startswith('bearer ') else token}"
+    token = str(settings.VNPT_SMARTVISION_ACCESS_TOKEN).strip().strip('"').strip("'")
+    if token.lower().startswith("bearer "):
+        auth_header = f"Bearer {token[7:].strip()}"
+    else:
+        auth_header = f"Bearer {token}"
     return {
         "Token-id": settings.VNPT_SMARTVISION_TOKEN_ID,
         "Token-key": settings.VNPT_SMARTVISION_TOKEN_KEY,
@@ -68,13 +75,20 @@ class VnptAPIClient:
     ) -> str | None:
         """Bước 1: Upload ảnh lên VNPT lấy hash. Hash này dùng cho OCR/Liveness/SmartVision."""
         try:
+            token = str(settings.VNPT_EKYC_ACCESS_TOKEN).strip().strip('"').strip("'")
+            if token.lower().startswith("bearer "):
+                auth_header = f"Bearer {token[7:].strip()}"
+            else:
+                auth_header = f"Bearer {token}"
+            
+            print(f"Uploading file to VNPT eKYC. File size: {len(file_bytes)} bytes")
             async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
                 resp = await client.post(
                     "https://api.idg.vnpt.vn/file-service/v1/addFile",
                     headers={
                         "Token-id": settings.VNPT_EKYC_TOKEN_ID,
                         "Token-key": settings.VNPT_EKYC_TOKEN_KEY,
-                        "Authorization": f"{settings.VNPT_EKYC_ACCESS_TOKEN}",
+                        "Authorization": auth_header,
                     },
                     files={"file": (filename, file_bytes, "image/jpeg")},
                     data={"title": filename, "description": "EyeCU upload"},
@@ -83,7 +97,9 @@ class VnptAPIClient:
                     print(f"VNPT Upload Failed: {resp.status_code} - {resp.text}")
                     return None
                 data = resp.json()
-                return data.get("object", {}).get("hash")
+                hash_val = data.get("object", {}).get("hash")
+                print(f"VNPT Upload Success. Hash: {hash_val}")
+                return hash_val
         except Exception as e:
             print(f"VNPT Upload Exception: {e}")
             return None
@@ -482,6 +498,9 @@ class VnptAPIClient:
                     "raw": data,
                 }
         except Exception as e:
+            import traceback
+            print(f"[ERROR VNPT STT] API VNPT gọi thất bại: {e}")
+            traceback.print_exc()
             return {
                 "transcript": "",
                 "raw": {"error": str(e)},

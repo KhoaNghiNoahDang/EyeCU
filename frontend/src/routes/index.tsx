@@ -281,7 +281,6 @@ function PatientRounds() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
-  // We must always call hooks at the top level
   const [activeView, setActiveView] = useState<ViewKey>("ambient");
   const [collapsed, setCollapsed] = useState(false);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
@@ -318,6 +317,16 @@ function PatientRounds() {
   const [clinicNotifs, setClinicNotifs] = useState<ClinicNotif[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const notifUnread = clinicNotifs.filter((n) => !n.read).length;
+
+  // ── SmartUX: Virtual Pageview cho 13 màn hình dashboard ─────────────────
+  useEffect(() => {
+    const virtualPath = `/dashboard/${activeView}`;
+    try {
+      if (window.VNPT?.q) {
+        window.VNPT.q.push(['track_pageview', virtualPath]);
+      }
+    } catch (_) {}
+  }, [activeView]);
 
   // TTS helper
   const speakText = (text: string) => {
@@ -1839,7 +1848,7 @@ function AmbientView({
             {/* Chỉ số xác suất */}
             <div className="flex gap-2">
               <div className="flex-1 bg-slate-900/60 rounded-xl p-2.5 flex flex-col gap-1">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider">&#129504; Tỉ lệ ngã</span>
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider flex items-center gap-1"><Activity className="w-3.5 h-3.5" /> Tỉ lệ ngã</span>
                 <span className={`text-lg font-bold ${
                   (fallAlert.fallProb ?? 0) >= 80 ? "text-red-400" :
                   (fallAlert.fallProb ?? 0) >= 60 ? "text-orange-400" : "text-yellow-400"
@@ -1857,7 +1866,7 @@ function AmbientView({
                 </div>
               </div>
               <div className="flex-1 bg-slate-900/60 rounded-xl p-2.5 flex flex-col gap-1">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider">&#128266; Âm thanh ngã</span>
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider flex items-center gap-1"><Volume2 className="w-3.5 h-3.5" /> Âm thanh ngã</span>
                 <span className={`text-lg font-bold ${
                   (fallAlert.audioProb ?? 0) >= 50 ? "text-yellow-400" : "text-slate-400"
                 }`}>
@@ -1914,7 +1923,7 @@ function AmbientView({
             {/* Chỉ số xác suất */}
             <div className="flex gap-2">
               <div className="flex-1 bg-slate-900/60 rounded-xl p-2.5 flex flex-col gap-1">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider">&#129504; Tỉ lệ ngã</span>
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider flex items-center gap-1"><Activity className="w-3.5 h-3.5" /> Tỉ lệ ngã</span>
                 <span className={`text-xl font-bold ${
                   (fallAlert.fallProb ?? 0) >= 80 ? "text-red-400" :
                   (fallAlert.fallProb ?? 0) >= 60 ? "text-orange-400" : "text-yellow-400"
@@ -1932,7 +1941,7 @@ function AmbientView({
                 </div>
               </div>
               <div className="flex-1 bg-slate-900/60 rounded-xl p-2.5 flex flex-col gap-1">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider">&#128266; Âm thanh ngã</span>
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider flex items-center gap-1"><Volume2 className="w-3.5 h-3.5" /> Âm thanh ngã</span>
                 <span className={`text-xl font-bold ${
                   (fallAlert.audioProb ?? 0) >= 50 ? "text-yellow-400" : "text-slate-400"
                 }`}>
@@ -5503,7 +5512,7 @@ function AmbulanceView() {
           {/* Chỉ số xác suất */}
           <div className="flex gap-2">
             <div className="flex-1 bg-slate-900/60 rounded-xl p-2.5 flex flex-col gap-1">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider">&#129504; Tỉ lệ ngã</span>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider flex items-center gap-1"><Activity className="w-3.5 h-3.5" /> Tỉ lệ ngã</span>
               <span className={`text-xl font-bold ${
                 (fallAlert.fallProb ?? 0) >= 80 ? "text-red-400" :
                 (fallAlert.fallProb ?? 0) >= 60 ? "text-orange-400" : "text-yellow-400"
@@ -5521,7 +5530,7 @@ function AmbulanceView() {
               </div>
             </div>
             <div className="flex-1 bg-slate-900/60 rounded-xl p-2.5 flex flex-col gap-1">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider">&#128266; Âm thanh ngã</span>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider flex items-center gap-1"><Volume2 className="w-3.5 h-3.5" /> Âm thanh ngã</span>
               <span className={`text-xl font-bold ${
                 (fallAlert.audioProb ?? 0) >= 50 ? "text-yellow-400" : "text-slate-400"
               }`}>
@@ -7975,58 +7984,79 @@ function VoiceView() {
         return;
       }
 
-      const recognition = new SpeechRecognition();
-      recognition.lang = "vi-VN";
-      recognition.continuous = true;
-      recognition.interimResults = true;
-
-      let sessionFinal = "";
-
-      recognition.onresult = (event: any) => {
-        let interim = "";
-        sessionFinal = "";
-        for (let i = 0; i < event.results.length; i++) {
-          const result = event.results[i];
-          if (result.isFinal) {
-            sessionFinal += result[0].transcript + " ";
-          } else {
-            interim += result[0].transcript;
-          }
-        }
-        setLiveTranscript((finalTranscriptRef.current + " " + sessionFinal + interim).trim());
-      };
-
-      recognition.onerror = (event: any) => {
-        if (event.error === "not-allowed") {
-          setErrorMsg("Bạn cần cấp quyền microphone cho trình duyệt.");
-          isRecordingRef.current = false;
-        } else if (event.error === "aborted") {
-          // Ignore aborted error since it can happen on manual stop or silence
-        } else if (event.error !== "no-speech") {
-          setErrorMsg(`Lỗi nhận dạng: ${event.error}`);
-        }
-      };
-
-      recognition.onend = () => {
-        if (sessionFinal.trim()) {
-          finalTranscriptRef.current += " " + sessionFinal;
-          sessionFinal = "";
-        }
-        if (isRecordingRef.current) {
-          try {
-            recognition.start();
-          } catch (e) {
-            console.error(e);
-          }
-        } else {
-          setRecording(false);
-        }
-      };
-
-      recognitionRef.current = recognition;
       isRecordingRef.current = true;
-      recognition.start();
       setRecording(true);
+
+      const startNewSession = () => {
+        if (!isRecordingRef.current) return;
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = "vi-VN";
+        recognition.continuous = true;
+        recognition.interimResults = true;
+
+        let sessionFinal = "";
+
+        recognition.onresult = (event: any) => {
+          sessionFinal = "";
+          let interim = "";
+          const isAndroid = /Android/i.test(navigator.userAgent);
+
+          if (isAndroid) {
+            const lastResult = event.results[event.results.length - 1];
+            if (lastResult.isFinal) {
+              sessionFinal = lastResult[0].transcript + " ";
+            } else {
+              interim = lastResult[0].transcript;
+            }
+          } else {
+            for (let i = 0; i < event.results.length; i++) {
+              const result = event.results[i];
+              if (result.isFinal) {
+                sessionFinal += result[0].transcript + " ";
+              } else {
+                interim += result[0].transcript;
+              }
+            }
+          }
+          setLiveTranscript((finalTranscriptRef.current + " " + sessionFinal + interim).trim());
+        };
+
+        recognition.onerror = (event: any) => {
+          if (event.error === "not-allowed") {
+            setErrorMsg("Bạn cần cấp quyền microphone cho trình duyệt.");
+            isRecordingRef.current = false;
+          } else if (event.error === "aborted") {
+            // Ignore aborted error since it can happen on manual stop or silence
+          } else if (event.error !== "no-speech") {
+            setErrorMsg(`Lỗi nhận dạng: ${event.error}`);
+          }
+        };
+
+        recognition.onend = () => {
+          if (sessionFinal.trim()) {
+            finalTranscriptRef.current += " " + sessionFinal;
+          }
+          if (isRecordingRef.current) {
+            try {
+              startNewSession();
+            } catch (e) {
+              console.error(e);
+            }
+          } else {
+            setRecording(false);
+          }
+        };
+
+        recognitionRef.current = recognition;
+        try {
+          recognition.start();
+        } catch (e) {
+          console.error(e);
+        }
+      };
+
+      startNewSession();
     } catch (err) {
       setErrorMsg("Không thể khởi động nhận dạng giọng nói. Vui lòng dùng Chrome.");
     }
@@ -10450,18 +10480,28 @@ function EmsView() {
       recognition.interimResults = true;
 
       recognition.onresult = (event: any) => {
-        let interim = "";
         let final = "";
-        for (let i = 0; i < event.results.length; i++) {
-          const result = event.results[i];
-          if (result.isFinal) {
-            final += result[0].transcript + " ";
+        let interim = "";
+        const isAndroid = /Android/i.test(navigator.userAgent);
+
+        if (isAndroid) {
+          const lastResult = event.results[event.results.length - 1];
+          if (lastResult.isFinal) {
+            final = lastResult[0].transcript + " ";
           } else {
-            interim += result[0].transcript;
+            interim = lastResult[0].transcript;
+          }
+        } else {
+          for (let i = 0; i < event.results.length; i++) {
+            const result = event.results[i];
+            if (result.isFinal) {
+              final += result[0].transcript + " ";
+            } else {
+              interim += result[0].transcript;
+            }
           }
         }
-        const text = (final + interim).trim();
-        setPreAlertText(text);
+        setPreAlertText((final + interim).trim());
       };
 
       recognition.onerror = (event: any) => {

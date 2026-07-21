@@ -1,2 +1,11 @@
 **/.DS_Store
 .DS_Store
+_temp_fall/
+backend/backend_logs.txt
+backend/uvicorn.log
+
+# Ignored local files
+**/*.pyc
+__pycache__/
+dummy.wav
+benchmark_cache.json

@@ -7,24 +7,26 @@ import time
 MODEL_PATH = Path(__file__).parent.parent / "models" / "fall_model.pkl"
 
 # ── Giai doan 1: Phat hien "nghi ngo nga" (Stage 1 - Suspicious) ─────────────
-WINDOW_SIZE          = 20    # 4 giay o 5FPS (tang tu 10 de bot False Positive)
-FALL_RATIO_THRESHOLD = 0.60  # Can >= 60% frame vote "nga" moi suspicious (tang tu 40%)
-PER_FRAME_THRESHOLD  = 0.85  # Nguong ML per-frame chat hon (tang tu 0.75)
+WINDOW_SIZE          = 10    # Toi uu voi model moi retrain
+FALL_RATIO_THRESHOLD = 0.30  # Chi can 30% frame vote la du
+PER_FRAME_THRESHOLD  = 0.60  # Nguong AI per-frame (ket qua thuc te tot nhat)
 FALL_LABEL           = 1
 
 # ── Giai doan 2: Xac nhan "nam yem tren san" (Stage 2 - Ground Confirmation) ─
-CONFIRMATION_DURATION    = 2.5   # Phai nam yem >= 2.5 giay moi xac nhan la NGA THAT
-GROUND_HIP_Y_THRESHOLD   = 0.65  # hip_y_norm > 0.65 → nguoi dang o sat san (0=tren, 1=duoi)
-STANDING_HIP_Y_THRESHOLD = 0.55  # hip_y_norm < 0.55 → nguoi da dung day → RESET
+CONFIRMATION_DURATION    = 0.3   # Nhanh hon - chi can 0.3s
+GROUND_HIP_Y_THRESHOLD   = 0.20  # Nguong hip_y ngang cam
+STANDING_HIP_Y_THRESHOLD = 0.10  
 
-# ── Rule-based fallback (chat hon nhieu de tranh bao nham khi chay/cong nguoi) ─
-RULE_TORSO_ANGLE_MIN = 65.0  # > 65 do (gan nam ngang) thay vi 45 do cu
-RULE_BBOX_RATIO      = 1.5   # rong > 1.5 × cao thay vi rong > cao don thuan
+# ── Rule-based fallback ─
+RULE_TORSO_ANGLE_MIN = 45.0  # Giam tu 55 xuong 45 do
+RULE_BBOX_RATIO      = 1.2   # Giam tu 1.5 xuong 1.2 (Co the hoi ngang cung bat)
 
 _model = None
 
 # ── Storage trang thai theo tung nguoi ───────────────────────────────────────
 _history_preds    = {}   # person_id → deque(bool): lich su vote "nga" per-frame
+_history_hip_y    = {}   # person_id → deque(float): lich su hip_y de tinh gia toc
+_history_ts       = {}   # person_id → deque(float): lich su thoi gian
 _last_seen        = {}   # person_id → float: lan cuoi nhin thay
 _tracked_boxes    = {}   # person_id → [min_x, min_y, max_x, max_y]
 _prev_hip_y       = {}   # person_id → float: hip_y frame truoc (de tinh velocity)
@@ -62,6 +64,8 @@ def cleanup_old_tracks(now, timeout=5.0):
     to_remove = [pid for pid, ts in _last_seen.items() if now - ts > timeout]
     for pid in to_remove:
         _history_preds.pop(pid, None)
+        _history_hip_y.pop(pid, None)
+        _history_ts.pop(pid, None)
         _last_seen.pop(pid, None)
         _tracked_boxes.pop(pid, None)
         _prev_hip_y.pop(pid, None)
@@ -90,6 +94,8 @@ def get_person_id(landmarks) -> int:
         best_id = _next_person_id
         _next_person_id += 1
         _history_preds[best_id]    = deque(maxlen=WINDOW_SIZE)
+        _history_hip_y[best_id]    = deque(maxlen=WINDOW_SIZE)
+        _history_ts[best_id]       = deque(maxlen=WINDOW_SIZE)
         _fall_stage[best_id]       = 'normal'
         _suspicious_since[best_id] = 0.0
 
@@ -157,46 +163,68 @@ def predict_fall(features: list, landmarks) -> tuple:
 
     # Cap nhat lich su window
     _history_preds[person_id].append(is_fall_frame)
+    _history_hip_y[person_id].append(hip_y)
+    _history_ts[person_id].append(now)
+    
     history    = _history_preds[person_id]
     fall_ratio = sum(history) / len(history) if history else 0.0
 
-    # Giai doan 1 passed: >= 60% frame trong 20 frame gan nhat la "nga"
+    # Giai doan 1 passed: >= 50% frame
     stage1_suspicious = (fall_ratio >= FALL_RATIO_THRESHOLD)
 
     # ══════════════════════════════════════════════════════════════════════════
-    # GIAI DOAN 2: Xac nhan nguoi con nam yem tren san
+    # LOP 2: Tinh toan dong hoc (Gia toc roi)
     # ══════════════════════════════════════════════════════════════════════════
+    buffer_velocity = 0.0
+    if len(_history_hip_y[person_id]) > 5:
+        oldest_hip = _history_hip_y[person_id][0]
+        oldest_ts  = _history_ts[person_id][0]
+        if now > oldest_ts:
+            buffer_velocity = (hip_y - oldest_hip) / (now - oldest_ts)
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # LOP 3: He thong Cham diem (Scoring System)
+    # ══════════════════════════════════════════════════════════════════════════
+    score = 0
+    
+    # 1. AI Score (Max 40 diem)
+    score += min(40, int(fall_prob * 40))
+    
+    # 2. Kinematics Score (Max 30 diem)
+    # Tang trong so van toc de bu lai goc cam0
+    kinematic_score = min(30, int(max(0, buffer_velocity) * 200))
+    score += kinematic_score
+    
+    # 3. Immobility Score (Max 30 diem)
+    elapsed = 0.0
     current_stage = _fall_stage.get(person_id, 'normal')
-
-    if current_stage == 'normal':
-        if stage1_suspicious:
-            # Bat dau dem thoi gian xac nhan
-            _fall_stage[person_id]       = 'confirming'
+    
+    if stage1_suspicious and hip_y > GROUND_HIP_Y_THRESHOLD:
+        if current_stage == 'normal':
+            _fall_stage[person_id] = 'confirming'
             _suspicious_since[person_id] = now
-            print(f"[STAGE1] Person {person_id}: Nghi ngo nga "
-                  f"(ratio={fall_ratio:.0%}, hip_y={hip_y:.2f}, vel={hip_velocity:+.3f})")
-
-    elif current_stage == 'confirming':
-        elapsed = now - _suspicious_since.get(person_id, now)
-
-        if hip_y > GROUND_HIP_Y_THRESHOLD:
-            # Nguoi van o sat san – tiep tuc dem
-            if elapsed >= CONFIRMATION_DURATION:
-                # ✅ XAC NHAN TE NGA THAT
-                print(f"[STAGE2] Person {person_id}: XAC NHAN TE NGA "
-                      f"(nam yem {elapsed:.1f}s, hip_y={hip_y:.2f})")
-                # Reset trang thai sau khi da gui canh bao (cooldown xu ly o main.py)
-                _fall_stage[person_id]       = 'normal'
-                _suspicious_since[person_id] = 0.0
-                _history_preds[person_id].clear()
-                return True, fall_prob, person_id
+            print(f"[STAGE1] Person {person_id}: Nghi ngo nga (prob={fall_prob:.2f}, vel={buffer_velocity:+.3f})")
         else:
-            # hip_y < STANDING_HIP_Y_THRESHOLD → nguoi dung day → di chuyen nhanh, KHONG phai nga
-            if hip_y < STANDING_HIP_Y_THRESHOLD:
-                print(f"[STAGE2] Person {person_id}: RESET – Nguoi da dung day "
-                      f"(hip_y={hip_y:.2f}, chi la chuyen dong nhanh)")
-                _fall_stage[person_id]       = 'normal'
-                _suspicious_since[person_id] = 0.0
-                _history_preds[person_id].clear()
+            elapsed = now - _suspicious_since.get(person_id, now)
+    else:
+        if current_stage == 'confirming':
+            print(f"[RESET] Person {person_id}: Huy nghi ngo (hip_y={hip_y:.2f})")
+        _fall_stage[person_id] = 'normal'
+        _suspicious_since[person_id] = 0.0
+        
+    immobility_score = min(30, int((elapsed / CONFIRMATION_DURATION) * 30))
+    score += immobility_score
+    
+    # Quyen dinh cuoi cung: Tong diem > 60 la Nga (is_falling) thay vi 80
+    is_falling = score > 50
+    
+    if is_falling:
+        print(f"[ALERT] Person {person_id}: XAC NHAN TÉ NGÃ! (Score: {score}/100 - AI:{int(fall_prob*40)}, Vel:{kinematic_score}, Time:{immobility_score})")
+        # Reset de tranh spam
+        _fall_stage[person_id] = 'normal'
+        _suspicious_since[person_id] = 0.0
+        _history_preds[person_id].clear()
+        _history_hip_y[person_id].clear()
+        _history_ts[person_id].clear()
 
-    return False, fall_prob, person_id
+    return is_falling, fall_prob, score, person_id

@@ -35,6 +35,27 @@ export function LabResultsView({ onBack, data }: Props) {
           }
 
           const { value, unit, range, isAbnormal } = valObj;
+
+          let abnormal = isAbnormal;
+          if (abnormal === undefined && value !== undefined && range) {
+             const rangeMatch = range.match(/\[?([\d.]+)\s*-\s*([\d.]+)\]?/);
+             const singleMatch = range.match(/\[?<\s*([\d.]+)\]?/);
+             
+             const val = parseFloat(value);
+             if (!isNaN(val)) {
+                 if (rangeMatch) {
+                    const min = parseFloat(rangeMatch[1]);
+                    const max = parseFloat(rangeMatch[2]);
+                    if (val < min || val > max) abnormal = true;
+                    else abnormal = false;
+                 } else if (singleMatch) {
+                    const max = parseFloat(singleMatch[1]);
+                    if (val >= max) abnormal = true;
+                    else abnormal = false;
+                 }
+             }
+          }
+
           return (
             <div key={idx} className="flex justify-between items-start p-4 border-b border-slate-100 last:border-0">
               <div className="text-[15px] text-slate-900 font-bold pt-1 max-w-[50%]">
@@ -42,8 +63,8 @@ export function LabResultsView({ onBack, data }: Props) {
               </div>
               <div className="text-right flex-1">
                 <div className="flex items-center justify-end gap-1">
-                  <span className={`text-[16px] font-bold ${isAbnormal ? "text-red-600" : "text-slate-900"}`}>{value || "--"}</span>
-                  <Activity className={`h-[18px] w-[18px] ${isAbnormal ? "text-red-600" : "text-blue-600"}`} />
+                  <span className={`text-[16px] font-bold ${abnormal ? "text-red-600" : "text-slate-900"}`}>{value || "--"}</span>
+                  <Activity className={`h-[18px] w-[18px] ${abnormal ? "text-red-600" : "text-blue-600"}`} />
                 </div>
                 {range && unit && (
                   <div className="text-[13px] text-slate-400 mt-1">

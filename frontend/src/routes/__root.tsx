@@ -138,32 +138,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "mask-icon", href: "/apple-touch-icon.png", color: "#88E8F2" },
       // iOS Splash screens (covers iPhone SE through iPhone 15 Pro Max)
       { rel: "apple-touch-startup-image", href: "/apple-touch-icon.png" },
-      // Performance: preconnect to backends
-      { rel: "dns-prefetch", href: "https://ekyc.vnpt.vn" },
-      // SmartUX: preconnect to VNPT tracking CDN
-      { rel: "dns-prefetch", href: "https://console-smartux.vnpt.vn" },
-      { rel: "preconnect", href: "https://console-smartux.vnpt.vn" },
-    ],
-    // VNPT SmartUX — khai báo config object trước khi SDK lôad
-    // Dùng head() scripts[] là cách duy nhất để inject script đúng trong TanStack Start SSR
-    scripts: [
-      {
-        children: `
-          var VNPT = window.VNPT || {};
-          VNPT.q = VNPT.q || [];
-          VNPT.app_key = '3d4e11b8bb1194a02ffbad65aca9e0dad528be55';
-          VNPT.url = 'https://console-smartux.vnpt.vn';
-          VNPT.q.push(['track_sessions']);
-          VNPT.q.push(['track_pageview']);
-          VNPT.q.push(['track_clicks']);
-          VNPT.q.push(['track_scrolls']);
-          VNPT.q.push(['track_errors']);
-          VNPT.q.push(['track_links']);
-          VNPT.q.push(['track_forms']);
-          VNPT.q.push(['collect_from_forms']);
-          window.VNPT = VNPT;
-        `,
-      },
     ],
   }),
   shellComponent: RootShell,
@@ -172,40 +146,46 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
-
-// VNPT SmartUX loader — chạy phía client sau khi component mount
-// Dùng useEffect vì:
-// 1. dangerouslySetInnerHTML trong <head> KHÔNG thực thi script (HTML5 spec)
-// 2. Script cần chạy sau khi DOM sẵn sàng (client-side only)
-function SmartUXLoader() {
-  useEffect(() => {
-    // Tránh load hai lần
-    if (document.getElementById('vnpt-smartux-sdk')) return;
-
-    const cly = document.createElement('script');
-    cly.id = 'vnpt-smartux-sdk';
-    cly.type = 'text/javascript';
-    cly.async = true;
-    cly.src = 'https://console-smartux.vnpt.vn/sdk/web/core-track.js';
-    cly.onload = function () {
-      if (window.VNPT && typeof window.VNPT.init === 'function') {
-        window.VNPT.init();
-      }
-    };
-    document.head.appendChild(cly);
-  }, []); // chạy 1 lần duy nhất khi app mount
-
-  return null;
-}
-
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="vi">
       <head>
         <HeadContent />
+        <script
+          type="text/javascript"
+          dangerouslySetInnerHTML={{
+            __html: `
+              var VNPT = VNPT || {};
+              VNPT.q = VNPT.q || [];
+          
+              VNPT.app_key = '3d4e11b8bb1194a02ffbad65aca9e0dad528be55';
+          
+              VNPT.url = 'https://console-smartux.vnpt.vn';
+          
+              VNPT.q.push(['track_sessions']);
+              VNPT.q.push(['track_pageview']);
+              VNPT.q.push(['track_clicks']);
+              VNPT.q.push(['track_scrolls']);
+              VNPT.q.push(['track_errors']);
+              VNPT.q.push(['track_links']);
+              VNPT.q.push(['track_forms']);
+              VNPT.q.push(['collect_from_forms']);
+          
+              (function () {
+              const paths = ['https://console-smartux.vnpt.vn/sdk/web/core-track.js', 'https://console-smartux.vnpt.vn/sdk/web/minify.min.js'];
+              for (let i in paths) {
+                  var cly = document.createElement('script'); cly.type = 'text/javascript';
+                  cly.async = true;
+                  cly.src = paths[i];
+                  cly.onload = i == 0 ? function () { VNPT.init() } : function() { window.minify = require("html-minifier").minify; };
+                  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(cly, s);
+              }
+              })();
+            `,
+          }}
+        />
       </head>
       <body>
-        <SmartUXLoader />
         {children}
         <Scripts />
       </body>
@@ -221,12 +201,15 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const location = useLocation();
 
-  // FIX: Track SPA page navigations for SmartUX heatmap
-  // TanStack Router không reload browser khi chuyển trang → cần notify SmartUX thủ công
+  // SmartUX Virtual Pageview — chạy đồng bộ để đảm bảo SDK bắt được view context ngay lập tức
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.VNPT && typeof window.VNPT.q !== 'undefined') {
-      window.VNPT.q.push(['track_pageview', location.pathname]);
-    }
+    if (location.pathname === '/') return; // Bỏ qua trang chủ, index.tsx sẽ tự lo virtual path
+    
+    try {
+      if (window.VNPT?.q) {
+        window.VNPT.q.push(['track_pageview', location.pathname]);
+      }
+    } catch (_) {} // never let tracking crash the app
   }, [location.pathname]);
 
   return (

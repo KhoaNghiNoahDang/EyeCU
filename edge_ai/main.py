@@ -26,23 +26,44 @@ drawing = False
 ix, iy = -1, -1
 temp_roi = None
 
+bed_roi = None
+drawing_bed = False
+ix_bed, iy_bed = -1, -1
+temp_bed_roi = None
+
 def draw_roi(event, x, y, flags, param):
     global iv_roi, drawing, ix, iy, temp_roi
+    global bed_roi, drawing_bed, ix_bed, iy_bed, temp_bed_roi
+    
     if event == cv2.EVENT_LBUTTONDOWN:
         drawing = True
         ix, iy = x, y
         temp_roi = None
+    elif event == cv2.EVENT_RBUTTONDOWN:
+        drawing_bed = True
+        ix_bed, iy_bed = x, y
+        temp_bed_roi = None
     elif event == cv2.EVENT_MOUSEMOVE:
         if drawing:
             temp_roi = (min(ix, x), min(iy, y), abs(x - ix), abs(y - iy))
+        if drawing_bed:
+            temp_bed_roi = (min(ix_bed, x), min(iy_bed, y), abs(x - ix_bed), abs(y - iy_bed))
     elif event == cv2.EVENT_LBUTTONUP:
         drawing = False
         w = abs(x - ix)
         h = abs(y - iy)
         if w > 10 and h > 10:
             iv_roi = (min(ix, x), min(iy, y), w, h)
-            print(f"[INFO] Da cap nhat ROI moi: {iv_roi}")
+            print(f"[INFO] Da cap nhat IV ROI moi: {iv_roi}")
         temp_roi = None
+    elif event == cv2.EVENT_RBUTTONUP:
+        drawing_bed = False
+        w = abs(x - ix_bed)
+        h = abs(y - iy_bed)
+        if w > 10 and h > 10:
+            bed_roi = (min(ix_bed, x), min(iy_bed, y), w, h)
+            print(f"[INFO] Da cap nhat BED ROI moi: {bed_roi}")
+        temp_bed_roi = None
 
 def ws_worker():
     while True:
@@ -142,7 +163,7 @@ def main():
     # SAU KHI DANG KY XONG moi bat dau doc tin nhan rac de tranh nuot mat ROOM_ASSIGNED
     threading.Thread(target=ws_reader, args=(ws,), daemon=True).start()
 
-    global iv_roi
+    global iv_roi, bed_roi
     
     cam = int(CAMERA_SOURCE) if CAMERA_SOURCE.isdigit() else CAMERA_SOURCE
     cap = cv2.VideoCapture(cam)
@@ -153,7 +174,7 @@ def main():
     
     cv2.namedWindow("EyeCU - Live Camera")
     cv2.setMouseCallback("EyeCU - Live Camera", draw_roi)
-    print("[INFO] Bam giu chuot tren cua so 'EyeCU - Live Camera' roi keo de khoanh vung binh truyen dich. Nhan Q de thoat.")
+    print("[INFO] Chuot TRAI: Ve binh truyen dich. Chuot PHAI: Ve Vung Giuong (Safe Zone). Nhan Q de thoat.")
 
     audio_detector.start()
 
@@ -204,16 +225,34 @@ def main():
                 all_results.append(landmarks)
                 
                 if features is not None:
-                    fall_flag, fall_prob, person_id = predict_fall(features, landmarks)
+                    fall_flag, fall_prob, fall_score, person_id = predict_fall(features, landmarks)
                     if fall_prob > max_fall_prob:
                         max_fall_prob = fall_prob
-                    # Stage 2 xac nhan → fall_flag = True moi gui canh bao
-                    if fall_flag:
-                        is_falling = True
-                    # Audio fusion: chi ho tro khi am thanh THAT SU lon (> 70%)
-                    # Tranh bao nham do tieng dong binh thuong trong benh vien
-                    elif fall_prob > 0.70 and audio_triggered:
-                        is_falling = True
+                        
+                    # LOP 1 (Khong gian): Kiem tra xem nguoi co nam trong Bed ROI khong
+                    is_in_bed = False
+                    if bed_roi is not None:
+                        bx, by, bw, bh = bed_roi
+                        # Lay toa do trung tam cua bounding box nguoi benh
+                        px = bbox[0] + (bbox[2] - bbox[0]) / 2
+                        py = bbox[1] + (bbox[3] - bbox[1]) / 2
+                        if bx < px < bx + bw and by < py < by + bh:
+                            is_in_bed = True
+
+                    # Logic ket hop 3 Lop (Khong gian + Dong hoc + Am thanh)
+                    if is_in_bed:
+                        # Neu nguoi dang o trong giuong, HỦY canh bao.
+                        # NGoai le duy nhat: Diem rat cao (>90) va co am thanh va dap rat lon
+                        if fall_flag and audio_triggered and fall_score > 90:
+                            is_falling = True 
+                    else:
+                        # Nam ngoai giuong:
+                        # Stage 2 xac nhan (Tong diem > 80) → gui canh bao
+                        if fall_flag:
+                            is_falling = True
+                        # Audio fusion: Diem > 60 va co am thanh lon (roi nhanh + tieng dong) => bao dong ngay
+                        elif fall_score > 60 and audio_triggered:
+                            is_falling = True
 
         # Buoc 2: Xu ly rieng tu va hien thi khung xuong
         if is_falling:
@@ -262,6 +301,16 @@ def main():
                         iv_detector.alert_triggered = True
                     except queue.Full:
                         pass
+        
+        # Buoc 3.5: Ve vung giuong (Safe Zone) len man hinh
+        if temp_bed_roi is not None:
+            tx, ty, tw, th = temp_bed_roi
+            cv2.rectangle(display_frame, (tx, ty), (tx+tw, ty+th), (0, 255, 0), 2)
+            cv2.putText(display_frame, "Drawing Bed...", (tx, ty-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        elif bed_roi is not None:
+            bx, by, bw, bh = bed_roi
+            cv2.rectangle(display_frame, (bx, by), (bx+bw, by+bh), (0, 255, 0), 2)
+            cv2.putText(display_frame, "SAFE ZONE (BED)", (bx, by-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
         
         # Buoc 4: Gui canh bao NGA (da qua Stage 2 xac nhan)
         if is_falling:
