@@ -1,0 +1,1295 @@
+{
+  "summary": {
+    "total": 100,
+    "detected": 85,
+    "vehicle_only": 11,
+    "missed": 4,
+    "errors": 0,
+    "detection_rate_pct": 85.0,
+    "vehicle_detection_rate_pct": 96.0,
+    "avg_vehicle_confidence_pct": 90.5,
+    "latency_avg_ms": 3339,
+    "latency_min_ms": 2256,
+    "latency_max_ms": 4990
+  },
+  "results": [
+    {
+      "image": "1.1.PNG",
+      "detected": false,
+      "plate": null,
+      "vehicle_prob": 0.9418,
+      "lp_prob": 0.2153,
+      "error": null,
+      "latency_ms": 3112,
+      "sv_status": "OK",
+      "vehicle_detected": true
+    },
+    {
+      "image": "1.jpg",
+      "detected": false,
+      "plate": null,
+      "vehicle_prob": 0.8819,
+      "lp_prob": 0.2153,
+      "error": null,
+      "latency_ms": 2755,
+      "sv_status": "OK",
+      "vehicle_detected": true
+    },
+    {
+      "image": "10.jpg",
+      "detected": true,
+      "plate": "81AA04892",
+      "vehicle_prob": 0,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3413,
+      "sv_status": "OK",
+      "all_plates": [
+        "81AA04892",
+        "81K53579"
+      ]
+    },
+    {
+      "image": "11.jpg",
+      "detected": false,
+      "plate": null,
+      "vehicle_prob": 0.8619,
+      "lp_prob": 0.2153,
+      "error": null,
+      "latency_ms": 3824,
+      "sv_status": "OK",
+      "vehicle_detected": true
+    },
+    {
+      "image": "12.jpg",
+      "detected": true,
+      "plate": "49E164481",
+      "vehicle_prob": 0,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3242,
+      "sv_status": "OK",
+      "all_plates": [
+        "49E164481",
+        "86B137449"
+      ]
+    },
+    {
+      "image": "13.jpg",
+      "detected": false,
+      "plate": null,
+      "vehicle_prob": 0.8812,
+      "lp_prob": 0.2153,
+      "error": null,
+      "latency_ms": 3555,
+      "sv_status": "OK",
+      "vehicle_detected": true
+    },
+    {
+      "image": "14.jpg",
+      "detected": false,
+      "plate": null,
+      "vehicle_prob": 0.8596,
+      "lp_prob": 0.2153,
+      "error": null,
+      "latency_ms": 2885,
+      "sv_status": "OK",
+      "vehicle_detected": true
+    },
+    {
+      "image": "15.jpg",
+      "detected": true,
+      "plate": "47K117349",
+      "vehicle_prob": 0.8171,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3209,
+      "sv_status": "OK",
+      "all_plates": [
+        "47K117349",
+        "78H104652"
+      ]
+    },
+    {
+      "image": "16.jpg",
+      "detected": true,
+      "plate": "84B136217",
+      "vehicle_prob": 0.8676,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3944,
+      "sv_status": "OK",
+      "all_plates": [
+        "84B136217"
+      ]
+    },
+    {
+      "image": "17.jpg",
+      "detected": true,
+      "plate": "84B136217",
+      "vehicle_prob": 0.9105,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 4253,
+      "sv_status": "OK",
+      "all_plates": [
+        "84B136217"
+      ]
+    },
+    {
+      "image": "19.jpg",
+      "detected": true,
+      "plate": "60H0008",
+      "vehicle_prob": 0,
+      "lp_prob": 0.2153,
+      "error": null,
+      "latency_ms": 4017,
+      "sv_status": "OK",
+      "all_plates": [
+        "60H0008"
+      ]
+    },
+    {
+      "image": "2.1.png",
+      "detected": false,
+      "plate": null,
+      "vehicle_prob": 0,
+      "lp_prob": 0.8174,
+      "error": null,
+      "latency_ms": 2527,
+      "sv_status": "OK",
+      "vehicle_detected": false
+    },
+    {
+      "image": "2.jpg",
+      "detected": false,
+      "plate": null,
+      "vehicle_prob": 0.926,
+      "lp_prob": 0.2153,
+      "error": null,
+      "latency_ms": 3082,
+      "sv_status": "OK",
+      "vehicle_detected": true
+    },
+    {
+      "image": "20.jpg",
+      "detected": false,
+      "plate": null,
+      "vehicle_prob": 0.9147,
+      "lp_prob": 0.2153,
+      "error": null,
+      "latency_ms": 3855,
+      "sv_status": "OK",
+      "vehicle_detected": true
+    },
+    {
+      "image": "21.jpg",
+      "detected": true,
+      "plate": "51F70804",
+      "vehicle_prob": 0.9458,
+      "lp_prob": 0.9712,
+      "error": null,
+      "latency_ms": 2779,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F70804"
+      ]
+    },
+    {
+      "image": "22.jpg",
+      "detected": false,
+      "plate": null,
+      "vehicle_prob": 0,
+      "lp_prob": 0.2206,
+      "error": null,
+      "latency_ms": 3476,
+      "sv_status": "OK",
+      "vehicle_detected": false
+    },
+    {
+      "image": "3.jpg",
+      "detected": true,
+      "plate": "66P189575",
+      "vehicle_prob": 0,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3374,
+      "sv_status": "OK",
+      "all_plates": [
+        "66P189575",
+        "75H135792",
+        "84B136217"
+      ]
+    },
+    {
+      "image": "8.1.jpg",
+      "detected": true,
+      "plate": "51G79984",
+      "vehicle_prob": 0.955,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3022,
+      "sv_status": "OK",
+      "all_plates": [
+        "51G79984",
+        "51G79984"
+      ]
+    },
+    {
+      "image": "9.1_0.jpg",
+      "detected": true,
+      "plate": "51F70804",
+      "vehicle_prob": 0.9407,
+      "lp_prob": 0.999,
+      "error": null,
+      "latency_ms": 3957,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F70804"
+      ]
+    },
+    {
+      "image": "9.2.jpg",
+      "detected": true,
+      "plate": "60A55655",
+      "vehicle_prob": 0.938,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3384,
+      "sv_status": "OK",
+      "all_plates": [
+        "60A55655"
+      ]
+    },
+    {
+      "image": "9.jpg",
+      "detected": false,
+      "plate": null,
+      "vehicle_prob": 0.853,
+      "lp_prob": 0.9932,
+      "error": null,
+      "latency_ms": 3247,
+      "sv_status": "OK",
+      "vehicle_detected": true
+    },
+    {
+      "image": "carlong_0001.png",
+      "detected": true,
+      "plate": "51G10096",
+      "vehicle_prob": 0.8631,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3216,
+      "sv_status": "OK",
+      "all_plates": [
+        "51G10096"
+      ]
+    },
+    {
+      "image": "carlong_0002.png",
+      "detected": true,
+      "plate": "51G10096",
+      "vehicle_prob": 0.8825,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 2936,
+      "sv_status": "OK",
+      "all_plates": [
+        "51G10096"
+      ]
+    },
+    {
+      "image": "carlong_0003.png",
+      "detected": true,
+      "plate": "51A65474",
+      "vehicle_prob": 0.9053,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 2648,
+      "sv_status": "OK",
+      "all_plates": [
+        "51A65474"
+      ]
+    },
+    {
+      "image": "carlong_0005.png",
+      "detected": true,
+      "plate": "51G51936",
+      "vehicle_prob": 0.9324,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3828,
+      "sv_status": "OK",
+      "all_plates": [
+        "51G51936"
+      ]
+    },
+    {
+      "image": "carlong_0006.png",
+      "detected": true,
+      "plate": "51G51936",
+      "vehicle_prob": 0.9117,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3241,
+      "sv_status": "OK",
+      "all_plates": [
+        "51G51936"
+      ]
+    },
+    {
+      "image": "carlong_0007.png",
+      "detected": true,
+      "plate": "51A64826",
+      "vehicle_prob": 0.8799,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3227,
+      "sv_status": "OK",
+      "all_plates": [
+        "51A64826"
+      ]
+    },
+    {
+      "image": "carlong_0008.png",
+      "detected": true,
+      "plate": "51F86988",
+      "vehicle_prob": 0.8013,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3993,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F86988"
+      ]
+    },
+    {
+      "image": "carlong_0009.png",
+      "detected": true,
+      "plate": "51F86988",
+      "vehicle_prob": 0.8653,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3416,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F86988"
+      ]
+    },
+    {
+      "image": "carlong_0011.png",
+      "detected": true,
+      "plate": "52Y6490",
+      "vehicle_prob": 0.9285,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3381,
+      "sv_status": "OK",
+      "all_plates": [
+        "52Y6490",
+        "50F37017"
+      ]
+    },
+    {
+      "image": "carlong_0012.png",
+      "detected": true,
+      "plate": "51G49524",
+      "vehicle_prob": 0.9039,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3850,
+      "sv_status": "OK",
+      "all_plates": [
+        "51G49524"
+      ]
+    },
+    {
+      "image": "carlong_0013.png",
+      "detected": true,
+      "plate": "51A96141",
+      "vehicle_prob": 0.9078,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3872,
+      "sv_status": "OK",
+      "all_plates": [
+        "51A96141"
+      ]
+    },
+    {
+      "image": "carlong_0014.png",
+      "detected": true,
+      "plate": "51F79512",
+      "vehicle_prob": 0.9423,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3545,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F79512"
+      ]
+    },
+    {
+      "image": "carlong_0015.png",
+      "detected": true,
+      "plate": "51F79512",
+      "vehicle_prob": 0.9259,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3663,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F79512"
+      ]
+    },
+    {
+      "image": "carlong_0016.png",
+      "detected": true,
+      "plate": "29A51796",
+      "vehicle_prob": 0.875,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3364,
+      "sv_status": "OK",
+      "all_plates": [
+        "29A51796"
+      ]
+    },
+    {
+      "image": "carlong_0017.png",
+      "detected": true,
+      "plate": "29A51796",
+      "vehicle_prob": 0.8325,
+      "lp_prob": 0.998,
+      "error": null,
+      "latency_ms": 2772,
+      "sv_status": "OK",
+      "all_plates": [
+        "29A51796"
+      ]
+    },
+    {
+      "image": "carlong_0018.png",
+      "detected": true,
+      "plate": "51F68784",
+      "vehicle_prob": 0.9163,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3078,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F68784"
+      ]
+    },
+    {
+      "image": "carlong_0020.png",
+      "detected": true,
+      "plate": "30N4616",
+      "vehicle_prob": 0.8733,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 2798,
+      "sv_status": "OK",
+      "all_plates": [
+        "30N4616",
+        "30N4616"
+      ]
+    },
+    {
+      "image": "carlong_0021.png",
+      "detected": true,
+      "plate": "48A02866",
+      "vehicle_prob": 0.8649,
+      "lp_prob": 0.9902,
+      "error": null,
+      "latency_ms": 3083,
+      "sv_status": "OK",
+      "all_plates": [
+        "48A02866"
+      ]
+    },
+    {
+      "image": "carlong_0023.png",
+      "detected": true,
+      "plate": "51G22807",
+      "vehicle_prob": 0,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3366,
+      "sv_status": "OK",
+      "all_plates": [
+        "51G22807"
+      ]
+    },
+    {
+      "image": "carlong_0024.png",
+      "detected": true,
+      "plate": "51G49539",
+      "vehicle_prob": 0.9172,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3098,
+      "sv_status": "OK",
+      "all_plates": [
+        "51G49539"
+      ]
+    },
+    {
+      "image": "carlong_0025.png",
+      "detected": true,
+      "plate": "51G49539",
+      "vehicle_prob": 0.9415,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3411,
+      "sv_status": "OK",
+      "all_plates": [
+        "51G49539"
+      ]
+    },
+    {
+      "image": "carlong_0026.png",
+      "detected": true,
+      "plate": "43A18650",
+      "vehicle_prob": 0.8913,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3389,
+      "sv_status": "OK",
+      "all_plates": [
+        "43A18650"
+      ]
+    },
+    {
+      "image": "carlong_0027.png",
+      "detected": true,
+      "plate": "43A18650",
+      "vehicle_prob": 0.9023,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3402,
+      "sv_status": "OK",
+      "all_plates": [
+        "43A18650"
+      ]
+    },
+    {
+      "image": "carlong_0028.png",
+      "detected": true,
+      "plate": "51F73420",
+      "vehicle_prob": 0.9278,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3060,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F73420"
+      ]
+    },
+    {
+      "image": "carlong_0029.png",
+      "detected": true,
+      "plate": "51F73420",
+      "vehicle_prob": 0.8268,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3370,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F73420"
+      ]
+    },
+    {
+      "image": "carlong_0030.png",
+      "detected": true,
+      "plate": "47A06546",
+      "vehicle_prob": 0.9649,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3091,
+      "sv_status": "OK",
+      "all_plates": [
+        "47A06546"
+      ]
+    },
+    {
+      "image": "carlong_0031.png",
+      "detected": true,
+      "plate": "47A06546",
+      "vehicle_prob": 0.9472,
+      "lp_prob": 0.999,
+      "error": null,
+      "latency_ms": 2808,
+      "sv_status": "OK",
+      "all_plates": [
+        "47A06546"
+      ]
+    },
+    {
+      "image": "carlong_0033.png",
+      "detected": true,
+      "plate": "51F89357",
+      "vehicle_prob": 0,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3389,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F89357"
+      ]
+    },
+    {
+      "image": "carlong_0034.png",
+      "detected": true,
+      "plate": "51A64826",
+      "vehicle_prob": 0.8618,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3020,
+      "sv_status": "OK",
+      "all_plates": [
+        "51A64826"
+      ]
+    },
+    {
+      "image": "carlong_0036.png",
+      "detected": true,
+      "plate": "51F86988",
+      "vehicle_prob": 0.9326,
+      "lp_prob": 0.998,
+      "error": null,
+      "latency_ms": 2697,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F86988"
+      ]
+    },
+    {
+      "image": "carlong_0037.png",
+      "detected": true,
+      "plate": "51F86988",
+      "vehicle_prob": 0,
+      "lp_prob": 0.9961,
+      "error": null,
+      "latency_ms": 3374,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F86988"
+      ]
+    },
+    {
+      "image": "carlong_0038.png",
+      "detected": true,
+      "plate": "52Y6490",
+      "vehicle_prob": 0.8508,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3104,
+      "sv_status": "OK",
+      "all_plates": [
+        "52Y6490"
+      ]
+    },
+    {
+      "image": "carlong_0039.png",
+      "detected": true,
+      "plate": "52Y6490",
+      "vehicle_prob": 0,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 2785,
+      "sv_status": "OK",
+      "all_plates": [
+        "52Y6490"
+      ]
+    },
+    {
+      "image": "carlong_0041.png",
+      "detected": false,
+      "plate": null,
+      "vehicle_prob": 0.9459,
+      "lp_prob": 0.4706,
+      "error": null,
+      "latency_ms": 3937,
+      "sv_status": "OK",
+      "vehicle_detected": true
+    },
+    {
+      "image": "carlong_0043.png",
+      "detected": false,
+      "plate": null,
+      "vehicle_prob": 0,
+      "lp_prob": 0,
+      "error": null,
+      "latency_ms": 3053,
+      "sv_status": "OK",
+      "vehicle_detected": false
+    },
+    {
+      "image": "carlong_0044.png",
+      "detected": true,
+      "plate": "51F04275",
+      "vehicle_prob": 0.8611,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 2706,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F04275"
+      ]
+    },
+    {
+      "image": "carlong_0045.png",
+      "detected": true,
+      "plate": "51A96141",
+      "vehicle_prob": 0,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3729,
+      "sv_status": "OK",
+      "all_plates": [
+        "51A96141"
+      ]
+    },
+    {
+      "image": "carlong_0046.png",
+      "detected": true,
+      "plate": "51F79512",
+      "vehicle_prob": 0.9203,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3782,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F79512"
+      ]
+    },
+    {
+      "image": "carlong_0048.png",
+      "detected": true,
+      "plate": "51F68784",
+      "vehicle_prob": 0.9399,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3500,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F68784"
+      ]
+    },
+    {
+      "image": "carlong_0049.png",
+      "detected": true,
+      "plate": "51F68784",
+      "vehicle_prob": 0,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3946,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F68784"
+      ]
+    },
+    {
+      "image": "carlong_0052.png",
+      "detected": true,
+      "plate": "48A02866",
+      "vehicle_prob": 0.8225,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 4178,
+      "sv_status": "OK",
+      "all_plates": [
+        "48A02866"
+      ]
+    },
+    {
+      "image": "carlong_0053.png",
+      "detected": true,
+      "plate": "48A02866",
+      "vehicle_prob": 0,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3222,
+      "sv_status": "OK",
+      "all_plates": [
+        "48A02866"
+      ]
+    },
+    {
+      "image": "carlong_0054.png",
+      "detected": true,
+      "plate": "51G49539",
+      "vehicle_prob": 0,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3076,
+      "sv_status": "OK",
+      "all_plates": [
+        "51G49539"
+      ]
+    },
+    {
+      "image": "carlong_0059.png",
+      "detected": true,
+      "plate": "51G21670",
+      "vehicle_prob": 0.9463,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 2805,
+      "sv_status": "OK",
+      "all_plates": [
+        "51G21670"
+      ]
+    },
+    {
+      "image": "carlong_0060.png",
+      "detected": false,
+      "plate": null,
+      "vehicle_prob": 0.9463,
+      "lp_prob": 0.5584,
+      "error": null,
+      "latency_ms": 2517,
+      "sv_status": "OK",
+      "vehicle_detected": true
+    },
+    {
+      "image": "carlong_0061.png",
+      "detected": true,
+      "plate": "51A05227",
+      "vehicle_prob": 0.9279,
+      "lp_prob": 0.998,
+      "error": null,
+      "latency_ms": 3995,
+      "sv_status": "OK",
+      "all_plates": [
+        "51A05227"
+      ]
+    },
+    {
+      "image": "carlong_0062.png",
+      "detected": true,
+      "plate": "51A05227",
+      "vehicle_prob": 0.809,
+      "lp_prob": 0.999,
+      "error": null,
+      "latency_ms": 3387,
+      "sv_status": "OK",
+      "all_plates": [
+        "51A05227"
+      ]
+    },
+    {
+      "image": "carlong_0063.png",
+      "detected": true,
+      "plate": "51G21670",
+      "vehicle_prob": 0.8219,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3372,
+      "sv_status": "OK",
+      "all_plates": [
+        "51G21670"
+      ]
+    },
+    {
+      "image": "carlong_0064.png",
+      "detected": true,
+      "plate": "51G21670",
+      "vehicle_prob": 0,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 4188,
+      "sv_status": "OK",
+      "all_plates": [
+        "51G21670"
+      ]
+    },
+    {
+      "image": "carlong_0066.png",
+      "detected": true,
+      "plate": "51A01204",
+      "vehicle_prob": 0.9383,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3587,
+      "sv_status": "OK",
+      "all_plates": [
+        "51A01204"
+      ]
+    },
+    {
+      "image": "carlong_0068.png",
+      "detected": true,
+      "plate": "51F06948",
+      "vehicle_prob": 0,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3526,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F06948"
+      ]
+    },
+    {
+      "image": "carlong_0070.png",
+      "detected": true,
+      "plate": "51G39466",
+      "vehicle_prob": 0.9123,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 4272,
+      "sv_status": "OK",
+      "all_plates": [
+        "51G39466"
+      ]
+    },
+    {
+      "image": "carlong_0071.png",
+      "detected": true,
+      "plate": "51F07973",
+      "vehicle_prob": 0.901,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3684,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F07973"
+      ]
+    },
+    {
+      "image": "carlong_0072.png",
+      "detected": true,
+      "plate": "51F07973",
+      "vehicle_prob": 0,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3565,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F07973"
+      ]
+    },
+    {
+      "image": "carlong_0073.png",
+      "detected": true,
+      "plate": "51G49160",
+      "vehicle_prob": 0.9397,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 2256,
+      "sv_status": "OK",
+      "all_plates": [
+        "51G49160"
+      ]
+    },
+    {
+      "image": "carlong_0074.png",
+      "detected": true,
+      "plate": "51F61712",
+      "vehicle_prob": 0,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 4990,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F61712"
+      ]
+    },
+    {
+      "image": "carlong_0076.png",
+      "detected": true,
+      "plate": "48A05177",
+      "vehicle_prob": 0.947,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 4416,
+      "sv_status": "OK",
+      "all_plates": [
+        "48A05177"
+      ]
+    },
+    {
+      "image": "carlong_0077.png",
+      "detected": true,
+      "plate": "51F76354",
+      "vehicle_prob": 0.9189,
+      "lp_prob": 0.999,
+      "error": null,
+      "latency_ms": 2458,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F76354"
+      ]
+    },
+    {
+      "image": "carlong_0078.png",
+      "detected": true,
+      "plate": "51F88270",
+      "vehicle_prob": 0.9058,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3179,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F88270"
+      ]
+    },
+    {
+      "image": "carlong_0079.png",
+      "detected": true,
+      "plate": "51F88270",
+      "vehicle_prob": 0.9061,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 2901,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F88270"
+      ]
+    },
+    {
+      "image": "carlong_0080.png",
+      "detected": true,
+      "plate": "56S4698",
+      "vehicle_prob": 0,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 2615,
+      "sv_status": "OK",
+      "all_plates": [
+        "56S4698"
+      ]
+    },
+    {
+      "image": "carlong_0081.png",
+      "detected": true,
+      "plate": "51F63034",
+      "vehicle_prob": 0.9401,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3480,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F63034"
+      ]
+    },
+    {
+      "image": "carlong_0082.png",
+      "detected": true,
+      "plate": "51F63034",
+      "vehicle_prob": 0.9442,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3212,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F63034"
+      ]
+    },
+    {
+      "image": "carlong_0083.png",
+      "detected": false,
+      "plate": null,
+      "vehicle_prob": 0,
+      "lp_prob": 0.332,
+      "error": null,
+      "latency_ms": 2911,
+      "sv_status": "OK",
+      "vehicle_detected": false
+    },
+    {
+      "image": "carlong_0084.png",
+      "detected": true,
+      "plate": "52Y6490",
+      "vehicle_prob": 0.946,
+      "lp_prob": 0.999,
+      "error": null,
+      "latency_ms": 3817,
+      "sv_status": "OK",
+      "all_plates": [
+        "52Y6490"
+      ]
+    },
+    {
+      "image": "carlong_0085.png",
+      "detected": true,
+      "plate": "51F16159",
+      "vehicle_prob": 0,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3498,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F16159"
+      ]
+    },
+    {
+      "image": "carlong_0088.png",
+      "detected": true,
+      "plate": "61A22959",
+      "vehicle_prob": 0.95,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 2875,
+      "sv_status": "OK",
+      "all_plates": [
+        "61A22959"
+      ]
+    },
+    {
+      "image": "carlong_0089.png",
+      "detected": true,
+      "plate": "51G37675",
+      "vehicle_prob": 0,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3253,
+      "sv_status": "OK",
+      "all_plates": [
+        "51G37675"
+      ]
+    },
+    {
+      "image": "carlong_0090.png",
+      "detected": true,
+      "plate": "51A89714",
+      "vehicle_prob": 0.9488,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 2975,
+      "sv_status": "OK",
+      "all_plates": [
+        "51A89714"
+      ]
+    },
+    {
+      "image": "carlong_0091.png",
+      "detected": true,
+      "plate": "51A89714",
+      "vehicle_prob": 0.9216,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 2692,
+      "sv_status": "OK",
+      "all_plates": [
+        "51A89714"
+      ]
+    },
+    {
+      "image": "carlong_0092.png",
+      "detected": true,
+      "plate": "60A35981",
+      "vehicle_prob": 0.8968,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3508,
+      "sv_status": "OK",
+      "all_plates": [
+        "60A35981"
+      ]
+    },
+    {
+      "image": "carlong_0093.png",
+      "detected": true,
+      "plate": "51A72110",
+      "vehicle_prob": 0,
+      "lp_prob": 0.7966,
+      "error": null,
+      "latency_ms": 3202,
+      "sv_status": "OK",
+      "all_plates": [
+        "51A72110"
+      ]
+    },
+    {
+      "image": "carlong_0094.png",
+      "detected": false,
+      "plate": null,
+      "vehicle_prob": 0.9476,
+      "lp_prob": 0.2153,
+      "error": null,
+      "latency_ms": 2638,
+      "sv_status": "OK",
+      "vehicle_detected": true
+    },
+    {
+      "image": "carlong_0095.png",
+      "detected": true,
+      "plate": "51F24403",
+      "vehicle_prob": 0.9299,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3278,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F24403"
+      ]
+    },
+    {
+      "image": "carlong_0096.png",
+      "detected": true,
+      "plate": "51F24403",
+      "vehicle_prob": 0.914,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3009,
+      "sv_status": "OK",
+      "all_plates": [
+        "51F24403"
+      ]
+    },
+    {
+      "image": "carlong_0098.png",
+      "detected": true,
+      "plate": "51G37307",
+      "vehicle_prob": 0.9413,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 2725,
+      "sv_status": "OK",
+      "all_plates": [
+        "51G37307"
+      ]
+    },
+    {
+      "image": "carlong_0099.png",
+      "detected": true,
+      "plate": "51G31691",
+      "vehicle_prob": 0.8688,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 4199,
+      "sv_status": "OK",
+      "all_plates": [
+        "51G31691"
+      ]
+    },
+    {
+      "image": "carlong_0101.png",
+      "detected": true,
+      "plate": "51G31691",
+      "vehicle_prob": 0.9243,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3927,
+      "sv_status": "OK",
+      "all_plates": [
+        "51G31691"
+      ]
+    },
+    {
+      "image": "carlong_0102.png",
+      "detected": true,
+      "plate": "51G31691",
+      "vehicle_prob": 0.902,
+      "lp_prob": 1,
+      "error": null,
+      "latency_ms": 3648,
+      "sv_status": "OK",
+      "all_plates": [
+        "51G31691"
+      ]
+    }
+  ]
+}

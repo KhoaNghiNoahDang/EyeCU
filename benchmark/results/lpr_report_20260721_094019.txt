@@ -1,0 +1,28 @@
+============================================================
+         EyeCU LPR BENCHMARK REPORT
+  Thoi gian: 21/07/2026 09:40:19
+============================================================
+  Tong so anh test           : 20
+  Anh co bien so (GT)        : 20
+
+  --- DETECTION METRICS ---
+  True Positive  (TP)        : 0
+  False Positive (FP)        : 0
+  False Negative (FN)        : 20
+  True Negative  (TN)        : 0
+
+  Accuracy   = 0.0%
+  Precision  = 0%
+  Recall     = 0.0%
+  F1 Score   = 0%
+
+  --- OCR TEXT ACCURACY ---
+  (Khong co ground truth text trong dataset nay)
+
+  --- LATENCY (ms) ---
+  Trung binh : 7690 ms
+  Nhanh nhat : 2641 ms
+  Cham nhat  : 12531 ms
+
+  Loi API    : 20 / 20
+============================================================

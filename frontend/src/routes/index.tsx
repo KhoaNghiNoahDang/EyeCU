@@ -8132,7 +8132,7 @@ function VoiceView() {
         if (e.data.size > 0) audioChunksRef.current.push(e.data);
       };
 
-      mediaRecorder.start(1000); // collect chunks every 1s
+      mediaRecorder.start(); // let it collect all data natively without timeslice (fixes Safari/iOS bug)
       setRecording(true);
 
       // --- CHROME MAC MICROPHONE BUG ---

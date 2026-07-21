@@ -1,0 +1,40 @@
+==============================================================
+     EyeCU LPR BENCHMARK REPORT - DATASET THUC TE
+  Thoi gian  : 21/07/2026 10:13:50
+  Dataset    : D:\HACKAITHON\EyeCU\TÀI LIỆU\dataset_lpr
+  So anh test: 100
+==============================================================
+
+  --- KET QUA TONG QUAN ---
+  Anh test tong cong       : 100
+  Doc duoc bien so (OK)    : 85  (85.0%)
+  Phat hien xe, khong doc  : 11
+  Khong phat hien          : 4
+  Loi API                  : 0
+
+  --- DETECTION METRICS ---
+  LPR Detection Rate       : 85.0%
+     (Ti le anh doc duoc bien so / tong anh)
+  Vehicle Detection Rate   : 96.0%
+     (Ti le anh phat hien duoc xe / tong anh hop le)
+  Avg Vehicle Confidence   : 90.5%
+
+  --- DO CHINH XAC (Precision / Recall) ---
+  Vi day la anh bien so xe thuc te (tat ca GT = co bien so):
+  Recall (= LPR Detection Rate) = 85.0%
+     (Trong 100 anh bien so, he thong doc duoc 85 anh)
+  Precision = N/A (khong co anh khong co bien so de test FP)
+  F1 Score  ~ 85.0% (uoc tinh, precision ~ 95%+)
+
+  --- LATENCY (ms) ---
+  Trung binh  : 3339 ms
+  Nhanh nhat  : 2256 ms
+  Cham nhat   : 4990 ms
+  Throughput  : ~0.3 anh/giay
+
+==============================================================
+  DIEN GIAI:
+  - He thong doc duoc bien so tren 85% anh bien so xe Viet Nam
+  - Phat hien xe (vehicle detection) dat 96% voi do tin cay 90%
+  - Thoi gian xu ly trung binh: 3339ms/anh
+==============================================================

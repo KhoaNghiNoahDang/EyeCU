@@ -1,0 +1,9 @@
+STT,Đội,Ưu điểm,Nhược điểm,Lưu ý
+1,Làm này làm nọ,"- Hoàn thiện sản phẩm: Bản thuyết minh rất chỉn chu, hiểu biết sâu về ngành Y và kinh doanh. Tích hợp AI đa dạng
+- Trải nghiệm người dùng: Cách đo lường sự hài lòng bài bản (hiếm thấy ở sinh viên), giao diện thân thiện
+
+","- Hoàn thiện sản phẩm: Phạm vi chức năng quá lớn làm loãng trải nghiệm cốt lõi. Sử dụng số liệu tham khảo từ nước ngoài (độ chính xác, tỷ lệ giảm té ngã) thay vì tự đo đạc. Lõi tự làm mỏng (chủ yếu gọi API)
+- Trải nghiệm người dùng: Mâu thuẫn khi tuyên bố không lưu dữ liệu định danh nhưng lại yêu cầu CCCD và FaceID lúc đăng nhập
+- Khả năng triển khai: Chưa có số liệu hiệu năng khi mở rộng","- Tách bạch rõ ràng số liệu của đội tự đo và số liệu tham khảo
+- Trung thực với năng lực công nghệ lõi, nên công khai mã nguồn
+- Giải quyết triệt để điểm mâu thuẫn về yêu cầu xác thực định danh người dùng. Thiết kế lại luồng UX tập trung vào giá trị cốt lõi nhất"

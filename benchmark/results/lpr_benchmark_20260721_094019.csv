@@ -1,0 +1,21 @@
+idx,image,has_plate_gt,num_boxes_gt,ground_truth_text,detected,plate,plates,error,latency_ms,mode
+1,clip10_new_1.jpg,True,1,,False,,[],SmartVision: OK,3506,smartvision_failed
+2,clip10_new_10.jpg,True,2,,False,,[],SmartVision: OK,3198,smartvision_failed
+3,clip10_new_11.jpg,True,2,,False,,[],SmartVision: OK,2641,smartvision_failed
+4,clip10_new_12.jpg,True,1,,False,,[],SmartVision: OK,5691,smartvision_failed
+5,clip10_new_13.jpg,True,1,,False,,[],SmartVision: OK,5420,smartvision_failed
+6,clip10_new_14.jpg,True,1,,False,,[],SmartVision: OK,5135,smartvision_failed
+7,clip10_new_15.jpg,True,1,,False,,[],SmartVision: OK,12531,smartvision_failed
+8,clip10_new_16.jpg,True,2,,False,,[],SmartVision: OK,9184,smartvision_failed
+9,clip10_new_17.jpg,True,2,,False,,[],SmartVision: OK,8130,smartvision_failed
+10,clip10_new_18.jpg,True,2,,False,,[],SmartVision: OK,10069,smartvision_failed
+11,clip10_new_19.jpg,True,2,,False,,[],SmartVision: OK,10039,smartvision_failed
+12,clip10_new_2.jpg,True,1,,False,,[],SmartVision: OK,8843,smartvision_failed
+13,clip10_new_20.jpg,True,2,,False,,[],SmartVision: OK,10407,smartvision_failed
+14,clip10_new_21.jpg,True,2,,False,,[],SmartVision: OK,9323,smartvision_failed
+15,clip10_new_22.jpg,True,2,,False,,[],SmartVision: OK,8205,smartvision_failed
+16,clip10_new_23.jpg,True,2,,False,,[],SmartVision: OK,10398,smartvision_failed
+17,clip10_new_3.jpg,True,1,,False,,[],SmartVision: OK,9292,smartvision_failed
+18,clip10_new_4.jpg,True,1,,False,,[],SmartVision: OK,8214,smartvision_failed
+19,clip10_new_5.jpg,True,1,,False,,[],SmartVision: OK,7335,smartvision_failed
+20,clip10_new_6.jpg,True,1,,False,,[],SmartVision: OK,6241,smartvision_failed
