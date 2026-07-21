@@ -435,6 +435,9 @@ class VnptAPIClient:
                     "raw": data,
                 }
         except Exception as e:
+            import traceback
+            print(f"[ERROR VNPT STT] API VNPT gọi thất bại: {e}")
+            traceback.print_exc()
             return {
                 "transcript": "",
                 "raw": {"error": str(e)},
