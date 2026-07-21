@@ -431,11 +431,23 @@ async def process_voice_conversation(
 
 
     # ── Bước 2-4: Pyannote Diarization + VNPT STT cho từng đoạn ─────────────
-    diarization_result = await diarize_and_transcribe(
-        wav_bytes=wav_bytes,
-        vnpt_stt_func=vnpt_client.call_smartvoice_stt,
-        max_speakers=max_speakers,
-    )
+    # HOTFIX: Vô hiệu hóa mô hình Pyannote Diarization để tránh lỗi Timeout 100s trên Render.
+    # Force nhảy thẳng xuống bước 5 (VNPT STT fallback) để xử lý siêu tốc.
+    FORCE_FAST_STT = True
+    
+    if FORCE_FAST_STT:
+        diarization_result = {
+            "transcript_diarized": "",
+            "speakers_detected": 0,
+            "segments": [],
+            "error": "Bypassed Pyannote Diarization to prevent Render Timeout (100s limit).",
+        }
+    else:
+        diarization_result = await diarize_and_transcribe(
+            wav_bytes=wav_bytes,
+            vnpt_stt_func=vnpt_client.call_smartvoice_stt,
+            max_speakers=max_speakers,
+        )
 
     transcript_diarized = diarization_result.get("transcript_diarized", "")
     speakers_detected = diarization_result.get("speakers_detected", 0)
