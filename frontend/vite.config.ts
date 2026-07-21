@@ -20,6 +20,11 @@ export default defineConfig({
           target: 'ws://host.docker.internal:8000',
           ws: true,
           changeOrigin: true,
+        },
+        '/smartux-api': {
+          target: 'https://console-smartux.vnpt.vn',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/smartux-api/, '')
         }
       }
     }
