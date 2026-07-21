@@ -141,16 +141,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       // Performance: preconnect to backends
       { rel: "dns-prefetch", href: "https://ekyc.vnpt.vn" },
     ],
-    // VNPT SmartUX — khai báo config object trước khi SDK lôad
-    // Dùng head() scripts[] là cách duy nhất để inject script đúng trong TanStack Start SSR
+    // VNPT SmartUX — Tích hợp trực tiếp (Không qua Vercel proxy)
     scripts: [
       {
+        type: 'text/javascript',
         children: `
-          var VNPT = window.VNPT || {};
+          var VNPT = VNPT || {};
           VNPT.q = VNPT.q || [];
+      
           VNPT.app_key = '3d4e11b8bb1194a02ffbad65aca9e0dad528be55';
-          // Dùng proxy Vercel để vượt tường lửa CORS và chống Adblock
-          VNPT.url = window.location.origin + '/smartux-api';
+      
+          VNPT.url = 'https://console-smartux.vnpt.vn';
+      
           VNPT.q.push(['track_sessions']);
           VNPT.q.push(['track_pageview']);
           VNPT.q.push(['track_clicks']);
@@ -159,7 +161,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           VNPT.q.push(['track_links']);
           VNPT.q.push(['track_forms']);
           VNPT.q.push(['collect_from_forms']);
-          window.VNPT = VNPT;
+      
+          (function () {
+            const paths = ['https://console-smartux.vnpt.vn/sdk/web/core-track.js', 'https://console-smartux.vnpt.vn/sdk/web/minify.min.js'];
+            for (let i in paths) {
+                var cly = document.createElement('script'); cly.type = 'text/javascript';
+                cly.async = true;
+                cly.src = paths[i];
+                cly.onload = i == 0 ? function () { VNPT.init() } : function() { window.minify = require("html-minifier").minify; };
+                var s = document.getElementsByTagName('script')[0]; 
+                if (s && s.parentNode) {
+                  s.parentNode.insertBefore(cly, s);
+                } else {
+                  document.head.appendChild(cly);
+                }
+            }
+          })();
         `,
       },
     ],
@@ -171,41 +188,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 
-// VNPT SmartUX loader — chạy phía client sau khi component mount
-// Dùng useEffect vì:
-// 1. dangerouslySetInnerHTML trong <head> KHÔNG thực thi script (HTML5 spec)
-// 2. Script cần chạy sau khi DOM sẵn sàng (client-side only)
-function SmartUXLoader() {
-  useEffect(() => {
-    // Tránh load hai lần
-    if (document.getElementById('vnpt-smartux-sdk')) return;
-
-    const paths = [
-      window.location.origin + '/smartux-api/sdk/web/core-track.js',
-      window.location.origin + '/smartux-api/sdk/web/minify.min.js'
-    ];
-    for (let i = 0; i < paths.length; i++) {
-      const cly = document.createElement('script');
-      if (i === 0) cly.id = 'vnpt-smartux-sdk';
-      cly.type = 'text/javascript';
-      cly.async = true;
-      cly.src = paths[i];
-      cly.onload = i === 0 
-        ? function () { if (window.VNPT && typeof window.VNPT.init === 'function') window.VNPT.init(); } 
-        : function() { window.minify = require("html-minifier").minify; };
-      
-      const s = document.getElementsByTagName('script')[0];
-      if (s && s.parentNode) {
-        s.parentNode.insertBefore(cly, s);
-      } else {
-        document.head.appendChild(cly);
-      }
-    }
-  }, []); // chạy 1 lần duy nhất khi app mount
-
-  return null;
-}
-
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="vi">
@@ -213,7 +195,6 @@ function RootShell({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <SmartUXLoader />
         {children}
         <Scripts />
       </body>
