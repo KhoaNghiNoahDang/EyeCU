@@ -7,15 +7,15 @@ import time
 MODEL_PATH = Path(__file__).parent.parent / "models" / "fall_model.pkl"
 
 # ── Giai doan 1: Phat hien "nghi ngo nga" (Stage 1 - Suspicious) ─────────────
-WINDOW_SIZE          = 15    # Giam tu 20 xuong 15 (phan ung nhanh hon)
-FALL_RATIO_THRESHOLD = 0.50  # 50% frame vote "nga" la du
-PER_FRAME_THRESHOLD  = 0.75  # Nguong AI per-frame (tang do nhay)
+WINDOW_SIZE          = 10    # Toi uu voi model moi retrain
+FALL_RATIO_THRESHOLD = 0.30  # Chi can 30% frame vote la du
+PER_FRAME_THRESHOLD  = 0.60  # Nguong AI per-frame (ket qua thuc te tot nhat)
 FALL_LABEL           = 1
 
 # ── Giai doan 2: Xac nhan "nam yem tren san" (Stage 2 - Ground Confirmation) ─
-CONFIRMATION_DURATION    = 1.0   # Giam them tu 1.5s xuong 1.0s
-GROUND_HIP_Y_THRESHOLD   = 0.45  # Giam tu 0.65 xuong 0.45 (Bao phu ca nhung ca nga o xa camera)
-STANDING_HIP_Y_THRESHOLD = 0.35  # Giam tu 0.55 xuong 0.35
+CONFIRMATION_DURATION    = 0.3   # Nhanh hon - chi can 0.3s
+GROUND_HIP_Y_THRESHOLD   = 0.20  # Nguong hip_y ngang cam
+STANDING_HIP_Y_THRESHOLD = 0.10  
 
 # ── Rule-based fallback ─
 RULE_TORSO_ANGLE_MIN = 45.0  # Giam tu 55 xuong 45 do
@@ -191,8 +191,8 @@ def predict_fall(features: list, landmarks) -> tuple:
     score += min(40, int(fall_prob * 40))
     
     # 2. Kinematics Score (Max 30 diem)
-    # buffer_velocity > 0 nghia la dang rot xuong.
-    kinematic_score = min(30, int(max(0, buffer_velocity) * 60))
+    # Tang trong so van toc de bu lai goc cam0
+    kinematic_score = min(30, int(max(0, buffer_velocity) * 200))
     score += kinematic_score
     
     # 3. Immobility Score (Max 30 diem)
@@ -216,7 +216,7 @@ def predict_fall(features: list, landmarks) -> tuple:
     score += immobility_score
     
     # Quyen dinh cuoi cung: Tong diem > 60 la Nga (is_falling) thay vi 80
-    is_falling = score > 60
+    is_falling = score > 50
     
     if is_falling:
         print(f"[ALERT] Person {person_id}: XAC NHAN TÉ NGÃ! (Score: {score}/100 - AI:{int(fall_prob*40)}, Vel:{kinematic_score}, Time:{immobility_score})")
