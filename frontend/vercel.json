@@ -1,8 +1,1 @@
-{
-  "rewrites": [
-    {
-      "source": "/smartux-api/:match*",
-      "destination": "https://console-smartux.vnpt.vn/:match*"
-    }
-  ]
-}
+{}
