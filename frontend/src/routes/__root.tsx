@@ -138,47 +138,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "mask-icon", href: "/apple-touch-icon.png", color: "#88E8F2" },
       // iOS Splash screens (covers iPhone SE through iPhone 15 Pro Max)
       { rel: "apple-touch-startup-image", href: "/apple-touch-icon.png" },
-      // Performance: preconnect to backends
-      { rel: "dns-prefetch", href: "https://ekyc.vnpt.vn" },
-    ],
-    // VNPT SmartUX — Tích hợp trực tiếp (Không qua Vercel proxy)
-    scripts: [
-      {
-        type: 'text/javascript',
-        children: `
-          var VNPT = VNPT || {};
-          VNPT.q = VNPT.q || [];
-      
-          VNPT.app_key = '3d4e11b8bb1194a02ffbad65aca9e0dad528be55';
-      
-          VNPT.url = 'https://console-smartux.vnpt.vn';
-      
-          VNPT.q.push(['track_sessions']);
-          VNPT.q.push(['track_pageview']);
-          VNPT.q.push(['track_clicks']);
-          VNPT.q.push(['track_scrolls']);
-          VNPT.q.push(['track_errors']);
-          VNPT.q.push(['track_links']);
-          VNPT.q.push(['track_forms']);
-          VNPT.q.push(['collect_from_forms']);
-      
-          (function () {
-            const paths = ['https://console-smartux.vnpt.vn/sdk/web/core-track.js', 'https://console-smartux.vnpt.vn/sdk/web/minify.min.js'];
-            for (let i in paths) {
-                var cly = document.createElement('script'); cly.type = 'text/javascript';
-                cly.async = true;
-                cly.src = paths[i];
-                cly.onload = i == 0 ? function () { VNPT.init() } : function() { window.minify = require("html-minifier").minify; };
-                var s = document.getElementsByTagName('script')[0]; 
-                if (s && s.parentNode) {
-                  s.parentNode.insertBefore(cly, s);
-                } else {
-                  document.head.appendChild(cly);
-                }
-            }
-          })();
-        `,
-      },
     ],
   }),
   shellComponent: RootShell,
@@ -193,6 +152,52 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="vi">
       <head>
         <HeadContent />
+        <script
+          type="text/javascript"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.VNPT = window.VNPT || {};
+              window.VNPT.q = window.VNPT.q || [];
+              window.VNPT.app_key = '3d4e11b8bb1194a02ffbad65aca9e0dad528be55';
+              window.VNPT.url = 'https://console-smartux.vnpt.vn';
+              window.VNPT.q.push(['track_sessions']);
+              window.VNPT.q.push(['track_pageview']);
+              window.VNPT.q.push(['track_clicks']);
+              window.VNPT.q.push(['track_scrolls']);
+              window.VNPT.q.push(['track_errors']);
+              window.VNPT.q.push(['track_links']);
+              window.VNPT.q.push(['track_forms']);
+              window.VNPT.q.push(['collect_from_forms']);
+
+              (function () {
+                var paths = ['https://console-smartux.vnpt.vn/sdk/web/core-track.js', 'https://console-smartux.vnpt.vn/sdk/web/minify.min.js'];
+                for (var i = 0; i < paths.length; i++) {
+                    var cly = document.createElement('script'); 
+                    cly.type = 'text/javascript';
+                    cly.async = true;
+                    cly.src = paths[i];
+                    if (i === 0) {
+                      cly.onload = function () { 
+                        if (window.VNPT && typeof window.VNPT.init === 'function') window.VNPT.init(); 
+                      };
+                    } else {
+                      cly.onload = function() { 
+                        try {
+                          window.minify = require("html-minifier").minify; 
+                        } catch(e) {} 
+                      };
+                    }
+                    var s = document.getElementsByTagName('script')[0]; 
+                    if (s && s.parentNode) {
+                      s.parentNode.insertBefore(cly, s);
+                    } else {
+                      document.head.appendChild(cly);
+                    }
+                }
+              })();
+            `
+          }}
+        />
       </head>
       <body>
         {children}
