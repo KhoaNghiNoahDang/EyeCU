@@ -36,17 +36,6 @@ def _get_pipeline():
             "pyannote/speaker-diarization-3.1",
             token=token
         )
-        
-        import torch
-        if torch.backends.mps.is_available():
-            logger.info("[Diarization] Sử dụng Apple Silicon GPU (MPS) để tăng tốc Pyannote")
-            _pipeline.to(torch.device("mps"))
-        elif torch.cuda.is_available():
-            logger.info("[Diarization] Sử dụng NVIDIA GPU (CUDA) để tăng tốc Pyannote")
-            _pipeline.to(torch.device("cuda"))
-        else:
-            logger.info("[Diarization] Chạy Pyannote trên CPU (có thể chậm)")
-
         logger.info("[Diarization] Pipeline đã load thành công!")
         return _pipeline
     except Exception as e:
