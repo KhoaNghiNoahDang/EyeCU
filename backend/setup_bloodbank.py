@@ -1,13 +1,14 @@
 import os, sys, psycopg2, re
 from dotenv import load_dotenv
 
-load_dotenv('d:/HACKAITHON/demo_eyecu/backend/.env')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(BASE_DIR, '.env'))
 db_url = os.getenv('DATABASE_URL')
 if not db_url:
     print("ERROR: DATABASE_URL not found")
     sys.exit(1)
 
-SQL_FILE = 'd:/HACKAITHON/demo_eyecu/database/blood_bank_schema.sql'
+SQL_FILE = os.path.join(os.path.dirname(BASE_DIR), 'database', 'blood_bank_schema.sql')
 
 def run_sql():
     print("Connecting to Supabase to setup blood bank...")

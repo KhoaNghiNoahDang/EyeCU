@@ -1,7 +1,8 @@
 import os, sys, psycopg2
 from dotenv import load_dotenv
 
-load_dotenv('d:/HACKAITHON/demo_eyecu/backend/.env')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(BASE_DIR, '.env'))
 db_url = os.getenv('DATABASE_URL')
 conn = psycopg2.connect(db_url)
 cursor = conn.cursor()

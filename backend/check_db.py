@@ -1,6 +1,7 @@
 import os
 import sys
-sys.path.append('d:/HACKAITHON/demo_eyecu/backend')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(BASE_DIR)
 from app.db.database import SessionLocal
 from sqlalchemy import text
 
