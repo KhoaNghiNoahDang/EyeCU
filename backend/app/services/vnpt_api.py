@@ -287,6 +287,35 @@ class VnptAPIClient:
     # ── SmartVision: Nhận diện xe (LPR) ──────────────────────────
     async def call_smartvision_detect_vehicle(self, img_url: str) -> dict:
         """Đọc biển số xe cấp cứu vào cổng — trả về TẤT CẢ biển số trong ảnh."""
+        import base64 as _base64
+        import json as _json
+        import re as _re
+
+        def _decode_vnpt_response(raw: dict) -> dict:
+            """VNPT wrap response trong dataBase64 — cần decode trước khi parse."""
+            if "dataBase64" in raw:
+                try:
+                    inner = _json.loads(_base64.b64decode(raw["dataBase64"]).decode("utf-8"))
+                    return inner
+                except Exception:
+                    pass
+            return raw
+
+        def _extract_plate_from_text(text: str) -> list[str]:
+            """Dùng regex để bóc biển số từ text OCR (fallback khi SmartVision lỗi)."""
+            # Mẫu biển VN: 2 số + chữ cái + dấu cách/gạch + 3-5 số (có thể có dấu chấm)
+            patterns = [
+                r'\b(\d{2}[A-Za-z]\d?\s*[-.]?\s*\d{3}[.\-]?\d{0,2})\b',
+                r'\b(\d{2}[A-Za-z]\d?\s+\d{3}[.\-]?\d{0,2})\b',
+            ]
+            found = []
+            for pat in patterns:
+                for m in _re.finditer(pat, text, _re.IGNORECASE):
+                    p = m.group(1).strip()
+                    if p not in found:
+                        found.append(p)
+            return found
+
         try:
             async with httpx.AsyncClient(timeout=VNPT_TIMEOUT) as client:
                 resp = await client.post(
@@ -294,37 +323,71 @@ class VnptAPIClient:
                     json={"data": img_url},
                     headers=_smartvision_headers(),
                 )
-                data = resp.json()
+                raw_data = resp.json()
 
-                # Parse cấu trúc thật của VNPT: object.message.info.lpr
-                obj = data.get("object", {})
-                info = obj.get("message", {}).get("info", {})
-                lpr_list = info.get("lpr", [])
-                lp_probs = info.get("lp_probs", [])
+                # ── Bước 1: Decode dataBase64 wrapper (VNPT wrap tất cả response) ──
+                data = _decode_vnpt_response(raw_data)
 
-                # Lấy TẤT CẢ biển số hợp lệ (không rỗng), kèm confidence
-                valid_plates = [
-                    (p.strip(), prob)
-                    for p, prob in zip(lpr_list, lp_probs)
-                    if p and p.strip() and p.strip() not in ("Không rõ", "")
-                ]
+                # Kiểm tra INTERNAL_SERVER_ERROR từ SmartVision
+                sv_status = data.get("object", {}).get("status", "")
+                sv_failed = sv_status == "INTERNAL_SERVER_ERROR" or (
+                    not data.get("object", {}).get("message") and sv_status
+                )
 
-                if valid_plates:
-                    # Sắp xếp theo confidence giảm dần
-                    valid_plates.sort(key=lambda x: x[1], reverse=True)
-                    best_plate = valid_plates[0][0]
-                    all_plate_strings = [p for p, _ in valid_plates]
-                else:
-                    best_plate = "Không rõ"
-                    all_plate_strings = []
+                if not sv_failed:
+                    # ── Bước 2a: Parse cấu trúc thật object.message.info.lpr ──
+                    obj = data.get("object", {})
+                    msg = obj.get("message", {})
+                    info = msg.get("info", {}) if isinstance(msg, dict) else {}
+                    lpr_list = info.get("lpr", [])
+                    lp_probs = info.get("lp_probs", [])
 
-                return {
-                    "plate": best_plate,         # biển số tốt nhất (backward compat)
-                    "plates": all_plate_strings, # TẤT CẢ biển số trong ảnh
-                    "raw": data,
-                }
-        except Exception:
-            return {"plate": "Không rõ", "plates": [], "raw": {"error": "Detect vehicle exception"}}
+                    valid_plates = [
+                        (p.strip(), prob)
+                        for p, prob in zip(lpr_list, lp_probs)
+                        if p and p.strip() and p.strip() not in ("Không rõ", "")
+                    ]
+
+                    if valid_plates:
+                        valid_plates.sort(key=lambda x: x[1], reverse=True)
+                        best_plate = valid_plates[0][0]
+                        all_plate_strings = [p for p, _ in valid_plates]
+                        return {
+                            "plate": best_plate,
+                            "plates": all_plate_strings,
+                            "raw": raw_data,
+                        }
+
+                # ── Bước 2b: SmartVision thất bại → fallback SmartReader OCR ──
+                # Download ảnh từ CDN rồi OCR để bóc biển số bằng text recognition
+                print(f"[LPR] SmartVision INTERNAL_SERVER_ERROR — thử fallback SmartReader OCR")
+                try:
+                    # Download ảnh từ CDN URL
+                    async with httpx.AsyncClient(timeout=10) as dl:
+                        img_resp = await dl.get(img_url)
+                        if img_resp.status_code == 200:
+                            img_bytes = img_resp.content
+                            ocr_result = await self.call_smartreader_ocr(img_bytes, "plate.jpg")
+                            ocr_text = ocr_result.get("text", "")
+                            print(f"[LPR] OCR text: {ocr_text!r}")
+                            plates_from_ocr = _extract_plate_from_text(ocr_text)
+                            if plates_from_ocr:
+                                print(f"[LPR] Boc bien so tu OCR: {plates_from_ocr}")
+                                return {
+                                    "plate": plates_from_ocr[0],
+                                    "plates": plates_from_ocr,
+                                    "raw": {"mode": "ocr_fallback", "ocr_text": ocr_text},
+                                }
+                except Exception as ocr_ex:
+                    print(f"[LPR] OCR fallback failed: {ocr_ex}")
+
+                # Không đọc được
+                return {"plate": "Không rõ", "plates": [], "raw": raw_data}
+
+        except Exception as ex:
+            print(f"[LPR] Exception: {ex}")
+            return {"plate": "Không rõ", "plates": [], "raw": {"error": str(ex)}}
+
 
 
     # ── SmartBot: Chatbot hỗ trợ bệnh nhân ───────────────────────
