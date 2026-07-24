@@ -46,14 +46,14 @@ Mở file `backend/.env` bằng trình soạn thảo và điền các khóa API 
 # ====== CẤU HÌNH API BÊN THỨ 3 ======
 VNPT_ACCESS_TOKEN="nhập_access_token_vnpt_vào_đây"
 VNPT_TOKEN_ID="nhập_token_id_vnpt_vào_đây"
-GEMINI_API_KEY=AQ.Ab8RN6K1nPqeTTQan3vXw3zioWj2FOVRkTneDmgf49TzoBpHsw
-HUGGINGFACE_TOKEN=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
+GEMINI_API_KEY=
+HUGGINGFACE_TOKEN=
 
 # ====== CẤU HÌNH DATABASE & BẢO MẬT ======
 # Nếu chạy qua Docker, thông số Database thường được giữ nguyên
-DATABASE_URL=postgresql://postgres.tmjcsqwprlgqqzcubkeb:hackaithon2026%40@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres
+DATABASE_URL=
 PYTHON_VERSION=3.11.0
-SECRET_KEY=09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7
+SECRET_KEY=
 ```
 
 **Bước 3: Khởi chạy bằng Docker Compose**
